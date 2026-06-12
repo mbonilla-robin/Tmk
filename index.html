@@ -530,7 +530,7 @@
                                     className="text-xs font-bold py-1 bg-transparent border-0 cursor-pointer focus:outline-none focus:ring-0 text-zinc-655 font-sans"
                                   >
                                     {LISTA_ESTADOS_VALIDOS.map(opt => (
-                                      <option key={opt} value={opt} className="bg-white text-zinc-850">
+                                      <option key={opt} value={opt} className="bg-white text-zinc-855">
                                         {opt.substring(opt.indexOf(" ") + 1)}
                                       </option>
                                     ))}
@@ -1784,7 +1784,66 @@
         showToast(`Estilo cambiado a ${newTheme.toUpperCase()}`, "success");
       };
 
-      // FETCH DE DATOS: Deduplicación robusta de doble factor
+      // 🧹 RUTINA 1: Repara celdas de ID vacías en tu Google Sheet asociándolas por el campo "info" (título)
+      const ejecutarReparacionDeIds = async (reparaciones) => {
+        const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
+        if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here") || apiError) return;
+        
+        console.log(`[ROBIN REPARACIÓN] Reparando ${reparaciones.length} IDs vacíos directamente en las filas de Sheets...`);
+        for (const item of reparaciones) {
+          try {
+            await fetch(effectiveUrl, {
+              method: "POST", mode: "cors", redirect: "follow",
+              headers: { "Content-Type": "text/plain; charset=utf-8" },
+              body: JSON.stringify({
+                marca: item.tarea.marca,
+                idTarea: "", // Se envía vacío para que el Apps Script busque la fila usando la columna "info"
+                info: item.tarea.info,
+                campo: "idTarea",
+                valor: item.nuevoId
+              })
+            });
+            await new Promise(resolve => setTimeout(resolve, 300));
+          } catch (e) {
+            console.error("Fallo al escribir ID de respaldo en Google Sheets:", e);
+          }
+        }
+      };
+
+      // 🧹 RUTINA 2: Elimina físicamente las filas duplicadas en tu Google Sheet en segundo plano
+      const ejecutarPurgaDeDuplicados = async (duplicados) => {
+        const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
+        if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here") || apiError) return;
+
+        console.log(`[ROBIN PURGA] Eliminando ${duplicados.length} filas duplicadas detectadas en Sheets...`);
+        let purgadasExitosamente = 0;
+        
+        for (const t of duplicados) {
+          try {
+            await fetch(effectiveUrl, {
+              method: "POST", mode: "cors", redirect: "follow",
+              headers: { "Content-Type": "text/plain; charset=utf-8" },
+              body: JSON.stringify({
+                marca: t.marca,
+                idTarea: t.idTarea || "",
+                info: t.info,
+                categoria: t.categoria || "",
+                campo: "eliminar"
+              })
+            });
+            purgadasExitosamente++;
+            await new Promise(resolve => setTimeout(resolve, 400)); // Intervalo de seguridad anti-concurrencia
+          } catch (err) {
+            console.error("Fallo de red al purgar fila duplicada:", err);
+          }
+        }
+        
+        if (purgadasExitosamente > 0) {
+          showToast(`¡Base de datos saneada! Se eliminaron ${purgadasExitosamente} filas duplicadas de Google Sheets`, "success");
+        }
+      };
+
+      // FETCH DE DATOS: Agrupamiento Semántico y Filtro de Seguridad
       const fetchData = async (isBackground = false) => {
         if (!isBackground) setLoading(true);
         setSyncing(true);
@@ -1810,42 +1869,68 @@
           if (json.success && json.data) {
             const tareasValidas = json.data.filter(t => t.info && t.info.toString().trim() !== "");
             
-            // 1. REPARACIÓN DE IDs INESTABLES: Generar Hash Determinista si no existe ID en Sheets
-            const tareasConIdsEstables = tareasValidas.map((t) => {
-              let cleanId = t.idTarea ? t.idTarea.toString().trim() : "";
-              
-              // Si está vacío o es un timestamp corrupto del tipo "GMT" o "Venezuela":
-              if (cleanId === "" || cleanId.includes("GMT") || cleanId.includes("Venezuela") || (cleanId.includes("2026") && cleanId.length > 15)) {
-                // Creamos un ID determinista estable en base al contenido original (No volátil, no cambia con el index)
-                const contentSeed = `${t.marca || "GEN"}-${t.info || ""}-${t.deadline || ""}`;
+            // 1. Agrupamiento semántico por identidad de la tarea (marca + entregable + fecha límite)
+            const grupos = {};
+            tareasValidas.forEach(t => {
+              const key = `${t.marca || ""}|${t.info || ""}|${t.deadline || ""}`.toLowerCase().replace(/\s+/g, " ").trim();
+              if (!grupos[key]) {
+                grupos[key] = [];
+              }
+              grupos[key].push(t);
+            });
+
+            const deduplicadas = [];
+            const duplicadosParaBorrar = [];
+            const idsParaReparar = [];
+
+            // 2. Procesamiento de grupos para priorizar IDs válidos y descartar duplicaciones
+            Object.keys(grupos).forEach(key => {
+              const list = grupos[key];
+
+              // Puntuamos las tareas: Las que ya posean IDs reales de agencia toman máxima prioridad
+              const scoredList = list.map(t => {
+                let score = 0;
+                const id = t.idTarea ? String(t.idTarea).trim() : "";
+                if (id === "" || id.includes("GMT") || id.includes("Venezuela") || id.length > 15) {
+                  score = 0; // ID corrupto o vacío
+                } else if (id.startsWith("STB-") || id.startsWith("AUTO-")) {
+                  score = 1; // ID temporal
+                } else {
+                  score = 2; // ID original correcto (ej: SAN-1001)
+                }
+                return { task: t, score };
+              });
+
+              // Ordenamos descendente para que el mejor ID quede primero en la lista
+              scoredList.sort((a, b) => b.score - a.score);
+
+              const championObj = scoredList[0];
+              const champion = championObj.task;
+
+              // Generar Hash estable determinista únicamente si la celda está vacía en Sheets
+              let cleanId = champion.idTarea ? String(champion.idTarea).trim() : "";
+              if (cleanId === "" || cleanId.includes("GMT") || cleanId.includes("Venezuela") || cleanId.length > 15) {
+                const contentSeed = `${champion.marca || "GEN"}-${champion.info || ""}-${champion.deadline || ""}`;
                 let hash = 0;
                 for (let i = 0; i < contentSeed.length; i++) {
                   hash = ((hash << 5) - hash) + contentSeed.charCodeAt(i);
-                  hash |= 0; // Convertir a entero de 32 bits
+                  hash |= 0;
                 }
-                cleanId = `STB-${String(t.marca || "GEN").substring(0,3).toUpperCase()}-${Math.abs(hash)}`;
+                cleanId = `STB-${String(champion.marca || "GEN").substring(0,3).toUpperCase()}-${Math.abs(hash)}`;
+                
+                // Programamos la reparación del ID de esta fila en la hoja de cálculo
+                idsParaReparar.push({ tarea: champion, nuevoId: cleanId });
               }
-              return { ...t, idTarea: cleanId };
-            });
 
-            // 2. DEDUPLICADOR CLIENT-SIDE EXTREMO (Filtra duplicados reales del Google Sheet antes de renderizar)
-            const seenKeys = new Set();
-            const deduplicadas = [];
-            
-            tareasConIdsEstables.forEach(t => {
-              const idKey = t.idTarea;
-              const contentKey = `${t.marca || ""}_${t.info || ""}_${t.deadline || ""}`.toLowerCase().trim();
-              
-              // No permitimos duplicados ni por ID, ni por contenido exacto de la tarea
-              if (!seenKeys.has(idKey) && !seenKeys.has(contentKey)) {
-                seenKeys.add(idKey);
-                seenKeys.add(contentKey);
-                deduplicadas.push(t);
-              } else {
-                console.warn("Filtro de Seguridad ROBIN: Se detectó y descartó un entregable duplicado en memoria:", t);
+              deduplicadas.push({ ...champion, idTarea: cleanId });
+
+              // Todos los demás elementos de este grupo son filas repetidas en Google Sheets
+              for (let i = 1; i < scoredList.length; i++) {
+                duplicadosParaBorrar.push(scoredList[i].task);
               }
             });
 
+            // Actualizamos la UI inmediatamente con la lista 100% libre de duplicados
             setTareas(deduplicadas);
             
             if (json.marcasMetadata) {
@@ -1854,6 +1939,15 @@
             if (!isBackground) {
               showToast("Sincronizado con Google Sheets", "success");
             }
+
+            // 3. Ejecución de las rutinas de saneamiento físico en segundo plano
+            if (idsParaReparar.length > 0) {
+              ejecutarReparacionDeIds(idsParaReparar);
+            }
+            if (duplicadosParaBorrar.length > 0) {
+              ejecutarPurgaDeDuplicados(duplicadosParaBorrar);
+            }
+
           } else {
             throw new Error(json.error || "No se recibieron datos.");
           }
@@ -2094,9 +2188,10 @@
       };
 
       const registrarNuevaPersonaGlobal = (nombreCompleto) => {
-        const formateado = nombreCompleto.startsWith("@") ? nombreCompleto.trim() : "@" + nombreCompleto.trim();
-        if (formateado.length > 1 && !listaPersonas.includes(formateado)) {
-          const actualizadas = [...listaPersonas, formateado];
+        const formateado = pointerString => pointerString.startsWith("@") ? pointerString.trim() : "@" + pointerString.trim();
+        const finalName = formateado(nombreCompleto);
+        if (finalName.length > 1 && !listaPersonas.includes(finalName)) {
+          const actualizadas = [...listaPersonas, finalName];
           setListaPersonas(actualizadas);
           localStorage.setItem("robin_personas_v2", JSON.stringify(actualizadas));
         }
@@ -2962,14 +3057,14 @@
                   <i className="fa-solid fa-circle-exclamation text-xl"></i>
                   <h3 className="text-sm font-black uppercase tracking-wider">¿Eliminar entregable?</h3>
                 </div>
-                <p className="text-xs text-zinc-550 font-semibold mb-4 leading-relaxed">
-                  Esta acción borrará permanentemente el entregable <strong className="text-zinc-850">"{taskToDelete.info}"</strong> tanto en el Dashboard como en Google Sheets.
+                <p className="text-xs text-zinc-555 font-semibold mb-4 leading-relaxed">
+                  Esta acción borrará permanentemente el entregable <strong className="text-zinc-855">"{taskToDelete.info}"</strong> tanto en el Dashboard como en Google Sheets.
                 </p>
                 <div className="flex items-center justify-end gap-2.5">
                   <button 
                     disabled={isSubmitting || syncing}
                     onClick={() => setTaskToDelete(null)}
-                    className="px-4 py-2 bg-zinc-155 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-lg transition-all border border-zinc-200/50 disabled:opacity-50"
+                    className="px-4 py-2 bg-zinc-150 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-lg transition-all border border-zinc-200/50 disabled:opacity-50"
                   >
                     Cancelar
                   </button>

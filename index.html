@@ -723,7 +723,7 @@
             </h3>
             
             <div className="flex items-center gap-1 bg-zinc-50 p-1 rounded-lg border border-zinc-200">
-              <button onClick={() => navegarMes(-1)} className="hover:bg-white text-zinc-650 p-1 rounded-md text-xs">
+              <button onClick={() => navegarMes(-1)} className="hover:bg-white text-zinc-655 p-1 rounded-md text-xs">
                 <i className="fa-solid fa-chevron-left px-1.5"></i>
               </button>
               <button onClick={() => setCurrentDate(new Date())} className="hover:bg-white text-zinc-800 px-3 py-0.5 rounded-md text-xs font-bold">
@@ -1435,15 +1435,15 @@
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-zinc-455 font-bold">Ejecutivo:</span>
-                        <span className="font-extrabold text-zinc-800">{metadata.ejecutivo || "Sin designar"}</span>
+                        <span className="font-extrabold text-zinc-800">{metadata.ejecutivo || "Sin asignar"}</span>
                       </div>
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-zinc-455 font-bold">Diseñador:</span>
-                        <span className="font-extrabold text-zinc-800">{metadata.disenador || "Sin designar"}</span>
+                        <span className="font-extrabold text-zinc-800">{metadata.disenador || "Sin asignar"}</span>
                       </div>
                       <div className="flex items-center justify-between text-xs">
                         <span className="text-zinc-455 font-bold">Content:</span>
-                        <span className="font-extrabold text-zinc-800">{metadata.content || "Sin designar"}</span>
+                        <span className="font-extrabold text-zinc-800">{metadata.content || "Sin asignar"}</span>
                       </div>
                     </div>
                   </div>
@@ -1520,19 +1520,19 @@
 
                 <div className="flex flex-col gap-3 text-xs">
                   <div>
-                    <label className="block font-bold text-zinc-450 uppercase mb-1">Logo URL</label>
+                    <label className="block font-bold text-zinc-455 uppercase mb-1">Logo URL</label>
                     <input type="url" value={editLogoUrl} onChange={e => setEditLogoUrl(e.target.value)} placeholder="https://..." className="w-full bg-zinc-50 border p-2 rounded-lg" />
                   </div>
                   <div>
-                    <label className="block font-bold text-zinc-450 uppercase mb-1">Ejecutivo de la cuenta</label>
+                    <label className="block font-bold text-zinc-455 uppercase mb-1">Ejecutivo de la cuenta</label>
                     <input type="text" value={editEjecutivo} onChange={e => setEditEjecutivo(e.target.value)} placeholder="ej: @ralvarez" className="w-full bg-zinc-50 border p-2 rounded-lg font-bold" />
                   </div>
                   <div>
-                    <label className="block font-bold text-zinc-450 uppercase mb-1">Diseñador Asignado</label>
+                    <label className="block font-bold text-zinc-455 uppercase mb-1">Diseñador Asignado</label>
                     <input type="text" value={editDisenador} onChange={e => setEditDisenador(e.target.value)} placeholder="ej: @dsalavarria" className="w-full bg-zinc-50 border p-2 rounded-lg font-bold" />
                   </div>
                   <div>
-                    <label className="block font-bold text-zinc-450 uppercase mb-1">Content Creator</label>
+                    <label className="block font-bold text-zinc-455 uppercase mb-1">Content Creator</label>
                     <input type="text" value={editContent} onChange={e => setEditContent(e.target.value)} placeholder="ej: @fcolmenares" className="w-full bg-zinc-50 border p-2 rounded-lg font-bold" />
                   </div>
                 </div>
@@ -1714,7 +1714,12 @@
         showToast(`Sesión iniciada como @${userClean}`, "success");
       };
 
-      const handleLogout = () => {
+      // 🔴 Saneamiento del Cerrar Sesión Consolidado
+      const handleLogout = (e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
         localStorage.removeItem("robin_usuario_actual");
         setUsuario(null);
         setClaveInput("");
@@ -2251,9 +2256,9 @@
                     <button 
                       onClick={handleLogout} 
                       title="Cerrar sesión"
-                      className="text-zinc-400 hover:text-red-500 p-1 text-xs transition-all relative z-10"
+                      className="text-zinc-400 hover:text-red-500 p-2 text-xs transition-all relative z-50 pointer-events-auto cursor-pointer"
                     >
-                      <i className="fa-solid fa-power-off"></i>
+                      <i className="fa-solid fa-power-off pointer-events-none"></i>
                     </button>
                   </div>
 

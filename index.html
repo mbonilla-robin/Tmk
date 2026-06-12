@@ -69,13 +69,6 @@
 
     const TAREAS_DEMO = [];
 
-    // Generador de ID robusto por marca
-    const generateBrandId = (marca) => {
-      const prefix = String(marca || "TASK").substring(0, 3).toUpperCase();
-      const randomNum = Math.floor(1000 + Math.random() * 9000);
-      return `${prefix}-${randomNum}`;
-    };
-
     // Limpiador de redirecciones CORS
     const getEffectiveApiUrl = (url) => {
       if (!url) return "";
@@ -318,24 +311,18 @@
       return t1 !== Infinity && t2 !== Infinity && t1 === t2;
     }
 
-    // Filtro validador de IDs reales para descartar fechas corruptas de celdas desalineadas
+    // Validador estricto de IDs de tareas reales de la base de datos (Ej: SAN-123, DIA-104)
     function isValidIdTarea(id) {
       if (!id) return false;
-      const idStr = String(id).trim().toLowerCase();
+      const idStr = String(id).trim().toUpperCase();
       if (idStr.length === 0) return false;
-      if (idStr.includes("gmt") || idStr.includes("venezuela") || idStr.includes(":") || idStr.includes(" ")) return false;
-      // No permitir que palabras del estado se detecten como IDs reales
-      if (idStr === "pendiente" || idStr === "en progreso" || idStr === "seguimiento" || idStr === "en revision" || idStr === "en pausa" || idStr === "completada") return false;
+      if (idStr.includes("GMT") || idStr.includes("VENEZUELA") || idStr.includes(":") || idStr.includes(" ")) return false;
+      if (idStr === "PENDIENTE" || idStr === "EN PROGRESO" || idStr === "SEGUIMIENTO" || idStr === "EN REVISION" || idStr === "EN PAUSA" || idStr === "COMPLETADA") return false;
       if (/^\d{2}[/-]\d{2}[/-]\d{4}$/.test(idStr) || /^\d{4}[/-]\d{2}[/-]\d{2}$/.test(idStr)) return false;
-      return true;
+      
+      // Debe cumplir estrictamente con el formato de código prefijo-número (Ej: SAN-105, ROB-112)
+      return /^[A-Z]{2,4}-\d+$/i.test(idStr);
     }
-
-    // Validador de ID para enviar vacío si es un ID temporal de-duplicado
-    const getApiIdTarea = (id) => {
-      if (!id) return "";
-      if (String(id).startsWith("STB-")) return "";
-      return String(id).trim();
-    };
 
     // =========================================================================
     // 👥 COMPONENTE: SELECTOR DE PERSONAS MEDIANTE CHIPS INTERACTIVOS
@@ -507,7 +494,9 @@
                         <p className="font-extrabold text-sm">Sin entregables en esta pestaña</p>
                         <p className="text-xs text-zinc-400 leading-relaxed px-4">
                           {filtroTiempo === "HOY" 
-                            ? "No tienes entregables agendados para el día de hoy. Haz clic en 'Todas' o 'Atrasadas' en los filtros."
+                            ? "No tienes entregables agendados para el día de hoy. Haz clic en 'Todas las Tareas' o 'Atrasadas' en los filtros."
+                            : filtroTiempo === "ATRASADAS"
+                            ? "¡Felicidades! No tienes entregables atrasados según el calendario oficial."
                             : "Cambia tus filtros o crea un nuevo entregable."
                           }
                         </p>
@@ -1065,7 +1054,7 @@
                   type="button" 
                   disabled={syncing || isSubmittingLocal}
                   onClick={() => onDeleteClick(task)}
-                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-650 font-bold text-xs rounded-lg transition-all border border-red-200/50 disabled:opacity-50"
+                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-655 font-bold text-xs rounded-lg transition-all border border-red-200/50 disabled:opacity-50"
                 >
                   <i className="fa-regular fa-trash-can mr-1.5"></i>Eliminar
                 </button>
@@ -1278,7 +1267,7 @@
                             <span className={`text-[8px] font-black px-1.5 py-0.5 rounded border uppercase tracking-wider ${cMarca.bg} ${cMarca.text} ${cMarca.border}`}>
                               {t.marca}
                             </span>
-                            <span className="text-[9px] font-mono text-zinc-400 font-bold">{t.idTarea}</span>
+                            {t.idTarea && <span className="text-[9px] font-mono text-zinc-400 font-bold">{t.idTarea}</span>}
                           </div>
                           <span className="text-xs font-extrabold truncate text-zinc-800">{t.info}</span>
                         </div>
@@ -1863,18 +1852,7 @@
         showToast(`Estilo cambiado a ${newTheme.toUpperCase()}`, "success");
       };
 
-      const generarIdDeterminista = (t) => {
-        const contentSeed = `${t.marca || "GEN"}-${t.info || ""}-${t.deadline || ""}`;
-        let hash = 0;
-        for (let i = 0; i < contentSeed.length; i++) {
-          hash = ((hash << 5) - hash) + contentSeed.charCodeAt(i);
-          hash |= 0;
-        }
-        const prefix = String(t.marca || "TSK").substring(0, 3).toUpperCase().replace(/[^A-Z]/g, "X");
-        return `STB-${prefix}-${Math.abs(hash) % 100000}`;
-      };
-
-      // FETCH DE DATOS: Agrupamiento, deduplicación e inyección de seguridad
+      // FETCH DE DATOS: Agrupamiento, deduplicación e inyección de seguridad (Estricto en base de datos)
       const fetchData = async (isBackground = false) => {
         if (!isBackground) setLoading(true);
         setSyncing(true);
@@ -1901,7 +1879,7 @@
               setWidgets(json.widgets);
             }
 
-            // 📋 2. Filtrar tareas y aplicar VALIDACIÓN ESTRICTA contra ghost-tasks desalineadas (PEN-)
+            // 📋 2. Filtrar tareas y aplicar VALIDACIÓN ESTRICTA contra desalineaciones corruptas
             const tareasValidas = json.data.filter(t => {
               if (!t.info || t.info.toString().trim() === "") return false;
               if (!t.marca || t.marca.toString().trim() === "") return false;
@@ -1914,7 +1892,7 @@
               return true;
             });
             
-            // 🧼 3. Deduplicación inteligente
+            // 🧼 3. Deduplicación inteligente utilizando únicamente IDs reales o vacíos
             const deduplicadas = [];
             const seenKeys = new Set();
 
@@ -1922,14 +1900,15 @@
               const cleanId = t.idTarea ? String(t.idTarea).trim() : "";
               const hasRealId = isValidIdTarea(cleanId);
               
-              const realId = hasRealId ? cleanId : generarIdDeterminista(t);
+              // Si el ID es real, lo conservamos. Si no es válido o está desalineado, lo dejamos estrictamente vacío para no inventar códigos
+              const realId = hasRealId ? cleanId : "";
               const key = `${t.marca || ""}|${t.info || ""}|${t.deadline || ""}`.toLowerCase().replace(/\s+/g, " ").trim();
                 
               if (!seenKeys.has(key)) {
                 seenKeys.add(key);
                 deduplicadas.push({
                   ...t,
-                  idTarea: realId
+                  idTarea: realId // Absolutamente sin IDs inventados
                 });
               }
             });
@@ -1961,7 +1940,8 @@
         if (!nuevoValor && nuevoValor !== "") return;
         if (isSubmitting || syncing) return;
 
-        const taskTargetId = tarea.idTarea || generateBrandId(tarea.marca);
+        // Se usa el ID de la tarea si ya existe. De lo contrario, se mantiene vacío para la sincronización con Sheets
+        const taskTargetId = cleanIdTarea(tarea.idTarea);
 
         let detallesConHistorial = tarea.detalles || "";
         if (campo === "estado") {
@@ -2009,6 +1989,7 @@
             })
           });
           showToast("Guardado en Google Sheets", "success");
+          await fetchData(true); // Actualiza los datos para obtener el ID real desde Sheets
         } catch (e) {
           showToast("Error de red al actualizar", "error");
         } finally {
@@ -2063,7 +2044,7 @@
             headers: { "Content-Type": "text/plain; charset=utf-8" },
             body: JSON.stringify({
               marca: taskConHistorial.marca, 
-              idTarea: taskConHistorial.idTarea, 
+              idTarea: cleanIdTarea(taskConHistorial.idTarea), 
               info: taskConHistorial.info,
               originalInfo: original.info, 
               categoria: taskConHistorial.categoria, 
@@ -2108,7 +2089,7 @@
             headers: { "Content-Type": "text/plain; charset=utf-8" },
             body: JSON.stringify({
               marca: tarea.marca, 
-              idTarea: getApiIdTarea(tarea.idTarea), 
+              idTarea: cleanIdTarea(tarea.idTarea), 
               info: tarea.info, 
               categoria: tarea.categoria, 
               campo: "eliminar"
@@ -2141,7 +2122,6 @@
         }
 
         setIsSubmitting(true);
-        const autoId = generateBrandId(nuevaTarea.marca);
         const hoy = new Date();
         const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
         const historialInicial = `• [${timestamp}] Creado por @${usuario}`;
@@ -2149,8 +2129,9 @@
           ? `${nuevaTarea.detalles.trim()}\n\n${historialInicial}` 
           : historialInicial;
 
+        // Se envía con idTarea vacío para que Google Sheets autogenere el código real
         const nuevaConId = {
-          ...nuevaTarea, idTarea: autoId, detalles: detallesConCreador, fecha: new Date().toISOString().split('T')[0]
+          ...nuevaTarea, idTarea: "", detalles: detallesConCreador, fecha: new Date().toISOString().split('T')[0]
         };
 
         setTareas([nuevaConId, ...tareas]);
@@ -2173,7 +2154,7 @@
             method: "POST", mode: "cors", redirect: "follow",
             headers: { "Content-Type": "text/plain; charset=utf-8" },
             body: JSON.stringify({
-              marca: nuevaConId.marca, idTarea: autoId, info: nuevaConId.info, categoria: nuevaConId.categoria,
+              marca: nuevaConId.marca, idTarea: "", info: nuevaConId.info, categoria: nuevaConId.categoria,
               personas: nuevaConId.personas, detalles: nuevaConId.detalles, estado: nuevaConId.estado,
               deadline: nuevaConId.deadline, campo: "todo"
             })
@@ -2216,13 +2197,13 @@
       const cleanIdTarea = (id) => {
         if (!id) return "";
         const idStr = String(id).trim();
-        if (idStr.includes("GMT") || (idStr.includes("2026") && idStr.length > 15) || idStr.includes("Venezuela")) {
+        if (!isValidIdTarea(idStr)) {
           return "";
         }
         return idStr;
       };
 
-      // 🔄 Filtro de Tareas del Dashboard
+      // 🔄 Filtro de Tareas del Dashboard (Estrictamente con bases de datos del calendario)
       const tareasFiltradas = useMemo(() => {
         const hoy = new Date();
         const tHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
@@ -2236,6 +2217,9 @@
             const esCompletada = cleanEstado(t.estado) === "completada";
             if (!esHoy || esCompletada) return false;
           } else if (filtroTiempo === "ATRASADAS") {
+            // Estrictamente bajo tu definición:
+            // 1. No tiene de estado completado.
+            // 2. Con un deadline anterior al día de hoy.
             const tieneFechaReal = tDeadline !== Infinity;
             const esAtrasada = tieneFechaReal && tDeadline < tHoy;
             const esCompletada = cleanEstado(t.estado) === "completada";
@@ -2578,4 +2562,478 @@
                   <button
                     onClick={() => navegarA("dashboard", () => { setFiltroTiempo("TODAS"); setFiltroMarca("TODAS"); })}
                     className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all ${
-                      paginaActiva === "dashboard" && filtroTiempo === "TODAS" && filtroMarca ===
+                      paginaActiva === "dashboard" && filtroTiempo === "TODAS"
+                        ? "bg-white shadow-sm font-extrabold text-zinc-900 border border-zinc-100" 
+                        : "text-zinc-500 hover:bg-zinc-100/50 hover:text-zinc-800"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <SVGIcon.All />Todas las Tareas
+                    </span>
+                  </button>
+
+                  <span className="px-2 text-[9px] font-extrabold text-zinc-400 tracking-wider uppercase mb-1 mt-2">Vistas y Ajustes</span>
+
+                  <button
+                    onClick={() => navegarA("clientes")}
+                    className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                      paginaActiva === "clientes" 
+                        ? "bg-white shadow-sm font-extrabold text-zinc-900 border border-zinc-100" 
+                        : "text-zinc-500 hover:bg-zinc-100/50 hover:text-zinc-800"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <i className="fa-regular fa-address-book text-xs"></i>Directorio Clientes
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => navegarA("configuracion")}
+                    className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                      paginaActiva === "configuracion" 
+                        ? "bg-white shadow-sm font-extrabold text-zinc-900 border border-zinc-100" 
+                        : "text-zinc-500 hover:bg-zinc-100/50 hover:text-zinc-800"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <SVGIcon.Config />Ajustes Portal
+                    </span>
+                  </button>
+                </nav>
+              </div>
+
+              <div className="px-3 border-t border-zinc-200/50 pt-3">
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-center py-2 text-xs font-bold text-red-650 bg-red-50 hover:bg-red-100 rounded-lg transition-all"
+                >
+                  <i className="fa-solid fa-arrow-right-from-bracket mr-2"></i>Cerrar Sesión
+                </button>
+              </div>
+            </div>
+          </aside>
+
+          <main className="flex-1 flex flex-col overflow-hidden">
+            <header className="bg-white/40 border-b border-zinc-200/50 px-6 py-4 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => setSidebarOpen(true)}
+                  className="md:hidden text-zinc-655 p-1 text-lg hover:bg-zinc-100 rounded-lg"
+                >
+                  <i className="fa-solid fa-bars"></i>
+                </button>
+                <h1 className="text-base font-extrabold tracking-tight uppercase">
+                  {paginaActiva === "home" ? "Portal ROBIN" : paginaActiva === "dashboard" ? `Filtro: ${filtroTiempo}` : paginaActiva === "clientes" ? "Directorio" : "Ajustes"}
+                </h1>
+              </div>
+
+              {paginaActiva === "dashboard" && (
+                <div className="flex items-center gap-2 bg-zinc-100/60 p-1.5 rounded-xl border">
+                  <button 
+                    onClick={() => setVistaModo("TABLE")}
+                    title="Vista de Tabla"
+                    className={`p-1 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${vistaModo === "TABLE" ? "bg-white shadow text-zinc-900" : "text-zinc-400 hover:text-zinc-800"}`}
+                  >
+                    Tabla
+                  </button>
+                  <button 
+                    onClick={() => setVistaModo("KANBAN")}
+                    title="Vista Kanban"
+                    className={`p-1 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${vistaModo === "KANBAN" ? "bg-white shadow text-zinc-900" : "text-zinc-400 hover:text-zinc-800"}`}
+                  >
+                    Kanban
+                  </button>
+                  <button 
+                    onClick={() => setVistaModo("CALENDAR")}
+                    title="Vista Calendario"
+                    className={`p-1 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${vistaModo === "CALENDAR" ? "bg-white shadow text-zinc-900" : "text-zinc-400 hover:text-zinc-800"}`}
+                  >
+                    Calendario
+                  </button>
+                </div>
+              )}
+
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => fetchData(false)}
+                  disabled={loading || syncing}
+                  className="p-2 text-zinc-500 hover:text-zinc-900 bg-white hover:bg-zinc-50 border rounded-xl shadow-sm transition-all"
+                  title="Forzar sincronización manual con Sheets"
+                >
+                  <i className={`fa-solid fa-arrows-rotate ${loading || syncing ? 'animate-spin' : ''}`}></i>
+                </button>
+              </div>
+            </header>
+
+            <div className="flex-1 overflow-y-auto p-4 md:p-6">
+              
+              {/* VISTA HOME */}
+              {paginaActiva === "home" && (
+                <LayoutHome 
+                  tareas={tareas} 
+                  nombreUsuario={nombreCompleto} 
+                  username={usuario} 
+                  onSelectTask={(t) => { setActiveTask(t); setIsEditing(true); }}
+                  onUpdateField={handleUpdateField}
+                  widgets={widgets}
+                  onAddWidget={handleAddWidget}
+                  onDeleteWidget={handleDeleteWidget}
+                  currentTheme={currentTheme}
+                  getMarcaStyle={getMarcaStyle}
+                />
+              )}
+
+              {/* VISTA CREAR ENTREGABLE */}
+              {paginaActiva === "agregar" && (
+                <div className="max-w-2xl mx-auto bg-white p-6 md:p-8 rounded-2xl border shadow-sm animate-slide-in">
+                  <h2 className="text-base font-black uppercase tracking-wider border-b pb-3 text-zinc-900">Crear Entregable en Base de Datos</h2>
+                  
+                  <form onSubmit={handleCreateTask} className="flex flex-col gap-4 mt-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-455 uppercase tracking-wider mb-1">Marca / Pestaña Sheets</label>
+                        <select 
+                          value={nuevaTarea.marca} 
+                          onChange={(e) => setNuevaTarea({...nuevaTarea, marca: e.target.value})}
+                          className="w-full bg-zinc-50 border p-2.5 text-xs rounded-xl focus:outline-none bg-white font-black"
+                        >
+                          {marcasDisponibles.map(m => (
+                            <option key={m} value={m}>{m}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-455 uppercase tracking-wider mb-1">Categoría</label>
+                        <input 
+                          type="text" 
+                          placeholder="Ej: Material POP, Redes Sociales, etc..." 
+                          value={nuevaTarea.categoria} 
+                          onChange={(e) => setNuevaTarea({...nuevaTarea, categoria: e.target.value})}
+                          className="w-full bg-zinc-50 border p-2 text-xs rounded-xl focus:outline-none font-bold" 
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-455 uppercase tracking-wider mb-1">Título del entregable / Tarea clave</label>
+                      <input 
+                        type="text" 
+                        required 
+                        placeholder="Describe el entregable principal aquí..." 
+                        value={nuevaTarea.info} 
+                        onChange={(e) => setNuevaTarea({...nuevaTarea, info: e.target.value})}
+                        className="w-full bg-zinc-50 border p-2 text-xs rounded-xl focus:outline-none font-bold text-zinc-800" 
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-455 uppercase tracking-wider mb-1">Asignar miembros de área</label>
+                      <SelectorPersonasChips 
+                        personasSeleccionadas={nuevaTarea.personas}
+                        onChange={(val) => setNuevaTarea({...nuevaTarea, personas: val})}
+                        listaGlobal={listaPersonas}
+                        registrarNuevaPersona={registrarNuevaPersonaGlobal}
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-455 uppercase tracking-wider mb-1">Estado Inicial</label>
+                        <select 
+                          value={nuevaTarea.estado} 
+                          onChange={(e) => setNuevaTarea({...nuevaTarea, estado: e.target.value})}
+                          className="w-full bg-zinc-50 border p-2.5 text-xs rounded-xl focus:outline-none bg-white font-black"
+                        >
+                          {LISTA_ESTADOS_VALIDOS.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-455 uppercase tracking-wider mb-1">Fecha de Entrega (Deadline)</label>
+                        <input 
+                          type="date" 
+                          required
+                          value={convertirFechaAInput(nuevaTarea.deadline)} 
+                          onChange={(e) => setNuevaTarea({...nuevaTarea, deadline: e.target.value})}
+                          className="w-full bg-zinc-50 border p-2.5 text-xs rounded-xl focus:outline-none font-bold" 
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-455 uppercase tracking-wider mb-1">Instrucciones y Especificaciones</label>
+                      <textarea 
+                        rows="3" 
+                        placeholder="Añade descripciones del entregable..." 
+                        value={nuevaTarea.detalles} 
+                        onChange={(e) => setNuevaTarea({...nuevaTarea, detalles: e.target.value})}
+                        className="w-full bg-zinc-50 border p-2 text-xs rounded-xl focus:outline-none resize-none font-medium text-zinc-700"
+                      ></textarea>
+                    </div>
+
+                    <div className="flex justify-end gap-2 border-t pt-4 mt-2">
+                      <button 
+                        type="button" 
+                        onClick={() => setPaginaActiva("dashboard")} 
+                        className="px-5 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-xl transition-all"
+                      >
+                        Cancelar
+                      </button>
+                      <button 
+                        type="submit" 
+                        disabled={isSubmitting || syncing}
+                        className="px-5 py-2 bg-zinc-900 hover:bg-black text-white font-bold text-xs rounded-xl shadow-sm transition-all"
+                      >
+                        {isSubmitting || syncing ? 'Registrando...' : 'Registrar Entregable'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {/* VISTA GENERAL DASHBOARD (DASHBOARD) */}
+              {paginaActiva === "dashboard" && (
+                <div className="flex flex-col gap-4">
+                  
+                  {/* Barra de Filtros interactiva */}
+                  <div className={`p-4 rounded-xl border flex flex-wrap gap-4 items-center justify-between ${currentTheme.cardBg} ${currentTheme.border}`}>
+                    <div className="flex flex-wrap gap-3 items-center">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Filtrar por Marca</span>
+                        <select 
+                          value={filtroMarca} 
+                          onChange={(e) => setFiltroMarca(e.target.value)}
+                          className="bg-zinc-50 border border-zinc-200 rounded-lg p-1.5 text-xs font-bold text-zinc-700 focus:outline-none bg-white min-w-[120px]"
+                        >
+                          <option value="TODAS">TODAS LAS MARCAS</option>
+                          {marcasDisponibles.map(m => (
+                            <option key={m} value={m}>{m.toUpperCase()}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Filtrar por Estado</span>
+                        <select 
+                          value={filtroEstado} 
+                          onChange={(e) => setFiltroEstado(e.target.value)}
+                          className="bg-zinc-50 border border-zinc-200 rounded-lg p-1.5 text-xs font-bold text-zinc-700 focus:outline-none bg-white min-w-[120px]"
+                        >
+                          <option value="TODOS">TODOS LOS ESTADOS</option>
+                          {LISTA_ESTADOS_VALIDOS.map(opt => (
+                            <option key={opt} value={opt}>{opt.substring(opt.indexOf(" ") + 1).toUpperCase()}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-zinc-50 border border-zinc-200 px-3 py-1.5 rounded-xl w-full sm:max-w-xs">
+                      <i className="fa-solid fa-magnifying-glass text-zinc-400 text-xs"></i>
+                      <input 
+                        type="text" 
+                        placeholder="Buscar entregables..." 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="bg-transparent border-0 focus:ring-0 focus:outline-none text-xs w-full p-0 font-semibold"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Renderizado condicional según vistaModo */}
+                  {vistaModo === "TABLE" && (
+                    <LayoutTablaAgrupada 
+                      tareas={tareasFiltradas} 
+                      onUpdateField={handleUpdateField}
+                      onSelectTask={(t) => { setActiveTask(t); setIsEditing(true); }}
+                      onDeleteTask={(t) => setTaskToDelete(t)}
+                      getMarcaStyle={getMarcaStyle}
+                      filtroTiempo={filtroTiempo}
+                      cleanIdTarea={cleanIdTarea}
+                      currentTheme={currentTheme}
+                    />
+                  )}
+
+                  {vistaModo === "KANBAN" && (
+                    <LayoutKanban 
+                      tareas={tareasFiltradas} 
+                      onUpdateField={handleUpdateField}
+                      onSelectTask={(t) => { setActiveTask(t); setIsEditing(true); }}
+                      onDeleteTask={(t) => setTaskToDelete(t)}
+                      getMarcaStyle={getMarcaStyle}
+                      cleanIdTarea={cleanIdTarea}
+                      currentTheme={currentTheme}
+                    />
+                  )}
+
+                  {vistaModo === "CALENDAR" && (
+                    <LayoutCalendario 
+                      tareas={tareasParaCalendario} 
+                      onUpdateField={handleUpdateField}
+                      onSelectTask={(t) => { setActiveTask(t); setIsEditing(true); }}
+                      currentTheme={currentTheme}
+                    />
+                  )}
+
+                </div>
+              )}
+
+              {/* VISTA DIRECTORIO DE CLIENTES */}
+              {paginaActiva === "clientes" && (
+                <LayoutClientes 
+                  marcasMetadata={marcasMetadata}
+                  onSelectBrand={(brand) => {
+                    setFiltroMarca(brand);
+                    setFiltroTiempo("TODAS");
+                    setPaginaActiva("dashboard");
+                  }}
+                  currentTheme={currentTheme}
+                  adminMode={usuario === "admin"}
+                  onSaveMetadata={handleSaveBrandMetadata}
+                  onCreateBrand={handleCreateBrand}
+                  marcasDisponibles={marcasDisponibles}
+                />
+              )}
+
+              {/* VISTA CONFIGURACION */}
+              {paginaActiva === "configuracion" && (
+                <div className="max-w-2xl mx-auto flex flex-col gap-6 animate-slide-in pb-12">
+                  <div className="bg-white p-6 rounded-2xl border shadow-sm">
+                    <h3 className="text-base font-black uppercase tracking-wider border-b pb-3 text-zinc-900">Ajustes Visuales</h3>
+                    
+                    <div className="mt-6 flex flex-col gap-4">
+                      <div>
+                        <span className="block text-xs font-bold text-zinc-455 uppercase tracking-wider mb-2">Tema y Estilo de Interfaz</span>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                          {Object.keys(TEMAS).map(tKey => (
+                            <button
+                              key={tKey}
+                              onClick={() => handleThemeChange(tKey)}
+                              className={`p-2 rounded-xl text-xs font-extrabold capitalize border transition-all ${
+                                theme === tKey ? 'bg-zinc-900 text-white border-zinc-900 shadow' : 'bg-zinc-50 hover:bg-zinc-100'
+                              }`}
+                            >
+                              {tKey}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-white p-6 rounded-2xl border shadow-sm">
+                    <h3 className="text-base font-black uppercase tracking-wider border-b pb-3 text-zinc-900">Datos del Perfil</h3>
+                    
+                    <form onSubmit={handleSaveNombreCompleto} className="mt-6 flex flex-col gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-455 uppercase tracking-wider mb-1">Nombre Completo del Colaborador</label>
+                        <input 
+                          type="text" 
+                          placeholder="Ej: Miguel Bonilla" 
+                          value={nombreCompleto} 
+                          onChange={(e) => setNombreCompleto(e.target.value)}
+                          className="w-full bg-zinc-50 border p-2 text-xs rounded-xl focus:outline-none font-bold text-zinc-800" 
+                        />
+                      </div>
+                      <button type="submit" className="bg-zinc-900 text-white font-bold text-xs py-2 px-4 rounded-xl self-end hover:bg-black transition-all">
+                        Actualizar Perfil
+                      </button>
+                    </form>
+                  </div>
+
+                  {usuario === "admin" && (
+                    <div className="bg-white p-6 rounded-2xl border shadow-sm">
+                      <h3 className="text-base font-black uppercase tracking-wider border-b pb-3 text-red-650">Administración de Usuarios</h3>
+                      
+                      <form onSubmit={handleAddUser} className="mt-6 flex flex-col gap-4">
+                        <div className="flex gap-2">
+                          <input 
+                            type="text" 
+                            required 
+                            placeholder="Nombre de usuario nuevo (ej: rrodriguez)..." 
+                            value={nuevoUsuarioInput} 
+                            onChange={(e) => setNuevoUsuarioInput(e.target.value)}
+                            className="flex-1 bg-zinc-50 border p-2 text-xs rounded-xl focus:outline-none font-bold" 
+                          />
+                          <button type="submit" className="bg-red-50 hover:bg-red-100 text-red-655 font-bold text-xs py-2 px-4 rounded-xl transition-all border border-red-200">
+                            Autorizar
+                          </button>
+                        </div>
+
+                        <div className="border-t pt-3">
+                          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-2">Miembros del área autorizados</span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {listaUsuarios.map(u => (
+                              <span key={u} className="bg-zinc-100 text-zinc-700 text-xs font-extrabold px-2.5 py-1 rounded-lg border border-zinc-200">
+                                @{u}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      </form>
+                    </div>
+                  )}
+                </div>
+              )}
+
+            </div>
+          </main>
+
+          {/* RENDERS COMPONENTES FLOTANTES */}
+          {isEditing && activeTask && (
+            <ModalEdicionTarea 
+              task={activeTask}
+              onClose={() => { setIsEditing(false); setActiveTask(null); }}
+              onSave={handleSaveTaskModal}
+              onDeleteClick={(t) => setTaskToDelete(t)}
+              marcasDisponibles={marcasDisponibles}
+              listaPersonas={listaPersonas}
+              registrarNuevaPersona={registrarNuevaPersonaGlobal}
+              cleanIdTarea={cleanIdTarea}
+              syncing={syncing}
+            />
+          )}
+
+          {/* MODAL ELIMINAR TAREA */}
+          {taskToDelete && (
+            <div className="fixed inset-0 bg-zinc-950/20 backdrop-blur-[2px] z-[150] flex items-center justify-center p-4">
+              <div className="bg-white max-w-sm w-full p-6 rounded-2xl border border-zinc-200 shadow-2xl animate-zoom-in text-zinc-800 flex flex-col gap-4 text-center">
+                <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-lg mx-auto">
+                  <i className="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm text-zinc-900">¿Eliminar entregable?</h3>
+                  <p className="text-xs text-zinc-455 mt-1">Esta acción no se puede deshacer y borrará permanentemente la fila de la pestaña de la marca en Google Sheets.</p>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    type="button" 
+                    onClick={() => setTaskToDelete(null)} 
+                    className="flex-1 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-xl"
+                  >
+                    Cerrar
+                  </button>
+                  <button 
+                    type="button" 
+                    onClick={() => handleDeleteTask(taskToDelete)}
+                    className="flex-1 py-2 bg-red-650 hover:bg-red-700 text-white font-bold text-xs rounded-xl"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+      );
+    }
+
+    const container = document.getElementById('root');
+    const root = ReactDOM.createRoot(container);
+    root.render(<App />);
+  </script>
+</body>
+</html>

@@ -817,7 +817,7 @@
     // =========================================================================
     // COMPONENTE: MODAL FICHA DE SEGUIMIENTO (DRAWER LATERAL PREMIUM CON HISTORIAL)
     // =========================================================================
-    function ModalEdicionTarea({ task, onClose, onSave, onDeleteClick, marcasDisponibles, listaPersonas, registrarNuevaPersona, cleanIdTarea }) {
+    function ModalEdicionTarea({ task, onClose, onSave, onDeleteClick, marcasDisponibles, listaPersonas, registrarNuevaPersona, cleanIdTarea, syncing }) {
       const [categoria, setCategoria] = useState(task.categoria || "");
       const [info, setInfo] = useState(task.info || "");
       const [personas, setPersonas] = useState(task.personas || "");
@@ -826,6 +826,7 @@
       const [deadline, setDeadline] = useState(task.deadline || "");
       
       const [nuevoStatus, setNuevoStatus] = useState("");
+      const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
 
       const parseDetallesYHistorial = useMemo(() => {
         const lineas = detalles.split('\n');
@@ -847,7 +848,7 @@
       }, [detalles]);
 
       const handleAgregarStatus = () => {
-        if (!nuevoStatus.trim()) return;
+        if (!nuevoStatus.trim() || syncing || isSubmittingLocal) return;
         const hoy = new Date();
         const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
         const actualizacion = `• [${timestamp}] ${nuevoStatus.trim()} por @${localStorage.getItem("robin_usuario_actual")}`;
@@ -867,17 +868,23 @@
         });
       };
 
-      const handleFormSubmit = (e) => {
+      const handleFormSubmit = async (e) => {
         e.preventDefault();
-        onSave({
-          ...task,
-          categoria,
-          info,
-          personas,
-          detalles,
-          estado,
-          deadline
-        });
+        if (syncing || isSubmittingLocal) return;
+        setIsSubmittingLocal(true);
+        try {
+          await onSave({
+            ...task,
+            categoria,
+            info,
+            personas,
+            detalles,
+            estado,
+            deadline
+          });
+        } finally {
+          setIsSubmittingLocal(false);
+        }
       };
 
       const cleanedId = cleanIdTarea(task.idTarea);
@@ -892,7 +899,7 @@
                 <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Ficha de Seguimiento</span>
                 {cleanedId && <span className="text-[11px] font-mono text-zinc-500 font-bold mt-0.5">{cleanedId}</span>}
               </div>
-              <button onClick={onClose} className="text-zinc-400 hover:text-zinc-800 text-sm p-1">
+              <button onClick={onClose} disabled={syncing || isSubmittingLocal} className="text-zinc-400 hover:text-zinc-800 text-sm p-1 disabled:opacity-50">
                 <i className="fa-solid fa-xmark text-lg"></i>
               </button>
             </div>
@@ -913,12 +920,12 @@
 
               <div>
                 <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Categoría</label>
-                <input type="text" value={categoria} onChange={(e) => setCategoria(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-sm rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-950 font-bold text-zinc-700" />
+                <input type="text" disabled={syncing || isSubmittingLocal} value={categoria} onChange={(e) => setCategoria(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-sm rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-950 font-bold text-zinc-700 disabled:opacity-75" />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Título / Entregable</label>
-                <input type="text" required value={info} onChange={(e) => setInfo(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-sm rounded-lg font-bold text-zinc-850 focus:outline-none focus:ring-1 focus:ring-zinc-950" />
+                <input type="text" required disabled={syncing || isSubmittingLocal} value={info} onChange={(e) => setInfo(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-sm rounded-lg font-bold text-zinc-850 focus:outline-none focus:ring-1 focus:ring-zinc-950 disabled:opacity-75" />
               </div>
 
               <div>
@@ -934,7 +941,7 @@
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Estado</label>
-                  <select value={estado} onChange={(e) => setEstado(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-xs rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-950 bg-white font-black text-zinc-755">
+                  <select disabled={syncing || isSubmittingLocal} value={estado} onChange={(e) => setEstado(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-xs rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-950 bg-white font-black text-zinc-755 disabled:opacity-75">
                     {LISTA_ESTADOS_VALIDOS.map(opt => (
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
@@ -943,7 +950,7 @@
 
                 <div>
                   <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Fecha límite</label>
-                  <input type="date" value={deadline ? deadline.split('T')[0] : ""} onChange={(e) => setDeadline(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-xs rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-950 font-bold" />
+                  <input type="date" disabled={syncing || isSubmittingLocal} value={deadline ? deadline.split('T')[0] : ""} onChange={(e) => setDeadline(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-xs rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-950 font-bold disabled:opacity-75" />
                 </div>
               </div>
 
@@ -951,6 +958,7 @@
                 <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Descripción y Notas</label>
                 <textarea 
                   value={parseDetallesYHistorial.notas} 
+                  disabled={syncing || isSubmittingLocal}
                   onChange={(e) => {
                     const nuevoContenido = e.target.value;
                     const logs = parseDetallesYHistorial.historial.join('\n');
@@ -958,7 +966,7 @@
                   }} 
                   rows="3"
                   placeholder="Instrucciones del entregable..."
-                  className="w-full bg-zinc-50 border border-zinc-200 p-2 text-xs rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-950 resize-none font-semibold text-zinc-700"
+                  className="w-full bg-zinc-50 border border-zinc-200 p-2 text-xs rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-950 resize-none font-semibold text-zinc-700 disabled:opacity-75"
                 ></textarea>
               </div>
 
@@ -982,8 +990,9 @@
                     type="text" 
                     placeholder="Avance o comentario nuevo..." 
                     value={nuevoStatus} 
+                    disabled={syncing || isSubmittingLocal}
                     onChange={(e) => setNuevoStatus(e.target.value)} 
-                    className="flex-1 bg-white border border-zinc-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none"
+                    className="flex-1 bg-white border border-zinc-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none disabled:opacity-75"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -994,7 +1003,8 @@
                   <button 
                     type="button" 
                     onClick={handleAgregarStatus} 
-                    className="bg-zinc-900 hover:bg-black text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0"
+                    disabled={syncing || isSubmittingLocal || !nuevoStatus.trim()}
+                    className="bg-zinc-900 hover:bg-black text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 disabled:opacity-50"
                   >
                     Registrar
                   </button>
@@ -1004,17 +1014,18 @@
               <div className="flex items-center justify-between gap-1.5 pt-4 border-t border-zinc-150 mt-auto">
                 <button 
                   type="button" 
+                  disabled={syncing || isSubmittingLocal}
                   onClick={() => onDeleteClick(task)}
-                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-650 font-bold text-xs rounded-lg transition-all border border-red-200/50"
+                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-650 font-bold text-xs rounded-lg transition-all border border-red-200/50 disabled:opacity-50"
                 >
                   <i className="fa-regular fa-trash-can mr-1.5"></i>Eliminar
                 </button>
                 <div className="flex items-center gap-1.5">
-                  <button type="button" onClick={onClose} className="px-3.5 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-lg transition-all">
+                  <button type="button" disabled={syncing || isSubmittingLocal} onClick={onClose} className="px-3.5 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-lg transition-all disabled:opacity-50">
                     Cerrar
                   </button>
-                  <button type="submit" className="px-4 py-1.5 bg-zinc-900 hover:bg-black text-white font-bold text-xs rounded-lg transition-all shadow-sm">
-                    Guardar
+                  <button type="submit" disabled={syncing || isSubmittingLocal} className="px-4 py-1.5 bg-zinc-900 hover:bg-black text-white font-bold text-xs rounded-lg transition-all shadow-sm disabled:opacity-50">
+                    {syncing || isSubmittingLocal ? 'Guardando...' : 'Guardar'}
                   </button>
                 </div>
               </div>
@@ -1260,7 +1271,7 @@
               <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Planificador Mensual</span>
               <div className={`border ${currentTheme.border} rounded-2xl p-5 flex flex-col gap-4 ${currentTheme.cardBg}`}>
                 <div className="flex justify-between items-center border-b pb-2">
-                  <span className="text-xs font-bold text-zinc-850">{nombresMeses[hoy.getMonth()]} {hoy.getFullYear()}</span>
+                  <span className="text-xs font-bold text-zinc-855">{nombresMeses[hoy.getMonth()]} {hoy.getFullYear()}</span>
                 </div>
                 
                 {/* Cuadrícula de fechas */}
@@ -1594,6 +1605,7 @@
       const [syncing, setSyncing] = useState(false);
       const [toast, setToast] = useState(null);
       const [apiError, setApiError] = useState(null);
+      const [isSubmitting, setIsSubmitting] = useState(false);
       
       const [filtroTiempo, setFiltroTiempo] = useState("HOY"); 
       const [filtroMarca, setFiltroMarca] = useState("TODAS");
@@ -1641,7 +1653,7 @@
         marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", estado: "⚪ Pendiente", deadline: ""
       });
 
-      // Rutina de Saneamiento y Reparación Automática de Caché
+      // Saneamiento de caché
       useEffect(() => {
         const u = localStorage.getItem("robin_usuario_actual");
         if (u === "null" || u === "undefined") {
@@ -1655,20 +1667,26 @@
         }
       }, []);
 
-      // 🔄 Sincronización Automática Constante cada 30 Segundos
+      // 🔄 Sincronización Automática: Primera Carga
       useEffect(() => {
         if (usuario) {
-          // Primera carga bloqueante
           fetchData(false);
-          
-          // Intervalo de actualización en segundo plano (Sincronización silenciosa)
-          const autoRefreshInterval = setInterval(() => {
-            fetchData(true); 
-          }, 30 * 1000); 
-          
-          return () => clearInterval(autoRefreshInterval);
         }
       }, [usuario]);
+
+      // 🔄 Sincronización Automática: Intervalo seguro de segundo plano (Evita colisiones si se está guardando/escribiendo)
+      useEffect(() => {
+        if (!usuario) return;
+
+        const autoRefreshInterval = setInterval(() => {
+          // SOLO ejecutamos actualización silenciosa si no hay ninguna transacción de escritura activa
+          if (!syncing && !loading && !isSubmitting) {
+            fetchData(true); 
+          }
+        }, 30 * 1000); // 30 segundos
+        
+        return () => clearInterval(autoRefreshInterval);
+      }, [usuario, syncing, loading, isSubmitting]);
 
       useEffect(() => {
         if (tareas.length > 0) {
@@ -1766,7 +1784,7 @@
         showToast(`Estilo cambiado a ${newTheme.toUpperCase()}`, "success");
       };
 
-      // FETCH DE DATOS: Soporta modo silencioso de fondo (isBackground)
+      // FETCH DE DATOS: Deduplicación robusta de doble factor
       const fetchData = async (isBackground = false) => {
         if (!isBackground) setLoading(true);
         setSyncing(true);
@@ -1792,27 +1810,43 @@
           if (json.success && json.data) {
             const tareasValidas = json.data.filter(t => t.info && t.info.toString().trim() !== "");
             
-            // Reparamos IDs nulos/corruptos solo EN MEMORIA (No hacemos POST silenciosos que causen duplicados)
-            const tareasReparadas = tareasValidas.map((t, index) => {
-              const safeId = t.idTarea && t.idTarea.toString().trim() !== "" && !t.idTarea.toString().includes("GMT")
-                ? t.idTarea.toString().trim()
-                : `AUTO-${String(t.marca || "GEN").substring(0,3).toUpperCase()}-${index + 1000}`;
-              return { ...t, idTarea: safeId };
+            // 1. REPARACIÓN DE IDs INESTABLES: Generar Hash Determinista si no existe ID en Sheets
+            const tareasConIdsEstables = tareasValidas.map((t) => {
+              let cleanId = t.idTarea ? t.idTarea.toString().trim() : "";
+              
+              // Si está vacío o es un timestamp corrupto del tipo "GMT" o "Venezuela":
+              if (cleanId === "" || cleanId.includes("GMT") || cleanId.includes("Venezuela") || (cleanId.includes("2026") && cleanId.length > 15)) {
+                // Creamos un ID determinista estable en base al contenido original (No volátil, no cambia con el index)
+                const contentSeed = `${t.marca || "GEN"}-${t.info || ""}-${t.deadline || ""}`;
+                let hash = 0;
+                for (let i = 0; i < contentSeed.length; i++) {
+                  hash = ((hash << 5) - hash) + contentSeed.charCodeAt(i);
+                  hash |= 0; // Convertir a entero de 32 bits
+                }
+                cleanId = `STB-${String(t.marca || "GEN").substring(0,3).toUpperCase()}-${Math.abs(hash)}`;
+              }
+              return { ...t, idTarea: cleanId };
             });
 
-            // Filtro final de deduplicación estricto para proteger el render de React
-            const unicosSet = new Set();
-            const tareasDeduplicadas = [];
+            // 2. DEDUPLICADOR CLIENT-SIDE EXTREMO (Filtra duplicados reales del Google Sheet antes de renderizar)
+            const seenKeys = new Set();
+            const deduplicadas = [];
             
-            tareasReparadas.forEach(tarea => {
-              const identificadorUnico = tarea.idTarea;
-              if (!unicosSet.has(identificadorUnico)) {
-                unicosSet.add(identificadorUnico);
-                tareasDeduplicadas.push(tarea);
+            tareasConIdsEstables.forEach(t => {
+              const idKey = t.idTarea;
+              const contentKey = `${t.marca || ""}_${t.info || ""}_${t.deadline || ""}`.toLowerCase().trim();
+              
+              // No permitimos duplicados ni por ID, ni por contenido exacto de la tarea
+              if (!seenKeys.has(idKey) && !seenKeys.has(contentKey)) {
+                seenKeys.add(idKey);
+                seenKeys.add(contentKey);
+                deduplicadas.push(t);
+              } else {
+                console.warn("Filtro de Seguridad ROBIN: Se detectó y descartó un entregable duplicado en memoria:", t);
               }
             });
 
-            setTareas(tareasDeduplicadas);
+            setTareas(deduplicadas);
             
             if (json.marcasMetadata) {
               setMarcasMetadata(json.marcasMetadata);
@@ -1834,8 +1868,11 @@
         }
       };
 
+      // Modificar campo en línea de forma segura
       const handleUpdateField = async (tarea, campo, nuevoValor) => {
         if (!nuevoValor && nuevoValor !== "") return;
+        if (isSubmitting || syncing) return;
+
         const taskTargetId = tarea.idTarea || generateBrandId(tarea.marca);
 
         let detallesConHistorial = tarea.detalles || "";
@@ -1885,9 +1922,16 @@
         }
       };
 
+      // Guardar cambios del Modal de Edición sin duplicaciones
       const handleSaveTaskModal = async (editedTask) => {
+        if (isSubmitting || syncing) return;
+        setIsSubmitting(true);
+
         const index = tareas.findIndex(t => (t.idTarea === editedTask.idTarea && t.idTarea) || t.info === editedTask.info);
-        if (index === -1) return;
+        if (index === -1) {
+          setIsSubmitting(false);
+          return;
+        }
 
         const hoy = new Date();
         const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
@@ -1915,6 +1959,7 @@
         const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
         if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here") || apiError) {
           showToast("Guardado localmente", "success");
+          setIsSubmitting(false);
           return;
         }
 
@@ -1930,15 +1975,20 @@
             })
           });
           showToast("Sincronizado completamente", "success");
-          fetchData(true);
+          await fetchData(true);
         } catch (e) {
           showToast("Guardado temporalmente local", "error");
         } finally {
           setSyncing(false);
+          setIsSubmitting(false);
         }
       };
 
+      // Eliminar tarea de forma segura
       const handleDeleteTask = async (tarea) => {
+        if (isSubmitting || syncing) return;
+        setIsSubmitting(true);
+
         setTareas(prev => prev.filter(t => !(t.idTarea === tarea.idTarea && t.info === tarea.info)));
         setTaskToDelete(null);
         setIsEditing(false);
@@ -1948,6 +1998,7 @@
         const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
         if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here") || apiError) {
           showToast("Eliminado de la interfaz local", "success");
+          setIsSubmitting(false);
           return;
         }
 
@@ -1963,26 +2014,31 @@
           const json = await res.json();
           if (json.success) {
             showToast("Eliminado correctamente de Google Sheets", "success");
-            fetchData(true);
+            await fetchData(true);
           } else {
             showToast("Error al eliminar del servidor", "error");
-            fetchData(true);
+            await fetchData(true);
           }
         } catch (e) {
           showToast("Fallo al eliminar en Sheets. Se revirtió el cambio.", "error");
-          fetchData(true);
+          await fetchData(true);
         } finally {
           setSyncing(false);
+          setIsSubmitting(false);
         }
       };
 
+      // Crear nueva tarea con bloqueo físico de doble clic
       const handleCreateTask = async (e) => {
         e.preventDefault();
+        if (isSubmitting || syncing) return; // Bloqueo físico estricto
+        
         if (!nuevaTarea.info.trim()) {
           showToast("Describe la tarea primero", "error");
           return;
         }
 
+        setIsSubmitting(true);
         const autoId = generateBrandId(nuevaTarea.marca);
         const hoy = new Date();
         const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
@@ -2005,6 +2061,7 @@
           });
           setPaginaActiva("dashboard");
           showToast("Registrado localmente", "success");
+          setIsSubmitting(false);
           return;
         }
 
@@ -2022,7 +2079,7 @@
           const json = await res.json();
           if (json.success) {
             showToast("Registrado en Sheets", "success");
-            fetchData(true);
+            await fetchData(true);
             setNuevaTarea({
               marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", estado: "⚪ Pendiente", deadline: ""
             });
@@ -2032,6 +2089,7 @@
           showToast("Guardado localmente (Sin conexión)", "error");
         } finally {
           setSyncing(false);
+          setIsSubmitting(false);
         }
       };
 
@@ -2059,7 +2117,7 @@
         return idStr;
       };
 
-      // 🔄 Cómputo Inteligente de Fechas (Filtro de Hoy Estricto)
+      // 🔄 Filtro de Tareas
       const tareasFiltradas = useMemo(() => {
         const hoy = new Date();
         const tHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
@@ -2180,7 +2238,7 @@
             })
           });
           showToast("Ficha guardada en Google Sheets", "success");
-          fetchData(true);
+          await fetchData(true);
         } catch (e) {
           showToast("Guardado local (Falla de red)", "error");
         } finally {
@@ -2224,7 +2282,7 @@
           const json = await res.json();
           if (json.success) {
             showToast("Nueva hoja de cliente creada en Sheets", "success");
-            fetchData(true);
+            await fetchData(true);
           }
         } catch (e) {
           showToast("Falla de red al crear marca", "error");
@@ -2326,8 +2384,9 @@
 
                 <div className="px-3 pt-1">
                   <button 
+                    disabled={isSubmitting || syncing}
                     onClick={() => setPaginaActiva("agregar")}
-                    className={`w-full ${currentTheme.primary} font-bold py-2 px-3 rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm`}
+                    className={`w-full ${currentTheme.primary} font-bold py-2 px-3 rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50`}
                   >
                     <SVGIcon.Plus />
                     <span>Añadir Entregable</span>
@@ -2513,8 +2572,9 @@
 
               <div className="flex items-center gap-2">
                 <button 
+                  disabled={loading || syncing}
                   onClick={() => fetchData(false)} 
-                  className="bg-white border border-zinc-250 hover:bg-zinc-50 text-zinc-700 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                  className="bg-white border border-zinc-250 hover:bg-zinc-50 text-zinc-700 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-50"
                 >
                   <i className={`fa-solid fa-arrows-rotate text-[10px] ${loading ? 'animate-spin' : ''}`}></i>
                   <span>Actualizar datos</span>
@@ -2723,7 +2783,8 @@
                           />
                           <button 
                             type="submit" 
-                            className="bg-zinc-900 hover:bg-black text-white px-4 py-2 rounded-lg text-xs font-bold transition-all shrink-0"
+                            disabled={syncing || isSubmitting}
+                            className="bg-zinc-900 hover:bg-black text-white px-4 py-2 rounded-lg text-xs font-bold transition-all shrink-0 disabled:opacity-50"
                           >
                             Añadir Miembro
                           </button>
@@ -2845,16 +2906,18 @@
                       <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-100">
                         <button 
                           type="button" 
+                          disabled={isSubmitting || syncing}
                           onClick={() => setPaginaActiva("dashboard")}
-                          className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 py-2 px-4 rounded-lg text-xs font-bold transition-all"
+                          className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 py-2 px-4 rounded-lg text-xs font-bold transition-all disabled:opacity-50"
                         >
                           Cancelar
                         </button>
                         <button 
                           type="submit" 
-                          className="bg-zinc-900 hover:bg-black text-white py-2 px-5 rounded-lg text-xs font-bold transition-all shadow-sm"
+                          disabled={isSubmitting || syncing}
+                          className="bg-zinc-900 hover:bg-black text-white py-2 px-5 rounded-lg text-xs font-bold transition-all shadow-sm disabled:opacity-50"
                         >
-                          Crear Tarea
+                          {isSubmitting || syncing ? 'Creando...' : 'Crear Tarea'}
                         </button>
                       </div>
 
@@ -2887,6 +2950,7 @@
               listaPersonas={listaPersonas}
               registrarNuevaPersona={registrarNuevaPersonaGlobal}
               cleanIdTarea={cleanIdTarea}
+              syncing={syncing || isSubmitting}
             />
           )}
 
@@ -2903,16 +2967,18 @@
                 </p>
                 <div className="flex items-center justify-end gap-2.5">
                   <button 
+                    disabled={isSubmitting || syncing}
                     onClick={() => setTaskToDelete(null)}
-                    className="px-4 py-2 bg-zinc-155 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-lg transition-all border border-zinc-200/50"
+                    className="px-4 py-2 bg-zinc-155 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-lg transition-all border border-zinc-200/50 disabled:opacity-50"
                   >
                     Cancelar
                   </button>
                   <button 
+                    disabled={isSubmitting || syncing}
                     onClick={() => handleDeleteTask(taskToDelete)}
-                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-lg transition-all shadow-md active:scale-95"
+                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-lg transition-all shadow-md active:scale-95 disabled:opacity-50"
                   >
-                    Sí, eliminar
+                    {isSubmitting || syncing ? 'Eliminando...' : 'Sí, eliminar'}
                   </button>
                 </div>
               </div>

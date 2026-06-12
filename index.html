@@ -67,6 +67,21 @@
     const AUTO_API_URL = "https://script.google.com/macros/s/AKfycbz2e8lRzFV6eXFNHKmiLplWhkoPeo_oKy-tMJrpjR3OyKiPkjjirZE1qrZttf193kgMYg/exec"; 
     // =========================================================================
 
+    // Datos Demo de Respaldo por si falla la conexión
+    const TAREAS_DEMO = [
+      { idTarea: "SAN-1001", marca: "La Santé", categoria: "Arte", info: "Diseño de empaque Jarabe", personas: "@dsalavarria", detalles: "Falta aprobación de textos de empaque.", estado: "⚪ Pendiente", deadline: "2026-06-15" },
+      { idTarea: "DIA-2002", marca: "DIAGEO", categoria: "Proyecto", info: "Activación de marca Johnnie Walker", personas: "@ralvarez @fcolmenares", detalles: "Coordinar con logística para los materiales de barra.", estado: "🔵 En progreso", deadline: "2026-06-18" },
+      { idTarea: "GAM-3003", marca: "GAMA", categoria: "Social Media", info: "Post para Instagram del Día del Padre", personas: "@fcolmenares", detalles: "Diseño listo, falta copia y programación.", estado: "🟠 En revisión", deadline: "2026-06-14" },
+      { idTarea: "ROB-4004", marca: "ROBIN", categoria: "Interno", info: "Reunión de alineación de diseño", personas: "@mbonilla @gnebrus", detalles: "Revisar flujos de trabajo de proyectos mensuales.", estado: "🟢 Completada", deadline: "2026-06-12" }
+    ];
+
+    // Generador de ID robusto por marca
+    const generateBrandId = (marca) => {
+      const prefix = String(marca || "TASK").substring(0, 3).toUpperCase();
+      const randomNum = Math.floor(1000 + Math.random() * 9000);
+      return `${prefix}-${randomNum}`;
+    };
+
     // Limpiador de redirecciones CORS
     const getEffectiveApiUrl = (url) => {
       if (!url) return "";
@@ -85,7 +100,7 @@
       return val;
     };
 
-    // Componente del logotipo que utiliza la imagen original proporcionada por el usuario
+    // Componente del logotipo con soporte responsivo y fallback estilizado
     const RobinLogo = ({ className = "h-7 w-auto", theme }) => {
       const isDarkTheme = theme === 'midnight';
       return (
@@ -94,8 +109,10 @@
           alt="robin" 
           className={`${className} ${isDarkTheme ? 'invert brightness-200' : ''} object-contain`}
           onError={(e) => {
-            // No inventamos logos. Mostramos en consola una advertencia de desarrollo si el archivo falta en GitHub
-            console.warn("Archivo 'logo robin negro.png' no encontrado en el directorio raíz de tu GitHub.");
+            // Fallback de texto estilizado si la imagen local no está disponible
+            e.target.style.display = 'none';
+            const span = e.target.parentNode.querySelector('.fallback-logo');
+            if (span) span.style.display = 'inline-block';
           }}
         />
       );
@@ -289,7 +306,7 @@
       const sugeridos = useMemo(() => {
         const q = busqueda.toLowerCase().trim();
         return listaGlobal.filter(p => {
-          const coincideQuery = p.toLowerCase().includes(q) || p.toLowerCase().includes(q);
+          const coincideQuery = p.toLowerCase().includes(q);
           const yaSeleccionado = seleccionadas.includes(p);
           return coincideQuery && !yaSeleccionado;
         });
@@ -1133,7 +1150,7 @@
                 </div>
                 <div>
                   <label className="block text-[9px] font-bold text-zinc-455 uppercase mb-1">Color</label>
-                  <select value={nuevoColor} onChange={e => setnuevoColor(e.target.value)} className="bg-zinc-50 border p-1.5 text-xs rounded-lg font-bold">
+                  <select value={nuevoColor} onChange={e => setNuevoColor(e.target.value)} className="bg-zinc-50 border p-1.5 text-xs rounded-lg font-bold">
                     <option value="bg-indigo-500">Azul Indigo</option>
                     <option value="bg-emerald-500">Verde Esmeralda</option>
                     <option value="bg-rose-500">Rojo Carmesí</option>
@@ -1198,7 +1215,7 @@
                 ) : (
                   tareasDeHoy.map(t => {
                     const cMarca = getMarcaStyle(t.marca);
-                    const cEstado = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(t.state)) || { color: "text-zinc-655", dot: "bg-zinc-455" };
+                    const cEstado = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(t.estado)) || { color: "text-zinc-655", dot: "bg-zinc-455" };
 
                     return (
                       <div 
@@ -1272,7 +1289,7 @@
                       >
                         <span>{cell.dia}</span>
                         {tareasDia.length > 0 && (
-                          <span className={`w-1 h-1 rounded-full absolute bottom-1 ${esHoy || esSeleccionado ? 'bg-white' : 'bg-indigo-600'}`}></span>
+                          <span className={`w-1.5 h-1.5 rounded-full absolute bottom-1 ${esHoy || esSeleccionado ? 'bg-white' : 'bg-indigo-600'}`}></span>
                         )}
                       </button>
                     );
@@ -1638,13 +1655,17 @@
         }
       }, []);
 
-      // 🔄 Sincronización Automática cada 10 Minutos
+      // 🔄 Sincronización Automática Constante cada 30 Segundos
       useEffect(() => {
         if (usuario) {
-          fetchData();
+          // Primera carga bloqueante
+          fetchData(false);
+          
+          // Intervalo de actualización en segundo plano (Sincronización silenciosa)
           const autoRefreshInterval = setInterval(() => {
-            fetchData();
-          }, 10 * 60 * 1000); 
+            fetchData(true); 
+          }, 30 * 1000); 
+          
           return () => clearInterval(autoRefreshInterval);
         }
       }, [usuario]);
@@ -1745,18 +1766,21 @@
         showToast(`Estilo cambiado a ${newTheme.toUpperCase()}`, "success");
       };
 
-      const fetchData = async () => {
-        setLoading(true);
+      // FETCH DE DATOS: Soporta modo silencioso de fondo (isBackground)
+      const fetchData = async (isBackground = false) => {
+        if (!isBackground) setLoading(true);
+        setSyncing(true);
         setApiError(null);
         
         const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
         if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here")) {
-          const fixedDemo = TAREAS_DEMO.map(t => ({
-            ...t, idTarea: t.idTarea || generateBrandId(t.marca)
+          const fixedDemo = TAREAS_DEMO.map((t, idx) => ({
+            ...t, idTarea: t.idTarea || `DEMO-${idx + 1}`
           }));
           setTareas(fixedDemo);
-          showToast("Modo Demo Activo", "info");
+          if (!isBackground) showToast("Modo Demo Activo", "info");
           setLoading(false);
+          setSyncing(false);
           return;
         }
 
@@ -1768,21 +1792,34 @@
           if (json.success && json.data) {
             const tareasValidas = json.data.filter(t => t.info && t.info.toString().trim() !== "");
             
-            // Garantizar ID en cada tarea sobre la marcha
-            const tareasReparadas = tareasValidas.map(t => {
-              if (!t.idTarea || t.idTarea.trim() === "" || t.idTarea.includes("GMT")) {
-                const autoId = generateBrandId(t.marca);
-                sincronizarIdFaltanteEnSheets(t, autoId);
-                return { ...t, idTarea: autoId };
-              }
-              return t;
+            // Reparamos IDs nulos/corruptos solo EN MEMORIA (No hacemos POST silenciosos que causen duplicados)
+            const tareasReparadas = tareasValidas.map((t, index) => {
+              const safeId = t.idTarea && t.idTarea.toString().trim() !== "" && !t.idTarea.toString().includes("GMT")
+                ? t.idTarea.toString().trim()
+                : `AUTO-${String(t.marca || "GEN").substring(0,3).toUpperCase()}-${index + 1000}`;
+              return { ...t, idTarea: safeId };
             });
 
-            setTareas(tareasReparadas);
+            // Filtro final de deduplicación estricto para proteger el render de React
+            const unicosSet = new Set();
+            const tareasDeduplicadas = [];
+            
+            tareasReparadas.forEach(tarea => {
+              const identificadorUnico = tarea.idTarea;
+              if (!unicosSet.has(identificadorUnico)) {
+                unicosSet.add(identificadorUnico);
+                tareasDeduplicadas.push(tarea);
+              }
+            });
+
+            setTareas(tareasDeduplicadas);
+            
             if (json.marcasMetadata) {
               setMarcasMetadata(json.marcasMetadata);
             }
-            showToast("Sincronizado con Google Sheets", "success");
+            if (!isBackground) {
+              showToast("Sincronizado con Google Sheets", "success");
+            }
           } else {
             throw new Error(json.error || "No se recibieron datos.");
           }
@@ -1790,26 +1827,10 @@
           console.error("Error cargando Google Sheets: ", e);
           setApiError("Error de Conexión. Asegúrate de verificar tu Apps Script de Google Sheets.");
           setTareas(TAREAS_DEMO); 
-          showToast("Utilizando datos locales de respaldo", "info");
+          if (!isBackground) showToast("Utilizando datos locales de respaldo", "info");
         } finally {
           setLoading(false);
-        }
-      };
-
-      const sincronizarIdFaltanteEnSheets = async (tarea, nuevoId) => {
-        const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
-        if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here") || apiError) return;
-        try {
-          await fetch(effectiveUrl, {
-            method: "POST", mode: "cors", redirect: "follow",
-            headers: { "Content-Type": "text/plain; charset=utf-8" },
-            body: JSON.stringify({
-              marca: tarea.marca, idTarea: nuevoId, info: tarea.info, categoria: tarea.categoria,
-              personas: tarea.personas, detalles: tarea.detalles, estado: tarea.estado, deadline: tarea.deadline, campo: "todo"
-            })
-          });
-        } catch (err) {
-          console.error("Error fijando ID: ", err);
+          setSyncing(false);
         }
       };
 
@@ -1909,7 +1930,7 @@
             })
           });
           showToast("Sincronizado completamente", "success");
-          fetchData();
+          fetchData(true);
         } catch (e) {
           showToast("Guardado temporalmente local", "error");
         } finally {
@@ -1942,14 +1963,14 @@
           const json = await res.json();
           if (json.success) {
             showToast("Eliminado correctamente de Google Sheets", "success");
-            fetchData();
+            fetchData(true);
           } else {
             showToast("Error al eliminar del servidor", "error");
-            fetchData();
+            fetchData(true);
           }
         } catch (e) {
           showToast("Fallo al eliminar en Sheets. Se revirtió el cambio.", "error");
-          fetchData();
+          fetchData(true);
         } finally {
           setSyncing(false);
         }
@@ -2001,7 +2022,7 @@
           const json = await res.json();
           if (json.success) {
             showToast("Registrado en Sheets", "success");
-            fetchData();
+            fetchData(true);
             setNuevaTarea({
               marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", estado: "⚪ Pendiente", deadline: ""
             });
@@ -2038,7 +2059,7 @@
         return idStr;
       };
 
-      // 🔄 Cómputo Inteligente de Fechas (Garantizando Filtro de Hoy Estricto)
+      // 🔄 Cómputo Inteligente de Fechas (Filtro de Hoy Estricto)
       const tareasFiltradas = useMemo(() => {
         const hoy = new Date();
         const tHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
@@ -2048,13 +2069,11 @@
           
           if (filtroTiempo === "HOY") {
             const tieneFechaReal = tDeadline !== Infinity;
-            // Estrictamente hoy (evita acarrear tareas atrasadas en esta pestaña)
             const esHoy = tieneFechaReal && tDeadline === tHoy;
             const esCompletada = cleanEstado(t.estado) === "completada";
             if (!esHoy || esCompletada) return false;
           } else if (filtroTiempo === "ATRASADAS") {
             const tieneFechaReal = tDeadline !== Infinity;
-            // Tareas cuya fecha límite ya venció y siguen pendientes
             const esAtrasada = tieneFechaReal && tDeadline < tHoy;
             const esCompletada = cleanEstado(t.estado) === "completada";
             if (!esAtrasada || esCompletada) return false;
@@ -2080,7 +2099,7 @@
         });
       }, [tareas, filtroTiempo, filtroMarca, filtroEstado, searchQuery]);
 
-      // 📅 Filtro exclusivo para el Calendario (Ignora los filtros de tiempo para mostrar el calendario continuo)
+      // 📅 Filtro exclusivo para el Calendario (Visión continua global)
       const tareasParaCalendario = useMemo(() => {
         return tareas.filter(t => {
           if (filtroMarca !== "TODAS" && t.marca.toUpperCase() !== filtroMarca.toUpperCase()) return false;
@@ -2131,7 +2150,7 @@
         return MARCAS_COLORES[clean] || { bg: "bg-zinc-100/60", text: "text-zinc-500", border: "border-zinc-200/50" };
       };
 
-      // Guardar metadatos (Ficha de Cliente) de marca de forma remota en Sheets
+      // Guardar metadatos (Ficha de Cliente)
       const handleSaveBrandMetadata = async (brand, newMeta) => {
         const actualizados = {
           ...marcasMetadata,
@@ -2161,7 +2180,7 @@
             })
           });
           showToast("Ficha guardada en Google Sheets", "success");
-          fetchData();
+          fetchData(true);
         } catch (e) {
           showToast("Guardado local (Falla de red)", "error");
         } finally {
@@ -2169,12 +2188,11 @@
         }
       };
 
-      // Crear nuevo cliente (pestaña en Google Sheets)
+      // Crear nuevo cliente
       const handleCreateBrand = async (brandPayload) => {
         showToast("Insertando nueva hoja en Sheets...", "info");
         const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
         if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here") || apiError) {
-          // Fallback local
           const actualizadasMeta = {
             ...marcasMetadata,
             [brandPayload.nuevaMarca]: {
@@ -2206,7 +2224,7 @@
           const json = await res.json();
           if (json.success) {
             showToast("Nueva hoja de cliente creada en Sheets", "success");
-            fetchData();
+            fetchData(true);
           }
         } catch (e) {
           showToast("Falla de red al crear marca", "error");
@@ -2214,6 +2232,47 @@
           setSyncing(false);
         }
       };
+
+      // Si el usuario no ha iniciado sesión, se solicita clave
+      if (!usuario) {
+        return (
+          <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#FAFAFA] font-sans p-4">
+            <div className="bg-white max-w-sm w-full p-8 rounded-2xl border border-zinc-200/80 shadow-xl flex flex-col gap-6">
+              <div className="flex flex-col items-center gap-3">
+                <span className="fallback-logo text-lg font-black text-zinc-900 tracking-wider">ROBIN</span>
+                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Trade & Shopper Marketing</span>
+              </div>
+              <form onSubmit={handleLogin} className="flex flex-col gap-4 text-xs">
+                <div>
+                  <label className="block font-bold text-zinc-450 uppercase mb-1">Usuario</label>
+                  <select name="username" className="w-full bg-zinc-50 border p-2.5 rounded-lg font-semibold focus:outline-none focus:ring-1 focus:ring-zinc-900 bg-white text-zinc-800">
+                    {listaUsuarios.map(u => (
+                      <option key={u} value={u}>@{u}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold text-zinc-450 uppercase mb-1">Contraseña</label>
+                  <input 
+                    type="password" 
+                    required 
+                    placeholder="Introducir clave de equipo..." 
+                    value={claveInput}
+                    onChange={(e) => setClaveInput(e.target.value)}
+                    className="w-full bg-zinc-50 border p-2.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900 font-bold"
+                  />
+                </div>
+                {loginError && (
+                  <p className="text-[10px] text-red-500 font-bold text-center leading-normal mt-1">{loginError}</p>
+                )}
+                <button type="submit" className="w-full bg-zinc-950 hover:bg-black text-white py-3 rounded-xl font-bold transition-all mt-2 text-xs shadow">
+                  Entrar al Portal
+                </button>
+              </form>
+            </div>
+          </div>
+        );
+      }
 
       return (
         <div className={`flex h-screen w-screen overflow-hidden ${currentTheme.bg} ${currentTheme.text} select-none transition-all`}>
@@ -2234,11 +2293,12 @@
                     {/* Logotipo Original en el Sidebar */}
                     <div className="text-zinc-900 transition-colors">
                       <RobinLogo className="h-7 w-auto" theme={theme} />
+                      <span className="fallback-logo text-base font-black text-zinc-900 tracking-wider" style={{display: 'none'}}>ROBIN</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Quién está conectado y directorio real */}
+                {/* Quién está conectado y equipo de trabajo */}
                 <div className={`mx-3 my-3 p-3 rounded-xl bg-zinc-50/70 border ${currentTheme.borderMuted} flex flex-col gap-2.5`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 overflow-hidden">
@@ -2250,7 +2310,7 @@
                     </div>
                   </div>
 
-                  {/* Miembros del equipo autorizados reais (sin simulación) */}
+                  {/* Miembros del equipo autorizados */}
                   <div className="border-t border-zinc-200/50 pt-2">
                     <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest block mb-1.5">Equipo Autorizado</span>
                     <div className="flex flex-col gap-1">
@@ -2351,7 +2411,7 @@
                     <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 font-bold">{tareas.length}</span>
                   </button>
 
-                  {/* 📂 NUEVO ACORDEÓN: CLIENTES Y MARCAS */}
+                  {/* ACORDEÓN: CLIENTES Y MARCAS */}
                   <div className="mt-4 pt-3 border-t border-zinc-200/50">
                     <button 
                       onClick={() => { setPaginaActiva("clientes"); setClientesDropdownOpen(!clientesDropdownOpen); }}
@@ -2443,16 +2503,17 @@
                 <div className="text-zinc-900">
                   {/* Logotipo Original en el Header de Carga */}
                   <RobinLogo className="h-6 w-auto" theme={theme} />
+                  <span className="fallback-logo text-base font-black text-zinc-900 tracking-wider" style={{display: 'none'}}>ROBIN</span>
                 </div>
                 <div className="h-4 w-[1px] bg-zinc-200"></div>
-                <div className="text-xs text-zinc-555 font-bold">
+                <div className="text-xs text-zinc-555 font-bold flex items-center gap-1.5">
                   Hoy: <span className="text-emerald-600 font-extrabold">{metricaCounters.activasHoy}</span> · Atrasadas: <span className="text-rose-600 font-extrabold">{metricaCounters.atrasadas}</span> · Futuras: <span className="text-zinc-900 font-extrabold">{metricaCounters.futuras}</span> · Todas: <span className="text-zinc-900 font-extrabold">{tareas.length}</span>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
                 <button 
-                  onClick={fetchData} 
+                  onClick={() => fetchData(false)} 
                   className="bg-white border border-zinc-250 hover:bg-zinc-50 text-zinc-700 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
                 >
                   <i className={`fa-solid fa-arrows-rotate text-[10px] ${loading ? 'animate-spin' : ''}`}></i>
@@ -2461,7 +2522,7 @@
               </div>
             </header>
 
-            <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="flex-1 overflow-hidden flex flex-col bg-[#FAFAFA]/20">
               
               {paginaActiva === "home" ? (
                 /* VISTA INICIAL: HOME DASHBOARD EN VIVO */
@@ -2480,7 +2541,7 @@
                   />
                 </div>
               ) : paginaActiva === "clientes" ? (
-                /* 📂 NUEVA VISTA: DIRECTORIO GENERAL DE CLIENTES */
+                /* NUEVA VISTA: DIRECTORIO GENERAL DE CLIENTES */
                 <div className="flex-1 p-6 overflow-y-auto bg-[#FAFAFA]/40">
                   <LayoutClientes 
                     marcasMetadata={marcasMetadata}
@@ -2495,7 +2556,7 @@
               ) : paginaActiva === "dashboard" ? (
                 /* TABLERO GENERAL / LISTA / CALENDARIO */
                 <>
-                  <div className="px-6 py-3 bg-white border-b border-zinc-100 flex flex-wrap items-center justify-between gap-4 shrink-0">
+                  <div className="px-6 py-3 bg-white border-b border-zinc-100 flex flex-wrap items-center justify-between gap-4 shrink-0 shadow-sm">
                     <div className="flex items-center gap-3">
                       <div className="flex items-center gap-2 text-xs text-zinc-400 font-bold uppercase tracking-wider">
                         <span>Estado</span>
@@ -2588,7 +2649,7 @@
                         )}
                         {vistaModo === "CALENDAR" && (
                           <LayoutCalendario 
-                            tareas={tareasParaCalendario} // Calendario de visión continua global
+                            tareas={tareasParaCalendario} 
                             onUpdateField={handleUpdateField}
                             onSelectTask={(t) => { setActiveTask(t); setIsEditing(true); }}
                             currentTheme={currentTheme}
@@ -2603,7 +2664,7 @@
                 <div className="flex-1 p-8 overflow-y-auto max-w-lg mx-auto w-full animate-slide-in">
                   <div className={`${currentTheme.cardBg} rounded-2xl border ${currentTheme.border} p-6 flex flex-col gap-6 shadow-md`}>
                     
-                    {/* Sección Nombre Completo para el Saludo */}
+                    {/* Sección Nombre Completo */}
                     <div>
                       <h3 className="text-xs font-black text-zinc-400 tracking-wider uppercase mb-2">Tu Perfil Personal</h3>
                       <form onSubmit={handleSaveNombreCompleto} className="flex gap-2">
@@ -2645,7 +2706,7 @@
                       </div>
                     </div>
 
-                    {/* Miembros del equipo - PROTECCIÓN DE ADMINISTRADOR SÓLO PARA ADMIN */}
+                    {/* Miembros del equipo - PROTECCIÓN DE ADMINISTRADOR */}
                     {usuario === "admin" && (
                       <div className="border-t border-zinc-150 pt-5">
                         <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Gestionar Usuarios Autorizados (Panel Admin)</label>
@@ -2680,7 +2741,7 @@
                       </div>
                     )}
 
-                    {/* Botón Grande y Prominente de Cerrar Sesión Activa */}
+                    {/* Botón de Cerrar Sesión Activa */}
                     <div className="border-t border-zinc-150 pt-5 mt-2">
                       <button
                         onClick={handleLogout}
@@ -2843,7 +2904,7 @@
                 <div className="flex items-center justify-end gap-2.5">
                   <button 
                     onClick={() => setTaskToDelete(null)}
-                    className="px-4 py-2 bg-zinc-150 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-lg transition-all border border-zinc-200/50"
+                    className="px-4 py-2 bg-zinc-155 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-lg transition-all border border-zinc-200/50"
                   >
                     Cancelar
                   </button>

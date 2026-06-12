@@ -1054,7 +1054,7 @@
                   type="button" 
                   disabled={syncing || isSubmittingLocal}
                   onClick={() => onDeleteClick(task)}
-                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-655 font-bold text-xs rounded-lg transition-all border border-red-200/50 disabled:opacity-50"
+                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-650 font-bold text-xs rounded-lg transition-all border border-red-200/50 disabled:opacity-50"
                 >
                   <i className="fa-regular fa-trash-can mr-1.5"></i>Eliminar
                 </button>
@@ -1635,8 +1635,6 @@
       
       const [paginaActiva, setPaginaActiva] = useState("home"); 
       const [vistaModo, setVistaModo] = useState("TABLE"); 
-
-      const [clientesDropdownOpen, setClientesDropdownOpen] = useState(true);
 
       const [activeTask, setActiveTask] = useState(null);
       const [isEditing, setIsEditing] = useState(false);

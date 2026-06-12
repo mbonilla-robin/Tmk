@@ -11,7 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   
   <!-- FontAwesome Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link class="streaming-chunk-icon" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
   <!-- React & ReactDOM CDN -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
@@ -220,8 +220,8 @@
       { id: "🔵 En progreso", label: "En Progreso", color: "bg-blue-50 text-blue-800 border-blue-100", dot: "bg-blue-600" },
       { id: "🟡 Seguimiento", label: "Seguimiento", color: "bg-purple-50 text-purple-800 border-purple-100", dot: "bg-purple-600" },
       { id: "🟠 En revisión", label: "Revisión", color: "bg-orange-50 text-orange-800 border-orange-100", dot: "bg-orange-600" }, 
-      { id: "🔴 En pausa", label: "Pausa", color: "bg-rose-50 text-rose-800 border-rose-100", dot: "bg-red-650" }, 
-      { id: "🟢 Completada", label: "Completada", color: "bg-emerald-50 text-emerald-800 border-emerald-100", dot: "bg-emerald-650" }
+      { id: "🔴 En pausa", label: "Pausa", color: "bg-rose-50 text-rose-800 border-rose-100", dot: "bg-red-655" }, 
+      { id: "🟢 Completada", label: "Completada", color: "bg-emerald-50 text-emerald-800 border-emerald-100", dot: "bg-emerald-655" }
     ];
 
     const LISTA_ESTADOS_VALIDOS = [
@@ -232,46 +232,6 @@
       "🔴 En pausa", 
       "🟢 Completada"
     ];
-
-    function cleanEstado(val) {
-      if (!val) return "";
-      return String(val)
-        .replace(/[\u2600-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '')
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "")
-        .toLowerCase()
-        .trim();
-    }
-
-    function formatearFecha(fechaStr) {
-      if (!fechaStr) return "";
-      const partes = fechaStr.split("-");
-      if (partes.length === 3) {
-        return `${partes[2]}/${partes[1]}`;
-      }
-      return fechaStr.split("T")[0];
-    }
-
-    function obtenerTiempoFecha(val) {
-      if (!val) return Infinity;
-      if (val instanceof Date) {
-        return new Date(val.getFullYear(), val.getMonth(), val.getDate()).getTime();
-      }
-      var str = String(val).trim();
-      var partes = str.split(/[-/]/);
-      if (partes.length === 3) {
-        var dia, mes, anio;
-        if (partes[0].length === 4) {
-          anio = parseInt(partes[0], 10); mes = parseInt(partes[1], 10) - 1; dia = parseInt(partes[2], 10);
-        } else {
-          dia = parseInt(partes[0], 10); mes = parseInt(partes[1], 10) - 1; anio = parseInt(partes[2], 10);
-          if (anio < 100) anio += 2000;
-        }
-        var d = new Date(anio, mes, dia);
-        return isNaN(d.getTime()) ? Infinity : d.getTime();
-      }
-      return Infinity;
-    }
 
     function SelectorPersonasChips({ personasSeleccionadas, onChange, listaGlobal, registrarNuevaPersona }) {
       const [isOpen, setIsOpen] = useState(false);
@@ -710,7 +670,7 @@
             </h3>
             
             <div className="flex items-center gap-1 bg-zinc-50 p-1 rounded-lg border border-zinc-200">
-              <button onClick={() => navegarMes(-1)} className="hover:bg-white text-zinc-655 p-1 rounded-md text-xs">
+              <button onClick={() => navegarMes(-1)} className="hover:bg-white text-zinc-650 p-1 rounded-md text-xs">
                 <i className="fa-solid fa-chevron-left px-1.5"></i>
               </button>
               <button onClick={() => setCurrentDate(new Date())} className="hover:bg-white text-zinc-800 px-3 py-0.5 rounded-md text-xs font-bold">
@@ -885,7 +845,7 @@
 
               <div>
                 <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Título / Entregable</label>
-                <input type="text" required value={info} onChange={(e) => setInfo(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-sm rounded-lg font-bold text-zinc-850 focus:outline-none focus:ring-1 focus:ring-zinc-950" />
+                <input type="text" required value={info} onChange={(e) => setInfo(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-sm rounded-lg font-bold text-zinc-855 focus:outline-none focus:ring-1 focus:ring-zinc-950" />
               </div>
 
               <div>
@@ -950,7 +910,7 @@
                     placeholder="Avance o comentario nuevo..." 
                     value={nuevoStatus} 
                     onChange={(e) => setNuevoStatus(e.target.value)} 
-                    className="flex-1 bg-white border border-zinc-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none"
+                    className="flex-1 bg-white border border-zinc-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -991,7 +951,7 @@
       );
     }
 
-    function LayoutHome({ tareas, nombreUsuario, username, onSelectTask, onUpdateField, widgets, onAddWidget, onDeleteWidget, currentTheme }) {
+    function LayoutHome({ tareas, nombreUsuario, username, onSelectTask, onUpdateField, widgets, onAddWidget, onDeleteWidget, currentTheme, getMarcaStyle }) {
       const [nuevoTitulo, setNuevoTitulo] = useState("");
       const [nuevoLink, setNuevoLink] = useState("");
       const [nuevoIcon, setNuevoIcon] = useState("fa-link");
@@ -1060,7 +1020,6 @@
           cDias.push({ dia: d, fechaStr: `${year}-${m}-${diaStr}` });
         }
         return cDias;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
       }, []);
 
       const tareasDelDiaSeleccionadoInPlanner = useMemo(() => {
@@ -2127,6 +2086,7 @@
                     onAddWidget={handleAddWidget}
                     onDeleteWidget={handleDeleteWidget}
                     currentTheme={currentTheme}
+                    getMarcaStyle={getMarcaStyle}
                   />
                 </div>
               ) : paginaActiva === "dashboard" ? (

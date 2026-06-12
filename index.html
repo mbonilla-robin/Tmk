@@ -463,7 +463,7 @@
                         <p className="font-extrabold text-sm">Sin entregables en esta pestaña</p>
                         <p className="text-xs text-zinc-400 leading-relaxed">
                           {filtroTiempo === "HOY" 
-                            ? "No tienes entregables agendados para el día de hoy. Haz clic en 'Todas' o 'Atrasadas' en el menú lateral."
+                            ? "No tienes entregables agendados para el día de hoy. Haz clic en 'Todas' o 'Atrasadas' en los filtros."
                             : "Cambia tus filtros o crea un nuevo entregable."
                           }
                         </p>
@@ -542,7 +542,12 @@
                                 <input
                                   type="date"
                                   value={t.deadline ? t.deadline.split('T')[0] : ""}
-                                  onChange={(e) => onUpdateField(t, "deadline", e.target.value)}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val && val.length === 10) {
+                                      onUpdateField(t, "deadline", val);
+                                    }
+                                  }}
                                   className="bg-transparent border-0 rounded-lg py-1 px-1 text-xs font-bold text-zinc-500 focus:outline-none w-28 text-center"
                                 />
                               </td>
@@ -837,7 +842,7 @@
           if (line.trim().startsWith("•") || line.trim().startsWith("• [")) {
             logs.push(line.trim());
           } else if (line.trim() !== "") {
-            notasLimpias.push(line);
+            notes: notasLimpias.push(line);
           }
         });
 
@@ -1078,7 +1083,7 @@
         if (!nuevoTitulo.trim() || !nuevoLink.trim()) return;
         
         onAddWidget({
-          id: Date.now(),
+          id: String(Date.now()),
           titulo: nuevoTitulo.trim(),
           link: nuevoLink.trim(),
           icon: nuevoIcon,
@@ -1135,10 +1140,10 @@
             </div>
           </div>
 
-          {/* Sección de Accesos Rápidos (Widgets del Área) */}
+          {/* Sección de Accesos Rápidos (Widgets del Área Online) */}
           <div className="flex flex-col gap-3">
             <div className="flex justify-between items-center">
-              <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Accesos y Herramientas del Área</span>
+              <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Accesos y Herramientas del Área (En Línea)</span>
               {isAdmin && (
                 <button 
                   onClick={() => setShowAddForm(!showAddForm)}
@@ -1166,7 +1171,7 @@
                     <option value="bg-emerald-500">Verde Esmeralda</option>
                     <option value="bg-rose-500">Rojo Carmesí</option>
                     <option value="bg-amber-500">Ámbar</option>
-                    <option value="bg-stone-800">Negro Charcoal</option>
+                    <option value="bg-stone-850">Negro Charcoal</option>
                   </select>
                 </div>
                 <div className="flex gap-1.5">
@@ -1179,7 +1184,7 @@
             {/* Grid de Widgets */}
             {widgets.length === 0 ? (
               <div className="text-center py-8 border border-dashed border-zinc-200 rounded-xl text-zinc-400 text-xs font-semibold">
-                No hay widgets de área configurados. {isAdmin && "Usa el botón de arriba para registrar accesos importantes."}
+                No hay accesos online configurados. {isAdmin && "Usa el botón de arriba para registrar accesos importantes en Sheets."}
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
@@ -1198,7 +1203,7 @@
                     </a>
                     {isAdmin && (
                       <button 
-                        onClick={() => onDeleteWidget(w.id)}
+                        onClick={() => onDeleteWidget(w.id, w.titulo)}
                         className="absolute -top-1.5 -right-1.5 bg-red-500 hover:bg-red-700 text-white w-4 h-4 rounded-full flex items-center justify-center text-[8px] opacity-0 group-hover:opacity-100 transition-all shadow"
                       >
                         <i className="fa-solid fa-xmark"></i>
@@ -1480,7 +1485,7 @@
                     onClick={() => onSelectBrand(brand)}
                     className="w-full text-center py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-xl transition-all uppercase tracking-wider"
                   >
-                    Ver entregables
+                    Ver en Ficha Directa
                   </button>
                 </div>
               );
@@ -1632,15 +1637,8 @@
       // Metadatos dinámicos de clientes recibidos del Apps Script (logo, roles)
       const [marcasMetadata, setMarcasMetadata] = useState({});
 
-      // Widgets administrables del Home Dashboard
-      const [widgets, setWidgets] = useState(() => {
-        const guardados = localStorage.getItem("robin_global_widgets");
-        try {
-          return guardados ? JSON.parse(guardados) : [];
-        } catch (e) {
-          return [];
-        }
-      });
+      // Widgets administrables online de Sheets
+      const [widgets, setWidgets] = useState([]);
 
       // 👥 Lista de personas asignables (Sincronizado inicialmente con el equipo real)
       const [listaPersonas, setListaPersonas] = useState(() => {
@@ -1716,18 +1714,70 @@
         setTimeout(() => setToast(null), 4000);
       };
 
-      const handleAddWidget = (nuevoWidget) => {
-        const actualizados = [...widgets, nuevoWidget];
-        setWidgets(actualizados);
-        localStorage.setItem("robin_global_widgets", JSON.stringify(actualizados));
-        showToast("Widget de área añadido", "success");
+      // 🔄 WIDGETS ONLINE: Guardar y Sincronizar en Sheets (Marca: "WIDGETS")
+      const handleAddWidget = async (nuevoWidget) => {
+        setWidgets([...widgets, nuevoWidget]);
+        showToast("Registrando acceso rápido...", "info");
+
+        const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
+        if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here") || apiError) {
+          showToast("Widget de área añadido localmente", "success");
+          return;
+        }
+
+        setSyncing(true);
+        try {
+          await fetch(effectiveUrl, {
+            method: "POST", mode: "cors", redirect: "follow",
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
+            body: JSON.stringify({
+              marca: "WIDGETS",
+              idTarea: nuevoWidget.id,
+              info: nuevoWidget.titulo,
+              detalles: nuevoWidget.link,
+              categoria: nuevoWidget.icon,
+              personas: nuevoWidget.color,
+              campo: "todo"
+            })
+          });
+          showToast("Widget sincronizado online", "success");
+          fetchData(true);
+        } catch (e) {
+          showToast("Error al guardar widget online", "error");
+        } finally {
+          setSyncing(false);
+        }
       };
 
-      const handleDeleteWidget = (id) => {
-        const actualizados = widgets.filter(w => w.id !== id);
-        setWidgets(actualizados);
-        localStorage.setItem("robin_global_widgets", JSON.stringify(actualizados));
-        showToast("Widget de área eliminado", "info");
+      const handleDeleteWidget = async (id, titulo) => {
+        setWidgets(prev => prev.filter(w => w.id !== id));
+        showToast("Borrando acceso rápido...", "info");
+
+        const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
+        if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here") || apiError) {
+          showToast("Widget de área eliminado localmente", "info");
+          return;
+        }
+
+        setSyncing(true);
+        try {
+          await fetch(effectiveUrl, {
+            method: "POST", mode: "cors", redirect: "follow",
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
+            body: JSON.stringify({
+              marca: "WIDGETS",
+              idTarea: id,
+              info: titulo,
+              campo: "eliminar"
+            })
+          });
+          showToast("Widget eliminado online", "success");
+          fetchData(true);
+        } catch (e) {
+          showToast("Error al eliminar widget online", "error");
+        } finally {
+          setSyncing(false);
+        }
       };
 
       const handleSaveNombreCompleto = (e) => {
@@ -1784,66 +1834,7 @@
         showToast(`Estilo cambiado a ${newTheme.toUpperCase()}`, "success");
       };
 
-      // 🧹 RUTINA 1: Repara celdas de ID vacías en tu Google Sheet asociándolas por el campo "info" (título)
-      const ejecutarReparacionDeIds = async (reparaciones) => {
-        const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
-        if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here") || apiError) return;
-        
-        console.log(`[ROBIN REPARACIÓN] Reparando ${reparaciones.length} IDs vacíos directamente en las filas de Sheets...`);
-        for (const item of reparaciones) {
-          try {
-            await fetch(effectiveUrl, {
-              method: "POST", mode: "cors", redirect: "follow",
-              headers: { "Content-Type": "text/plain; charset=utf-8" },
-              body: JSON.stringify({
-                marca: item.tarea.marca,
-                idTarea: "", // Se envía vacío para que el Apps Script busque la fila usando la columna "info"
-                info: item.tarea.info,
-                campo: "idTarea",
-                valor: item.nuevoId
-              })
-            });
-            await new Promise(resolve => setTimeout(resolve, 300));
-          } catch (e) {
-            console.error("Fallo al escribir ID de respaldo en Google Sheets:", e);
-          }
-        }
-      };
-
-      // 🧹 RUTINA 2: Elimina físicamente las filas duplicadas en tu Google Sheet en segundo plano
-      const ejecutarPurgaDeDuplicados = async (duplicados) => {
-        const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
-        if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here") || apiError) return;
-
-        console.log(`[ROBIN PURGA] Eliminando ${duplicados.length} filas duplicadas detectadas en Sheets...`);
-        let purgadasExitosamente = 0;
-        
-        for (const t of duplicados) {
-          try {
-            await fetch(effectiveUrl, {
-              method: "POST", mode: "cors", redirect: "follow",
-              headers: { "Content-Type": "text/plain; charset=utf-8" },
-              body: JSON.stringify({
-                marca: t.marca,
-                idTarea: t.idTarea || "",
-                info: t.info,
-                categoria: t.categoria || "",
-                campo: "eliminar"
-              })
-            });
-            purgadasExitosamente++;
-            await new Promise(resolve => setTimeout(resolve, 400)); // Intervalo de seguridad anti-concurrencia
-          } catch (err) {
-            console.error("Fallo de red al purgar fila duplicada:", err);
-          }
-        }
-        
-        if (purgadasExitosamente > 0) {
-          showToast(`¡Base de datos saneada! Se eliminaron ${purgadasExitosamente} filas duplicadas de Google Sheets`, "success");
-        }
-      };
-
-      // FETCH DE DATOS: Agrupamiento Semántico y Filtro de Seguridad
+      // FETCH DE DATOS: Agrupamiento Semántico, Deduplicación de Seguridad y Carga de Widgets Online
       const fetchData = async (isBackground = false) => {
         if (!isBackground) setLoading(true);
         setSyncing(true);
@@ -1867,70 +1858,43 @@
           });
           const json = await res.json();
           if (json.success && json.data) {
-            const tareasValidas = json.data.filter(t => t.info && t.info.toString().trim() !== "");
             
-            // 1. Agrupamiento semántico por identidad de la tarea (marca + entregable + fecha límite)
-            const grupos = {};
-            tareasValidas.forEach(t => {
-              const key = `${t.marca || ""}|${t.info || ""}|${t.deadline || ""}`.toLowerCase().replace(/\s+/g, " ").trim();
-              if (!grupos[key]) {
-                grupos[key] = [];
-              }
-              grupos[key].push(t);
-            });
+            // 🌐 1. Extraer y Sincronizar Widgets Online (Filas con marca: "WIDGETS")
+            const rawWidgets = json.data.filter(t => t.marca === "WIDGETS");
+            const parsedWidgets = rawWidgets.map(w => ({
+              id: w.idTarea || String(w.id || Math.random()),
+              titulo: w.info,
+              link: w.detalles || "",
+              icon: w.categoria || "fa-link",
+              color: w.personas || "bg-indigo-500"
+            }));
+            setWidgets(parsedWidgets);
 
+            // 📋 2. Filtrar y Procesar las tareas reales del equipo de trade
+            const tareasValidas = json.data.filter(t => t.marca !== "WIDGETS" && t.info && t.info.toString().trim() !== "");
+            
+            // 🧼 3. Algoritmo Inteligente de De-duplicación 100% en memoria para evitar race conditions en Google Sheets
             const deduplicadas = [];
-            const duplicadosParaBorrar = [];
-            const idsParaReparar = [];
+            const seenKeys = new Set();
 
-            // 2. Procesamiento de grupos para priorizar IDs válidos y descartar duplicaciones
-            Object.keys(grupos).forEach(key => {
-              const list = grupos[key];
-
-              // Puntuamos las tareas: Las que ya posean IDs reales de agencia toman máxima prioridad
-              const scoredList = list.map(t => {
-                let score = 0;
-                const id = t.idTarea ? String(t.idTarea).trim() : "";
-                if (id === "" || id.includes("GMT") || id.includes("Venezuela") || id.length > 15) {
-                  score = 0; // ID corrupto o vacío
-                } else if (id.startsWith("STB-") || id.startsWith("AUTO-")) {
-                  score = 1; // ID temporal
-                } else {
-                  score = 2; // ID original correcto (ej: SAN-1001)
-                }
-                return { task: t, score };
-              });
-
-              // Ordenamos descendente para que el mejor ID quede primero en la lista
-              scoredList.sort((a, b) => b.score - a.score);
-
-              const championObj = scoredList[0];
-              const champion = championObj.task;
-
-              // Generar Hash estable determinista únicamente si la celda está vacía en Sheets
-              let cleanId = champion.idTarea ? String(champion.idTarea).trim() : "";
-              if (cleanId === "" || cleanId.includes("GMT") || cleanId.includes("Venezuela") || cleanId.length > 15) {
-                const contentSeed = `${champion.marca || "GEN"}-${champion.info || ""}-${champion.deadline || ""}`;
-                let hash = 0;
-                for (let i = 0; i < contentSeed.length; i++) {
-                  hash = ((hash << 5) - hash) + contentSeed.charCodeAt(i);
-                  hash |= 0;
-                }
-                cleanId = `STB-${String(champion.marca || "GEN").substring(0,3).toUpperCase()}-${Math.abs(hash)}`;
+            tareasValidas.forEach(t => {
+              const cleanId = t.idTarea ? String(t.idTarea).trim() : "";
+              const hasRealId = cleanId !== "" && !cleanId.includes("GMT") && cleanId.length < 15;
+              
+              // Definimos una clave única de consistencia de datos por marca, entregable y deadline limpio
+              const key = hasRealId 
+                ? `id:${cleanId.toLowerCase()}` 
+                : `info:${(t.marca || "").toLowerCase()}|${(t.info || "").toLowerCase()}|${(t.deadline || "").split('T')[0]}`;
                 
-                // Programamos la reparación del ID de esta fila en la hoja de cálculo
-                idsParaReparar.push({ tarea: champion, nuevoId: cleanId });
-              }
-
-              deduplicadas.push({ ...champion, idTarea: cleanId });
-
-              // Todos los demás elementos de este grupo son filas repetidas en Google Sheets
-              for (let i = 1; i < scoredList.length; i++) {
-                duplicadosParaBorrar.push(scoredList[i].task);
+              if (!seenKeys.has(key)) {
+                seenKeys.add(key);
+                deduplicadas.push({
+                  ...t,
+                  idTarea: hasRealId ? cleanId : `STB-${String(t.marca || "GEN").substring(0,3).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`
+                });
               }
             });
 
-            // Actualizamos la UI inmediatamente con la lista 100% libre de duplicados
             setTareas(deduplicadas);
             
             if (json.marcasMetadata) {
@@ -1938,14 +1902,6 @@
             }
             if (!isBackground) {
               showToast("Sincronizado con Google Sheets", "success");
-            }
-
-            // 3. Ejecución de las rutinas de saneamiento físico en segundo plano
-            if (idsParaReparar.length > 0) {
-              ejecutarReparacionDeIds(idsParaReparar);
-            }
-            if (duplicadosParaBorrar.length > 0) {
-              ejecutarPurgaDeDuplicados(duplicadosParaBorrar);
             }
 
           } else {
@@ -1962,7 +1918,7 @@
         }
       };
 
-      // Modificar campo en línea de forma segura
+      // Modificar campo en línea de forma segura con campo: "todo" para evitar fallas del Apps Script
       const handleUpdateField = async (tarea, campo, nuevoValor) => {
         if (!nuevoValor && nuevoValor !== "") return;
         if (isSubmitting || syncing) return;
@@ -2001,10 +1957,17 @@
           await fetch(effectiveUrl, {
             method: "POST", mode: "cors", redirect: "follow",
             headers: { "Content-Type": "text/plain; charset=utf-8" },
+            // Forzamos "todo" como campo para asegurar que el Apps Script de Sheets reescriba toda la fila con el deadline correcto
             body: JSON.stringify({
-              marca: tarea.marca, idTarea: taskTargetId, info: tarea.info, categoria: tarea.categoria,
-              campo: campo === "estado" ? "todo" : campo, valor: nuevoValor, personas: tarea.personas,
-              detalles: detallesConHistorial, estado: campo === "estado" ? nuevoValor : tarea.estado,
+              marca: tarea.marca, 
+              idTarea: taskTargetId, 
+              info: tarea.info, 
+              categoria: tarea.categoria,
+              campo: "todo", 
+              valor: nuevoValor, 
+              personas: tarea.personas,
+              detalles: detallesConHistorial, 
+              estado: campo === "estado" ? nuevoValor : tarea.estado,
               deadline: campo === "deadline" ? nuevoValor : tarea.deadline
             })
           });
@@ -2212,7 +2175,7 @@
         return idStr;
       };
 
-      // 🔄 Filtro de Tareas
+      // 🔄 Filtro de Tareas del Dashboard
       const tareasFiltradas = useMemo(() => {
         const hoy = new Date();
         const tHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
@@ -2235,6 +2198,7 @@
             if (!esFutura) return false;
           }
 
+          // Filtro por Marca dinámico del Top-bar
           if (filtroMarca !== "TODAS" && t.marca.toUpperCase() !== filtroMarca.toUpperCase()) return false;
           if (filtroEstado !== "TODOS" && cleanEstado(t.estado) !== cleanEstado(filtroEstado)) return false;
 
@@ -2397,7 +2361,7 @@
               </div>
               <form onSubmit={handleLogin} className="flex flex-col gap-4 text-xs">
                 <div>
-                  <label className="block font-bold text-zinc-450 uppercase mb-1">Usuario</label>
+                  <label className="block font-bold text-zinc-455 uppercase mb-1">Usuario</label>
                   <select name="username" className="w-full bg-zinc-50 border p-2.5 rounded-lg font-semibold focus:outline-none focus:ring-1 focus:ring-zinc-900 bg-white text-zinc-800">
                     {listaUsuarios.map(u => (
                       <option key={u} value={u}>@{u}</option>
@@ -2405,7 +2369,7 @@
                   </select>
                 </div>
                 <div>
-                  <label className="block font-bold text-zinc-450 uppercase mb-1">Contraseña</label>
+                  <label className="block font-bold text-zinc-455 uppercase mb-1">Contraseña</label>
                   <input 
                     type="password" 
                     required 
@@ -2565,7 +2529,7 @@
                     <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 font-bold">{tareas.length}</span>
                   </button>
 
-                  {/* ACORDEÓN: CLIENTES Y MARCAS */}
+                  {/* SECCIÓN CLIENTES: DIRECTORIO GENERAL */}
                   <div className="mt-4 pt-3 border-t border-zinc-200/50">
                     <button 
                       onClick={() => { setPaginaActiva("clientes"); setClientesDropdownOpen(!clientesDropdownOpen); }}
@@ -2586,31 +2550,18 @@
                               : "text-zinc-400 hover:text-zinc-800"
                           }`}
                         >
-                          <i className="fa-solid fa-list-check text-[9px]"></i> Directorio General
+                          <i className="fa-solid fa-address-book text-[9px]"></i> Directorio General
                         </button>
-                        {marcasDisponibles.map(m => {
-                          const clean = m ? m.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim() : "";
-                          return (
-                            <button
-                              key={m}
-                              onClick={() => { setPaginaActiva("dashboard"); setFiltroMarca(m); }}
-                              className={`flex items-center gap-2 w-full px-3 py-1.5 rounded-lg text-xs transition-all ${
-                                paginaActiva === "dashboard" && filtroMarca === m 
-                                  ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-100" 
-                                  : "text-zinc-400 hover:text-zinc-855"
-                              }`}
-                            >
-                              <span className={`w-2 h-2 rounded-full ${
-                                clean === "LA SANTE" || clean === "LA SANTE " ? "bg-emerald-500" :
-                                clean === "DIAGEO" ? "bg-slate-400" :
-                                clean === "GAMA" ? "bg-red-500" :
-                                clean === "ROBIN" ? "bg-stone-900 border border-zinc-450" :
-                                clean === "TMK" ? "bg-amber-500" : "bg-zinc-355"
-                              }`}></span>
-                              <span className="truncate max-w-[110px]">{m}</span>
-                            </button>
-                          );
-                        })}
+                        {marcasDisponibles.map(m => (
+                          <button
+                            key={m}
+                            onClick={() => { setPaginaActiva("clientes"); }}
+                            className="flex items-center gap-2 w-full px-3 py-1.5 rounded-lg text-xs transition-all text-zinc-400 hover:text-zinc-855 font-bold"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-zinc-300"></span>
+                            <span className="truncate max-w-[110px]">{m}</span>
+                          </button>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -2712,7 +2663,9 @@
                 /* TABLERO GENERAL / LISTA / CALENDARIO */
                 <>
                   <div className="px-6 py-3 bg-white border-b border-zinc-100 flex flex-wrap items-center justify-between gap-4 shrink-0 shadow-sm">
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-5">
+                      
+                      {/* FILTRO DE ESTADO */}
                       <div className="flex items-center gap-2 text-xs text-zinc-400 font-bold uppercase tracking-wider">
                         <span>Estado</span>
                         <select 
@@ -2726,6 +2679,22 @@
                           ))}
                         </select>
                       </div>
+
+                      {/* 🚀 NUEVO FILTRO DE MARCAS REQUERIDO EN LA BARRA SUPERIOR */}
+                      <div className="flex items-center gap-2 text-xs text-zinc-400 font-bold uppercase tracking-wider">
+                        <span>Marca / Cliente</span>
+                        <select 
+                          value={filtroMarca} 
+                          onChange={(e) => setFiltroMarca(e.target.value)}
+                          className="bg-zinc-50 border border-zinc-200 rounded-lg py-1 px-3 font-extrabold text-zinc-700 cursor-pointer focus:outline-none"
+                        >
+                          <option value="TODAS">Todas las marcas</option>
+                          {marcasDisponibles.map(m => (
+                            <option key={m} value={m}>{m}</option>
+                          ))}
+                        </select>
+                      </div>
+
                     </div>
 
                     <div className="flex items-center gap-3">

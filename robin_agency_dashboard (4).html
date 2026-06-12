@@ -1,0 +1,2115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ROBIN - Trade & Shopper Marketing</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- React & ReactDOM CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <!-- Babel CDN for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    /* Estilos globales y transiciones fluidas */
+    body {
+      font-family: 'Inter', sans-serif;
+      letter-spacing: -0.015em;
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+    /* Scrollbars ultra finas estilo minimalista */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #E4E4E7;
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #D4D4D8;
+    }
+  </style>
+</head>
+<body class="overflow-hidden bg-[#FAFAFA]">
+
+  <div id="root" class="h-screen w-screen overflow-hidden"></div>
+
+  <!-- Aplicación React -->
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    // =========================================================================
+    // ⚙️ URL API DE GOOGLE SHEETS
+    // =========================================================================
+    const AUTO_API_URL = "https://script.google.com/macros/s/AKfycbz2e8lRzFV6eXFNHKmiLplWhkoPeo_oKy-tMJrpjR3OyKiPkjjirZE1qrZttf193kgMYg/exec"; 
+    // =========================================================================
+
+    // Limpiador automático de redirecciones CORS
+    const getEffectiveApiUrl = (url) => {
+      if (!url) return "";
+      let clean = url.trim();
+      if (clean.includes("/a/macros/")) {
+        clean = clean.replace(/\/a\/macros\/[^\/]+\/s\//, "/macros/s/");
+      }
+      return clean;
+    };
+
+    // Iconos SVG Premium empotrados para garantizar máxima resolución
+    const SVGIcon = {
+      Plus: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" class="w-4 h-4">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+      ),
+      Today: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" class="w-4 h-4">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+        </svg>
+      ),
+      Future: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" class="w-4 h-4">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+        </svg>
+      ),
+      All: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" class="w-4 h-4">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25A2.25 2.25 0 0 1 13.5 8.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
+        </svg>
+      ),
+      Config: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" class="w-4 h-4">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827a1.125 1.125 0 0 1 .26 1.43l-1.297 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.43l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+        </svg>
+      )
+    };
+
+    // Paleta de colores para marcas
+    const MARCAS_COLORES = {
+      "DIAGEO":      { bg: "bg-zinc-100", text: "text-zinc-800", border: "border-zinc-200" },
+      "GAMA":        { bg: "bg-red-50", text: "text-red-800", border: "border-red-100" },
+      "LA SANTE":    { bg: "bg-emerald-50", text: "text-emerald-800", border: "border-emerald-100" },
+      "LA SANTE ":   { bg: "bg-emerald-50", text: "text-emerald-800", border: "border-emerald-100" },
+      "ROBIN":       { bg: "bg-stone-900", text: "text-white", border: "border-stone-800" },
+      "TMK":         { bg: "bg-amber-50", text: "text-amber-800", border: "border-amber-100" }
+    };
+
+    // Temas visuales personalizables elegibles por el usuario
+    const TEMAS = {
+      notion: {
+        bg: "bg-[#FAFAFA]",
+        sidebarBg: "bg-white",
+        cardBg: "bg-white",
+        text: "text-zinc-900",
+        textMuted: "text-zinc-500",
+        border: "border-zinc-200/80",
+        primary: "bg-zinc-900 text-white hover:bg-zinc-850",
+        accent: "bg-zinc-100 text-zinc-800",
+        borderMuted: "border-zinc-100",
+        shadow: "shadow-sm border border-zinc-200/50"
+      },
+      robin: {
+        bg: "bg-[#F5EFEB]",
+        sidebarBg: "bg-[#ECE2DB]",
+        cardBg: "bg-white",
+        text: "text-[#3D2622]",
+        textMuted: "text-[#6D4C41]",
+        border: "border-[#DFD2C7]",
+        primary: "bg-[#5D4037] text-white hover:bg-[#4E342E]",
+        accent: "bg-[#F3E5F5] text-[#5D4037]",
+        borderMuted: "border-[#EFEBE9]",
+        shadow: "shadow-md border border-[#DFD2C7]/60"
+      },
+      midnight: {
+        bg: "bg-[#09090B]",
+        sidebarBg: "bg-[#18181B]",
+        cardBg: "bg-[#18181B]",
+        text: "text-zinc-100",
+        textMuted: "text-zinc-400",
+        border: "border-zinc-800",
+        primary: "bg-zinc-100 text-zinc-950 hover:bg-zinc-200",
+        accent: "bg-zinc-800 text-zinc-200",
+        borderMuted: "border-zinc-800/60",
+        shadow: "shadow-none border border-zinc-800"
+      },
+      emerald: {
+        bg: "bg-[#F4F8F5]",
+        sidebarBg: "bg-[#E2ECE5]",
+        cardBg: "bg-white",
+        text: "text-[#1B3524]",
+        textMuted: "text-[#47604F]",
+        border: "border-[#C9D9CE]",
+        primary: "bg-[#2A5237] text-white hover:bg-[#20402A]",
+        accent: "bg-[#EBF5EF] text-[#2A5237]",
+        borderMuted: "border-[#EBF5EF]",
+        shadow: "shadow-sm border border-[#C9D9CE]/70"
+      },
+      ocean: {
+        bg: "bg-[#F1F5F9]",
+        sidebarBg: "bg-[#E2E8F0]",
+        cardBg: "bg-white",
+        text: "text-slate-900",
+        textMuted: "text-slate-500",
+        border: "border-slate-200",
+        primary: "bg-indigo-900 text-white hover:bg-indigo-950",
+        accent: "bg-indigo-50 text-indigo-900",
+        borderMuted: "border-slate-100",
+        shadow: "shadow-sm border border-slate-250"
+      }
+    };
+
+    const ESTADOS_MAPA = [
+      { id: "⚪ Pendiente", label: "Pendiente", color: "bg-zinc-50 text-zinc-600 border-zinc-200", dot: "bg-zinc-400" },
+      { id: "🔵 En progreso", label: "En Progreso", color: "bg-blue-50 text-blue-800 border-blue-100", dot: "bg-blue-600" },
+      { id: "🟡 Seguimiento", label: "Seguimiento", color: "bg-purple-50 text-purple-800 border-purple-100", dot: "bg-purple-600" },
+      { id: "🟠 En revisión", label: "Revisión", color: "bg-orange-50 text-orange-800 border-orange-100", dot: "bg-orange-600" }, 
+      { id: "🔴 En pausa", label: "Pausa", color: "bg-rose-50 text-rose-800 border-rose-100", dot: "bg-red-650" }, 
+      { id: "🟢 Completada", label: "Completada", color: "bg-emerald-50 text-emerald-800 border-emerald-100", dot: "bg-emerald-650" }
+    ];
+
+    const LISTA_ESTADOS_VALIDOS = [
+      "⚪ Pendiente", 
+      "🔵 En progreso", 
+      "🟡 Seguimiento", 
+      "🟠 En revisión", 
+      "🔴 En pausa", 
+      "🟢 Completada"
+    ];
+
+    const TAREAS_DEMO = [
+      { idTarea: "SAN-101", marca: "La Santé", categoria: "Reunión", fecha: "2026-06-11", info: "Finiquitar canal de difusión", personas: "@Miguel Bonilla", detalles: "Definir si se usará Whatsapp o Telegram.", estado: "🟠 En revisión", deadline: "2026-06-11" },
+      { idTarea: "SAN-102", marca: "La Santé", categoria: "Arte, Proyecto", fecha: "2026-06-11", info: "Mesas de comedor La Santé", personas: "@Miguel Bonilla", detalles: "A la espera de solicitud por Dayccel.", estado: "🔴 En pausa", deadline: "" }
+    ];
+
+    function App() {
+      // 🔒 Estado de Login
+      const [usuario, setUsuario] = useState(() => {
+        return localStorage.getItem("robin_usuario_actual") || null;
+      });
+      const [claveInput, setClaveInput] = useState("");
+      const [loginError, setLoginError] = useState("");
+
+      // 👥 Lista de usuarios autorizados reais (sem simulação de status fakes)
+      const [listaUsuarios, setListaUsuarios] = useState(() => {
+        const guardados = localStorage.getItem("robin_lista_usuarios");
+        return guardados ? JSON.parse(guardados) : ["fcolmenares", "ralvarez", "dsalavarria", "mbonilla", "gnebrus", "sgiucastro"];
+      });
+
+      // 👥 Monitor de equipe real: mostramos somente quem pertenece al time, sem inventar status de navegação
+      const usuariosOnline = useMemo(() => {
+        if (!usuario) return [];
+        return listaUsuarios.filter(u => u !== usuario);
+      }, [usuario, listaUsuarios]);
+
+      // 🎨 Estado de Estilos/Temas
+      const [theme, setTheme] = useState(() => {
+        return localStorage.getItem("robin_theme") || "notion";
+      });
+
+      const currentTheme = useMemo(() => {
+        return TEMAS[theme] || TEMAS.notion;
+      }, [theme]);
+
+      const [tareas, setTareas] = useState([]);
+      const [loading, setLoading] = useState(false);
+      const [syncing, setSyncing] = useState(false);
+      const [toast, setToast] = useState(null);
+      const [apiError, setApiError] = useState(null);
+      
+      const [filtroTiempo, setFiltroTiempo] = useState("HOY"); 
+      const [filtroMarca, setFiltroMarca] = useState("TODAS");
+      const [filtroEstado, setFiltroEstado] = useState("TODOS");
+      const [searchQuery, setSearchQuery] = useState("");
+      
+      const [paginaActiva, setPaginaActiva] = useState("dashboard"); 
+      const [vistaModo, setVistaModo] = useState("TABLE"); 
+
+      const [activeTask, setActiveTask] = useState(null);
+      const [isEditing, setIsEditing] = useState(false);
+
+      // Confirmar eliminación
+      const [taskToDelete, setTaskToDelete] = useState(null);
+
+      // Agregar nuevo usuario en la sección de configuración
+      const [nuevoUsuarioInput, setNuevoUsuarioInput] = useState("");
+
+      const [listaPersonas, setListaPersonas] = useState(() => {
+        const guardadas = localStorage.getItem("robin_personas");
+        return guardadas ? JSON.parse(guardadas) : ["@Miguel Bonilla", "@Ricardo", "@Daniela", "@Génesis", "@Andrés", "@María", "@Pedro"];
+      });
+
+      const [nuevaTarea, setNuevaTarea] = useState({
+        marca: "La Santé",
+        categoria: "",
+        info: "",
+        personas: "",
+        detalles: "",
+        estado: "⚪ Pendiente",
+        deadline: ""
+      });
+
+      // 🔄 Autofetch de datos cada 10 minutos
+      useEffect(() => {
+        if (usuario) {
+          fetchData();
+          const autoRefreshInterval = setInterval(() => {
+            fetchData();
+          }, 10 * 60 * 1000); // 10 minutos
+          return () => clearInterval(autoRefreshInterval);
+        }
+      }, [usuario]);
+
+      useEffect(() => {
+        if (tareas.length > 0) {
+          const detectadas = new Set();
+          tareas.forEach(t => {
+            if (t.personas) {
+              const nombres = t.personas.split(/[\s,]+/);
+              nombres.forEach(n => {
+                const limpio = n.trim();
+                if (limpio.length > 1) {
+                  const conArroba = limpio.startsWith("@") ? limpio : "@" + limpio;
+                  detectadas.add(conArroba);
+                }
+              });
+            }
+          });
+          if (detectadas.size > 0) {
+            const combinadas = Array.from(new Set([...listaPersonas, ...detectadas]));
+            localStorage.setItem("robin_personas", JSON.stringify(combinadas));
+            setListaPersonas(combinadas);
+          }
+        }
+      }, [tareas]);
+
+      const showToast = (msg, type = "success") => {
+        setToast({ msg, type });
+        setTimeout(() => setToast(null), 4000);
+      };
+
+      const handleLogin = (e) => {
+        e.preventDefault();
+        const userClean = e.target.username.value.trim().toLowerCase();
+        if (!listaUsuarios.includes(userClean)) {
+          setLoginError("Usuario no autorizado. Contacta al administrador.");
+          return;
+        }
+        if (claveInput.toLowerCase() !== "tmk2026") {
+          setLoginError("Contraseña incorrecta. Inténtalo de nuevo.");
+          return;
+        }
+        setUsuario(userClean);
+        localStorage.setItem("robin_usuario_actual", userClean);
+        setLoginError("");
+        showToast(`Sesión iniciada como @${userClean}`, "success");
+      };
+
+      const handleLogout = () => {
+        localStorage.removeItem("robin_usuario_actual");
+        setUsuario(null);
+        setClaveInput("");
+      };
+
+      const handleAddUser = (e) => {
+        e.preventDefault();
+        const nuevo = nuevoUsuarioInput.trim().toLowerCase();
+        if (!nuevo) return;
+        if (listaUsuarios.includes(nuevo)) {
+          showToast("El usuario ya está registrado", "error");
+          return;
+        }
+        const actualizados = [...listaUsuarios, nuevo];
+        setListaUsuarios(actualizados);
+        localStorage.setItem("robin_lista_usuarios", JSON.stringify(actualizados));
+        setNuevoUsuarioInput("");
+        showToast(`Usuario @${nuevo} añadido correctamente`, "success");
+      };
+
+      const handleThemeChange = (newTheme) => {
+        setTheme(newTheme);
+        localStorage.setItem("robin_theme", newTheme);
+        showToast(`Estilo cambiado a ${newTheme.toUpperCase()}`, "success");
+      };
+
+      // Generar ID de marca si la tarea no tiene uno asignado
+      const generateBrandId = (brandName) => {
+        const cleanBrand = (brandName || "ROB").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+        let prefix = "ROB";
+        if (cleanBrand.includes("SANTE")) prefix = "SAN";
+        else if (cleanBrand.includes("DIAGEO")) prefix = "DIA";
+        else if (cleanBrand.includes("GAMA")) prefix = "GAM";
+        else if (cleanBrand.includes("TMK")) prefix = "TMK";
+        
+        return `${prefix}-${Math.floor(100 + Math.random() * 900)}`;
+      };
+
+      const fetchData = async () => {
+        setLoading(true);
+        setApiError(null);
+        
+        const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
+        if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here")) {
+          // Asignar IDs si falta alguno en el modo Demo
+          const fixedDemo = TAREAS_DEMO.map(t => ({
+            ...t,
+            idTarea: t.idTarea || generateBrandId(t.marca)
+          }));
+          setTareas(fixedDemo);
+          showToast("Modo Demo Activo", "info");
+          setLoading(false);
+          return;
+        }
+
+        try {
+          const res = await fetch(effectiveUrl, { 
+            method: "GET",
+            mode: "cors",
+            redirect: "follow"
+          });
+          const json = await res.json();
+          if (json.success && json.data) {
+            const tareasValidas = json.data.filter(t => t.info && t.info.toString().trim() !== "");
+            
+            // Reparar tareas sin ID sobre la marcha
+            const tareasReparadas = tareasValidas.map(t => {
+              if (!t.idTarea || t.idTarea.trim() === "" || t.idTarea.includes("GMT")) {
+                const autoId = generateBrandId(t.marca);
+                sincronizarIdFaltanteEnSheets(t, autoId);
+                return { ...t, idTarea: autoId };
+              }
+              return t;
+            });
+
+            setTareas(tareasReparadas);
+            showToast("Sincronizado con Google Sheets", "success");
+          } else {
+            throw new Error(json.error || "No se recibieron datos de tareas válidas.");
+          }
+        } catch (e) {
+          console.error("Error cargando Google Sheets: ", e);
+          setApiError("Error de Conexión. Revisa la URL y tus permisos.");
+          setTareas(TAREAS_DEMO); 
+          showToast("Utilizando datos locales de respaldo", "info");
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      const sincronizarIdFaltanteEnSheets = async (tarea, nuevoId) => {
+        const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
+        if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here") || apiError) return;
+        try {
+          await fetch(effectiveUrl, {
+            method: "POST",
+            mode: "cors",
+            redirect: "follow",
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
+            body: JSON.stringify({
+              marca: tarea.marca,
+              idTarea: nuevoId,
+              info: tarea.info,
+              categoria: tarea.categoria,
+              personas: tarea.personas,
+              detalles: tarea.detalles,
+              estado: tarea.estado,
+              deadline: tarea.deadline,
+              campo: "todo"
+            })
+          });
+        } catch (err) {
+          console.error("Error fijando ID: ", err);
+        }
+      };
+
+      const handleUpdateField = async (tarea, campo, nuevoValor) => {
+        if (!nuevoValor && nuevoValor !== "") return;
+        const taskTargetId = tarea.idTarea || generateBrandId(tarea.marca);
+
+        let detallesConHistorial = tarea.detalles || "";
+        if (campo === "estado") {
+          const hoy = new Date();
+          const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
+          const registro = `\n• [${timestamp}] Estado a "${nuevoValor}" por @${usuario}`;
+          detallesConHistorial = detallesConHistorial + registro;
+        }
+
+        const temp = tareas.map(t => {
+          if ((t.idTarea === tarea.idTarea && t.idTarea) || t.info === tarea.info) {
+            return { 
+              ...t, 
+              idTarea: taskTargetId,
+              [campo]: nuevoValor,
+              detalles: campo === "estado" ? detallesConHistorial : t.detalles
+            };
+          }
+          return t;
+        });
+        setTareas(temp);
+
+        const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
+        if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here") || apiError) {
+          showToast("Cambio guardado localmente", "success");
+          return;
+        }
+
+        setSyncing(true);
+        try {
+          await fetch(effectiveUrl, {
+            method: "POST",
+            mode: "cors",
+            redirect: "follow",
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
+            body: JSON.stringify({
+              marca: tarea.marca,
+              idTarea: taskTargetId,
+              info: tarea.info,
+              categoria: tarea.categoria,
+              campo: campo === "estado" ? "todo" : campo,
+              valor: nuevoValor,
+              personas: tarea.personas,
+              detalles: detallesConHistorial,
+              estado: campo === "estado" ? nuevoValor : tarea.estado,
+              deadline: campo === "deadline" ? nuevoValor : tarea.deadline
+            })
+          });
+          showToast("Guardado en Google Sheets", "success");
+        } catch (e) {
+          showToast("Guardado local (Falla de red)", "error");
+        } finally {
+          setSyncing(false);
+        }
+      };
+
+      const handleSaveTaskModal = async (editedTask) => {
+        const index = tareas.findIndex(t => (t.idTarea === editedTask.idTarea && t.idTarea) || t.info === editedTask.info);
+        if (index === -1) return;
+
+        const hoy = new Date();
+        const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
+        let detallesAudoria = editedTask.detalles || "";
+        
+        const original = tareas[index];
+        const cambios = [];
+        if (original.info !== editedTask.info) cambios.push("título");
+        if (original.categoria !== editedTask.categoria) cambios.push("categoría");
+        if (original.personas !== editedTask.personas) cambios.push("asignados");
+        if (original.estado !== editedTask.estado) cambios.push(`estado a "${editedTask.estado}"`);
+        if (original.deadline !== editedTask.deadline) cambios.push("fecha límite");
+
+        if (cambios.length > 0) {
+          detallesAudoria += `\n• [${timestamp}] Editado (${cambios.join(", ")}) por @${usuario}`;
+        }
+
+        const taskConHistorial = { ...editedTask, detalles: detallesAudoria };
+        const copiaTareas = [...tareas];
+        copiaTareas[index] = taskConHistorial;
+        setTareas(copiaTareas);
+        setIsEditing(false);
+        setActiveTask(null);
+
+        const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
+        if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here") || apiError) {
+          showToast("Guardado localmente", "success");
+          return;
+        }
+
+        setSyncing(true);
+        try {
+          await fetch(effectiveUrl, {
+            method: "POST",
+            mode: "cors",
+            redirect: "follow",
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
+            body: JSON.stringify({
+              marca: taskConHistorial.marca,
+              idTarea: taskConHistorial.idTarea,
+              info: taskConHistorial.info,
+              categoria: taskConHistorial.categoria,
+              personas: taskConHistorial.personas,
+              detalles: taskConHistorial.detalles,
+              estado: taskConHistorial.estado,
+              deadline: taskConHistorial.deadline,
+              campo: "todo"
+            })
+          });
+          showToast("Sincronizado completamente", "success");
+          fetchData();
+        } catch (e) {
+          showToast("Guardado temporalmente local", "error");
+        } finally {
+          setSyncing(false);
+        }
+      };
+
+      const handleDeleteTask = async (tarea) => {
+        // Borramos inmediatamente en interfaz
+        setTareas(prev => prev.filter(t => !(t.idTarea === tarea.idTarea && t.info === tarea.info)));
+        setTaskToDelete(null);
+        setIsEditing(false);
+        setActiveTask(null);
+        showToast("Eliminando entregable...", "info");
+
+        const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
+        if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here") || apiError) {
+          showToast("Eliminado de la interfaz local", "success");
+          return;
+        }
+
+        setSyncing(true);
+        try {
+          const res = await fetch(effectiveUrl, {
+            method: "POST",
+            mode: "cors",
+            redirect: "follow",
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
+            body: JSON.stringify({
+              marca: tarea.marca,
+              idTarea: tarea.idTarea,
+              info: tarea.info,
+              categoria: tarea.categoria,
+              campo: "eliminar"
+            })
+          });
+          const json = await res.json();
+          if (json.success) {
+            showToast("Eliminado correctamente de Google Sheets", "success");
+            fetchData();
+          } else {
+            showToast("Error al eliminar del servidor", "error");
+            fetchData();
+          }
+        } catch (e) {
+          showToast("Fallo al eliminar en Sheets. Se revirtió el cambio.", "error");
+          fetchData();
+        } finally {
+          setSyncing(false);
+        }
+      };
+
+      const handleCreateTask = async (e) => {
+        e.preventDefault();
+        if (!nuevaTarea.info.trim()) {
+          showToast("Describe la tarea primero", "error");
+          return;
+        }
+
+        const autoId = generateBrandId(nuevaTarea.marca);
+        const hoy = new Date();
+        const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
+        const historialInicial = `• [${timestamp}] Creado por @${usuario}`;
+        const detallesConCreador = nuevaTarea.detalles 
+          ? `${nuevaTarea.detalles.trim()}\n\n${historialInicial}` 
+          : historialInicial;
+
+        const nuevaConId = {
+          ...nuevaTarea,
+          idTarea: autoId,
+          detalles: detallesConCreador,
+          fecha: new Date().toISOString().split('T')[0]
+        };
+
+        setTareas([nuevaConId, ...tareas]);
+        showToast("Registrando en el servidor...", "info");
+
+        const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
+        if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here") || apiError) {
+          setNuevaTarea({
+            marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", estado: "⚪ Pendiente", deadline: ""
+          });
+          setPaginaActiva("dashboard");
+          showToast("Registrado localmente", "success");
+          return;
+        }
+
+        setSyncing(true);
+        try {
+          const res = await fetch(effectiveUrl, {
+            method: "POST",
+            mode: "cors",
+            redirect: "follow",
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
+            body: JSON.stringify({
+              marca: nuevaConId.marca,
+              idTarea: autoId, 
+              info: nuevaConId.info,
+              categoria: nuevaConId.categoria,
+              personas: nuevaConId.personas,
+              detalles: nuevaConId.detalles,
+              estado: nuevaConId.estado,
+              deadline: nuevaConId.deadline,
+              campo: "todo"
+            })
+          });
+          const json = await res.json();
+          if (json.success) {
+            showToast("Registrado en Sheets", "success");
+            fetchData();
+            setNuevaTarea({
+              marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", estado: "⚪ Pendiente", deadline: ""
+            });
+            setPaginaActiva("dashboard");
+          }
+        } catch (e) {
+          showToast("Guardado localmente (Sin conexión)", "error");
+        } finally {
+          setSyncing(false);
+        }
+      };
+
+      const registrarNuevaPersonaGlobal = (nombreCompleto) => {
+        const formateado = nombreCompleto.startsWith("@") ? nombreCompleto.trim() : "@" + nombreCompleto.trim();
+        if (formateado.length > 1 && !listaPersonas.includes(formateado)) {
+          const actualizadas = [...listaPersonas, formateado];
+          setListaPersonas(actualizadas);
+          localStorage.setItem("robin_personas", JSON.stringify(actualizadas));
+        }
+      };
+
+      const marcasDisponibles = useMemo(() => {
+        const marcasUnicas = new Set(tareas.map(t => t.marca).filter(Boolean));
+        const defaults = ["La Santé", "DIAGEO", "GAMA", "ROBIN", "TMK"];
+        return Array.from(new Set([...defaults, ...marcasUnicas]));
+      }, [tareas]);
+
+      const cleanIdTarea = (id) => {
+        if (!id) return "";
+        const idStr = String(id).trim();
+        if (idStr.includes("GMT") || (idStr.includes("2026") && idStr.length > 15) || idStr.includes("Venezuela")) {
+          return "";
+        }
+        return idStr;
+      };
+
+      const tareasFiltradas = useMemo(() => {
+        const hoy = new Date();
+        const tHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
+        
+        return tareas.filter(t => {
+          const tDeadline = obtenerTiempoFecha(t.deadline);
+          
+          if (filtroTiempo === "HOY") {
+            const tieneFechaReal = tDeadline !== Infinity;
+            const esHoyOAtrasado = tieneFechaReal && tDeadline <= tHoy;
+            const esCompletada = cleanEstado(t.estado) === "completada";
+            if (!esHoyOAtrasado || esCompletada) return false;
+          } else if (filtroTiempo === "FUTURAS") {
+            const esFutura = tDeadline !== Infinity && tDeadline > tHoy;
+            if (!esFutura) return false;
+          }
+
+          if (filtroMarca !== "TODAS" && t.marca.toUpperCase() !== filtroMarca.toUpperCase()) return false;
+          if (filtroEstado !== "TODOS" && cleanEstado(t.estado) !== cleanEstado(filtroEstado)) return false;
+
+          if (searchQuery.trim() !== "") {
+            const q = searchQuery.toLowerCase();
+            return (
+              t.info.toLowerCase().includes(q) ||
+              (t.detalles && t.detalles.toLowerCase().includes(q)) ||
+              (t.personas && t.personas.toLowerCase().includes(q)) ||
+              (t.categoria && t.categoria.toLowerCase().includes(q))
+            );
+          }
+
+          return true;
+        });
+      }, [tareas, filtroTiempo, filtroMarca, filtroEstado, searchQuery]);
+
+      const metricaCounters = useMemo(() => {
+        const hoy = new Date();
+        const tHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
+
+        const activasHoy = tareas.filter(t => {
+          const tDeadline = obtenerTiempoFecha(t.deadline);
+          return tDeadline !== Infinity && tDeadline <= tHoy && cleanEstado(t.estado) !== "completada";
+        }).length;
+        
+        const futuras = tareas.filter(t => {
+          const tDeadline = obtenerTiempoFecha(t.deadline);
+          return tDeadline !== Infinity && tDeadline > tHoy;
+        }).length;
+        
+        const completadasHoy = tareas.filter(t => cleanEstado(t.estado) === "completada").length;
+
+        return { activasHoy, futuras, completadasHoy };
+      }, [tareas]);
+
+      const getMarcaStyle = (marcaName) => {
+        if (!marcaName) return { bg: "bg-zinc-100", text: "text-zinc-800", border: "border-zinc-200" };
+        const clean = marcaName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+        return MARCAS_COLORES[clean] || { bg: "bg-zinc-100/60", text: "text-zinc-500", border: "border-zinc-200/50" };
+      };
+
+      if (!usuario) {
+        return (
+          <div className="flex h-screen w-screen items-center justify-center bg-[#F4F4F5] p-6">
+            <div className="w-full max-w-md bg-white rounded-2xl shadow-xl border border-zinc-200/60 p-8 animate-zoom-in">
+              <div className="flex flex-col items-center mb-6">
+                <div className="w-12 h-12 rounded-full bg-zinc-900 text-white flex items-center justify-center text-lg font-black tracking-tighter mb-2">
+                  R
+                </div>
+                <h2 className="text-lg font-black tracking-wider text-zinc-900 text-center">ROBIN AGENCY</h2>
+                <p className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest mt-1 text-center">
+                  TRADE & SHOPPER MARKETING
+                </p>
+              </div>
+
+              <form onSubmit={handleLogin} className="flex flex-col gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1.5">Usuario</label>
+                  <input 
+                    type="text" 
+                    name="username" 
+                    required 
+                    placeholder="Tu usuario autorizado" 
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-lg py-3 px-4 text-sm font-semibold focus:outline-none focus:ring-1 focus:ring-zinc-950"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1.5">Contraseña</label>
+                  <input 
+                    type="password" 
+                    required 
+                    value={claveInput}
+                    onChange={(e) => setClaveInput(e.target.value)}
+                    placeholder="Contraseña de la agencia" 
+                    className="w-full bg-zinc-50 border border-zinc-200 rounded-lg py-3 px-4 text-sm focus:outline-none focus:ring-1 focus:ring-zinc-950"
+                  />
+                </div>
+
+                {loginError && (
+                  <p className="text-xs text-red-650 font-semibold bg-red-50 p-2.5 rounded-lg border border-red-100">
+                    {loginError}
+                  </p>
+                )}
+
+                <button 
+                  type="submit" 
+                  className="w-full bg-zinc-900 hover:bg-black text-white py-3 rounded-lg text-sm font-bold transition-all shadow-sm mt-2"
+                >
+                  Entrar
+                </button>
+              </form>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className={`flex h-screen w-screen overflow-hidden ${currentTheme.bg} ${currentTheme.text} select-none transition-all`}>
+          
+          {toast && (
+            <div className="fixed bottom-6 right-6 z-[100] px-4 py-3.5 rounded-xl shadow-xl text-xs font-bold flex items-center gap-2 border bg-zinc-900 text-white border-zinc-850 animate-zoom-in">
+              <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span>{toast.msg}</span>
+            </div>
+          )}
+
+          {/* SIDEBAR COMODO Y AMPLIADO */}
+          <aside className={`w-56 ${currentTheme.sidebarBg} border-r ${currentTheme.border} flex flex-col justify-between shrink-0`}>
+            <div className="flex flex-col h-full justify-between pb-4 overflow-y-auto">
+              <div>
+                <div className={`p-5 border-b ${currentTheme.border}`}>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-zinc-900 text-white flex items-center justify-center text-sm font-black tracking-tighter shrink-0">
+                      R
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-black tracking-[0.12em] leading-none">ROBIN</span>
+                      <span className="text-[7.5px] font-bold tracking-[0.1em] text-zinc-400 uppercase mt-1">TRADE & SHOPPER</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quién está conectado y directorio real */}
+                <div className={`mx-3 my-3 p-3 rounded-xl bg-zinc-50/70 border ${currentTheme.borderMuted} flex flex-col gap-2.5`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 overflow-hidden">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                      </span>
+                      <span className="text-xs font-black truncate text-zinc-800">@{usuario} (Tú)</span>
+                    </div>
+                    <button 
+                      onClick={handleLogout} 
+                      title="Cerrar sesión"
+                      className="text-zinc-400 hover:text-red-500 p-1 text-xs transition-all"
+                    >
+                      <i className="fa-solid fa-power-off"></i>
+                    </button>
+                  </div>
+
+                  {/* Miembros del equipo autorizados reais (sin simulación) */}
+                  <div className="border-t border-zinc-200/50 pt-2">
+                    <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest block mb-1.5">Equipo Autorizado</span>
+                    <div className="flex flex-col gap-1">
+                      {usuariosOnline.map(u => (
+                        <div key={u} className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-bold">
+                          <span className="w-1.5 h-1.5 rounded-full bg-zinc-300"></span>
+                          <span>@{u}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="px-3 pt-1">
+                  <button 
+                    onClick={() => setPaginaActiva("agregar")}
+                    className={`w-full ${currentTheme.primary} font-bold py-2 px-3 rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm`}
+                  >
+                    <SVGIcon.Plus />
+                    <span>Añadir Entregable</span>
+                  </button>
+                </div>
+
+                <nav className="p-3 flex flex-col gap-1">
+                  <span className="px-2 text-[9px] font-extrabold text-zinc-400 tracking-wider uppercase mb-1">Filtros Temporales</span>
+                  
+                  <button
+                    onClick={() => { setPaginaActiva("dashboard"); setFiltroTiempo("HOY"); }}
+                    className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                      paginaActiva === "dashboard" && filtroTiempo === "HOY" 
+                        ? "bg-white shadow-sm font-extrabold text-zinc-900 border border-zinc-100" 
+                        : "text-zinc-500 hover:bg-zinc-100/50 hover:text-zinc-800"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <SVGIcon.Today />Hoy
+                    </span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 font-bold">{metricaCounters.activasHoy}</span>
+                  </button>
+
+                  <button
+                    onClick={() => { setPaginaActiva("dashboard"); setFiltroTiempo("FUTURAS"); }}
+                    className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                      paginaActiva === "dashboard" && filtroTiempo === "FUTURAS" 
+                        ? "bg-white shadow-sm font-extrabold text-zinc-900 border border-zinc-100" 
+                        : "text-zinc-500 hover:bg-zinc-100/50 hover:text-zinc-800"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <SVGIcon.Future />Futuras
+                    </span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 font-bold">{metricaCounters.futuras}</span>
+                  </button>
+
+                  <button
+                    onClick={() => { setPaginaActiva("dashboard"); setFiltroTiempo("TODAS"); }}
+                    className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                      paginaActiva === "dashboard" && filtroTiempo === "TODAS" 
+                        ? "bg-white shadow-sm font-extrabold text-zinc-900 border border-zinc-100" 
+                        : "text-zinc-500 hover:bg-zinc-100/50 hover:text-zinc-800"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <SVGIcon.All />Todas
+                    </span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 font-bold">{tareas.length}</span>
+                  </button>
+                </nav>
+
+                <div className="p-3 border-t border-zinc-100/80 mt-1">
+                  <span className="px-2 text-[9px] font-extrabold text-zinc-400 tracking-wider uppercase">Marcas de Agencia</span>
+                  <div className="flex flex-col gap-0.5 mt-2">
+                    <button
+                      onClick={() => { setPaginaActiva("dashboard"); setFiltroMarca("TODAS"); }}
+                      className={`flex items-center gap-2 w-full px-3 py-1.5 rounded-lg text-xs transition-all ${
+                        filtroMarca === "TODAS" 
+                          ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-100" 
+                          : "text-zinc-500 hover:bg-zinc-100/50"
+                      }`}
+                    >
+                      <span className="w-2 h-2 rounded-full bg-zinc-400"></span>
+                      <span>Todas</span>
+                    </button>
+                    {marcasDisponibles.map(m => {
+                      const clean = m ? m.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim() : "";
+                      return (
+                        <button
+                          key={m}
+                          onClick={() => { setPaginaActiva("dashboard"); setFiltroMarca(m); }}
+                          className={`flex items-center gap-2 w-full px-3 py-1.5 rounded-lg text-xs transition-all ${
+                            filtroMarca === m 
+                              ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-100" 
+                              : "text-zinc-500 hover:bg-zinc-100/50"
+                          }`}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${
+                            clean === "LA SANTE" || clean === "LA SANTE " ? "bg-emerald-500" :
+                            clean === "DIAGEO" ? "bg-slate-400" :
+                            clean === "GAMA" ? "bg-red-500" :
+                            clean === "ROBIN" ? "bg-stone-900 border border-zinc-450" :
+                            clean === "TMK" ? "bg-amber-500" : "bg-zinc-355"
+                          }`}></span>
+                          <span>{m}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+
+              {/* Botón de configuración aislado al fondo, sin título superior */}
+              <div className="px-3 pt-2">
+                <button
+                  onClick={() => setPaginaActiva("configuracion")}
+                  className={`flex items-center gap-2 w-full px-4 py-2.5 rounded-xl text-xs font-black transition-all ${
+                    paginaActiva === "configuracion" 
+                      ? "bg-white shadow-md text-zinc-950 border border-zinc-200/50" 
+                      : "text-zinc-500 hover:bg-zinc-150/40 hover:text-zinc-800"
+                  }`}
+                >
+                  <SVGIcon.Config />
+                  <span>Configuración</span>
+                </button>
+              </div>
+            </div>
+          </aside>
+
+          {/* CONTENEDOR CENTRAL */}
+          <div className="flex-1 flex flex-col overflow-hidden bg-white">
+            
+            {apiError && (
+              <div className="bg-amber-50 border-b border-amber-100 px-6 py-3 flex items-start justify-between text-xs text-amber-900 shrink-0 animate-zoom-in">
+                <div className="flex items-start gap-2.5">
+                  <i className="fa-solid fa-triangle-exclamation text-amber-500 mt-0.5 shrink-0 text-sm"></i>
+                  <div>
+                    <p className="font-extrabold text-[12px] uppercase tracking-wider text-amber-800">Conexión de respaldo activa (Red local)</p>
+                    <p className="text-[11px] mt-0.5 leading-relaxed text-amber-700">
+                      Para sincronizar con Sheets de forma directa, publica el script seleccionando acceso para "Cualquiera" y copia el enlace en tu código.
+                    </p>
+                  </div>
+                </div>
+                <button onClick={() => setApiError(null)} className="text-amber-500 hover:text-amber-700 text-[10px] font-bold uppercase tracking-wider ml-4 shrink-0">Cerrar</button>
+              </div>
+            )}
+
+            <header className="bg-white border-b border-zinc-100 px-6 py-4 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-4">
+                <h1 className="text-xs font-black text-zinc-800 tracking-widest uppercase">
+                  ROBIN AGENCY - TRADE & SHOPPER MARKETING
+                </h1>
+                <div className="h-4 w-[1px] bg-zinc-200"></div>
+                <div className="text-xs text-zinc-550 font-bold">
+                  Pendientes: <span className="text-zinc-900 font-extrabold">{metricaCounters.activasHoy}</span> · Futuras: <span className="text-zinc-900 font-extrabold">{metricaCounters.futuras}</span> · Completadas: <span className="text-zinc-900 font-extrabold">{metricaCounters.completadasHoy}</span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={fetchData} 
+                  className="bg-white border border-zinc-250 hover:bg-zinc-50 text-zinc-700 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                >
+                  <i className={`fa-solid fa-arrows-rotate text-[10px] ${loading ? 'animate-spin' : ''}`}></i>
+                  <span>Actualizar datos</span>
+                </button>
+              </div>
+            </header>
+
+            <div className="flex-1 overflow-hidden flex flex-col">
+              
+              {paginaActiva === "dashboard" ? (
+                <>
+                  <div className="px-6 py-3 bg-white border-b border-zinc-100 flex flex-wrap items-center justify-between gap-4 shrink-0">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2 text-xs text-zinc-400 font-bold uppercase tracking-wider">
+                        <span>Estado</span>
+                        <select 
+                          value={filtroEstado} 
+                          onChange={(e) => setFiltroEstado(e.target.value)}
+                          className="bg-zinc-50 border border-zinc-200 rounded-lg py-1 px-3 font-extrabold text-zinc-700 cursor-pointer focus:outline-none"
+                        >
+                          <option value="TODOS">Todos los estados</option>
+                          {ESTADOS_MAPA.map(e => (
+                            <option key={e.id} value={e.id}>{e.id}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="bg-zinc-100/85 p-1 rounded-lg flex border border-zinc-200/50">
+                        <button 
+                          onClick={() => setVistaModo("TABLE")}
+                          className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
+                            vistaModo === "TABLE" ? "bg-white text-zinc-950 font-black shadow-sm" : "text-zinc-500 hover:text-zinc-800"
+                          }`}
+                        >
+                          Listado
+                        </button>
+                        <button 
+                          onClick={() => setVistaModo("KANBAN")}
+                          className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
+                            vistaModo === "KANBAN" ? "bg-white text-zinc-950 font-black shadow-sm" : "text-zinc-500 hover:text-zinc-800"
+                          }`}
+                        >
+                          Tablero
+                        </button>
+                        <button 
+                          onClick={() => setVistaModo("CALENDAR")}
+                          className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
+                            vistaModo === "CALENDAR" ? "bg-white text-zinc-950 font-black shadow-sm" : "text-zinc-500 hover:text-zinc-800"
+                          }`}
+                        >
+                          Calendario
+                        </button>
+                      </div>
+
+                      <div className="relative">
+                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-zinc-400 text-xs">
+                          <i className="fa-solid fa-magnifying-glass"></i>
+                        </span>
+                        <input
+                          type="text"
+                          placeholder="Buscar entregables..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-9 pr-3 py-1.5 w-48 text-xs rounded-lg border border-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-950"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex-1 p-6 overflow-y-auto">
+                    {loading ? (
+                      <div className="flex items-center justify-center h-full gap-2">
+                        <div className="w-6 h-6 border-2 border-zinc-200 border-t-zinc-950 rounded-full animate-spin"></div>
+                        <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Sincronizando base de datos...</p>
+                      </div>
+                    ) : (
+                      <>
+                        {vistaModo === "TABLE" && (
+                          <LayoutTabla 
+                            tareas={tareasFiltradas} 
+                            onUpdateField={handleUpdateField}
+                            onSelectTask={(t) => { setActiveTask(t); setIsEditing(true); }}
+                            onDeleteTask={(t) => setTaskToDelete(t)}
+                            getMarcaStyle={getMarcaStyle}
+                            filtroTiempo={filtroTiempo}
+                            cleanIdTarea={cleanIdTarea}
+                            currentTheme={currentTheme}
+                          />
+                        )}
+                        {vistaModo === "KANBAN" && (
+                          <LayoutKanban 
+                            tareas={tareasFiltradas} 
+                            onUpdateField={handleUpdateField}
+                            onSelectTask={(t) => { setActiveTask(t); setIsEditing(true); }}
+                            onDeleteTask={(t) => setTaskToDelete(t)}
+                            getMarcaStyle={getMarcaStyle}
+                            cleanIdTarea={cleanIdTarea}
+                            currentTheme={currentTheme}
+                          />
+                        )}
+                        {vistaModo === "CALENDAR" && (
+                          <LayoutCalendario 
+                            tareas={tareasFiltradas} 
+                            onUpdateField={handleUpdateField}
+                            onSelectTask={(t) => { setActiveTask(t); setIsEditing(true); }}
+                            currentTheme={currentTheme}
+                          />
+                        )}
+                      </>
+                    )}
+                  </div>
+                </>
+              ) : paginaActiva === "configuracion" ? (
+                /* PANEL DE CONFIGURACIÓN */
+                <div className="flex-1 p-8 overflow-y-auto max-w-lg mx-auto w-full animate-slide-in">
+                  <div className={`${currentTheme.cardBg} rounded-2xl border ${currentTheme.border} p-6 flex flex-col gap-6 shadow-md`}>
+                    <div>
+                      <h2 className="text-sm font-black uppercase tracking-wider mb-2">Configuración General</h2>
+                      <p className="text-xs text-zinc-450 font-semibold">Configura tus preferencias visuales y gestiona el equipo.</p>
+                    </div>
+
+                    {/* Estilo Visual */}
+                    <div>
+                      <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">Estilo Visual (Tema)</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {Object.keys(TEMAS).map(themeName => (
+                          <button
+                            key={themeName}
+                            onClick={() => handleThemeChange(themeName)}
+                            className={`p-3 rounded-lg border text-left text-xs font-bold transition-all uppercase flex items-center justify-between ${
+                              theme === themeName 
+                                ? "border-zinc-950 bg-zinc-50 text-zinc-950" 
+                                : "border-zinc-200 text-zinc-500 hover:bg-zinc-55/10"
+                            }`}
+                          >
+                            <span>{themeName}</span>
+                            <span className="w-2.5 h-2.5 rounded-full border border-black/10" style={{
+                              backgroundColor: themeName === 'notion' ? '#FAFAFA' :
+                                               themeName === 'robin' ? '#ECE2DB' :
+                                               themeName === 'midnight' ? '#09090B' :
+                                               themeName === 'emerald' ? '#E2ECE5' : '#E2E8F0'
+                            }}></span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Miembros del equipo */}
+                    <div className="border-t border-zinc-150 pt-5">
+                      <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Gestionar Usuarios Autorizados</label>
+                      <p className="text-[11px] text-zinc-400 font-semibold mb-3">Todos los usuarios compartirán la clave de acceso: <code className="bg-zinc-100 px-1 py-0.5 rounded text-zinc-800">tmk2026</code></p>
+                      
+                      <form onSubmit={handleAddUser} className="flex gap-2 mb-4">
+                        <input
+                          type="text"
+                          required
+                          value={nuevoUsuarioInput}
+                          onChange={(e) => setNuevoUsuarioInput(e.target.value)}
+                          placeholder="Nombre de usuario (ej: ralvarez)"
+                          className="flex-1 bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-zinc-950"
+                        />
+                        <button 
+                          type="submit" 
+                          className="bg-zinc-900 hover:bg-black text-white px-4 py-2 rounded-lg text-xs font-bold transition-all shrink-0"
+                        >
+                          Añadir Miembro
+                        </button>
+                      </form>
+
+                      <div className="bg-zinc-50 border border-zinc-200 rounded-lg p-3 max-h-40 overflow-y-auto">
+                        <div className="flex flex-wrap gap-2">
+                          {listaUsuarios.map(u => (
+                            <span key={u} className="inline-flex items-center gap-1.5 bg-white border border-zinc-200 text-zinc-700 text-xs font-bold py-1 px-3 rounded-md">
+                              @{u}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* AGREGAR NUEVA TAREA */
+                <div className="flex-1 p-6 overflow-y-auto max-w-sm mx-auto w-full">
+                  <div className={`${currentTheme.cardBg} rounded-2xl border ${currentTheme.border} p-6 mt-4 animate-zoom-in shadow-md`}>
+                    <h2 className="text-xs font-black text-zinc-850 uppercase tracking-wider mb-4">Nueva Tarea</h2>
+
+                    <form onSubmit={handleCreateTask} className="flex flex-col gap-4">
+                      
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1.5">Marca Destino</label>
+                        <select 
+                          value={nuevaTarea.marca} 
+                          onChange={(e) => setNuevaTarea({ ...nuevaTarea, marca: e.target.value })}
+                          className="w-full bg-zinc-50 border border-zinc-200 rounded-lg p-2.5 text-xs font-bold text-zinc-700 focus:outline-none focus:ring-1 focus:ring-zinc-950"
+                        >
+                          {marcasDisponibles.map(m => (
+                            <option key={m} value={m}>{m}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1.5">Categoría</label>
+                        <input 
+                          type="text" 
+                          placeholder="Ej: Arte, Proyecto, etc..." 
+                          value={nuevaTarea.categoria} 
+                          onChange={(e) => setNuevaTarea({ ...nuevaTarea, categoria: e.target.value })}
+                          className="w-full bg-zinc-50 border border-zinc-200 rounded-lg p-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-950"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1.5">Título / Entregable</label>
+                        <input 
+                          type="text" 
+                          required 
+                          placeholder="Acción a realizar" 
+                          value={nuevaTarea.info} 
+                          onChange={(e) => setNuevaTarea({ ...nuevaTarea, info: e.target.value })}
+                          className="w-full bg-zinc-50 border border-zinc-200 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-zinc-950"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1.5">Asignados</label>
+                        <SelectorPersonasChips 
+                          personasSeleccionadas={nuevaTarea.personas} 
+                          onChange={(nuevas) => setNuevaTarea({ ...nuevaTarea, personas: nuevas })}
+                          listaGlobal={listaPersonas}
+                          registrarNuevaPersona={registrarNuevaPersonaGlobal}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1.5">Estado Inicial</label>
+                        <select 
+                          value={nuevaTarea.estado} 
+                          onChange={(e) => setNuevaTarea({ ...nuevaTarea, estado: e.target.value })}
+                          className="w-full bg-zinc-50 border border-zinc-200 rounded-lg p-2.5 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-zinc-950 bg-white"
+                        >
+                          {LISTA_ESTADOS_VALIDOS.map(opt => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1.5">Fecha Límite</label>
+                        <input 
+                          type="date" 
+                          value={nuevaTarea.deadline} 
+                          onChange={(e) => setNuevaTarea({ ...nuevaTarea, deadline: e.target.value })}
+                          className="w-full bg-zinc-50 border border-zinc-200 rounded-lg p-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-950"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1.5">Detalles o Notas</label>
+                        <textarea 
+                          rows="3" 
+                          placeholder="Notas o avances específicos..." 
+                          value={nuevaTarea.detalles} 
+                          onChange={(e) => setNuevaTarea({ ...nuevaTarea, detalles: e.target.value })}
+                          className="w-full bg-zinc-50 border border-zinc-200 rounded-lg p-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-950 resize-none"
+                        ></textarea>
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-3 border-t border-zinc-100">
+                        <button 
+                          type="button" 
+                          onClick={() => setPaginaActiva("dashboard")}
+                          className="bg-zinc-100 hover:bg-zinc-200 text-zinc-700 py-2 px-4 rounded-lg text-xs font-bold transition-all"
+                        >
+                          Cancelar
+                        </button>
+                        <button 
+                          type="submit" 
+                          className="bg-zinc-900 hover:bg-black text-white py-2 px-5 rounded-lg text-xs font-bold transition-all shadow-sm"
+                        >
+                          Crear Tarea
+                        </button>
+                      </div>
+
+                    </form>
+                  </div>
+                </div>
+              )}
+
+            </div>
+
+            <footer className="bg-white border-t border-zinc-100 py-2.5 px-6 flex items-center justify-between text-[10px] text-zinc-400 shrink-0">
+              <span>ROBIN AGENCY — Gestión Trade & Shopper Marketing</span>
+              {syncing && (
+                <span className="text-zinc-650 font-extrabold animate-pulse">
+                  <i className="fa-solid fa-spinner animate-spin mr-1"></i>Sincronizando con Sheets...
+                </span>
+              )}
+            </footer>
+
+          </div>
+
+          {/* FICHA DE SEGUIMIENTO (MODAL EDITAR) */}
+          {isEditing && activeTask && (
+            <ModalEdicionTarea 
+              task={activeTask} 
+              onClose={() => { setIsEditing(false); setActiveTask(null); }}
+              onSave={handleSaveTaskModal}
+              onDeleteClick={(t) => { setTaskToDelete(t); }}
+              marcasDisponibles={marcasDisponibles}
+              listaPersonas={listaPersonas}
+              registrarNuevaPersona={registrarNuevaPersonaGlobal}
+              cleanIdTarea={cleanIdTarea}
+            />
+          )}
+
+          {/* CONFIRMACIÓN DE ELIMINAR DIÁLOGO PERSONALIZADO */}
+          {taskToDelete && (
+            <div className="fixed inset-0 bg-black/45 backdrop-blur-[1px] z-[110] flex items-center justify-center p-4">
+              <div className="bg-white max-w-sm w-full rounded-2xl p-6 shadow-2xl border border-zinc-100 animate-zoom-in">
+                <div className="flex items-center gap-3 text-red-650 mb-3">
+                  <i className="fa-solid fa-circle-exclamation text-xl"></i>
+                  <h3 className="text-sm font-black uppercase tracking-wider">¿Eliminar entregable?</h3>
+                </div>
+                <p className="text-xs text-zinc-550 font-semibold mb-4 leading-relaxed">
+                  Esta acción borrará permanentemente el entregable <strong className="text-zinc-850">"{taskToDelete.info}"</strong> tanto en el Dashboard como en Google Sheets.
+                </p>
+                <div className="flex items-center justify-end gap-2.5">
+                  <button 
+                    onClick={() => setTaskToDelete(null)}
+                    className="px-4 py-2 bg-zinc-150 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-lg transition-all border border-zinc-200/50"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    onClick={() => handleDeleteTask(taskToDelete)}
+                    className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-lg transition-all shadow-md active:scale-95"
+                  >
+                    Sí, eliminar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // =========================================================================
+    // COMPONENTE: SELECTOR DE PERSONAS MEDIANTE CHIPS INTERACTIVOS
+    // =========================================================================
+    function SelectorPersonasChips({ personasSeleccionadas, onChange, listaGlobal, registrarNuevaPersona }) {
+      const [isOpen, setIsOpen] = useState(false);
+      const [busqueda, setBusqueda] = useState("");
+
+      const seleccionadas = useMemo(() => {
+        if (!personasSeleccionadas) return [];
+        return personasSeleccionadas.split(" ").map(s => s.trim()).filter(s => s.startsWith("@"));
+      }, [personasSeleccionadas]);
+
+      const sugeridos = useMemo(() => {
+        const q = busqueda.toLowerCase().trim();
+        return listaGlobal.filter(p => {
+          const coincideQuery = p.toLowerCase().includes(q);
+          const yaSeleccionado = seleccionadas.includes(p);
+          return coincideQuery && !yaSeleccionado;
+        });
+      }, [listaGlobal, seleccionadas, busqueda]);
+
+      const togglePersona = (p) => {
+        let nuevos;
+        if (seleccionadas.includes(p)) {
+          nuevos = seleccionadas.filter(item => item !== p);
+        } else {
+          nuevos = [...seleccionadas, p];
+        }
+        onChange(nuevos.join(" "));
+      };
+
+      const handleAddNuevo = (e) => {
+        if (e.key === "Enter" || e.type === "click") {
+          e.preventDefault();
+          let limpio = busqueda.trim();
+          if (limpio.length > 1) {
+            const formateado = limpio.startsWith("@") ? limpio : "@" + limpio;
+            registrarNuevaPersona(formateado);
+            togglePersona(formateado);
+            setBusqueda("");
+          }
+        }
+      };
+
+      return (
+        <div className="relative w-full text-left">
+          <div className="min-h-[38px] w-full bg-zinc-50 border border-zinc-200 rounded-lg p-1.5 flex flex-wrap gap-1 items-center">
+            {seleccionadas.map(p => (
+              <span key={p} className="inline-flex items-center gap-1 bg-zinc-950 text-white text-xs font-semibold px-2 py-0.5 rounded-md">
+                {p}
+                <button type="button" onClick={() => togglePersona(p)} className="hover:text-red-300">
+                  <i className="fa-solid fa-xmark text-[10px]"></i>
+                </button>
+              </span>
+            ))}
+            
+            <input 
+              type="text" 
+              placeholder={seleccionadas.length === 0 ? "Asignar persona..." : ""}
+              value={busqueda}
+              onChange={(e) => { setBusqueda(e.target.value); setIsOpen(true); }}
+              onFocus={() => setIsOpen(true)}
+              onKeyDown={handleAddNuevo}
+              className="flex-1 bg-transparent border-0 text-xs p-0.5 focus:outline-none focus:ring-0 min-w-[80px]"
+            />
+            
+            <button 
+              type="button" 
+              onClick={() => setIsOpen(!isOpen)}
+              className="text-zinc-400 hover:text-zinc-700 ml-auto px-1.5"
+            >
+              <i className="fa-solid fa-chevron-down text-[10px]"></i>
+            </button>
+          </div>
+
+          {isOpen && (
+            <div className="absolute z-50 w-full mt-1 bg-white border border-zinc-200 rounded-lg shadow-xl max-h-40 overflow-y-auto p-1.5 animate-zoom-in">
+              <div className="px-2 py-1 text-[10px] font-black text-zinc-400 uppercase tracking-wider border-b border-zinc-50">Sugerencias</div>
+              {sugeridos.map(p => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => { togglePersona(p); setBusqueda(""); }}
+                  className="w-full text-left px-2.5 py-1.5 text-xs hover:bg-zinc-50 rounded font-medium text-zinc-700 flex items-center gap-1.5 transition-all"
+                >
+                  <i className="fa-regular fa-user-circle text-xs text-zinc-400"></i>
+                  <span>{p}</span>
+                </button>
+              ))}
+              
+              {busqueda.trim().length > 0 && !listaGlobal.includes(busqueda.trim()) && (
+                <button
+                  type="button"
+                  onClick={handleAddNuevo}
+                  className="w-full text-left px-2.5 py-1.5 text-xs hover:bg-zinc-100 text-zinc-900 rounded font-bold border-t border-zinc-100/50 mt-1 flex items-center justify-between"
+                >
+                  <span>Añadir miembro "{busqueda.trim()}"</span>
+                  <span className="text-[10px] bg-zinc-200 text-zinc-700 px-1 py-0.5 rounded">Enter</span>
+                </button>
+              )}
+            </div>
+          )}
+          
+          {isOpen && <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setIsOpen(false)}></div>}
+        </div>
+      );
+    }
+
+    // =========================================================================
+    // COMPONENTE: LAYOUT DE TABLA (Premium, Espacioso e Integrado con Temas)
+    // =========================================================================
+    function LayoutTabla({ tareas, onUpdateField, onSelectTask, onDeleteTask, getMarcaStyle, filtroTiempo, cleanIdTarea, currentTheme }) {
+      return (
+        <div className={`border ${currentTheme.border} rounded-xl shadow-sm overflow-hidden animate-slide-in ${currentTheme.cardBg}`}>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[900px]">
+              <thead>
+                <tr className="bg-zinc-50/50 border-b border-zinc-200/65 text-xs font-bold text-zinc-400 uppercase tracking-wider">
+                  <th className="py-3.5 px-5 text-center w-24">ID</th>
+                  <th className="py-3.5 px-5 text-center w-24">Marca</th>
+                  <th className="py-3.5 px-5 w-28">Categoría</th>
+                  <th className="py-3.5 px-5">Entregable</th>
+                  <th className="py-3.5 px-5 w-36 text-center">Estado</th>
+                  <th className="py-3.5 px-5 w-32 text-center">Fecha Límite</th>
+                  <th className="py-3.5 px-5 w-32">Asignado</th>
+                  <th className="py-3.5 px-5 text-center w-16">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="text-sm divide-y divide-zinc-150/40">
+                {tareas.length === 0 ? (
+                  <tr>
+                    <td colSpan="8" className="py-20 text-center text-zinc-450 bg-zinc-50/5">
+                      <div className="flex flex-col items-center justify-center gap-2 py-6">
+                        <i className="fa-regular fa-folder-open text-zinc-300 text-3xl"></i>
+                        <p className="font-extrabold text-sm">Sin entregables en esta pestaña</p>
+                        <p className="text-xs text-zinc-400 leading-relaxed">
+                          {filtroTiempo === "HOY" 
+                            ? "No tienes entregables para hoy. Haz clic en 'Todas' o 'Futuras' en el menú."
+                            : "Cambia tus filtros o crea un nuevo entregable."
+                          }
+                        </p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  tareas.map(t => {
+                    const cMarca = getMarcaStyle(t.marca);
+                    const cEstado = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(t.estado)) || { color: "text-zinc-700", dot: "bg-zinc-300" };
+                    const displayId = cleanIdTarea(t.idTarea);
+                    
+                    return (
+                      <tr 
+                        key={t.idTarea + t.info} 
+                        onClick={() => onSelectTask(t)}
+                        className="hover:bg-zinc-50/40 transition-all cursor-pointer"
+                      >
+                        <td className="py-4 px-5 font-mono text-xs text-zinc-400 font-bold text-center">
+                          {displayId || "---"}
+                        </td>
+                        
+                        <td className="py-4 px-5 text-center" onClick={(e) => e.stopPropagation()}>
+                          <span className={`text-[10px] font-black px-2 py-1 rounded-md border uppercase tracking-wider ${cMarca.bg} ${cMarca.text} ${cMarca.border}`}>
+                            {t.marca || "Otros"}
+                          </span>
+                        </td>
+
+                        <td className="py-4 px-5 text-zinc-400 font-bold text-xs truncate max-w-[110px]">
+                          {t.categoria || "---"}
+                        </td>
+
+                        <td className="py-4 px-5">
+                          <div className="max-w-md">
+                            <p className="font-bold leading-snug">{t.info}</p>
+                            {t.detalles && (
+                              <p className="text-xs text-zinc-455 truncate mt-1 font-semibold leading-normal">
+                                {t.detalles.split('\n')[0]}
+                              </p>
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="py-4 px-5 text-center" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${cEstado.dot}`}></span>
+                            <select
+                              value={t.estado}
+                              onChange={(e) => onUpdateField(t, "estado", e.target.value)}
+                              className="text-xs font-bold py-1 bg-transparent border-0 cursor-pointer focus:outline-none focus:ring-0 text-zinc-500 font-sans"
+                            >
+                              {LISTA_ESTADOS_VALIDOS.map(opt => (
+                                <option key={opt} value={opt} className="bg-white text-zinc-850">
+                                  {opt.substring(opt.indexOf(" ") + 1)}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </td>
+
+                        <td className="py-4 px-5 text-center" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="date"
+                            value={t.deadline ? t.deadline.split('T')[0] : ""}
+                            onChange={(e) => onUpdateField(t, "deadline", e.target.value)}
+                            className="bg-transparent border-0 rounded-lg py-1 px-1 text-xs font-bold text-zinc-500 focus:outline-none w-28 text-center"
+                          />
+                        </td>
+
+                        <td className="py-4 px-5 text-zinc-450 font-bold text-xs">
+                          <span className="truncate max-w-[90px] block">{t.personas || "Sin asignar"}</span>
+                        </td>
+
+                        <td className="py-4 px-5 text-center" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => onDeleteTask(t)}
+                            title="Eliminar entregable"
+                            className="p-2 text-zinc-400 hover:text-red-500 rounded-lg hover:bg-red-50/40 transition-all text-xs"
+                          >
+                            <i className="fa-regular fa-trash-can"></i>
+                          </button>
+                        </td>
+
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    // =========================================================================
+    // COMPONENTE: LAYOUT KANBAN (CON SOPORTE DRAG & DROP INTERACTIVO REAL)
+    // =========================================================================
+    function LayoutKanban({ tareas, onUpdateField, onSelectTask, onDeleteTask, getMarcaStyle, cleanIdTarea, currentTheme }) {
+      const [dragOverCol, setDragOverColumn] = useState(null);
+
+      // Evento inicial cuando arrastras la tarjeta
+      const handleDragStart = (e, task) => {
+        e.dataTransfer.setData("taskId", task.idTarea || "");
+        e.dataTransfer.setData("taskInfo", task.info || "");
+        e.dataTransfer.effectAllowed = "move";
+      };
+
+      // Al soltar la tarjeta en una columna destino
+      const handleDrop = (e, targetEstado) => {
+        e.preventDefault();
+        setDragOverColumn(null);
+        const taskId = e.dataTransfer.getData("taskId");
+        const taskInfo = e.dataTransfer.getData("taskInfo");
+
+        // Buscar la tarea correspondiente
+        const taskMatched = tareas.find(t => (t.idTarea === taskId && taskId) || t.info === taskInfo);
+        if (taskMatched && cleanEstado(taskMatched.estado) !== cleanEstado(targetEstado)) {
+          onUpdateField(taskMatched, "estado", targetEstado);
+        }
+      };
+
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-start h-full animate-slide-in">
+          {ESTADOS_MAPA.map(col => {
+            const tareasColumna = tareas.filter(t => cleanEstado(t.estado) === cleanEstado(col.id));
+            const isOverThis = dragOverCol === col.id;
+            
+            return (
+              <div 
+                key={col.id} 
+                onDragOver={(e) => { e.preventDefault(); setDragOverColumn(col.id); }}
+                onDragLeave={() => setDragOverColumn(null)}
+                onDrop={(e) => handleDrop(e, col.id)}
+                className={`border p-3 rounded-xl flex flex-col gap-3 min-h-[500px] transition-all ${
+                  isOverThis ? 'border-dashed border-zinc-400 bg-zinc-100/30' : currentTheme.border
+                } ${currentTheme.cardBg}`}
+              >
+                <div className="flex items-center justify-between pb-2 border-b border-zinc-200/60">
+                  <span className="text-xs font-black text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+                    <span className={`w-2.5 h-2.5 rounded-full ${col.dot}`}></span>
+                    {col.id.substring(col.id.indexOf(" ") + 1)}
+                  </span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-200/60 text-zinc-650 font-bold">{tareasColumna.length}</span>
+                </div>
+
+                <div className="flex flex-col gap-2.5 overflow-y-auto max-h-[520px]">
+                  {tareasColumna.length === 0 ? (
+                    <div className="text-center py-8 text-zinc-400 text-xs font-semibold">
+                      Sin entregables
+                    </div>
+                  ) : (
+                    tareasColumna.map(t => {
+                      const cMarca = getMarcaStyle(t.marca);
+                      const displayId = cleanIdTarea(t.idTarea);
+                      
+                      const avanzarEstado = (e) => {
+                        e.stopPropagation();
+                        const index = ESTADOS_MAPA.findIndex(e => cleanEstado(e.id) === cleanEstado(t.estado));
+                        const nextIndex = (index + 1) % ESTADOS_MAPA.length;
+                        onUpdateField(t, "estado", ESTADOS_MAPA[nextIndex].id);
+                      };
+
+                      return (
+                        <div 
+                          key={t.idTarea + t.info}
+                          draggable={true}
+                          onDragStart={(e) => handleDragStart(e, t)}
+                          onClick={() => onSelectTask(t)}
+                          className={`${currentTheme.bg} p-4 rounded-xl border ${currentTheme.border} shadow-sm hover:shadow-md hover:border-zinc-400 cursor-grab active:cursor-grabbing transition-all flex flex-col gap-2 animate-zoom-in`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider border ${cMarca.bg} ${cMarca.text} ${cMarca.border}`}>
+                              {t.marca || "Otros"}
+                            </span>
+                            {displayId && (
+                              <span className="text-[10px] font-mono text-zinc-400 font-bold">{displayId}</span>
+                            )}
+                          </div>
+
+                          <h4 className="text-sm font-bold leading-snug line-clamp-3">{t.info}</h4>
+
+                          <div className="border-t border-zinc-200/50 pt-2 flex items-center justify-between text-xs font-bold text-zinc-400">
+                            <span className="truncate max-w-[100px]">{t.personas || "Sin asignar"}</span>
+                            <span className="font-semibold">{t.deadline ? formatearFecha(t.deadline) : "--/--"}</span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 mt-1 pt-1.5 border-t border-zinc-200/50">
+                            <button 
+                              onClick={avanzarEstado}
+                              className="flex-1 text-center py-1 bg-zinc-100 hover:bg-zinc-200/80 text-zinc-650 font-bold text-[9px] rounded-lg border border-zinc-200/50 uppercase tracking-wider transition-all"
+                            >
+                              Siguiente
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onDeleteTask(t); }}
+                              title="Eliminar entregable"
+                              className="p-1 text-zinc-400 hover:text-red-500 rounded-lg hover:bg-red-50/40 transition-all text-xs"
+                            >
+                              <i className="fa-regular fa-trash-can"></i>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // =========================================================================
+    // COMPONENTE: LAYOUT DE CALENDARIO (Espacioso, Rediseñado e Inteligente)
+    // =========================================================================
+    function LayoutCalendario({ tareas, onUpdateField, onSelectTask, currentTheme }) {
+      const [currentDate, setCurrentDate] = useState(new Date()); 
+
+      const diasDelMes = useMemo(() => {
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth();
+        
+        let primerDiaSemana = new Date(year, month, 1).getDay();
+        primerDiaSemana = primerDiaSemana === 0 ? 6 : primerDiaSemana - 1;
+        
+        const totalDias = new Date(year, month + 1, 0).getDate();
+        const dias = [];
+        
+        for (let i = 0; i < primerDiaSemana; i++) {
+          dias.push({ dia: null, fechaStr: null });
+        }
+        
+        for (let d = 1; d <= totalDias; d++) {
+          const m = String(month + 1).padStart(2, '0');
+          const diaStr = String(d).padStart(2, '0');
+          dias.push({
+            dia: d,
+            fechaStr: `${year}-${m}-${diaStr}`
+          });
+        }
+        return dias;
+      }, [currentDate]);
+
+      const navegarMes = (offset) => {
+        setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + offset, 1));
+      };
+
+      const nombresMeses = [
+        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+      ];
+
+      return (
+        <div className={`border ${currentTheme.border} rounded-xl p-5 flex flex-col gap-4 h-full overflow-hidden animate-slide-in ${currentTheme.cardBg}`}>
+          <div className="flex items-center justify-between pb-2 border-b border-zinc-200/50 shrink-0">
+            <h3 className="font-extrabold text-sm">
+              {nombresMeses[currentDate.getMonth()]} {currentDate.getFullYear()}
+            </h3>
+            
+            <div className="flex items-center gap-1 bg-zinc-50 p-1 rounded-lg border border-zinc-200">
+              <button onClick={() => navegarMes(-1)} className="hover:bg-white text-zinc-650 p-1 rounded-md text-xs">
+                <i className="fa-solid fa-chevron-left px-1.5"></i>
+              </button>
+              <button onClick={() => setCurrentDate(new Date())} className="hover:bg-white text-zinc-800 px-3 py-0.5 rounded-md text-xs font-bold">
+                Hoy
+              </button>
+              <button onClick={() => navegarMes(1)} className="hover:bg-white text-zinc-650 p-1 rounded-md text-xs">
+                <i className="fa-solid fa-chevron-right px-1.5"></i>
+              </button>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto pr-1">
+            <div className="grid grid-cols-7 gap-1.5">
+              {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map(d => (
+                <div key={d} className="text-center font-black text-zinc-400 text-xs uppercase tracking-wider py-1 border-b border-zinc-200/30">
+                  {d}
+                </div>
+              ))}
+
+              {diasDelMes.map((cell, index) => {
+                const tareasDia = cell.fechaStr ? tareas.filter(t => t.deadline && t.deadline.split('T')[0] === cell.fechaStr) : [];
+                const esHoy = cell.fechaStr === new Date().toISOString().split('T')[0];
+
+                return (
+                  <div 
+                    key={index}
+                    className={`min-h-[110px] md:min-h-[130px] border border-zinc-150/40 rounded-xl p-2 flex flex-col gap-1.5 transition-all ${
+                      cell.dia 
+                        ? esHoy 
+                          ? 'bg-zinc-50/50 border-zinc-900 shadow-sm' 
+                          : `${currentTheme.bg} hover:bg-zinc-100/50` 
+                        : 'bg-zinc-50/10 opacity-20 pointer-events-none'
+                    }`}
+                  >
+                    {cell.dia && (
+                      <div className="flex items-center justify-between">
+                        <span className={`text-[11px] font-extrabold w-5 h-5 flex items-center justify-center rounded-full ${
+                          esHoy ? 'bg-zinc-900 text-white font-black' : 'text-zinc-400'
+                        }`}>
+                          {cell.dia}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Contenedor de tareas con alto óptimo y scroll interno para que no queden como líneas de 3px */}
+                    <div className="flex flex-col gap-1 overflow-y-auto max-h-[85px]">
+                      {tareasDia.map(t => {
+                        const esAlerta = cleanEstado(t.estado) === "en revision" || cleanEstado(t.estado) === "en pausa";
+                        return (
+                          <div
+                            key={t.idTarea + t.info}
+                            onClick={() => onSelectTask(t)}
+                            className={`p-1.5 rounded-lg text-[10px] font-extrabold border truncate cursor-pointer transition-colors block w-full text-left ${
+                              esAlerta 
+                                ? 'bg-orange-50 border-orange-200 text-orange-850 hover:bg-orange-100' 
+                                : 'bg-zinc-100/70 border-zinc-200 text-zinc-800 hover:bg-zinc-200'
+                            }`}
+                            title={`${t.marca}: ${t.info}`}
+                          >
+                            {t.info}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // =========================================================================
+    // COMPONENTE: MODAL FICHA DE SEGUIMIENTO (DRAWER LATERAL PREMIUM CON HISTORIAL)
+    // =========================================================================
+    function ModalEdicionTarea({ task, onClose, onSave, onDeleteClick, marcasDisponibles, listaPersonas, registrarNuevaPersona, cleanIdTarea }) {
+      const [categoria, setCategoria] = useState(task.categoria || "");
+      const [info, setInfo] = useState(task.info || "");
+      const [personas, setPersonas] = useState(task.personas || "");
+      const [detalles, setDetalles] = useState(task.detalles || "");
+      const [estado, setEstado] = useState(task.estado || "⚪ Pendiente");
+      const [deadline, setDeadline] = useState(task.deadline || "");
+      
+      const [nuevoStatus, setNuevoStatus] = useState("");
+
+      const parseDetallesYHistorial = useMemo(() => {
+        const lineas = detalles.split('\n');
+        const notasLimpias = [];
+        const logs = [];
+
+        lineas.forEach(line => {
+          if (line.trim().startsWith("•") || line.trim().startsWith("• [")) {
+            logs.push(line.trim());
+          } else if (line.trim() !== "") {
+            notasLimpias.push(line);
+          }
+        });
+
+        return {
+          notas: notasLimpias.join('\n'),
+          historial: logs
+        };
+      }, [detalles]);
+
+      const handleAgregarStatus = () => {
+        if (!nuevoStatus.trim()) return;
+        const hoy = new Date();
+        const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
+        const actualizacion = `• [${timestamp}] ${nuevoStatus.trim()} por @${localStorage.getItem("robin_usuario_actual")}`;
+        const nuevosDetalles = detalles ? `${detalles.trim()}\n${actualizacion}` : actualizacion;
+        
+        setDetalles(nuevosDetalles);
+        setNuevoStatus("");
+        
+        onSave({
+          ...task,
+          categoria,
+          info,
+          personas,
+          detalles: nuevosDetalles,
+          estado,
+          deadline
+        });
+      };
+
+      const handleFormSubmit = (e) => {
+        e.preventDefault();
+        onSave({
+          ...task,
+          categoria,
+          info,
+          personas,
+          detalles,
+          estado,
+          deadline
+        });
+      };
+
+      const cleanedId = cleanIdTarea(task.idTarea);
+
+      return (
+        <div className="fixed inset-0 bg-zinc-950/20 backdrop-blur-[1px] z-50 flex items-center justify-end">
+          <div className="absolute inset-0" onClick={onClose}></div>
+          
+          <div className="relative bg-white h-full border-l border-zinc-200 shadow-2xl max-w-md w-full flex flex-col overflow-hidden animate-slide-in">
+            <div className="bg-zinc-50/55 px-5 py-4 border-b border-zinc-200 flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Ficha de Seguimiento</span>
+                {cleanedId && <span className="text-[11px] font-mono text-zinc-500 font-bold mt-0.5">{cleanedId}</span>}
+              </div>
+              <button onClick={onClose} className="text-zinc-400 hover:text-zinc-800 text-sm p-1">
+                <i className="fa-solid fa-xmark text-lg"></i>
+              </button>
+            </div>
+
+            <form onSubmit={handleFormSubmit} className="p-6 flex flex-col gap-4 flex-1 overflow-y-auto text-zinc-800">
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Marca</label>
+                <select 
+                  value={task.marca} 
+                  disabled
+                  className="w-full bg-zinc-100 p-2 text-xs rounded-lg border-0 font-bold text-zinc-500 focus:outline-none"
+                >
+                  {marcasDisponibles.map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Categoría</label>
+                <input type="text" value={categoria} onChange={(e) => setCategoria(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-sm rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-950 font-bold text-zinc-700" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Título / Entregable</label>
+                <input type="text" required value={info} onChange={(e) => setInfo(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-sm rounded-lg font-bold text-zinc-850 focus:outline-none focus:ring-1 focus:ring-zinc-950" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Asignados</label>
+                <SelectorPersonasChips 
+                  personasSeleccionadas={personas} 
+                  onChange={(nuevas) => setPersonas(nuevas)}
+                  listaGlobal={listaPersonas}
+                  registrarNuevaPersona={registrarNuevaPersona}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Estado</label>
+                  <select value={estado} onChange={(e) => setEstado(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-xs rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-950 bg-white font-black text-zinc-755">
+                    {LISTA_ESTADOS_VALIDOS.map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Fecha límite</label>
+                  <input type="date" value={deadline ? deadline.split('T')[0] : ""} onChange={(e) => setDeadline(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-xs rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-950 font-bold" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Descripción y Notas</label>
+                <textarea 
+                  value={parseDetallesYHistorial.notas} 
+                  onChange={(e) => {
+                    const nuevoContenido = e.target.value;
+                    const logs = parseDetallesYHistorial.historial.join('\n');
+                    setDetalles(logs ? `${nuevoContenido.trim()}\n\n${logs}` : nuevoContenido);
+                  }} 
+                  rows="3"
+                  placeholder="Instrucciones del entregable..."
+                  className="w-full bg-zinc-50 border border-zinc-200 p-2 text-xs rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-950 resize-none font-semibold text-zinc-700"
+                ></textarea>
+              </div>
+
+              {parseDetallesYHistorial.historial.length > 0 && (
+                <div className="border-t border-zinc-100 pt-3">
+                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Historial de Registros</label>
+                  <div className="bg-zinc-50 border border-zinc-150 p-2.5 rounded-lg max-h-36 overflow-y-auto flex flex-col gap-1.5">
+                    {parseDetallesYHistorial.historial.map((log, lIdx) => (
+                      <div key={lIdx} className="text-[10px] text-zinc-500 font-mono font-bold leading-normal border-b border-zinc-100/50 pb-1 last:border-0 last:pb-0">
+                        {log}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="bg-zinc-50 p-3 rounded-xl border border-zinc-200">
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Añadir Registro Rápido</label>
+                <div className="flex gap-1.5">
+                  <input 
+                    type="text" 
+                    placeholder="Avance o comentario nuevo..." 
+                    value={nuevoStatus} 
+                    onChange={(e) => setNuevoStatus(e.target.value)} 
+                    className="flex-1 bg-white border border-zinc-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAgregarStatus();
+                      }
+                    }}
+                  />
+                  <button 
+                    type="button" 
+                    onClick={handleAgregarStatus} 
+                    className="bg-zinc-900 hover:bg-black text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0"
+                  >
+                    Registrar
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-1.5 pt-4 border-t border-zinc-150 mt-auto">
+                <button 
+                  type="button" 
+                  onClick={() => onDeleteClick(task)}
+                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-650 font-bold text-xs rounded-lg transition-all border border-red-200/50"
+                >
+                  <i className="fa-regular fa-trash-can mr-1.5"></i>Eliminar
+                </button>
+                <div className="flex items-center gap-1.5">
+                  <button type="button" onClick={onClose} className="px-3.5 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-lg transition-all">
+                    Cerrar
+                  </button>
+                  <button type="submit" className="px-4 py-1.5 bg-zinc-900 hover:bg-black text-white font-bold text-xs rounded-lg transition-all shadow-sm">
+                    Guardar
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    // Utilidades
+    function cleanEstado(val) {
+      if (!val) return "";
+      return String(val)
+        .replace(/[\u2600-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '')
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
+    }
+
+    function formatearFecha(fechaStr) {
+      if (!fechaStr) return "";
+      const partes = fechaStr.split("-");
+      if (partes.length === 3) {
+        return `${partes[2]}/${partes[1]}`;
+      }
+      return fechaStr.split("T")[0];
+    }
+
+    function obtenerTiempoFecha(val) {
+      if (!val) return Infinity;
+      if (val instanceof Date) {
+        return new Date(val.getFullYear(), val.getMonth(), val.getDate()).getTime();
+      }
+      var str = String(val).trim();
+      var partes = str.split(/[-/]/);
+      if (partes.length === 3) {
+        var dia, mes, anio;
+        if (partes[0].length === 4) {
+          anio = parseInt(partes[0], 10); mes = parseInt(partes[1], 10) - 1; dia = parseInt(partes[2], 10);
+        } else {
+          dia = parseInt(partes[0], 10); mes = parseInt(partes[1], 10) - 1; anio = parseInt(partes[2], 10);
+          if (anio < 100) anio += 2000;
+        }
+        var d = new Date(anio, mes, dia);
+        return isNaN(d.getTime()) ? Infinity : d.getTime();
+      }
+      return Infinity;
+    }
+
+    // Inicializar
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+
+  <style>
+    @keyframes slide-in {
+      from { transform: translateX(50px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes zoom-in {
+      from { transform: scale(0.98); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .animate-slide-in {
+      animation: slide-in 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .animate-zoom-in {
+      animation: zoom-in 0.1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+  </style>
+</body>
+</html>

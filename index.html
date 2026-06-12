@@ -291,6 +291,21 @@
       return Infinity;
     }
 
+    // Comparador unificado de fechas resistente a formatos mixtos (slash vs dash, ISO)
+    function sonMismasFechas(d1, d2) {
+      if (!d1 || !d2) return false;
+      const t1 = obtenerTiempoFecha(d1);
+      const t2 = obtenerTiempoFecha(d2);
+      return t1 !== Infinity && t2 !== Infinity && t1 === t2;
+    }
+
+    // Validador de ID para enviar vacío si es un ID temporal de-duplicado (evita colapsar búsqueda por info en Sheets)
+    const getApiIdTarea = (id) => {
+      if (!id) return "";
+      if (String(id).startsWith("STB-")) return "";
+      return String(id).trim();
+    };
+
     // =========================================================================
     // 👥 COMPONENTE: SELECTOR DE PERSONAS MEDIANTE CHIPS INTERACTIVOS
     // =========================================================================
@@ -441,7 +456,7 @@
 
       return (
         <div className={`border ${currentTheme.border} rounded-xl shadow-sm overflow-hidden animate-slide-in ${currentTheme.cardBg}`}>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto w-full">
             <table className="w-full text-left border-collapse min-w-[900px]">
               <thead>
                 <tr className="bg-zinc-50/50 border-b border-zinc-200/65 text-xs font-bold text-zinc-400 uppercase tracking-wider">
@@ -461,7 +476,7 @@
                       <div className="flex flex-col items-center justify-center gap-2 py-6">
                         <i className="fa-regular fa-folder-open text-zinc-300 text-3xl"></i>
                         <p className="font-extrabold text-sm">Sin entregables en esta pestaña</p>
-                        <p className="text-xs text-zinc-400 leading-relaxed">
+                        <p className="text-xs text-zinc-400 leading-relaxed px-4">
                           {filtroTiempo === "HOY" 
                             ? "No tienes entregables agendados para el día de hoy. Haz clic en 'Todas' o 'Atrasadas' en los filtros."
                             : "Cambia tus filtros o crea un nuevo entregable."
@@ -616,7 +631,7 @@
                 onDragOver={(e) => { e.preventDefault(); setDragOverColumn(col.id); }}
                 onDragLeave={() => setDragOverColumn(null)}
                 onDrop={(e) => handleDrop(e, col.id)}
-                className={`border p-3 rounded-xl flex flex-col gap-3 min-h-[500px] transition-all ${
+                className={`border p-3 rounded-xl flex flex-col gap-3 min-h-[300px] md:min-h-[500px] transition-all ${
                   isOverThis ? 'border-dashed border-zinc-400 bg-zinc-100/30' : currentTheme.border
                 } ${currentTheme.cardBg}`}
               >
@@ -738,21 +753,21 @@
       ];
 
       return (
-        <div className={`border ${currentTheme.border} rounded-xl p-5 flex flex-col gap-4 h-full overflow-hidden animate-slide-in ${currentTheme.cardBg}`}>
+        <div className={`border ${currentTheme.border} rounded-xl p-3 md:p-5 flex flex-col gap-4 h-full overflow-hidden animate-slide-in ${currentTheme.cardBg}`}>
           <div className="flex items-center justify-between pb-2 border-b border-zinc-200/50 shrink-0">
-            <h3 className="font-extrabold text-sm">
+            <h3 className="font-extrabold text-xs md:text-sm">
               {nombresMeses[currentDate.getMonth()]} {currentDate.getFullYear()}
             </h3>
             
             <div className="flex items-center gap-1 bg-zinc-50 p-1 rounded-lg border border-zinc-200">
-              <button onClick={() => navegarMes(-1)} className="hover:bg-white text-zinc-655 p-1 rounded-md text-xs">
-                <i className="fa-solid fa-chevron-left px-1.5"></i>
+              <button onClick={() => navegarMes(-1)} className="hover:bg-white text-zinc-655 p-1 rounded-md text-[10px] md:text-xs">
+                <i className="fa-solid fa-chevron-left px-1"></i>
               </button>
-              <button onClick={() => setCurrentDate(new Date())} className="hover:bg-white text-zinc-800 px-3 py-0.5 rounded-md text-xs font-bold">
+              <button onClick={() => setCurrentDate(new Date())} className="hover:bg-white text-zinc-800 px-2 md:px-3 py-0.5 rounded-md text-[10px] md:text-xs font-bold">
                 Hoy
               </button>
-              <button onClick={() => navegarMes(1)} className="hover:bg-white text-zinc-655 p-1 rounded-md text-xs">
-                <i className="fa-solid fa-chevron-right px-1.5"></i>
+              <button onClick={() => navegarMes(1)} className="hover:bg-white text-zinc-655 p-1 rounded-md text-[10px] md:text-xs">
+                <i className="fa-solid fa-chevron-right px-1"></i>
               </button>
             </div>
           </div>
@@ -760,19 +775,19 @@
           <div className="flex-1 overflow-y-auto pr-1">
             <div className="grid grid-cols-7 gap-1.5">
               {["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"].map(d => (
-                <div key={d} className="text-center font-black text-zinc-400 text-xs uppercase tracking-wider py-1 border-b border-zinc-200/30">
+                <div key={d} className="text-center font-black text-zinc-400 text-[10px] md:text-xs uppercase tracking-wider py-1 border-b border-zinc-200/30">
                   {d}
                 </div>
               ))}
 
               {diasDelMes.map((cell, index) => {
-                const tareasDia = cell.fechaStr ? tareas.filter(t => t.deadline && t.deadline.split('T')[0] === cell.fechaStr) : [];
+                const tareasDia = cell.fechaStr ? tareas.filter(t => sonMismasFechas(t.deadline, cell.fechaStr)) : [];
                 const esHoy = cell.fechaStr === new Date().toISOString().split('T')[0];
 
                 return (
                   <div 
                     key={index}
-                    className={`min-h-[110px] md:min-h-[130px] border border-zinc-150/40 rounded-xl p-2 flex flex-col gap-1.5 transition-all ${
+                    className={`min-h-[80px] md:min-h-[130px] border border-zinc-150/40 rounded-xl p-1 md:p-2 flex flex-col gap-1.5 transition-all ${
                       cell.dia 
                         ? esHoy 
                           ? 'bg-zinc-50/50 border-zinc-900 shadow-sm' 
@@ -782,7 +797,7 @@
                   >
                     {cell.dia && (
                       <div className="flex items-center justify-between">
-                        <span className={`text-[11px] font-extrabold w-5 h-5 flex items-center justify-center rounded-full ${
+                        <span className={`text-[10px] md:text-[11px] font-extrabold w-4 h-4 md:w-5 md:h-5 flex items-center justify-center rounded-full ${
                           esHoy ? 'bg-zinc-900 text-white font-black' : 'text-zinc-400'
                         }`}>
                           {cell.dia}
@@ -790,21 +805,21 @@
                       </div>
                     )}
 
-                    <div className="flex flex-col gap-1 overflow-y-auto max-h-[85px]">
+                    <div className="flex flex-col gap-1 overflow-y-auto max-h-[50px] md:max-h-[85px]">
                       {tareasDia.map(t => {
                         const esAlerta = cleanEstado(t.estado) === "en revision" || cleanEstado(t.estado) === "en pausa";
                         return (
                           <div
                             key={t.idTarea + t.info}
                             onClick={() => onSelectTask(t)}
-                            className={`p-1.5 rounded-lg text-[10px] font-extrabold border truncate cursor-pointer transition-colors block w-full text-left shrink-0 ${
+                            className={`p-1 rounded-md text-[8px] md:text-[10px] font-extrabold border truncate cursor-pointer transition-colors block w-full text-left shrink-0 ${
                               esAlerta 
                                 ? 'bg-orange-50 border-orange-200 text-orange-850 hover:bg-orange-100' 
                                 : 'bg-zinc-100/70 border-zinc-200 text-zinc-800 hover:bg-zinc-200'
                             }`}
                             title={`${t.marca}: ${t.info}`}
                           >
-                            <span className="text-[8px] uppercase tracking-wider block opacity-60 font-black">{t.marca}</span>
+                            <span className="text-[7px] md:text-[8px] uppercase tracking-wider block opacity-60 font-black">{t.marca}</span>
                             <span className="block truncate mt-0.5">{t.info}</span>
                           </div>
                         );
@@ -842,7 +857,7 @@
           if (line.trim().startsWith("•") || line.trim().startsWith("• [")) {
             logs.push(line.trim());
           } else if (line.trim() !== "") {
-            notes: notasLimpias.push(line);
+            notasLimpias.push(line);
           }
         });
 
@@ -895,7 +910,7 @@
       const cleanedId = cleanIdTarea(task.idTarea);
 
       return (
-        <div className="fixed inset-0 bg-zinc-950/20 backdrop-blur-[1px] z-50 flex items-center justify-end">
+        <div className="fixed inset-0 bg-zinc-950/20 backdrop-blur-[1px] z-[120] flex items-center justify-end">
           <div className="absolute inset-0" onClick={onClose}></div>
           
           <div className="relative bg-white h-full border-l border-zinc-200 shadow-2xl max-w-md w-full flex flex-col overflow-hidden animate-slide-in">
@@ -930,7 +945,7 @@
 
               <div>
                 <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Título / Entregable</label>
-                <input type="text" required disabled={syncing || isSubmittingLocal} value={info} onChange={(e) => setInfo(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-sm rounded-lg font-bold text-zinc-850 focus:outline-none focus:ring-1 focus:ring-zinc-950 disabled:opacity-75" />
+                <input type="text" required disabled={syncing || isSubmittingLocal} value={info} onChange={(e) => setInfo(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-sm rounded-lg font-bold text-zinc-855 focus:outline-none focus:ring-1 focus:ring-zinc-950 disabled:opacity-75" />
               </div>
 
               <div>
@@ -978,7 +993,7 @@
               {parseDetallesYHistorial.historial.length > 0 && (
                 <div className="border-t border-zinc-100 pt-3">
                   <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Historial de Registros</label>
-                  <div className="bg-zinc-50 border border-zinc-150 p-2.5 rounded-lg max-h-36 overflow-y-auto flex flex-col gap-1.5">
+                  <div className="bg-zinc-50 border border-zinc-155 p-2.5 rounded-lg max-h-36 overflow-y-auto flex flex-col gap-1.5">
                     {parseDetallesYHistorial.historial.map((log, lIdx) => (
                       <div key={lIdx} className="text-[10px] text-zinc-500 font-mono font-bold leading-normal border-b border-zinc-100/50 pb-1 last:border-0 last:pb-0">
                         {log}
@@ -1060,7 +1075,7 @@
       // Saneamiento de saludo para evitar null o undefined
       const saludoNombre = nombreUsuario && nombreUsuario !== "null" ? nombreUsuario : `@${username}`;
 
-      // Filtrar estrictamente las 5 tareas de hoy prioritarias que no estén completadas
+      // Filtrar estrictamente las 5 tareas de hoy prioritarias que no estén completadas (independiente de marcas o clientes)
       const tareasDeHoy = useMemo(() => {
         const hoy = new Date();
         const tHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
@@ -1083,7 +1098,7 @@
         if (!nuevoTitulo.trim() || !nuevoLink.trim()) return;
         
         onAddWidget({
-          id: String(Date.now()),
+          id: `WID-${Date.now()}`,
           titulo: nuevoTitulo.trim(),
           link: nuevoLink.trim(),
           icon: nuevoIcon,
@@ -1114,9 +1129,10 @@
         return cDias;
       }, []);
 
+      // Comparación robusta por normalizador sonMismasFechas en vez de split directo
       const tareasDelDiaSeleccionadoInPlanner = useMemo(() => {
         if (!plannerSelectedDay) return [];
-        return tareas.filter(t => t.deadline && t.deadline.split('T')[0] === plannerSelectedDay);
+        return tareas.filter(t => sonMismasFechas(t.deadline, plannerSelectedDay));
       }, [tareas, plannerSelectedDay]);
 
       const nombresMeses = [
@@ -1125,13 +1141,13 @@
       ];
 
       return (
-        <div className="flex flex-col gap-6 animate-slide-in pb-12">
+        <div className="flex flex-col gap-5 md:gap-6 animate-slide-in pb-12 w-full max-w-full overflow-hidden">
           
           {/* Header de Bienvenida */}
-          <div className={`p-6 rounded-2xl border ${currentTheme.border} ${currentTheme.cardBg} flex justify-between items-center shadow-sm`}>
+          <div className={`p-4 md:p-6 rounded-2xl border ${currentTheme.border} ${currentTheme.cardBg} flex justify-between items-center shadow-sm`}>
             <div>
-              <h2 className="text-xl font-black tracking-tight text-zinc-900">¡Hola, {saludoNombre}! 👋</h2>
-              <p className="text-xs text-zinc-455 font-semibold mt-1">Este es el resumen general de actividades del área de Trade & Shopper Marketing.</p>
+              <h2 className="text-lg md:text-xl font-black tracking-tight text-zinc-900">¡Hola, {saludoNombre}! 👋</h2>
+              <p className="text-[11px] md:text-xs text-zinc-455 font-semibold mt-1">Este es el resumen general de actividades del área de Trade & Shopper Marketing.</p>
             </div>
             <div className="hidden md:block">
               <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 bg-zinc-100 px-3 py-1 rounded-full">
@@ -1143,7 +1159,7 @@
           {/* Sección de Accesos Rápidos (Widgets del Área Online) */}
           <div className="flex flex-col gap-3">
             <div className="flex justify-between items-center">
-              <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Accesos y Herramientas del Área (En Línea)</span>
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-zinc-400">Accesos y Herramientas del Área (En Línea)</span>
               {isAdmin && (
                 <button 
                   onClick={() => setShowAddForm(!showAddForm)}
@@ -1184,22 +1200,22 @@
             {/* Grid de Widgets */}
             {widgets.length === 0 ? (
               <div className="text-center py-8 border border-dashed border-zinc-200 rounded-xl text-zinc-400 text-xs font-semibold">
-                No hay accesos online configurados. {isAdmin && "Usa el botón de arriba para registrar accesos importantes en Sheets."}
+                No hay accesos online configurados. {isAdmin && "Usa el botón de arriba para registrar accesos importantes en Config_Marcas."}
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                 {widgets.map(w => (
                   <div key={w.id} className="relative group">
                     <a 
                       href={w.link} 
                       target="_blank" 
                       rel="noopener noreferrer"
-                      className={`flex items-center gap-3 p-3.5 rounded-xl border ${currentTheme.border} ${currentTheme.cardBg} hover:shadow-md transition-all`}
+                      className={`flex items-center gap-3 p-3 rounded-xl border ${currentTheme.border} ${currentTheme.cardBg} hover:shadow-md transition-all h-full`}
                     >
                       <div className={`w-8 h-8 rounded-lg ${w.color} text-white flex items-center justify-center text-xs shrink-0 shadow-sm`}>
                         <i className={`fa-solid ${w.icon || "fa-link"}`}></i>
                       </div>
-                      <span className="text-xs font-bold truncate pr-3">{w.titulo}</span>
+                      <span className="text-[11px] md:text-xs font-bold truncate pr-3">{w.titulo}</span>
                     </a>
                     {isAdmin && (
                       <button 
@@ -1220,8 +1236,8 @@
             
             {/* Tareas del Día (7 columnas) */}
             <div className="lg:col-span-7 flex flex-col gap-3">
-              <span className="text-xs font-black uppercase tracking-widest text-zinc-400">5 Tareas Clave de Hoy</span>
-              <div className={`border ${currentTheme.border} rounded-2xl p-5 flex flex-col gap-3 ${currentTheme.cardBg}`}>
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-zinc-400">5 Tareas Clave de Hoy</span>
+              <div className={`border ${currentTheme.border} rounded-2xl p-4 md:p-5 flex flex-col gap-3 ${currentTheme.cardBg}`}>
                 {tareasDeHoy.length === 0 ? (
                   <div className="py-12 text-center text-zinc-455 flex flex-col items-center gap-2">
                     <i className="fa-regular fa-calendar-check text-2xl text-emerald-500"></i>
@@ -1237,7 +1253,7 @@
                       <div 
                         key={t.idTarea + t.info}
                         onClick={() => onSelectTask(t)}
-                        className={`p-3.5 rounded-xl border ${currentTheme.border} ${currentTheme.bg} hover:border-zinc-400 transition-all cursor-pointer flex items-center justify-between gap-3`}
+                        className={`p-3 rounded-xl border ${currentTheme.border} ${currentTheme.bg} hover:border-zinc-400 transition-all cursor-pointer flex items-center justify-between gap-3`}
                       >
                         <div className="flex flex-col gap-1 overflow-hidden">
                           <div className="flex items-center gap-2">
@@ -1273,8 +1289,8 @@
 
             {/* Mini Calendario Interactivo con Lista de Tareas (5 columnas) */}
             <div className="lg:col-span-5 flex flex-col gap-3">
-              <span className="text-xs font-black uppercase tracking-widest text-zinc-400">Planificador Mensual</span>
-              <div className={`border ${currentTheme.border} rounded-2xl p-5 flex flex-col gap-4 ${currentTheme.cardBg}`}>
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-zinc-400">Planificador Mensual</span>
+              <div className={`border ${currentTheme.border} rounded-2xl p-4 md:p-5 flex flex-col gap-4 ${currentTheme.cardBg}`}>
                 <div className="flex justify-between items-center border-b pb-2">
                   <span className="text-xs font-bold text-zinc-855">{nombresMeses[hoy.getMonth()]} {hoy.getFullYear()}</span>
                 </div>
@@ -1287,7 +1303,7 @@
                   {diasMes.map((cell, idx) => {
                     if (!cell) return <div key={idx} className="aspect-square opacity-0"></div>;
                     
-                    const tareasDia = tareas.filter(t => t.deadline && t.deadline.split('T')[0] === cell.fechaStr);
+                    const tareasDia = cell.fechaStr ? tareas.filter(t => sonMismasFechas(t.deadline, cell.fechaStr)) : [];
                     const esHoy = cell.fechaStr === new Date().toISOString().split('T')[0];
                     const esSeleccionado = cell.fechaStr === plannerSelectedDay;
 
@@ -1589,6 +1605,7 @@
       const [usuario, setUsuario] = useState(() => getLocalStorageItemSafe("robin_usuario_actual", null));
       const [claveInput, setClaveInput] = useState("");
       const [loginError, setLoginError] = useState("");
+      const [sidebarOpen, setSidebarOpen] = useState(false);
 
       const [listaUsuarios, setListaUsuarios] = useState(() => {
         const guardados = localStorage.getItem("robin_lista_usuarios");
@@ -1714,7 +1731,14 @@
         setTimeout(() => setToast(null), 4000);
       };
 
-      // 🔄 WIDGETS ONLINE: Guardar y Sincronizar en Sheets (Marca: "WIDGETS")
+      // Manejador de navegación para cerrar sidebar de forma inteligente en mobile
+      const navegarA = (pagina, extraFn = null) => {
+        setPaginaActiva(pagina);
+        if (extraFn) extraFn();
+        setSidebarOpen(false);
+      };
+
+      // 🔄 WIDGETS ONLINE: Guardar y Sincronizar en Sheets (Hojas: "Config_Marcas" para evitar fallas)
       const handleAddWidget = async (nuevoWidget) => {
         setWidgets([...widgets, nuevoWidget]);
         showToast("Registrando acceso rápido...", "info");
@@ -1731,7 +1755,7 @@
             method: "POST", mode: "cors", redirect: "follow",
             headers: { "Content-Type": "text/plain; charset=utf-8" },
             body: JSON.stringify({
-              marca: "WIDGETS",
+              marca: "Config_Marcas",
               idTarea: nuevoWidget.id,
               info: nuevoWidget.titulo,
               detalles: nuevoWidget.link,
@@ -1765,7 +1789,7 @@
             method: "POST", mode: "cors", redirect: "follow",
             headers: { "Content-Type": "text/plain; charset=utf-8" },
             body: JSON.stringify({
-              marca: "WIDGETS",
+              marca: "Config_Marcas",
               idTarea: id,
               info: titulo,
               campo: "eliminar"
@@ -1834,7 +1858,7 @@
         showToast(`Estilo cambiado a ${newTheme.toUpperCase()}`, "success");
       };
 
-      // FETCH DE DATOS: Agrupamiento Semántico, Deduplicación de Seguridad y Carga de Widgets Online
+      // FETCH DE DATOS: Agrupamiento Semántico, Deduplicación de Seguridad y Carga de Widgets de la hoja Config_Marcas
       const fetchData = async (isBackground = false) => {
         if (!isBackground) setLoading(true);
         setSyncing(true);
@@ -1859,10 +1883,10 @@
           const json = await res.json();
           if (json.success && json.data) {
             
-            // 🌐 1. Extraer y Sincronizar Widgets Online (Filas con marca: "WIDGETS")
-            const rawWidgets = json.data.filter(t => t.marca === "WIDGETS");
+            // 🌐 1. Extraer Widgets Online: Filas con marca: "Config_Marcas" y idTarea que comience con "WID-"
+            const rawWidgets = json.data.filter(t => t.marca === "Config_Marcas" && String(t.idTarea).startsWith("WID-"));
             const parsedWidgets = rawWidgets.map(w => ({
-              id: w.idTarea || String(w.id || Math.random()),
+              id: w.idTarea,
               titulo: w.info,
               link: w.detalles || "",
               icon: w.categoria || "fa-link",
@@ -1870,10 +1894,13 @@
             }));
             setWidgets(parsedWidgets);
 
-            // 📋 2. Filtrar y Procesar las tareas reales del equipo de trade
-            const tareasValidas = json.data.filter(t => t.marca !== "WIDGETS" && t.info && t.info.toString().trim() !== "");
+            // 📋 2. Filtrar y Procesar las tareas reales de marketing (excluyendo widgets guardados en Config_Marcas)
+            const tareasValidas = json.data.filter(t => {
+              const isWidgetRow = t.marca === "Config_Marcas" && String(t.idTarea).startsWith("WID-");
+              return !isWidgetRow && t.info && t.info.toString().trim() !== "";
+            });
             
-            // 🧼 3. Algoritmo Inteligente de De-duplicación 100% en memoria para evitar race conditions en Google Sheets
+            // 🧼 3. Algoritmo Inteligente de De-duplicación 100% en memoria
             const deduplicadas = [];
             const seenKeys = new Set();
 
@@ -1881,7 +1908,6 @@
               const cleanId = t.idTarea ? String(t.idTarea).trim() : "";
               const hasRealId = cleanId !== "" && !cleanId.includes("GMT") && cleanId.length < 15;
               
-              // Definimos una clave única de consistencia de datos por marca, entregable y deadline limpio
               const key = hasRealId 
                 ? `id:${cleanId.toLowerCase()}` 
                 : `info:${(t.marca || "").toLowerCase()}|${(t.info || "").toLowerCase()}|${(t.deadline || "").split('T')[0]}`;
@@ -1918,7 +1944,7 @@
         }
       };
 
-      // Modificar campo en línea de forma segura con campo: "todo" para evitar fallas del Apps Script
+      // Modificar campo en línea de forma segura. Si el ID es STB-, se envía vacío para que el backend busque por 'info'
       const handleUpdateField = async (tarea, campo, nuevoValor) => {
         if (!nuevoValor && nuevoValor !== "") return;
         if (isSubmitting || syncing) return;
@@ -1957,10 +1983,9 @@
           await fetch(effectiveUrl, {
             method: "POST", mode: "cors", redirect: "follow",
             headers: { "Content-Type": "text/plain; charset=utf-8" },
-            // Forzamos "todo" como campo para asegurar que el Apps Script de Sheets reescriba toda la fila con el deadline correcto
             body: JSON.stringify({
               marca: tarea.marca, 
-              idTarea: taskTargetId, 
+              idTarea: getApiIdTarea(taskTargetId), // Evita fallas enviando vacío si es un ID temporal de memoria
               info: tarea.info, 
               categoria: tarea.categoria,
               campo: "todo", 
@@ -2026,9 +2051,15 @@
             method: "POST", mode: "cors", redirect: "follow",
             headers: { "Content-Type": "text/plain; charset=utf-8" },
             body: JSON.stringify({
-              marca: taskConHistorial.marca, idTarea: taskConHistorial.idTarea, info: taskConHistorial.info,
-              categoria: taskConHistorial.categoria, personas: taskConHistorial.personas, detalles: taskConHistorial.detalles,
-              estado: taskConHistorial.estado, deadline: taskConHistorial.deadline, campo: "todo"
+              marca: taskConHistorial.marca, 
+              idTarea: getApiIdTarea(taskConHistorial.idTarea), // Filtro de ID temporal
+              info: taskConHistorial.info,
+              categoria: taskConHistorial.categoria, 
+              personas: taskConHistorial.personas, 
+              detalles: taskConHistorial.detalles,
+              estado: taskConHistorial.estado, 
+              deadline: taskConHistorial.deadline, 
+              campo: "todo"
             })
           });
           showToast("Sincronizado completamente", "success");
@@ -2065,7 +2096,11 @@
             method: "POST", mode: "cors", redirect: "follow",
             headers: { "Content-Type": "text/plain; charset=utf-8" },
             body: JSON.stringify({
-              marca: tarea.marca, idTarea: tarea.idTarea, info: tarea.info, categoria: tarea.categoria, campo: "eliminar"
+              marca: tarea.marca, 
+              idTarea: getApiIdTarea(tarea.idTarea), // ID temporal
+              info: tarea.info, 
+              categoria: tarea.categoria, 
+              campo: "eliminar"
             })
           });
           const json = await res.json();
@@ -2350,47 +2385,6 @@
         }
       };
 
-      // Si el usuario no ha iniciado sesión, se solicita clave
-      if (!usuario) {
-        return (
-          <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#FAFAFA] font-sans p-4">
-            <div className="bg-white max-w-sm w-full p-8 rounded-2xl border border-zinc-200/80 shadow-xl flex flex-col gap-6">
-              <div className="flex flex-col items-center gap-3">
-                <span className="fallback-logo text-lg font-black text-zinc-900 tracking-wider">ROBIN</span>
-                <span className="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">Trade & Shopper Marketing</span>
-              </div>
-              <form onSubmit={handleLogin} className="flex flex-col gap-4 text-xs">
-                <div>
-                  <label className="block font-bold text-zinc-455 uppercase mb-1">Usuario</label>
-                  <select name="username" className="w-full bg-zinc-50 border p-2.5 rounded-lg font-semibold focus:outline-none focus:ring-1 focus:ring-zinc-900 bg-white text-zinc-800">
-                    {listaUsuarios.map(u => (
-                      <option key={u} value={u}>@{u}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block font-bold text-zinc-455 uppercase mb-1">Contraseña</label>
-                  <input 
-                    type="password" 
-                    required 
-                    placeholder="Introducir clave de equipo..." 
-                    value={claveInput}
-                    onChange={(e) => setClaveInput(e.target.value)}
-                    className="w-full bg-zinc-50 border p-2.5 rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-900 font-bold"
-                  />
-                </div>
-                {loginError && (
-                  <p className="text-[10px] text-red-500 font-bold text-center leading-normal mt-1">{loginError}</p>
-                )}
-                <button type="submit" className="w-full bg-zinc-950 hover:bg-black text-white py-3 rounded-xl font-bold transition-all mt-2 text-xs shadow">
-                  Entrar al Portal
-                </button>
-              </form>
-            </div>
-          </div>
-        );
-      }
-
       return (
         <div className={`flex h-screen w-screen overflow-hidden ${currentTheme.bg} ${currentTheme.text} select-none transition-all`}>
           
@@ -2401,11 +2395,23 @@
             </div>
           )}
 
-          {/* SIDEBAR COMODO Y AMPLIADO */}
-          <aside className={`w-56 ${currentTheme.sidebarBg} border-r ${currentTheme.border} flex flex-col justify-between shrink-0`}>
+          {/* BACKGROUND BLUR OVERLAY FOR MOBILE SIDEBAR */}
+          {sidebarOpen && (
+            <div 
+              onClick={() => setSidebarOpen(false)}
+              className="fixed inset-0 bg-black/30 backdrop-blur-[1px] z-40 md:hidden"
+            />
+          )}
+
+          {/* SIDEBAR COMODO Y RESPONSIVO (OCULTO EN MOBILE Y DESPLEGABLE) */}
+          <aside className={`
+            fixed inset-y-0 left-0 z-50 w-56 ${currentTheme.sidebarBg} border-r ${currentTheme.border} flex flex-col justify-between shrink-0 transition-transform duration-300 transform
+            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+            md:relative md:translate-x-0
+          `}>
             <div className="flex flex-col h-full justify-between pb-4 overflow-y-auto">
               <div>
-                <div className={`p-5 border-b ${currentTheme.border}`}>
+                <div className={`p-5 border-b ${currentTheme.border} flex items-center justify-between`}>
                   <div className="flex items-center gap-2.5">
                     {/* Logotipo Original en el Sidebar */}
                     <div className="text-zinc-900 transition-colors">
@@ -2413,6 +2419,13 @@
                       <span className="fallback-logo text-base font-black text-zinc-900 tracking-wider" style={{display: 'none'}}>ROBIN</span>
                     </div>
                   </div>
+                  {/* Close button for mobile menu */}
+                  <button 
+                    onClick={() => setSidebarOpen(false)}
+                    className="md:hidden text-zinc-400 hover:text-zinc-800 p-1"
+                  >
+                    <i className="fa-solid fa-xmark text-lg"></i>
+                  </button>
                 </div>
 
                 {/* Quién está conectado y equipo de trabajo */}
@@ -2429,7 +2442,7 @@
 
                   {/* Miembros del equipo autorizados */}
                   <div className="border-t border-zinc-200/50 pt-2">
-                    <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest block mb-1.5">Equipo Autorizado</span>
+                    <span className="text-[8px] font-bold text-zinc-400 tracking-widest block mb-1.5 uppercase">Equipo Autorizado</span>
                     <div className="flex flex-col gap-1">
                       {usuariosOnline.map(u => (
                         <div key={u} className="flex items-center gap-1.5 text-[10px] text-zinc-500 font-bold">
@@ -2444,7 +2457,7 @@
                 <div className="px-3 pt-1">
                   <button 
                     disabled={isSubmitting || syncing}
-                    onClick={() => setPaginaActiva("agregar")}
+                    onClick={() => navegarA("agregar")}
                     className={`w-full ${currentTheme.primary} font-bold py-2 px-3 rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50`}
                   >
                     <SVGIcon.Plus />
@@ -2457,7 +2470,7 @@
                   
                   {/* Botón Home Dashboard */}
                   <button
-                    onClick={() => setPaginaActiva("home")}
+                    onClick={() => navegarA("home")}
                     className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all ${
                       paginaActiva === "home" 
                         ? "bg-white shadow-sm font-extrabold text-zinc-900 border border-zinc-100" 
@@ -2473,7 +2486,7 @@
 
                   {/* Hoy - Estrictamente Hoy */}
                   <button
-                    onClick={() => { setPaginaActiva("dashboard"); setFiltroTiempo("HOY"); }}
+                    onClick={() => navegarA("dashboard", () => setFiltroTiempo("HOY"))}
                     className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all ${
                       paginaActiva === "dashboard" && filtroTiempo === "HOY" 
                         ? "bg-white shadow-sm font-extrabold text-zinc-900 border border-zinc-100" 
@@ -2488,7 +2501,7 @@
 
                   {/* Atrasadas - Pendientes acumuladas */}
                   <button
-                    onClick={() => { setPaginaActiva("dashboard"); setFiltroTiempo("ATRASADAS"); }}
+                    onClick={() => navegarA("dashboard", () => setFiltroTiempo("ATRASADAS"))}
                     className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all ${
                       paginaActiva === "dashboard" && filtroTiempo === "ATRASADAS" 
                         ? "bg-white shadow-sm font-extrabold text-zinc-900 border border-zinc-100" 
@@ -2502,7 +2515,7 @@
                   </button>
 
                   <button
-                    onClick={() => { setPaginaActiva("dashboard"); setFiltroTiempo("FUTURAS"); }}
+                    onClick={() => navegarA("dashboard", () => setFiltroTiempo("FUTURAS"))}
                     className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all ${
                       paginaActiva === "dashboard" && filtroTiempo === "FUTURAS" 
                         ? "bg-white shadow-sm font-extrabold text-zinc-900 border border-zinc-100" 
@@ -2516,7 +2529,7 @@
                   </button>
 
                   <button
-                    onClick={() => { setPaginaActiva("dashboard"); setFiltroTiempo("TODAS"); }}
+                    onClick={() => navegarA("dashboard", () => setFiltroTiempo("TODAS"))}
                     className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all ${
                       paginaActiva === "dashboard" && filtroTiempo === "TODAS" 
                         ? "bg-white shadow-sm font-extrabold text-zinc-900 border border-zinc-100" 
@@ -2532,7 +2545,7 @@
                   {/* SECCIÓN CLIENTES: DIRECTORIO GENERAL */}
                   <div className="mt-4 pt-3 border-t border-zinc-200/50">
                     <button 
-                      onClick={() => { setPaginaActiva("clientes"); setClientesDropdownOpen(!clientesDropdownOpen); }}
+                      onClick={() => navegarA("clientes", () => setClientesDropdownOpen(!clientesDropdownOpen))}
                       className="flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-black text-zinc-500 hover:bg-zinc-100/55 hover:text-zinc-900 transition-all uppercase tracking-wider"
                     >
                       <span className="flex items-center gap-1.5">
@@ -2543,7 +2556,7 @@
                     {clientesDropdownOpen && (
                       <div className="flex flex-col gap-0.5 mt-1.5 pl-3 animate-zoom-in">
                         <button
-                          onClick={() => { setPaginaActiva("clientes"); }}
+                          onClick={() => navegarA("clientes")}
                           className={`flex items-center gap-2 w-full px-3 py-1.5 rounded-lg text-xs transition-all font-extrabold border border-transparent ${
                             paginaActiva === "clientes" 
                               ? "bg-white shadow-sm text-zinc-950 font-black border-zinc-100" 
@@ -2555,8 +2568,8 @@
                         {marcasDisponibles.map(m => (
                           <button
                             key={m}
-                            onClick={() => { setPaginaActiva("clientes"); }}
-                            className="flex items-center gap-2 w-full px-3 py-1.5 rounded-lg text-xs transition-all text-zinc-400 hover:text-zinc-855 font-bold"
+                            onClick={() => navegarA("clientes")}
+                            className="flex items-center gap-2 w-full px-3 py-1.5 rounded-lg text-xs transition-all text-zinc-400 hover:text-zinc-855 font-bold text-left"
                           >
                             <span className="w-1.5 h-1.5 rounded-full bg-zinc-300"></span>
                             <span className="truncate max-w-[110px]">{m}</span>
@@ -2571,7 +2584,7 @@
               {/* Botón de configuración aislado al fondo */}
               <div className="px-3 pt-2">
                 <button
-                  onClick={() => setPaginaActiva("configuracion")}
+                  onClick={() => navegarA("configuracion")}
                   className={`flex items-center gap-2 w-full px-4 py-2.5 rounded-xl text-xs font-black transition-all ${
                     paginaActiva === "configuracion" 
                       ? "bg-white shadow-md text-zinc-950 border border-zinc-200/50" 
@@ -2586,7 +2599,7 @@
           </aside>
 
           {/* CONTENEDOR CENTRAL */}
-          <div className="flex-1 flex flex-col overflow-hidden bg-white">
+          <div className="flex-1 flex flex-col overflow-hidden bg-white w-full max-w-full">
             
             {apiError && (
               <div className="bg-amber-50 border-b border-amber-100 px-6 py-3 flex items-start justify-between text-xs text-amber-900 shrink-0 animate-zoom-in">
@@ -2603,36 +2616,42 @@
               </div>
             )}
 
-            <header className="bg-white border-b border-zinc-100 px-6 py-4 flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="text-zinc-900">
-                  {/* Logotipo Original en el Header de Carga */}
-                  <RobinLogo className="h-6 w-auto" theme={theme} />
-                  <span className="fallback-logo text-base font-black text-zinc-900 tracking-wider" style={{display: 'none'}}>ROBIN</span>
+            <header className="bg-white border-b border-zinc-100 px-4 md:px-6 py-4 flex items-center justify-between shrink-0 w-full max-w-full">
+              <div className="flex items-center gap-3 md:gap-4 overflow-hidden">
+                {/* HAMBURGER TRIGGER MENÚ PARA MÓVILES */}
+                <button 
+                  onClick={() => setSidebarOpen(true)}
+                  className="md:hidden text-zinc-500 hover:text-zinc-900 p-1.5 rounded-lg hover:bg-zinc-100 shrink-0"
+                >
+                  <i className="fa-solid fa-bars text-base"></i>
+                </button>
+                <div className="text-zinc-900 shrink-0">
+                  <RobinLogo className="h-5 md:h-6 w-auto" theme={theme} />
+                  <span className="fallback-logo text-sm md:text-base font-black text-zinc-900 tracking-wider" style={{display: 'none'}}>ROBIN</span>
                 </div>
-                <div className="h-4 w-[1px] bg-zinc-200"></div>
-                <div className="text-xs text-zinc-555 font-bold flex items-center gap-1.5">
-                  Hoy: <span className="text-emerald-600 font-extrabold">{metricaCounters.activasHoy}</span> · Atrasadas: <span className="text-rose-600 font-extrabold">{metricaCounters.atrasadas}</span> · Futuras: <span className="text-zinc-900 font-extrabold">{metricaCounters.futuras}</span> · Todas: <span className="text-zinc-900 font-extrabold">{tareas.length}</span>
+                <div className="h-4 w-[1px] bg-zinc-200 shrink-0"></div>
+                <div className="text-[10px] md:text-xs text-zinc-555 font-bold flex items-center gap-1 md:gap-1.5 overflow-hidden truncate">
+                  Hoy: <span className="text-emerald-600 font-extrabold">{metricaCounters.activasHoy}</span> · Atrasadas: <span className="text-rose-600 font-extrabold">{metricaCounters.atrasadas}</span> · Todas: <span className="text-zinc-900 font-extrabold">{tareas.length}</span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
                 <button 
                   disabled={loading || syncing}
                   onClick={() => fetchData(false)} 
-                  className="bg-white border border-zinc-250 hover:bg-zinc-50 text-zinc-700 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm disabled:opacity-50"
+                  className="bg-white border border-zinc-250 hover:bg-zinc-50 text-zinc-700 py-1.5 px-2 md:px-3 rounded-lg text-[10px] md:text-xs font-bold transition-all flex items-center gap-1 md:gap-1.5 shadow-sm disabled:opacity-50"
                 >
-                  <i className={`fa-solid fa-arrows-rotate text-[10px] ${loading ? 'animate-spin' : ''}`}></i>
-                  <span>Actualizar datos</span>
+                  <i className={`fa-solid fa-arrows-rotate text-[9px] md:text-[10px] ${loading ? 'animate-spin' : ''}`}></i>
+                  <span className="hidden sm:inline">Actualizar datos</span>
                 </button>
               </div>
             </header>
 
-            <div className="flex-1 overflow-hidden flex flex-col bg-[#FAFAFA]/20">
+            <div className="flex-1 overflow-hidden flex flex-col bg-[#FAFAFA]/20 w-full max-w-full">
               
               {paginaActiva === "home" ? (
                 /* VISTA INICIAL: HOME DASHBOARD EN VIVO */
-                <div className="flex-1 p-6 overflow-y-auto bg-[#FAFAFA]/40">
+                <div className="flex-1 p-4 md:p-6 overflow-y-auto bg-[#FAFAFA]/40 w-full max-w-full overflow-x-hidden">
                   <LayoutHome 
                     tareas={tareas}
                     nombreUsuario={nombreCompleto}
@@ -2648,7 +2667,7 @@
                 </div>
               ) : paginaActiva === "clientes" ? (
                 /* NUEVA VISTA: DIRECTORIO GENERAL DE CLIENTES */
-                <div className="flex-1 p-6 overflow-y-auto bg-[#FAFAFA]/40">
+                <div className="flex-1 p-4 md:p-6 overflow-y-auto bg-[#FAFAFA]/40 w-full max-w-full overflow-x-hidden">
                   <LayoutClientes 
                     marcasMetadata={marcasMetadata}
                     onSelectBrand={(brand) => { setPaginaActiva("dashboard"); setFiltroMarca(brand); }}
@@ -2662,16 +2681,16 @@
               ) : paginaActiva === "dashboard" ? (
                 /* TABLERO GENERAL / LISTA / CALENDARIO */
                 <>
-                  <div className="px-6 py-3 bg-white border-b border-zinc-100 flex flex-wrap items-center justify-between gap-4 shrink-0 shadow-sm">
-                    <div className="flex flex-wrap items-center gap-5">
+                  <div className="px-4 md:px-6 py-3 bg-white border-b border-zinc-100 flex flex-wrap items-center justify-between gap-4 shrink-0 shadow-sm w-full max-w-full">
+                    <div className="flex flex-wrap items-center gap-3 md:gap-5">
                       
                       {/* FILTRO DE ESTADO */}
-                      <div className="flex items-center gap-2 text-xs text-zinc-400 font-bold uppercase tracking-wider">
+                      <div className="flex items-center gap-2 text-[10px] md:text-xs text-zinc-400 font-bold uppercase tracking-wider">
                         <span>Estado</span>
                         <select 
                           value={filtroEstado} 
                           onChange={(e) => setFiltroEstado(e.target.value)}
-                          className="bg-zinc-50 border border-zinc-200 rounded-lg py-1 px-3 font-extrabold text-zinc-700 cursor-pointer focus:outline-none"
+                          className="bg-zinc-50 border border-zinc-200 rounded-lg py-1 px-2 md:px-3 font-extrabold text-zinc-700 cursor-pointer focus:outline-none"
                         >
                           <option value="TODOS">Todos los estados</option>
                           {ESTADOS_MAPA.map(e => (
@@ -2681,12 +2700,12 @@
                       </div>
 
                       {/* 🚀 NUEVO FILTRO DE MARCAS REQUERIDO EN LA BARRA SUPERIOR */}
-                      <div className="flex items-center gap-2 text-xs text-zinc-400 font-bold uppercase tracking-wider">
+                      <div className="flex items-center gap-2 text-[10px] md:text-xs text-zinc-400 font-bold uppercase tracking-wider">
                         <span>Marca / Cliente</span>
                         <select 
                           value={filtroMarca} 
                           onChange={(e) => setFiltroMarca(e.target.value)}
-                          className="bg-zinc-50 border border-zinc-200 rounded-lg py-1 px-3 font-extrabold text-zinc-700 cursor-pointer focus:outline-none"
+                          className="bg-zinc-50 border border-zinc-200 rounded-lg py-1 px-2 md:px-3 font-extrabold text-zinc-700 cursor-pointer focus:outline-none"
                         >
                           <option value="TODAS">Todas las marcas</option>
                           {marcasDisponibles.map(m => (
@@ -2697,11 +2716,11 @@
 
                     </div>
 
-                    <div className="flex items-center gap-3">
-                      <div className="bg-zinc-100/85 p-1 rounded-lg flex border border-zinc-200/50">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <div className="bg-zinc-100/85 p-1 rounded-lg flex border border-zinc-200/50 shrink-0">
                         <button 
                           onClick={() => setVistaModo("TABLE")}
-                          className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
+                          className={`px-2 md:px-3 py-1 rounded-md text-[10px] md:text-xs font-bold transition-all ${
                             vistaModo === "TABLE" ? "bg-white text-zinc-950 font-black shadow-sm" : "text-zinc-500 hover:text-zinc-800"
                           }`}
                         >
@@ -2709,7 +2728,7 @@
                         </button>
                         <button 
                           onClick={() => setVistaModo("KANBAN")}
-                          className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
+                          className={`px-2 md:px-3 py-1 rounded-md text-[10px] md:text-xs font-bold transition-all ${
                             vistaModo === "KANBAN" ? "bg-white text-zinc-950 font-black shadow-sm" : "text-zinc-500 hover:text-zinc-800"
                           }`}
                         >
@@ -2717,7 +2736,7 @@
                         </button>
                         <button 
                           onClick={() => setVistaModo("CALENDAR")}
-                          className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${
+                          className={`px-2 md:px-3 py-1 rounded-md text-[10px] md:text-xs font-bold transition-all ${
                             vistaModo === "CALENDAR" ? "bg-white text-zinc-950 font-black shadow-sm" : "text-zinc-500 hover:text-zinc-800"
                           }`}
                         >
@@ -2725,7 +2744,7 @@
                         </button>
                       </div>
 
-                      <div className="relative">
+                      <div className="relative shrink-0">
                         <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-zinc-400 text-xs">
                           <i className="fa-solid fa-magnifying-glass"></i>
                         </span>
@@ -2734,13 +2753,13 @@
                           placeholder="Buscar entregables..."
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
-                          className="pl-9 pr-3 py-1.5 w-48 text-xs rounded-lg border border-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-950"
+                          className="pl-9 pr-3 py-1.5 w-36 md:w-48 text-[11px] md:text-xs rounded-lg border border-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-950"
                         />
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex-1 p-6 overflow-y-auto">
+                  <div className="flex-1 p-4 md:p-6 overflow-y-auto w-full max-w-full overflow-x-hidden">
                     {loading ? (
                       <div className="flex items-center justify-center h-full gap-2">
                         <div className="w-6 h-6 border-2 border-zinc-200 border-t-zinc-950 rounded-full animate-spin"></div>
@@ -2785,7 +2804,7 @@
                 </>
               ) : paginaActiva === "configuracion" ? (
                 /* PANEL DE CONFIGURACIÓN */
-                <div className="flex-1 p-8 overflow-y-auto max-w-lg mx-auto w-full animate-slide-in">
+                <div className="flex-1 p-4 md:p-8 overflow-y-auto max-w-lg mx-auto w-full animate-slide-in">
                   <div className={`${currentTheme.cardBg} rounded-2xl border ${currentTheme.border} p-6 flex flex-col gap-6 shadow-md`}>
                     
                     {/* Sección Nombre Completo */}
@@ -2881,8 +2900,8 @@
                 </div>
               ) : (
                 /* AGREGAR NUEVA TAREA */
-                <div className="flex-1 p-6 overflow-y-auto max-w-sm mx-auto w-full">
-                  <div className={`${currentTheme.cardBg} rounded-2xl border ${currentTheme.border} p-6 mt-4 animate-zoom-in shadow-md`}>
+                <div className="flex-1 p-4 md:p-6 overflow-y-auto max-w-sm mx-auto w-full animate-zoom-in">
+                  <div className={`${currentTheme.cardBg} rounded-2xl border ${currentTheme.border} p-6 mt-4 shadow-md`}>
                     <h2 className="text-xs font-black text-zinc-855 uppercase tracking-wider mb-4">Nueva Tarea</h2>
 
                     <form onSubmit={handleCreateTask} className="flex flex-col gap-4">
@@ -2892,7 +2911,7 @@
                         <select 
                           value={nuevaTarea.marca} 
                           onChange={(e) => setNuevaTarea({ ...nuevaTarea, marca: e.target.value })}
-                          className="w-full bg-zinc-50 border border-zinc-200 rounded-lg p-2.5 text-xs font-bold text-zinc-700 focus:outline-none focus:ring-1 focus:ring-zinc-950"
+                          className="w-full bg-zinc-50 border border-zinc-200 rounded-lg p-2.5 text-xs font-bold text-zinc-700 focus:outline-none focus:ring-1 focus:ring-zinc-950 bg-white"
                         >
                           {marcasDisponibles.map(m => (
                             <option key={m} value={m}>{m}</option>

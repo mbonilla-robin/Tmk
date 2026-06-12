@@ -49,6 +49,15 @@
 
   <!-- Aplicación React -->
   <script type="text/babel">
+    (function() {
+      ['robin_usuario_actual', 'robin_nombre_completo', 'robin_theme'].forEach(key => {
+        const val = localStorage.getItem(key);
+        if (val === 'null' || val === 'undefined' || val === 'null ' || val === ' undefined' || !val) {
+          localStorage.removeItem(key);
+        }
+      });
+    })();
+
     const { useState, useEffect, useMemo } = React;
 
     // =========================================================================
@@ -224,9 +233,6 @@
       "🟢 Completada"
     ];
 
-    // =========================================================================
-    // 🧰 FUNCIONES DE UTILIDAD (Definidas arriba para evitar ReferenceError)
-    // =========================================================================
     function cleanEstado(val) {
       if (!val) return "";
       return String(val)
@@ -267,9 +273,6 @@
       return Infinity;
     }
 
-    // =========================================================================
-    // 👥 COMPONENTE: SELECTOR DE PERSONAS MEDIANTE CHIPS INTERACTIVOS
-    // =========================================================================
     function SelectorPersonasChips({ personasSeleccionadas, onChange, listaGlobal, registrarNuevaPersona }) {
       const [isOpen, setIsOpen] = useState(false);
       const [busqueda, setBusqueda] = useState("");
@@ -282,7 +285,7 @@
       const sugeridos = useMemo(() => {
         const q = busqueda.toLowerCase().trim();
         return listaGlobal.filter(p => {
-          const coincideQuery = p.toLowerCase().includes(p) || p.toLowerCase().includes(q);
+          const coincideQuery = p.toLowerCase().includes(q) || p.toLowerCase().includes(q);
           const yaSeleccionado = seleccionadas.includes(p);
           return coincideQuery && !yaSeleccionado;
         });
@@ -375,9 +378,6 @@
       );
     }
 
-    // =========================================================================
-    // 📋 COMPONENTE: LAYOUT DE TABLA AGRUPADA (Agrupado por Marca, Ordenado por Estado)
-    // =========================================================================
     function LayoutTablaAgrupada({ tareas, onUpdateField, onSelectTask, onDeleteTask, getMarcaStyle, filtroTiempo, cleanIdTarea, currentTheme }) {
       
       // Agrupar tareas por marca
@@ -551,9 +551,6 @@
       );
     }
 
-    // =========================================================================
-    // 🗂️ COMPONENTE: LAYOUT KANBAN (CON SOPORTE DRAG & DROP INTERACTIVO REAL)
-    // =========================================================================
     function LayoutKanban({ tareas, onUpdateField, onSelectTask, onDeleteTask, getMarcaStyle, cleanIdTarea, currentTheme }) {
       const [dragOverCol, setDragOverColumn] = useState(null);
 
@@ -668,9 +665,6 @@
       );
     }
 
-    // =========================================================================
-    // 📅 COMPONENTE: LAYOUT DE CALENDARIO (Espacioso, Rediseñado e Inteligente)
-    // =========================================================================
     function LayoutCalendario({ tareas, onUpdateField, onSelectTask, currentTheme }) {
       const [currentDate, setCurrentDate] = useState(new Date()); 
 
@@ -790,9 +784,6 @@
       );
     }
 
-    // =========================================================================
-    // COMPONENTE: MODAL FICHA DE SEGUIMIENTO (DRAWER LATERAL PREMIUM CON HISTORIAL)
-    // =========================================================================
     function ModalEdicionTarea({ task, onClose, onSave, onDeleteClick, marcasDisponibles, listaPersonas, registrarNuevaPersona, cleanIdTarea }) {
       const [categoria, setCategoria] = useState(task.categoria || "");
       const [info, setInfo] = useState(task.info || "");
@@ -812,7 +803,7 @@
           if (line.trim().startsWith("•") || line.trim().startsWith("• [")) {
             logs.push(line.trim());
           } else if (line.trim() !== "") {
-            notes: notasLimpias.push(line);
+            notasLimpias.push(line);
           }
         });
 
@@ -959,7 +950,7 @@
                     placeholder="Avance o comentario nuevo..." 
                     value={nuevoStatus} 
                     onChange={(e) => setNuevoStatus(e.target.value)} 
-                    className="flex-1 bg-white border border-zinc-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none"
+                    className="flex-1 bg-white border border-zinc-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -1000,9 +991,6 @@
       );
     }
 
-    // =========================================================================
-    // 🏠 COMPONENTE: LAYOUT HOME DASHBOARD EN VIVO
-    // =========================================================================
     function LayoutHome({ tareas, nombreUsuario, username, onSelectTask, onUpdateField, widgets, onAddWidget, onDeleteWidget, currentTheme }) {
       const [nuevoTitulo, setNuevoTitulo] = useState("");
       const [nuevoLink, setNuevoLink] = useState("");
@@ -1238,7 +1226,6 @@
               <div className={`border ${currentTheme.border} rounded-2xl p-5 flex flex-col gap-4 ${currentTheme.cardBg}`}>
                 <div className="flex justify-between items-center border-b pb-2">
                   <span className="text-xs font-bold text-zinc-850">{nombresMeses[hoy.getMonth()]} {hoy.getFullYear()}</span>
-                  <span className="text-[9px] bg-indigo-50 text-indigo-700 font-black px-2 py-0.5 rounded-md uppercase">Interactivo</span>
                 </div>
                 
                 {/* Cuadrícula de fechas */}
@@ -1311,9 +1298,6 @@
       );
     }
 
-    // =========================================================================
-    // 💻 COMPONENTE PRINCIPAL: APP
-    // =========================================================================
     function App() {
       // 🔒 Login y Cuentas Autorizadas
       const [usuario, setUsuario] = useState(() => getLocalStorageItemSafe("robin_usuario_actual", null));

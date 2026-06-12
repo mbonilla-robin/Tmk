@@ -50,6 +50,7 @@
   <!-- Aplicación React -->
   <script type="text/babel">
     (function() {
+      // Rutina autoejecutable antes de inicializar React para evitar que el estado "null" quede atrapado en el caché del navegador
       ['robin_usuario_actual', 'robin_nombre_completo', 'robin_theme'].forEach(key => {
         const val = localStorage.getItem(key);
         if (val === 'null' || val === 'undefined' || val === 'null ' || val === ' undefined' || !val) {
@@ -439,7 +440,7 @@
               <tbody className="text-sm divide-y divide-zinc-150/40">
                 {totalTareas === 0 ? (
                   <tr>
-                    <td colSpan="7" className="py-20 text-center text-zinc-450 bg-zinc-50/5">
+                    <td colSpan="7" className="py-20 text-center text-zinc-455 bg-zinc-50/5">
                       <div className="flex flex-col items-center justify-center gap-2 py-6">
                         <i className="fa-regular fa-folder-open text-zinc-300 text-3xl"></i>
                         <p className="font-extrabold text-sm">Sin entregables en esta pestaña</p>
@@ -797,7 +798,7 @@
     }
 
     // =========================================================================
-    // COMPONENTE: MODAL FICHA DE SEGUIMIENTO (DRAWER LATERAL PREMIUM)
+    // COMPONENTE: MODAL FICHA DE SEGUIMIENTO (DRAWER LATERAL PREMIUM CON HISTORIAL)
     // =========================================================================
     function ModalEdicionTarea({ task, onClose, onSave, onDeleteClick, marcasDisponibles, listaPersonas, registrarNuevaPersona, cleanIdTarea }) {
       const [categoria, setCategoria] = useState(task.categoria || "");
@@ -900,7 +901,7 @@
 
               <div>
                 <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Título / Entregable</label>
-                <input type="text" required value={info} onChange={(e) => setInfo(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-sm rounded-lg font-bold text-zinc-855 focus:outline-none focus:ring-1 focus:ring-zinc-950" />
+                <input type="text" required value={info} onChange={(e) => setInfo(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-sm rounded-lg font-bold text-zinc-850 focus:outline-none focus:ring-1 focus:ring-zinc-950" />
               </div>
 
               <div>
@@ -1316,6 +1317,238 @@
     }
 
     // =========================================================================
+    // 📂 COMPONENTE: LAYOUT DE DIRECTORIO DE CLIENTES (Vista de Clientes)
+    // =========================================================================
+    function LayoutClientes({ marcasMetadata, onSelectBrand, currentTheme, adminMode, onSaveMetadata, onCreateBrand, marcasDisponibles }) {
+      const [showAddBrandModal, setShowAddBrandModal] = useState(false);
+      const [showEditBrandModal, setShowEditBrandModal] = useState(null);
+
+      // Estado formulario para nueva marca
+      const [newBrandName, setNewBrandName] = useState("");
+      const [newLogoUrl, setNewLogoUrl] = useState("");
+      const [newEjecutivo, setNewEjecutivo] = useState("");
+      const [newDisenador, setNewDisenador] = useState("");
+      const [newContent, setNewContent] = useState("");
+
+      // Estado para edición de marca
+      const [editLogoUrl, setEditLogoUrl] = useState("");
+      const [editEjecutivo, setEditEjecutivo] = useState("");
+      const [editDisenador, setEditDisenador] = useState("");
+      const [editContent, setEditContent] = useState("");
+
+      const handleOpenEdit = (brand) => {
+        const metadata = marcasMetadata[brand] || {};
+        setEditLogoUrl(metadata.logoUrl || "");
+        setEditEjecutivo(metadata.ejecutivo || "");
+        setEditDisenador(metadata.disenador || "");
+        setEditContent(metadata.content || "");
+        setShowEditBrandModal(brand);
+      };
+
+      const handleSaveEditSubmit = (e) => {
+        e.preventDefault();
+        onSaveMetadata(showEditBrandModal, {
+          logoUrl: editLogoUrl,
+          ejecutivo: editEjecutivo,
+          disenador: editDisenador,
+          content: editContent
+        });
+        setShowEditBrandModal(null);
+      };
+
+      const handleCreateBrandSubmit = (e) => {
+        e.preventDefault();
+        if (!newBrandName.trim()) return;
+        onCreateBrand({
+          nuevaMarca: newBrandName.trim(),
+          logoUrl: newLogoUrl.trim(),
+          ejecutivo: newEjecutivo.trim(),
+          disenador: newDisenador.trim(),
+          content: newContent.trim()
+        });
+        setNewBrandName("");
+        setNewLogoUrl("");
+        setNewEjecutivo("");
+        setNewDisenador("");
+        setNewContent("");
+        setShowAddBrandModal(false);
+      };
+
+      return (
+        <div className="flex flex-col gap-6 animate-slide-in pb-12">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-lg font-black tracking-tight text-zinc-900">Directorio de Clientes de la Agencia</h2>
+              <p className="text-xs text-zinc-400 font-semibold mt-1">Gestión interna, roles del área y enlaces de marcas autorizadas.</p>
+            </div>
+            {adminMode && (
+              <button 
+                onClick={() => setShowAddBrandModal(true)}
+                className={`${currentTheme.primary} px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5`}
+              >
+                <i className="fa-solid fa-folder-plus text-xs"></i> Crear Nuevo Cliente
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {marcasDisponibles.map(brand => {
+              const metadata = marcasMetadata[brand] || {};
+              const logo = metadata.logoUrl || `https://placehold.co/120x60/f4f4f5/52525b?text=${brand}`;
+              
+              return (
+                <div 
+                  key={brand}
+                  className={`border ${currentTheme.border} rounded-2xl p-5 flex flex-col gap-4 shadow-sm hover:shadow-md transition-all ${currentTheme.cardBg}`}
+                >
+                  <div className="flex justify-between items-start">
+                    {/* Logotipo del cliente */}
+                    <div className="h-12 w-28 bg-zinc-50/50 rounded-xl border border-zinc-200/50 p-1 flex items-center justify-center overflow-hidden">
+                      <img 
+                        src={logo} 
+                        alt={brand} 
+                        className="max-h-full max-w-full object-contain"
+                        onError={(e) => {
+                          e.target.src = `https://placehold.co/120x60/f4f4f5/52525b?text=${brand}`;
+                        }}
+                      />
+                    </div>
+                    {adminMode && (
+                      <button 
+                        onClick={() => handleOpenEdit(brand)}
+                        className="text-zinc-400 hover:text-zinc-800 p-1 text-xs"
+                        title="Editar ficha"
+                      >
+                        <i className="fa-solid fa-pen-to-square"></i> Editar
+                      </button>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-black text-zinc-850 uppercase tracking-wider">{brand}</h3>
+                    <span className="text-[10px] text-zinc-400 font-black uppercase tracking-widest block mt-0.5">Cliente de Agencia</span>
+                  </div>
+
+                  {/* Ficha de Responsables de Área */}
+                  <div className="bg-zinc-50/70 border border-zinc-150 rounded-xl p-3 flex flex-col gap-2.5">
+                    <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest block border-b pb-1">Responsables de Área</span>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-zinc-455 font-bold">Ejecutivo:</span>
+                        <span className="font-extrabold text-zinc-800">{metadata.ejecutivo || "Sin designar"}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-zinc-455 font-bold">Diseñador:</span>
+                        <span className="font-extrabold text-zinc-800">{metadata.disenador || "Sin designar"}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-zinc-455 font-bold">Content:</span>
+                        <span className="font-extrabold text-zinc-800">{metadata.content || "Sin designar"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => onSelectBrand(brand)}
+                    className="w-full text-center py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-xl transition-all uppercase tracking-wider"
+                  >
+                    Ver entregables
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* MODAL CREAR NUEVA MARCA (Dynamic sheets tab) */}
+          {showAddBrandModal && (
+            <div className="fixed inset-0 bg-black/45 backdrop-blur-[1px] z-[120] flex items-center justify-center p-4">
+              <form 
+                onSubmit={handleCreateBrandSubmit} 
+                className="bg-white max-w-md w-full rounded-2xl p-6 shadow-2xl border border-zinc-200 animate-zoom-in text-zinc-800 flex flex-col gap-4"
+              >
+                <div className="flex items-center justify-between pb-2 border-b">
+                  <h3 className="text-sm font-black uppercase tracking-wider">Crear Nuevo Cliente (Hoja Sheets)</h3>
+                  <button type="button" onClick={() => setShowAddBrandModal(false)} className="text-zinc-400 hover:text-zinc-800">
+                    <i className="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-3 text-xs">
+                  <div>
+                    <label className="block font-bold text-zinc-450 uppercase mb-1">Nombre de la Marca (Nueva pestaña)</label>
+                    <input type="text" required value={newBrandName} onChange={e => setNewBrandName(e.target.value)} placeholder="Ej: Coca Cola" className="w-full bg-zinc-50 border p-2 rounded-lg font-bold" />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-zinc-450 uppercase mb-1">Enlace del Logotipo (URL de imagen)</label>
+                    <input type="url" value={newLogoUrl} onChange={e => setNewLogoUrl(e.target.value)} placeholder="https://..." className="w-full bg-zinc-50 border p-2 rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-zinc-450 uppercase mb-1">Ejecutivo de la cuenta</label>
+                    <input type="text" value={newEjecutivo} onChange={e => setNewEjecutivo(e.target.value)} placeholder="ej: @ralvarez" className="w-full bg-zinc-50 border p-2 rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-zinc-450 uppercase mb-1">Diseñador Asignado</label>
+                    <input type="text" value={newDisenador} onChange={e => setNewDisenador(e.target.value)} placeholder="ej: @dsalavarria" className="w-full bg-zinc-50 border p-2 rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-zinc-450 uppercase mb-1">Content Creator</label>
+                    <input type="text" value={newContent} onChange={e => setNewContent(e.target.value)} placeholder="ej: @fcolmenares" className="w-full bg-zinc-50 border p-2 rounded-lg" />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t">
+                  <button type="button" onClick={() => setShowAddBrandModal(false)} className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 font-bold rounded-lg">Cancelar</button>
+                  <button type="submit" className="px-4 py-2 bg-zinc-900 hover:bg-black text-white font-bold rounded-lg">Crear e Insertar Hoja</button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* MODAL EDITAR METADATOS DE CLIENTE */}
+          {showEditBrandModal && (
+            <div className="fixed inset-0 bg-black/45 backdrop-blur-[1px] z-[120] flex items-center justify-center p-4">
+              <form 
+                onSubmit={handleSaveEditSubmit} 
+                className="bg-white max-w-md w-full rounded-2xl p-6 shadow-2xl border border-zinc-200 animate-zoom-in text-zinc-800 flex flex-col gap-4"
+              >
+                <div className="flex items-center justify-between pb-2 border-b">
+                  <h3 className="text-sm font-black uppercase tracking-wider">Ficha Técnica: {showEditBrandModal}</h3>
+                  <button type="button" onClick={() => setShowEditBrandModal(null)} className="text-zinc-400 hover:text-zinc-800">
+                    <i className="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-3 text-xs">
+                  <div>
+                    <label className="block font-bold text-zinc-450 uppercase mb-1">Logo URL</label>
+                    <input type="url" value={editLogoUrl} onChange={e => setEditLogoUrl(e.target.value)} placeholder="https://..." className="w-full bg-zinc-50 border p-2 rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-zinc-450 uppercase mb-1">Ejecutivo de la cuenta</label>
+                    <input type="text" value={editEjecutivo} onChange={e => setEditEjecutivo(e.target.value)} placeholder="ej: @ralvarez" className="w-full bg-zinc-50 border p-2 rounded-lg font-bold" />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-zinc-450 uppercase mb-1">Diseñador Asignado</label>
+                    <input type="text" value={editDisenador} onChange={e => setEditDisenador(e.target.value)} placeholder="ej: @dsalavarria" className="w-full bg-zinc-50 border p-2 rounded-lg font-bold" />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-zinc-450 uppercase mb-1">Content Creator</label>
+                    <input type="text" value={editContent} onChange={e => setEditContent(e.target.value)} placeholder="ej: @fcolmenares" className="w-full bg-zinc-50 border p-2 rounded-lg font-bold" />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t">
+                  <button type="button" onClick={() => setShowEditBrandModal(null)} className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 font-bold rounded-lg">Cancelar</button>
+                  <button type="submit" className="px-4 py-2 bg-zinc-900 hover:bg-black text-white font-bold rounded-lg">Guardar Ficha</button>
+                </div>
+              </form>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // =========================================================================
     // 💻 COMPONENTE PRINCIPAL: APP
     // =========================================================================
     function App() {
@@ -1354,6 +1587,9 @@
       const [paginaActiva, setPaginaActiva] = useState("home"); 
       const [vistaModo, setVistaModo] = useState("TABLE"); 
 
+      // Estado colapsable para el menú de Clientes
+      const [clientesDropdownOpen, setClientesDropdownOpen] = useState(true);
+
       const [activeTask, setActiveTask] = useState(null);
       const [isEditing, setIsEditing] = useState(false);
       const [taskToDelete, setTaskToDelete] = useState(null);
@@ -1363,6 +1599,9 @@
       const [nombreCompleto, setNombreCompleto] = useState(() => {
         return getLocalStorageItemSafe("robin_nombre_completo", "");
       });
+
+      // Metadatos dinámicos de clientes recibidos del Apps Script (logo, roles)
+      const [marcasMetadata, setMarcasMetadata] = useState({});
 
       // Widgets administrables del Home Dashboard
       const [widgets, setWidgets] = useState(() => {
@@ -1540,6 +1779,9 @@
             });
 
             setTareas(tareasReparadas);
+            if (json.marcasMetadata) {
+              setMarcasMetadata(json.marcasMetadata);
+            }
             showToast("Sincronizado con Google Sheets", "success");
           } else {
             throw new Error(json.error || "No se recibieron datos.");
@@ -1884,9 +2126,93 @@
       }, [tareas]);
 
       const getMarcaStyle = (marcaName) => {
-        if (!marcaName) return { bg: "bg-zinc-100", text: "text-zinc-850", border: "border-zinc-200" };
+        if (!marcaName) return { bg: "bg-zinc-100", text: "text-zinc-855", border: "border-zinc-200" };
         const clean = marcaName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
         return MARCAS_COLORES[clean] || { bg: "bg-zinc-100/60", text: "text-zinc-500", border: "border-zinc-200/50" };
+      };
+
+      // Guardar metadatos (Ficha de Cliente) de marca de forma remota en Sheets
+      const handleSaveBrandMetadata = async (brand, newMeta) => {
+        const actualizados = {
+          ...marcasMetadata,
+          [brand]: newMeta
+        };
+        setMarcasMetadata(actualizados);
+        showToast("Actualizando ficha de cliente...", "info");
+
+        const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
+        if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here") || apiError) {
+          showToast("Ficha guardada localmente", "success");
+          return;
+        }
+
+        setSyncing(true);
+        try {
+          await fetch(effectiveUrl, {
+            method: "POST", mode: "cors", redirect: "follow",
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
+            body: JSON.stringify({
+              campo: "crearMarca",
+              nuevaMarca: brand,
+              logoUrl: newMeta.logoUrl,
+              ejecutivo: newMeta.ejecutivo,
+              disenador: newMeta.disenador,
+              content: newMeta.content
+            })
+          });
+          showToast("Ficha guardada en Google Sheets", "success");
+          fetchData();
+        } catch (e) {
+          showToast("Guardado local (Falla de red)", "error");
+        } finally {
+          setSyncing(false);
+        }
+      };
+
+      // Crear nuevo cliente (pestaña en Google Sheets)
+      const handleCreateBrand = async (brandPayload) => {
+        showToast("Insertando nueva hoja en Sheets...", "info");
+        const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
+        if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here") || apiError) {
+          // Fallback local
+          const actualizadasMeta = {
+            ...marcasMetadata,
+            [brandPayload.nuevaMarca]: {
+              logoUrl: brandPayload.logoUrl,
+              ejecutivo: brandPayload.ejecutivo,
+              disenador: brandPayload.disenador,
+              content: brandPayload.content
+            }
+          };
+          setMarcasMetadata(actualizadasMeta);
+          showToast("Cliente creado localmente", "success");
+          return;
+        }
+
+        setSyncing(true);
+        try {
+          const res = await fetch(effectiveUrl, {
+            method: "POST", mode: "cors", redirect: "follow",
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
+            body: JSON.stringify({
+              campo: "crearMarca",
+              nuevaMarca: brandPayload.nuevaMarca,
+              logoUrl: brandPayload.logoUrl,
+              ejecutivo: brandPayload.ejecutivo,
+              disenador: brandPayload.disenador,
+              content: brandPayload.content
+            })
+          });
+          const json = await res.json();
+          if (json.success) {
+            showToast("Nueva hoja de cliente creada en Sheets", "success");
+            fetchData();
+          }
+        } catch (e) {
+          showToast("Falla de red al crear marca", "error");
+        } finally {
+          setSyncing(false);
+        }
       };
 
       return (
@@ -1925,7 +2251,7 @@
                     <button 
                       onClick={handleLogout} 
                       title="Cerrar sesión"
-                      className="text-zinc-400 hover:text-red-500 p-1 text-xs transition-all"
+                      className="text-zinc-400 hover:text-red-500 p-1 text-xs transition-all relative z-10"
                     >
                       <i className="fa-solid fa-power-off"></i>
                     </button>
@@ -2031,47 +2357,57 @@
                     </span>
                     <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 font-bold">{tareas.length}</span>
                   </button>
-                </nav>
 
-                <div className="p-3 border-t border-zinc-100/80 mt-1">
-                  <span className="px-2 text-[9px] font-extrabold text-zinc-400 tracking-wider uppercase">Marcas de Agencia</span>
-                  <div className="flex flex-col gap-0.5 mt-2">
-                    <button
-                      onClick={() => { setPaginaActiva("dashboard"); setFiltroMarca("TODAS"); }}
-                      className={`flex items-center gap-2 w-full px-3 py-1.5 rounded-lg text-xs transition-all ${
-                        filtroMarca === "TODAS" 
-                          ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-100" 
-                          : "text-zinc-500 hover:bg-zinc-100/50"
-                      }`}
+                  {/* 📂 NUEVO ACORDEÓN: CLIENTES Y MARCAS */}
+                  <div className="mt-4 pt-3 border-t border-zinc-200/50">
+                    <button 
+                      onClick={() => { setPaginaActiva("clientes"); setClientesDropdownOpen(!clientesDropdownOpen); }}
+                      className="flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-black text-zinc-500 hover:bg-zinc-100/55 hover:text-zinc-900 transition-all uppercase tracking-wider"
                     >
-                      <span className="w-2 h-2 rounded-full bg-zinc-400"></span>
-                      <span>Todas</span>
+                      <span className="flex items-center gap-1.5">
+                        <i className="fa-solid fa-folder-open text-[10px]"></i> Clientes
+                      </span>
+                      <i className={`fa-solid fa-chevron-down text-[8px] transition-transform ${clientesDropdownOpen ? 'rotate-180' : ''}`}></i>
                     </button>
-                    {marcasDisponibles.map(m => {
-                      const clean = m ? m.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim() : "";
-                      return (
+                    {clientesDropdownOpen && (
+                      <div className="flex flex-col gap-0.5 mt-1.5 pl-3 animate-zoom-in">
                         <button
-                          key={m}
-                          onClick={() => { setPaginaActiva("dashboard"); setFiltroMarca(m); }}
-                          className={`flex items-center gap-2 w-full px-3 py-1.5 rounded-lg text-xs transition-all ${
-                            filtroMarca === m 
-                              ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-100" 
-                              : "text-zinc-500 hover:bg-zinc-100/50"
+                          onClick={() => { setPaginaActiva("clientes"); }}
+                          className={`flex items-center gap-2 w-full px-3 py-1.5 rounded-lg text-xs transition-all font-extrabold border border-transparent ${
+                            paginaActiva === "clientes" 
+                              ? "bg-white shadow-sm text-zinc-950 font-black border-zinc-100" 
+                              : "text-zinc-400 hover:text-zinc-800"
                           }`}
                         >
-                          <span className={`w-2 h-2 rounded-full ${
-                            clean === "LA SANTE" || clean === "LA SANTE " ? "bg-emerald-500" :
-                            clean === "DIAGEO" ? "bg-slate-400" :
-                            clean === "GAMA" ? "bg-red-500" :
-                            clean === "ROBIN" ? "bg-stone-900 border border-zinc-450" :
-                            clean === "TMK" ? "bg-amber-500" : "bg-zinc-355"
-                          }`}></span>
-                          <span>{m}</span>
+                          <i className="fa-solid fa-list-check text-[9px]"></i> Directorio General
                         </button>
-                      );
-                    })}
+                        {marcasDisponibles.map(m => {
+                          const clean = m ? m.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim() : "";
+                          return (
+                            <button
+                              key={m}
+                              onClick={() => { setPaginaActiva("dashboard"); setFiltroMarca(m); }}
+                              className={`flex items-center gap-2 w-full px-3 py-1.5 rounded-lg text-xs transition-all ${
+                                paginaActiva === "dashboard" && filtroMarca === m 
+                                  ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-100" 
+                                  : "text-zinc-400 hover:text-zinc-850"
+                              }`}
+                            >
+                              <span className={`w-1.5 h-1.5 rounded-full ${
+                                clean === "LA SANTE" || clean === "LA SANTE " ? "bg-emerald-500" :
+                                clean === "DIAGEO" ? "bg-slate-400" :
+                                clean === "GAMA" ? "bg-red-500" :
+                                clean === "ROBIN" ? "bg-stone-900 border border-zinc-450" :
+                                clean === "TMK" ? "bg-amber-500" : "bg-zinc-355"
+                              }`}></span>
+                              <span className="truncate max-w-[110px]">{m}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                </div>
+                </nav>
               </div>
 
               {/* Botón de configuración aislado al fondo, sin título superior */}
@@ -2112,7 +2448,7 @@
             <header className="bg-white border-b border-zinc-100 px-6 py-4 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-4">
                 <div className="text-zinc-900">
-                  {/* Logotipo Original en el Header */}
+                  {/* Logotipo Original en el Header de Carga */}
                   <RobinLogo className="h-6 w-auto" theme={theme} />
                 </div>
                 <div className="h-4 w-[1px] bg-zinc-200"></div>
@@ -2148,6 +2484,19 @@
                     onDeleteWidget={handleDeleteWidget}
                     currentTheme={currentTheme}
                     getMarcaStyle={getMarcaStyle}
+                  />
+                </div>
+              ) : paginaActiva === "clientes" ? (
+                /* 📂 NUEVA VISTA: DIRECTORIO GENERAL DE CLIENTES */
+                <div className="flex-1 p-6 overflow-y-auto bg-[#FAFAFA]/40">
+                  <LayoutClientes 
+                    marcasMetadata={marcasMetadata}
+                    onSelectBrand={(brand) => { setPaginaActiva("dashboard"); setFiltroMarca(brand); }}
+                    currentTheme={currentTheme}
+                    adminMode={usuario === "admin"}
+                    onSaveMetadata={handleSaveBrandMetadata}
+                    onCreateBrand={handleCreateBrand}
+                    marcasDisponibles={marcasDisponibles}
                   />
                 </div>
               ) : paginaActiva === "dashboard" ? (

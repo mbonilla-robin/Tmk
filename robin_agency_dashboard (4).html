@@ -57,7 +57,7 @@
     const AUTO_API_URL = "https://script.google.com/macros/s/AKfycbz2e8lRzFV6eXFNHKmiLplWhkoPeo_oKy-tMJrpjR3OyKiPkjjirZE1qrZttf193kgMYg/exec"; 
     // =========================================================================
 
-    // Limpiador automático de redirecciones CORS
+    // Limpiador de redirecciones CORS
     const getEffectiveApiUrl = (url) => {
       if (!url) return "";
       let clean = url.trim();
@@ -67,7 +67,7 @@
       return clean;
     };
 
-    // Iconos SVG Premium empotrados para garantizar máxima resolución
+    // Iconos SVG Premium vectoriales
     const SVGIcon = {
       Plus: () => (
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" class="w-4 h-4">
@@ -75,39 +75,34 @@
         </svg>
       ),
       Today: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" class="w-4 h-4">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.2" stroke="currentColor" class="w-4 h-4">
           <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
         </svg>
       ),
+      Overdue: () => (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.2" stroke="currentColor" class="w-4 h-4">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+        </svg>
+      ),
       Future: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" class="w-4 h-4">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.2" stroke="currentColor" class="w-4 h-4">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
         </svg>
       ),
       All: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" class="w-4 h-4">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.2" stroke="currentColor" class="w-4 h-4">
           <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25A2.25 2.25 0 0 1 13.5 8.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" />
         </svg>
       ),
       Config: () => (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" class="w-4 h-4">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.2" stroke="currentColor" class="w-4 h-4">
           <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.43l-1.003.828c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827a1.125 1.125 0 0 1 .26 1.43l-1.297 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.43l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
         </svg>
       )
     };
 
-    // Paleta de colores para marcas
-    const MARCAS_COLORES = {
-      "DIAGEO":      { bg: "bg-zinc-100", text: "text-zinc-800", border: "border-zinc-200" },
-      "GAMA":        { bg: "bg-red-50", text: "text-red-800", border: "border-red-100" },
-      "LA SANTE":    { bg: "bg-emerald-50", text: "text-emerald-800", border: "border-emerald-100" },
-      "LA SANTE ":   { bg: "bg-emerald-50", text: "text-emerald-800", border: "border-emerald-100" },
-      "ROBIN":       { bg: "bg-stone-900", text: "text-white", border: "border-stone-800" },
-      "TMK":         { bg: "bg-amber-50", text: "text-amber-800", border: "border-amber-100" }
-    };
-
-    // Temas visuales personalizables elegibles por el usuario
+    // Paletas de temas de ROBIN
     const TEMAS = {
       notion: {
         bg: "bg-[#FAFAFA]",
@@ -171,57 +166,26 @@
       }
     };
 
-    const ESTADOS_MAPA = [
-      { id: "⚪ Pendiente", label: "Pendiente", color: "bg-zinc-50 text-zinc-600 border-zinc-200", dot: "bg-zinc-400" },
-      { id: "🔵 En progreso", label: "En Progreso", color: "bg-blue-50 text-blue-800 border-blue-100", dot: "bg-blue-600" },
-      { id: "🟡 Seguimiento", label: "Seguimiento", color: "bg-purple-50 text-purple-800 border-purple-100", dot: "bg-purple-600" },
-      { id: "🟠 En revisión", label: "Revisión", color: "bg-orange-50 text-orange-800 border-orange-100", dot: "bg-orange-600" }, 
-      { id: "🔴 En pausa", label: "Pausa", color: "bg-rose-50 text-rose-800 border-rose-100", dot: "bg-red-650" }, 
-      { id: "🟢 Completada", label: "Completada", color: "bg-emerald-50 text-emerald-800 border-emerald-100", dot: "bg-emerald-650" }
-    ];
-
-    const LISTA_ESTADOS_VALIDOS = [
-      "⚪ Pendiente", 
-      "🔵 En progreso", 
-      "🟡 Seguimiento", 
-      "🟠 En revisión", 
-      "🔴 En pausa", 
-      "🟢 Completada"
-    ];
-
-    const TAREAS_DEMO = [
-      { idTarea: "SAN-101", marca: "La Santé", categoria: "Reunión", fecha: "2026-06-11", info: "Finiquitar canal de difusión", personas: "@Miguel Bonilla", detalles: "Definir si se usará Whatsapp o Telegram.", estado: "🟠 En revisión", deadline: "2026-06-11" },
-      { idTarea: "SAN-102", marca: "La Santé", categoria: "Arte, Proyecto", fecha: "2026-06-11", info: "Mesas de comedor La Santé", personas: "@Miguel Bonilla", detalles: "A la espera de solicitud por Dayccel.", estado: "🔴 En pausa", deadline: "" }
-    ];
-
     function App() {
-      // 🔒 Estado de Login
-      const [usuario, setUsuario] = useState(() => {
-        return localStorage.getItem("robin_usuario_actual") || null;
-      });
+      // 🔒 Login y Cuentas Autorizadas
+      const [usuario, setUsuario] = useState(() => localStorage.getItem("robin_usuario_actual") || null);
       const [claveInput, setClaveInput] = useState("");
       const [loginError, setLoginError] = useState("");
 
-      // 👥 Lista de usuarios autorizados reais (sem simulação de status fakes)
       const [listaUsuarios, setListaUsuarios] = useState(() => {
         const guardados = localStorage.getItem("robin_lista_usuarios");
         return guardados ? JSON.parse(guardados) : ["fcolmenares", "ralvarez", "dsalavarria", "mbonilla", "gnebrus", "sgiucastro"];
       });
 
-      // 👥 Monitor de equipe real: mostramos somente quem pertenece al time, sem inventar status de navegação
+      // Directorio real de usuarios autorizados
       const usuariosOnline = useMemo(() => {
         if (!usuario) return [];
         return listaUsuarios.filter(u => u !== usuario);
       }, [usuario, listaUsuarios]);
 
-      // 🎨 Estado de Estilos/Temas
-      const [theme, setTheme] = useState(() => {
-        return localStorage.getItem("robin_theme") || "notion";
-      });
-
-      const currentTheme = useMemo(() => {
-        return TEMAS[theme] || TEMAS.notion;
-      }, [theme]);
+      // 🎨 Configuración de Temas
+      const [theme, setTheme] = useState(() => localStorage.getItem("robin_theme") || "notion");
+      const currentTheme = useMemo(() => TEMAS[theme] || TEMAS.notion, [theme]);
 
       const [tareas, setTareas] = useState([]);
       const [loading, setLoading] = useState(false);
@@ -239,11 +203,7 @@
 
       const [activeTask, setActiveTask] = useState(null);
       const [isEditing, setIsEditing] = useState(false);
-
-      // Confirmar eliminación
       const [taskToDelete, setTaskToDelete] = useState(null);
-
-      // Agregar nuevo usuario en la sección de configuración
       const [nuevoUsuarioInput, setNuevoUsuarioInput] = useState("");
 
       const [listaPersonas, setListaPersonas] = useState(() => {
@@ -252,22 +212,16 @@
       });
 
       const [nuevaTarea, setNuevaTarea] = useState({
-        marca: "La Santé",
-        categoria: "",
-        info: "",
-        personas: "",
-        detalles: "",
-        estado: "⚪ Pendiente",
-        deadline: ""
+        marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", estado: "⚪ Pendiente", deadline: ""
       });
 
-      // 🔄 Autofetch de datos cada 10 minutos
+      // 🔄 Sincronización Automática cada 10 Minutos
       useEffect(() => {
         if (usuario) {
           fetchData();
           const autoRefreshInterval = setInterval(() => {
             fetchData();
-          }, 10 * 60 * 1000); // 10 minutos
+          }, 10 * 60 * 1000); 
           return () => clearInterval(autoRefreshInterval);
         }
       }, [usuario]);
@@ -344,7 +298,6 @@
         showToast(`Estilo cambiado a ${newTheme.toUpperCase()}`, "success");
       };
 
-      // Generar ID de marca si la tarea no tiene uno asignado
       const generateBrandId = (brandName) => {
         const cleanBrand = (brandName || "ROB").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
         let prefix = "ROB";
@@ -362,10 +315,8 @@
         
         const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
         if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here")) {
-          // Asignar IDs si falta alguno en el modo Demo
           const fixedDemo = TAREAS_DEMO.map(t => ({
-            ...t,
-            idTarea: t.idTarea || generateBrandId(t.marca)
+            ...t, idTarea: t.idTarea || generateBrandId(t.marca)
           }));
           setTareas(fixedDemo);
           showToast("Modo Demo Activo", "info");
@@ -375,15 +326,13 @@
 
         try {
           const res = await fetch(effectiveUrl, { 
-            method: "GET",
-            mode: "cors",
-            redirect: "follow"
+            method: "GET", mode: "cors", redirect: "follow"
           });
           const json = await res.json();
           if (json.success && json.data) {
             const tareasValidas = json.data.filter(t => t.info && t.info.toString().trim() !== "");
             
-            // Reparar tareas sin ID sobre la marcha
+            // Garantizar ID en cada tarea sobre la marcha
             const tareasReparadas = tareasValidas.map(t => {
               if (!t.idTarea || t.idTarea.trim() === "" || t.idTarea.includes("GMT")) {
                 const autoId = generateBrandId(t.marca);
@@ -396,11 +345,11 @@
             setTareas(tareasReparadas);
             showToast("Sincronizado con Google Sheets", "success");
           } else {
-            throw new Error(json.error || "No se recibieron datos de tareas válidas.");
+            throw new Error(json.error || "No se recibieron datos.");
           }
         } catch (e) {
           console.error("Error cargando Google Sheets: ", e);
-          setApiError("Error de Conexión. Revisa la URL y tus permisos.");
+          setApiError("Error de Conexión. Asegúrate de verificar tu Apps Script de Google Sheets.");
           setTareas(TAREAS_DEMO); 
           showToast("Utilizando datos locales de respaldo", "info");
         } finally {
@@ -413,20 +362,11 @@
         if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here") || apiError) return;
         try {
           await fetch(effectiveUrl, {
-            method: "POST",
-            mode: "cors",
-            redirect: "follow",
+            method: "POST", mode: "cors", redirect: "follow",
             headers: { "Content-Type": "text/plain; charset=utf-8" },
             body: JSON.stringify({
-              marca: tarea.marca,
-              idTarea: nuevoId,
-              info: tarea.info,
-              categoria: tarea.categoria,
-              personas: tarea.personas,
-              detalles: tarea.detalles,
-              estado: tarea.estado,
-              deadline: tarea.deadline,
-              campo: "todo"
+              marca: tarea.marca, idTarea: nuevoId, info: tarea.info, categoria: tarea.categoria,
+              personas: tarea.personas, detalles: tarea.detalles, estado: tarea.estado, deadline: tarea.deadline, campo: "todo"
             })
           });
         } catch (err) {
@@ -442,7 +382,7 @@
         if (campo === "estado") {
           const hoy = new Date();
           const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
-          const registro = `\n• [${timestamp}] Estado a "${nuevoValor}" por @${usuario}`;
+          const registro = `\n• [${timestamp}] Estado cambiado a "${nuevoValor}" por @${usuario}`;
           detallesConHistorial = detallesConHistorial + registro;
         }
 
@@ -468,26 +408,18 @@
         setSyncing(true);
         try {
           await fetch(effectiveUrl, {
-            method: "POST",
-            mode: "cors",
-            redirect: "follow",
+            method: "POST", mode: "cors", redirect: "follow",
             headers: { "Content-Type": "text/plain; charset=utf-8" },
             body: JSON.stringify({
-              marca: tarea.marca,
-              idTarea: taskTargetId,
-              info: tarea.info,
-              categoria: tarea.categoria,
-              campo: campo === "estado" ? "todo" : campo,
-              valor: nuevoValor,
-              personas: tarea.personas,
-              detalles: detallesConHistorial,
-              estado: campo === "estado" ? nuevoValor : tarea.estado,
+              marca: tarea.marca, idTarea: taskTargetId, info: tarea.info, categoria: tarea.categoria,
+              campo: campo === "estado" ? "todo" : campo, valor: nuevoValor, personas: tarea.personas,
+              detalles: detallesConHistorial, estado: campo === "estado" ? nuevoValor : tarea.estado,
               deadline: campo === "deadline" ? nuevoValor : tarea.deadline
             })
           });
           showToast("Guardado en Google Sheets", "success");
         } catch (e) {
-          showToast("Guardado local (Falla de red)", "error");
+          showToast("Error de red al actualizar", "error");
         } finally {
           setSyncing(false);
         }
@@ -529,20 +461,12 @@
         setSyncing(true);
         try {
           await fetch(effectiveUrl, {
-            method: "POST",
-            mode: "cors",
-            redirect: "follow",
+            method: "POST", mode: "cors", redirect: "follow",
             headers: { "Content-Type": "text/plain; charset=utf-8" },
             body: JSON.stringify({
-              marca: taskConHistorial.marca,
-              idTarea: taskConHistorial.idTarea,
-              info: taskConHistorial.info,
-              categoria: taskConHistorial.categoria,
-              personas: taskConHistorial.personas,
-              detalles: taskConHistorial.detalles,
-              estado: taskConHistorial.estado,
-              deadline: taskConHistorial.deadline,
-              campo: "todo"
+              marca: taskConHistorial.marca, idTarea: taskConHistorial.idTarea, info: taskConHistorial.info,
+              categoria: taskConHistorial.categoria, personas: taskConHistorial.personas, detalles: taskConHistorial.detalles,
+              estado: taskConHistorial.estado, deadline: taskConHistorial.deadline, campo: "todo"
             })
           });
           showToast("Sincronizado completamente", "success");
@@ -555,7 +479,6 @@
       };
 
       const handleDeleteTask = async (tarea) => {
-        // Borramos inmediatamente en interfaz
         setTareas(prev => prev.filter(t => !(t.idTarea === tarea.idTarea && t.info === tarea.info)));
         setTaskToDelete(null);
         setIsEditing(false);
@@ -571,16 +494,10 @@
         setSyncing(true);
         try {
           const res = await fetch(effectiveUrl, {
-            method: "POST",
-            mode: "cors",
-            redirect: "follow",
+            method: "POST", mode: "cors", redirect: "follow",
             headers: { "Content-Type": "text/plain; charset=utf-8" },
             body: JSON.stringify({
-              marca: tarea.marca,
-              idTarea: tarea.idTarea,
-              info: tarea.info,
-              categoria: tarea.categoria,
-              campo: "eliminar"
+              marca: tarea.marca, idTarea: tarea.idTarea, info: tarea.info, categoria: tarea.categoria, campo: "eliminar"
             })
           });
           const json = await res.json();
@@ -615,10 +532,7 @@
           : historialInicial;
 
         const nuevaConId = {
-          ...nuevaTarea,
-          idTarea: autoId,
-          detalles: detallesConCreador,
-          fecha: new Date().toISOString().split('T')[0]
+          ...nuevaTarea, idTarea: autoId, detalles: detallesConCreador, fecha: new Date().toISOString().split('T')[0]
         };
 
         setTareas([nuevaConId, ...tareas]);
@@ -637,20 +551,12 @@
         setSyncing(true);
         try {
           const res = await fetch(effectiveUrl, {
-            method: "POST",
-            mode: "cors",
-            redirect: "follow",
+            method: "POST", mode: "cors", redirect: "follow",
             headers: { "Content-Type": "text/plain; charset=utf-8" },
             body: JSON.stringify({
-              marca: nuevaConId.marca,
-              idTarea: autoId, 
-              info: nuevaConId.info,
-              categoria: nuevaConId.categoria,
-              personas: nuevaConId.personas,
-              detalles: nuevaConId.detalles,
-              estado: nuevaConId.estado,
-              deadline: nuevaConId.deadline,
-              campo: "todo"
+              marca: nuevaConId.marca, idTarea: autoId, info: nuevaConId.info, categoria: nuevaConId.categoria,
+              personas: nuevaConId.personas, detalles: nuevaConId.detalles, estado: nuevaConId.estado,
+              deadline: nuevaConId.deadline, campo: "todo"
             })
           });
           const json = await res.json();
@@ -693,6 +599,7 @@
         return idStr;
       };
 
+      // 🔄 Cómputo Inteligente de Fechas (Garantizando Filtro de Hoy Estricto)
       const tareasFiltradas = useMemo(() => {
         const hoy = new Date();
         const tHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
@@ -702,9 +609,16 @@
           
           if (filtroTiempo === "HOY") {
             const tieneFechaReal = tDeadline !== Infinity;
-            const esHoyOAtrasado = tieneFechaReal && tDeadline <= tHoy;
+            // Estrictamente hoy (evita acarrear tareas atrasadas en esta pestaña)
+            const esHoy = tieneFechaReal && tDeadline === tHoy;
             const esCompletada = cleanEstado(t.estado) === "completada";
-            if (!esHoyOAtrasado || esCompletada) return false;
+            if (!esHoy || esCompletada) return false;
+          } else if (filtroTiempo === "ATRASADAS") {
+            const tieneFechaReal = tDeadline !== Infinity;
+            // Tareas cuya fecha límite ya venció y siguen pendientes
+            const esAtrasada = tieneFechaReal && tDeadline < tHoy;
+            const esCompletada = cleanEstado(t.estado) === "completada";
+            if (!esAtrasada || esCompletada) return false;
           } else if (filtroTiempo === "FUTURAS") {
             const esFutura = tDeadline !== Infinity && tDeadline > tHoy;
             if (!esFutura) return false;
@@ -727,13 +641,19 @@
         });
       }, [tareas, filtroTiempo, filtroMarca, filtroEstado, searchQuery]);
 
+      // 📊 Métricas para los Badges del Sidebar
       const metricaCounters = useMemo(() => {
         const hoy = new Date();
         const tHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
 
         const activasHoy = tareas.filter(t => {
           const tDeadline = obtenerTiempoFecha(t.deadline);
-          return tDeadline !== Infinity && tDeadline <= tHoy && cleanEstado(t.estado) !== "completada";
+          return tDeadline !== Infinity && tDeadline === tHoy && cleanEstado(t.estado) !== "completada";
+        }).length;
+
+        const atrasadas = tareas.filter(t => {
+          const tDeadline = obtenerTiempoFecha(t.deadline);
+          return tDeadline !== Infinity && tDeadline < tHoy && cleanEstado(t.estado) !== "completada";
         }).length;
         
         const futuras = tareas.filter(t => {
@@ -743,7 +663,7 @@
         
         const completadasHoy = tareas.filter(t => cleanEstado(t.estado) === "completada").length;
 
-        return { activasHoy, futuras, completadasHoy };
+        return { activasHoy, atrasadas, futuras, completadasHoy };
       }, [tareas]);
 
       const getMarcaStyle = (marcaName) => {
@@ -880,6 +800,7 @@
                 <nav className="p-3 flex flex-col gap-1">
                   <span className="px-2 text-[9px] font-extrabold text-zinc-400 tracking-wider uppercase mb-1">Filtros Temporales</span>
                   
+                  {/* Hoy - Estrictamente Hoy */}
                   <button
                     onClick={() => { setPaginaActiva("dashboard"); setFiltroTiempo("HOY"); }}
                     className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all ${
@@ -891,7 +812,22 @@
                     <span className="flex items-center gap-2">
                       <SVGIcon.Today />Hoy
                     </span>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 font-bold">{metricaCounters.activasHoy}</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">{metricaCounters.activasHoy}</span>
+                  </button>
+
+                  {/* Atrasadas - Pendientes acumuladas */}
+                  <button
+                    onClick={() => { setPaginaActiva("dashboard"); setFiltroTiempo("ATRASADAS"); }}
+                    className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all ${
+                      paginaActiva === "dashboard" && filtroTiempo === "ATRASADAS" 
+                        ? "bg-white shadow-sm font-extrabold text-zinc-900 border border-zinc-100" 
+                        : "text-zinc-500 hover:bg-zinc-100/50 hover:text-zinc-800"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <SVGIcon.Overdue />Atrasadas
+                    </span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold">{metricaCounters.atrasadas}</span>
                   </button>
 
                   <button
@@ -905,7 +841,7 @@
                     <span className="flex items-center gap-2">
                       <SVGIcon.Future />Futuras
                     </span>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600 font-bold">{metricaCounters.futuras}</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-650 font-bold">{metricaCounters.futuras}</span>
                   </button>
 
                   <button
@@ -964,7 +900,7 @@
                 </div>
               </div>
 
-              {/* Botón de configuración aislado al fondo, sin título superior */}
+              {/* Botón de configuración aislado al fondo */}
               <div className="px-3 pt-2">
                 <button
                   onClick={() => setPaginaActiva("configuracion")}
@@ -1001,12 +937,12 @@
 
             <header className="bg-white border-b border-zinc-100 px-6 py-4 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-4">
-                <h1 className="text-xs font-black text-zinc-800 tracking-widest uppercase">
+                <h1 className="text-xs font-black text-zinc-850 tracking-widest uppercase">
                   ROBIN AGENCY - TRADE & SHOPPER MARKETING
                 </h1>
                 <div className="h-4 w-[1px] bg-zinc-200"></div>
                 <div className="text-xs text-zinc-550 font-bold">
-                  Pendientes: <span className="text-zinc-900 font-extrabold">{metricaCounters.activasHoy}</span> · Futuras: <span className="text-zinc-900 font-extrabold">{metricaCounters.futuras}</span> · Completadas: <span className="text-zinc-900 font-extrabold">{metricaCounters.completadasHoy}</span>
+                  Hoy: <span className="text-emerald-600 font-extrabold">{metricaCounters.activasHoy}</span> · Atrasadas: <span className="text-rose-600 font-extrabold">{metricaCounters.atrasadas}</span> · Futuras: <span className="text-zinc-900 font-extrabold">{metricaCounters.futuras}</span> · Todas: <span className="text-zinc-900 font-extrabold">{tareas.length}</span>
                 </div>
               </div>
 
@@ -1166,7 +1102,7 @@
                     {/* Miembros del equipo */}
                     <div className="border-t border-zinc-150 pt-5">
                       <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Gestionar Usuarios Autorizados</label>
-                      <p className="text-[11px] text-zinc-400 font-semibold mb-3">Todos los usuarios compartirán la clave de acceso: <code className="bg-zinc-100 px-1 py-0.5 rounded text-zinc-800">tmk2026</code></p>
+                      <p className="text-[11px] text-zinc-400 font-semibold mb-3">Todos los usuarios compartirán la clave de acceso: <code className="bg-zinc-100 px-1 py-0.5 rounded text-zinc-800 font-bold">tmk2026</code></p>
                       
                       <form onSubmit={handleAddUser} className="flex gap-2 mb-4">
                         <input
@@ -1502,7 +1438,7 @@
                         <p className="font-extrabold text-sm">Sin entregables en esta pestaña</p>
                         <p className="text-xs text-zinc-400 leading-relaxed">
                           {filtroTiempo === "HOY" 
-                            ? "No tienes entregables para hoy. Haz clic en 'Todas' o 'Futuras' en el menú."
+                            ? "No tienes entregables agendados para el día de hoy. Haz clic en 'Todas' o 'Atrasadas' en el menú lateral."
                             : "Cambia tus filtros o crea un nuevo entregable."
                           }
                         </p>
@@ -1603,21 +1539,18 @@
     function LayoutKanban({ tareas, onUpdateField, onSelectTask, onDeleteTask, getMarcaStyle, cleanIdTarea, currentTheme }) {
       const [dragOverCol, setDragOverColumn] = useState(null);
 
-      // Evento inicial cuando arrastras la tarjeta
       const handleDragStart = (e, task) => {
         e.dataTransfer.setData("taskId", task.idTarea || "");
         e.dataTransfer.setData("taskInfo", task.info || "");
         e.dataTransfer.effectAllowed = "move";
       };
 
-      // Al soltar la tarjeta en una columna destino
       const handleDrop = (e, targetEstado) => {
         e.preventDefault();
         setDragOverColumn(null);
         const taskId = e.dataTransfer.getData("taskId");
         const taskInfo = e.dataTransfer.getData("taskInfo");
 
-        // Buscar la tarea correspondiente
         const taskMatched = tareas.find(t => (t.idTarea === taskId && taskId) || t.info === taskInfo);
         if (taskMatched && cleanEstado(taskMatched.estado) !== cleanEstado(targetEstado)) {
           onUpdateField(taskMatched, "estado", targetEstado);
@@ -1810,7 +1743,6 @@
                       </div>
                     )}
 
-                    {/* Contenedor de tareas con alto óptimo y scroll interno para que no queden como líneas de 3px */}
                     <div className="flex flex-col gap-1 overflow-y-auto max-h-[85px]">
                       {tareasDia.map(t => {
                         const esAlerta = cleanEstado(t.estado) === "en revision" || cleanEstado(t.estado) === "en pausa";
@@ -1861,7 +1793,7 @@
           if (line.trim().startsWith("•") || line.trim().startsWith("• [")) {
             logs.push(line.trim());
           } else if (line.trim() !== "") {
-            notasLimpias.push(line);
+            notes: notasLimpias.push(line);
           }
         });
 

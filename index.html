@@ -774,7 +774,7 @@
       ];
 
       return (
-        <div className={`border ${currentTheme.border} rounded-xl p-4 flex flex-col gap-3 max-h-[500px] overflow-hidden ${currentTheme.cardBg}`}>
+        <div className={`border ${currentTheme.border} rounded-xl p-4 flex flex-col gap-3 max-h-[480px] overflow-hidden ${currentTheme.cardBg}`}>
           <div className="flex items-center justify-between pb-1 border-b border-zinc-200/50 shrink-0">
             <h3 className="font-extrabold text-xs">
               {nombresMeses[currentDate.getMonth()]} {currentDate.getFullYear()}
@@ -1093,7 +1093,7 @@
     }
 
     // =========================================================================
-    // 🏠 COMPONENTE: LAYOUT HOME DASHBOARD EN VIVO (MUESTRA TAREAS CLAVE DEL DIA)
+    // 🏠 COMPONENTE: LAYOUT HOME DASHBOARD EN VIVO
     // =========================================================================
     function LayoutHome({ tareas, nombreUsuario, username, onSelectTask, onUpdateField, widgets, onAddWidget, onDeleteWidget, currentTheme, getMarcaStyle }) {
       const [nuevoTitulo, setNuevoTitulo] = useState("");
@@ -1549,7 +1549,7 @@
 
                 <div className="flex flex-col gap-3 text-xs">
                   <div>
-                    <label className="block font-bold text-zinc-450 uppercase mb-1">Nombre de la Marca (Nueva pestaña)</label>
+                    <label className="block font-bold text-zinc-455 uppercase mb-1">Nombre de la Marca (Nueva pestaña)</label>
                     <input type="text" required value={newBrandName} onChange={e => setNewBrandName(e.target.value)} placeholder="Ej: Coca Cola" className="w-full bg-zinc-50 border p-2 rounded-lg font-bold" />
                   </div>
                   <div>
@@ -1680,7 +1680,7 @@
         marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", estado: "⚪ Pendiente", deadline: "", prioridad: "🟡 Media"
       });
 
-      // 🟢 Inicialización de Presencia en Vivo vía Firestore
+      // 🟢 Inicialización de Presencia en Vivo vía Firestore (BLINDADO)
       useEffect(() => {
         if (!usuario) return;
         const FirebaseLib = window.FirebaseLib;
@@ -1717,7 +1717,6 @@
             const currentUser = auth.currentUser;
             if (!currentUser) return;
 
-            // Registrar y actualizar mi estado de forma constante
             const presenceRef = FirebaseLib.doc(db, 'artifacts', appId, 'public', 'data', 'presencia', currentUser.uid);
             
             const writeHeartbeat = async () => {
@@ -1736,14 +1735,12 @@
             await writeHeartbeat();
             heartbeatInterval = setInterval(writeHeartbeat, 20000);
 
-            // Escuchar a todos los conectados
             const presenceCollection = FirebaseLib.collection(db, 'artifacts', appId, 'public', 'data', 'presencia');
             unsubscribe = FirebaseLib.onSnapshot(presenceCollection, (snapshot) => {
               const activeUsers = [];
               const now = new Date().getTime();
               snapshot.forEach((doc) => {
                 const data = doc.data();
-                // Si estuvo activo en los últimos 60 segundos
                 if (data.lastSeen && (now - data.lastSeen) < 60000) {
                   activeUsers.push(data);
                 }
@@ -2585,7 +2582,7 @@
                         <div className="text-[10px] text-zinc-400 font-semibold italic">Cargando presencia...</div>
                       ) : (
                         usuariosConectados.map(u => (
-                          <div key={u.uid} className="flex items-center gap-1.5 text-[10px] text-zinc-650 font-bold truncate">
+                          <div key={u.uid} className="flex items-center gap-1.5 text-[10px] text-zinc-655 font-bold truncate">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                             <span className="truncate">{u.nombre || `@${u.username}`}</span>
                           </div>
@@ -2646,7 +2643,7 @@
                       }}
                       className={`flex items-center gap-2 w-full px-3 py-1.5 rounded-lg text-xs font-bold text-left transition-all ${
                         filtroMarca === "TODAS" && paginaActiva === "dashboard"
-                          ? "bg-zinc-105 bg-zinc-200/50 text-zinc-900 font-extrabold"
+                          ? "bg-zinc-200/50 text-zinc-900 font-extrabold"
                           : "text-zinc-500 hover:bg-zinc-100/30 hover:text-zinc-850"
                       }`}
                     >
@@ -2720,7 +2717,7 @@
               <div className="flex items-center gap-3">
                 <button 
                   onClick={() => setSidebarOpen(true)}
-                  className="md:hidden text-zinc-650 p-1 text-lg hover:bg-zinc-100 rounded-lg"
+                  className="md:hidden text-zinc-655 p-1 text-lg hover:bg-zinc-100 rounded-lg"
                 >
                   <i className="fa-solid fa-bars"></i>
                 </button>
@@ -2929,7 +2926,7 @@
 
                     <div className="flex items-center gap-2">
                       {filtroMarca !== "TODAS" && (
-                        <span className="text-xs bg-zinc-100 border text-zinc-800 font-black px-3 py-1 rounded-lg">
+                        <span className="text-xs bg-zinc-100 border border-zinc-200 text-zinc-800 font-black px-3 py-1 rounded-lg">
                           Filtro Marca: {filtroMarca.toUpperCase()}
                         </span>
                       )}

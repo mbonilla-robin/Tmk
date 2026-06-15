@@ -590,7 +590,7 @@
                                 </div>
                               </td>
                               
-                              <td className="py-4 px-5 text-zinc-500 font-bold text-xs truncate max-w-[110px]">
+                              <td className="py-4 px-5 text-zinc-655 font-bold text-xs truncate max-w-[110px]">
                                 {t.categoria || "---"}
                               </td>
 
@@ -1146,7 +1146,7 @@
     }
 
     // =========================================================================
-    // 🏠 COMPONENTE: LAYOUT HOME DASHBOARD EN VIVO (MUESTRA TAREAS CLAVE DEL DIA)
+    // 🏠 COMPONENTE: LAYOUT HOME DASHBOARD EN VIVO
     // =========================================================================
     function LayoutHome({ tareas, nombreUsuario, username, onSelectTask, onUpdateField, widgets, onAddWidget, onDeleteWidget, currentTheme, getMarcaStyle, cleanIdTarea }) {
       const [nuevoTitulo, setNuevoTitulo] = useState("");
@@ -1258,7 +1258,15 @@
                 </div>
                 <div className="flex-1 min-w-[200px]">
                   <label className="block text-[9px] font-bold text-zinc-400 uppercase mb-1">URL de destino</label>
-                  <input type="url" required value={nuevoLink} onChange={e => setNewLink(e.target.value)} className="w-full bg-zinc-50 border p-1.5 text-xs rounded-lg" placeholder="https://..." />
+                  {/* 🟢 CORREGIDO: Se cambia onChange para que llame a setNuevoLink en vez del inexistente setNewLink */}
+                  <input 
+                    type="url" 
+                    required 
+                    value={nuevoLink} 
+                    onChange={e => setNuevoLink(e.target.value)} 
+                    className="w-full bg-zinc-50 border p-1.5 text-xs rounded-lg font-bold" 
+                    placeholder="https://..." 
+                  />
                 </div>
                 <div>
                   <label className="block text-[9px] font-bold text-zinc-400 uppercase mb-1">Icono representativo</label>
@@ -2766,7 +2774,7 @@
               <div className="px-3 border-t border-zinc-200/50 pt-3">
                 <button
                   onClick={handleLogout}
-                  className="w-full text-center py-2 text-xs font-bold text-red-650 bg-red-50 hover:bg-red-100 rounded-lg transition-all"
+                  className="w-full text-center py-2 text-xs font-bold text-red-655 bg-red-50 hover:bg-red-100 rounded-lg transition-all"
                 >
                   <i className="fa-solid fa-arrow-right-from-bracket mr-2"></i>Cerrar Sesión
                 </button>

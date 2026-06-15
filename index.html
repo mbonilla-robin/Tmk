@@ -78,7 +78,7 @@
   <script type="text/babel">
 
     // 🟢 CONFIGURACIÓN DIRECTA DE LA BASE DE DATOS (Google Sheets)
-    const AUTO_API_URL = "https://script.google.com/macros/s/AKfycbz2e8lRzFV6eXFNHKmiLplWhkoPeo_oKy-tMJrpjR3OyKiPkjjirZE1qrZttf193kgMYg/exec";
+    const AUTO_API_URL = "https://script.google.com/macros/s/AKfycbz1-GZ86-7lXQp-pWREuClyD6V0P1v6e-f1K-tS-S6tY7_hP-90/exec";
     
     // Funciones auxiliares globales saneadas para garantizar el hoisting en Babel
     function getLocalStorageItemSafe(key, fallback = null) {
@@ -383,7 +383,7 @@
     ];
 
     const PRIORIDADES_MAPA = [
-      { id: "Alta", label: "Alta", color: "bg-red-50 text-red-850 border-red-100" },
+      { id: "Alta", label: "Alta", color: "bg-red-50 text-red-855 border-red-100" },
       { id: "Media", label: "Media", color: "bg-zinc-100 text-zinc-700 border-zinc-200" },
       { id: "Baja", label: "Baja", color: "bg-zinc-50 text-zinc-500 border-zinc-100" }
     ];
@@ -2479,6 +2479,84 @@
         return MARCAS_COLORES[clean] || { bg: "bg-zinc-100", text: "text-zinc-700", border: "border-zinc-200" };
       };
 
+      const handleSaveBrandMetadata = async (brand, newMeta) => {
+        const actualizados = { ...marcasMetadata, [brand]: newMeta };
+        setMarcasMetadata(actualizados);
+        showToast("Actualizando ficha de cliente...", "info");
+
+        const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
+        if (!effectiveUrl || apiError) {
+          showToast("Ficha guardada localmente", "success");
+          return;
+        }
+
+        setSyncing(true);
+        try {
+          await fetch(effectiveUrl, {
+            method: "POST", mode: "cors", redirect: "follow",
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
+            body: JSON.stringify({
+              campo: "crearMarca",
+              nuevaMarca: brand,
+              logoUrl: newMeta.logoUrl,
+              ejecutivo: newMeta.ejecutivo,
+              disenador: newMeta.disenador,
+              content: newMeta.content
+            })
+          });
+          showToast("Ficha guardada en Google Sheets", "success");
+          await fetchData(true);
+        } catch (e) {
+          showToast("Guardado local (Falla de red)", "error");
+        } finally {
+          setSyncing(false);
+        }
+      };
+
+      const handleCreateBrand = async (brandPayload) => {
+        showToast("Insertando nueva hoja en Sheets...", "info");
+        const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
+        if (!effectiveUrl || apiError) {
+          const actualizadasMeta = {
+            ...marcasMetadata,
+            [brandPayload.nuevaMarca]: {
+              logoUrl: brandPayload.logoUrl,
+              ejecutivo: brandPayload.ejecutivo,
+              disenador: brandPayload.disenador,
+              content: brandPayload.content
+            }
+          };
+          setMarcasMetadata(actualizadasMeta);
+          showToast("Cliente creado localmente", "success");
+          return;
+        }
+
+        setSyncing(true);
+        try {
+          const res = await fetch(effectiveUrl, {
+            method: "POST", mode: "cors", redirect: "follow",
+            headers: { "Content-Type": "text/plain; charset=utf-8" },
+            body: JSON.stringify({
+              campo: "crearMarca",
+              nuevaMarca: brandPayload.nuevaMarca,
+              logoUrl: brandPayload.logoUrl,
+              ejecutivo: brandPayload.ejecutivo,
+              disenador: brandPayload.disenador,
+              content: brandPayload.content
+            })
+          });
+          const json = await res.json();
+          if (json.success) {
+            showToast("Nueva pestaña creada en Sheets", "success");
+            await fetchData(true);
+          }
+        } catch (e) {
+          showToast("Falla de red al crear marca", "error");
+        } finally {
+          setSyncing(false);
+        }
+      };
+
       return (
         <div className={`flex h-screen w-screen overflow-hidden ${currentTheme.bg} ${currentTheme.text} select-none transition-all`}>
           
@@ -2685,7 +2763,7 @@
                     className="p-1.5 text-zinc-400 hover:text-zinc-800 border rounded bg-white hover:bg-zinc-50 transition-colors"
                     title="Actualizar base de datos"
                   >
-                    <i className={`fa-solid fa-arrows-rotate text-xs ${loading ? 'animate-spin' : ''}`}></i>
+                    <i className="fa-solid fa-arrows-rotate text-xs"></i>
                   </button>
                 )}
               </div>
@@ -2997,7 +3075,7 @@
                       <i className="fa-solid fa-circle-check text-emerald-500 mt-0.5"></i>
                       <div className="overflow-hidden">
                         <p className="text-[#37352F] font-bold">API de Google Sheets configurada</p>
-                        <p className="text-zinc-450 font-normal mt-0.5 text-[11px] truncate max-w-full">
+                        <p className="text-zinc-455 font-normal mt-0.5 text-[11px] truncate max-w-full">
                           Enlace activo: {AUTO_API_URL}
                         </p>
                       </div>

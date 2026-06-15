@@ -148,9 +148,9 @@
     const MARCAS_COLORES = {
       "DIAGEO":      { bg: "bg-zinc-100", text: "text-zinc-800", border: "border-zinc-200" },
       "GAMA":        { bg: "bg-red-50", text: "text-red-800", border: "border-red-100" },
-      "LA SANTE":    { bg: "bg-emerald-50", text: "text-emerald-850", border: "border-emerald-100" },
-      "LA SANTE ":   { bg: "bg-emerald-50", text: "text-emerald-850", border: "border-emerald-100" },
-      "SANTE":       { bg: "bg-emerald-50", text: "text-emerald-850", border: "border-emerald-100" },
+      "LA SANTE":    { bg: "bg-emerald-50", text: "text-emerald-855", border: "border-emerald-100" },
+      "LA SANTE ":   { bg: "bg-emerald-50", text: "text-emerald-855", border: "border-emerald-100" },
+      "SANTE":       { bg: "bg-emerald-50", text: "text-emerald-855", border: "border-emerald-100" },
       "ROBIN":       { bg: "bg-stone-900", text: "text-white", border: "border-stone-850" },
       "TMK":         { bg: "bg-amber-50", text: "text-amber-800", border: "border-amber-100" }
     };
@@ -876,7 +876,7 @@
           if (line.trim().startsWith("•") || line.trim().startsWith("• [")) {
             logs.push(line.trim());
           } else if (line.trim() !== "") {
-            notes: notasLimpias.push(line);
+            notasLimpias.push(line);
           }
         });
 
@@ -1073,7 +1073,7 @@
                   type="button" 
                   disabled={syncing || isSubmittingLocal}
                   onClick={() => onDeleteClick(task)}
-                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-650 font-bold text-xs rounded-lg transition-all border border-red-200/50 disabled:opacity-50"
+                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-655 font-bold text-xs rounded-lg transition-all border border-red-200/50 disabled:opacity-50"
                 >
                   <i className="fa-regular fa-trash-can mr-1.5"></i>Eliminar
                 </button>
@@ -1395,6 +1395,234 @@
     }
 
     // =========================================================================
+    // 📂 COMPONENTE: LAYOUT DE DIRECTIORIO DE CLIENTES
+    // =========================================================================
+    function LayoutClientes({ marcasMetadata, onSelectBrand, currentTheme, adminMode, onSaveMetadata, onCreateBrand, marcasDisponibles }) {
+      const [showAddBrandModal, setShowAddBrandModal] = useState(false);
+      const [showEditBrandModal, setShowEditBrandModal] = useState(null);
+
+      const [newBrandName, setNewBrandName] = useState("");
+      const [newLogoUrl, setNewLogoUrl] = useState("");
+      const [newEjecutivo, setNewEjecutivo] = useState("");
+      const [newDisenador, setNewDisenador] = useState("");
+      const [newContent, setNewContent] = useState("");
+
+      const [editLogoUrl, setEditLogoUrl] = useState("");
+      const [editEjecutivo, setEditEjecutivo] = useState("");
+      const [editDisenador, setEditDisenador] = useState("");
+      const [editContent, setEditContent] = useState("");
+
+      const handleOpenEdit = (brand) => {
+        const metadata = marcasMetadata[brand] || {};
+        setEditLogoUrl(metadata.logoUrl || "");
+        setEditEjecutivo(metadata.ejecutivo || "");
+        setEditDisenador(metadata.disenador || "");
+        setEditContent(metadata.content || "");
+        setShowEditBrandModal(brand);
+      };
+
+      const handleSaveEditSubmit = (e) => {
+        e.preventDefault();
+        onSaveMetadata(showEditBrandModal, {
+          logoUrl: editLogoUrl,
+          ejecutivo: editEjecutivo,
+          disenador: editDisenador,
+          content: editContent
+        });
+        setShowEditBrandModal(null);
+      };
+
+      const handleCreateBrandSubmit = (e) => {
+        e.preventDefault();
+        if (!newBrandName.trim()) return;
+        onCreateBrand({
+          nuevaMarca: newBrandName.trim(),
+          logoUrl: newLogoUrl.trim(),
+          ejecutivo: newEjecutivo.trim(),
+          disenador: newDisenador.trim(),
+          content: newContent.trim()
+        });
+        setNewBrandName("");
+        setNewLogoUrl("");
+        setNewEjecutivo("");
+        setNewDisenador("");
+        setNewContent("");
+        setShowAddBrandModal(false);
+      };
+
+      return (
+        <div className="flex flex-col gap-6 animate-slide-in pb-12">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-lg font-black tracking-tight text-zinc-900">Directorio de Clientes de la Agencia</h2>
+              <p className="text-xs text-zinc-400 font-semibold mt-1">Gestión interna, roles del área y enlaces de marcas autorizadas.</p>
+            </div>
+            {adminMode && (
+              <button 
+                onClick={() => setShowAddBrandModal(true)}
+                className={`${currentTheme.primary} px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5`}
+              >
+                <i className="fa-solid fa-folder-plus text-xs"></i> Crear Nuevo Cliente
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {marcasDisponibles.map(brand => {
+              const metadata = marcasMetadata[brand] || {};
+              const logo = metadata.logoUrl || `https://placehold.co/120x60/f4f4f5/52525b?text=${brand}`;
+              
+              return (
+                <div 
+                  key={brand}
+                  className={`border ${currentTheme.border} rounded-2xl p-5 flex flex-col gap-4 shadow-sm hover:shadow-md transition-all ${currentTheme.cardBg}`}
+                >
+                  <div className="flex justify-between items-start">
+                    <div className="h-12 w-28 bg-zinc-50/50 rounded-xl border border-zinc-200/50 p-1 flex items-center justify-center overflow-hidden">
+                      <img 
+                        src={logo} 
+                        alt={brand} 
+                        className="max-h-full max-w-full object-contain"
+                        onError={(e) => {
+                          e.target.src = `https://placehold.co/120x60/f4f4f5/52525b?text=${brand}`;
+                        }}
+                      />
+                    </div>
+                    {adminMode && (
+                      <button 
+                        onClick={() => handleOpenEdit(brand)}
+                        className="text-zinc-400 hover:text-zinc-800 p-1 text-xs"
+                        title="Editar ficha"
+                      >
+                        <i className="fa-solid fa-pen-to-square"></i> Editar
+                      </button>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 className="text-sm font-black text-zinc-855 uppercase tracking-wider">{brand}</h3>
+                    <span className="text-[10px] text-zinc-400 font-black uppercase tracking-widest block mt-0.5">Cliente de Agencia</span>
+                  </div>
+
+                  <div className="bg-zinc-50/70 border border-zinc-150 rounded-xl p-3 flex flex-col gap-2.5">
+                    <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest block border-b pb-1">Responsables de Área</span>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-zinc-455 font-bold">Ejecutivo:</span>
+                        <span className="font-extrabold text-zinc-800">{metadata.ejecutivo || "Sin asignar"}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-zinc-455 font-bold">Diseñador:</span>
+                        <span className="font-extrabold text-zinc-800">{metadata.disenador || "Sin asignar"}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-zinc-455 font-bold">Content:</span>
+                        <span className="font-extrabold text-zinc-800">{metadata.content || "Sin asignar"}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => onSelectBrand(brand)}
+                    className="w-full text-center py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-xl transition-all uppercase tracking-wider"
+                  >
+                    Ver en Ficha Directa
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* MODAL CREAR NUEVA MARCA */}
+          {showAddBrandModal && (
+            <div className="fixed inset-0 bg-black/45 backdrop-blur-[1px] z-[120] flex items-center justify-center p-4">
+              <form 
+                onSubmit={handleCreateBrandSubmit} 
+                className="bg-white max-w-md w-full rounded-2xl p-6 shadow-2xl border border-zinc-200 animate-zoom-in text-zinc-800 flex flex-col gap-4"
+              >
+                <div className="flex items-center justify-between pb-2 border-b">
+                  <h3 className="text-sm font-black uppercase tracking-wider">Crear Nuevo Cliente (Hoja Sheets)</h3>
+                  <button type="button" onClick={() => setShowAddBrandModal(false)} className="text-zinc-400 hover:text-zinc-855">
+                    <i className="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-3 text-xs">
+                  <div>
+                    <label className="block font-bold text-zinc-450 uppercase mb-1">Nombre de la Marca (Nueva pestaña)</label>
+                    <input type="text" required value={newBrandName} onChange={e => setNewBrandName(e.target.value)} placeholder="Ej: Coca Cola" className="w-full bg-zinc-50 border p-2 rounded-lg font-bold" />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-zinc-455 uppercase mb-1">Enlace del Logotipo (URL de imagen)</label>
+                    <input type="url" value={newLogoUrl} onChange={e => setNewLogoUrl(e.target.value)} placeholder="https://..." className="w-full bg-zinc-50 border p-2 rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-zinc-455 uppercase mb-1">Ejecutivo de la cuenta</label>
+                    <input type="text" value={newEjecutivo} onChange={e => setNewEjecutivo(e.target.value)} placeholder="ej: @ralvarez" className="w-full bg-zinc-50 border p-2 rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-zinc-455 uppercase mb-1">Diseñador Asignado</label>
+                    <input type="text" value={newDisenador} onChange={e => setNewDisenador(e.target.value)} placeholder="ej: @dsalavarria" className="w-full bg-zinc-50 border p-2 rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-zinc-455 uppercase mb-1">Content Creator</label>
+                    <input type="text" value={newContent} onChange={e => setNewContent(e.target.value)} placeholder="ej: @fcolmenares" className="w-full bg-zinc-50 border p-2 rounded-lg" />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t">
+                  <button type="button" onClick={() => setShowAddBrandModal(false)} className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 font-bold rounded-lg">Cancelar</button>
+                  <button type="submit" className="px-4 py-2 bg-zinc-900 hover:bg-black text-white font-bold rounded-lg">Crear e Insertar Hoja</button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* MODAL EDITAR METADATOS DE CLIENTE */}
+          {showEditBrandModal && (
+            <div className="fixed inset-0 bg-black/45 backdrop-blur-[1px] z-[120] flex items-center justify-center p-4">
+              <form 
+                onSubmit={handleSaveEditSubmit} 
+                className="bg-white max-w-md w-full rounded-2xl p-6 shadow-2xl border border-zinc-200 animate-zoom-in text-zinc-800 flex flex-col gap-4"
+              >
+                <div className="flex items-center justify-between pb-2 border-b">
+                  <h3 className="text-sm font-black uppercase tracking-wider">Ficha Técnica: {showEditBrandModal}</h3>
+                  <button type="button" onClick={() => setShowEditBrandModal(null)} className="text-zinc-400 hover:text-zinc-855">
+                    <i className="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+
+                <div className="flex flex-col gap-3 text-xs">
+                  <div>
+                    <label className="block font-bold text-zinc-455 uppercase mb-1">Logo URL</label>
+                    <input type="url" value={editLogoUrl} onChange={e => setEditLogoUrl(e.target.value)} placeholder="https://..." className="w-full bg-zinc-50 border p-2 rounded-lg" />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-zinc-455 uppercase mb-1">Ejecutivo de la cuenta</label>
+                    <input type="text" value={editEjecutivo} onChange={e => setEditEjecutivo(e.target.value)} placeholder="ej: @ralvarez" className="w-full bg-zinc-50 border p-2 rounded-lg font-bold" />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-zinc-455 uppercase mb-1">Diseñador Asignado</label>
+                    <input type="text" value={editDisenador} onChange={e => setEditDisenador(e.target.value)} placeholder="ej: @dsalavarria" className="w-full bg-zinc-50 border p-2 rounded-lg font-bold" />
+                  </div>
+                  <div>
+                    <label className="block font-bold text-zinc-455 uppercase mb-1">Content Creator</label>
+                    <input type="text" value={editContent} onChange={e => setEditContent(e.target.value)} placeholder="ej: @fcolmenares" className="w-full bg-zinc-50 border p-2 rounded-lg font-bold" />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 pt-3 border-t">
+                  <button type="button" onClick={() => setShowEditBrandModal(null)} className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 font-bold rounded-lg">Cancelar</button>
+                  <button type="submit" className="px-4 py-2 bg-zinc-950 hover:bg-black text-white font-bold rounded-lg">Guardar Ficha</button>
+                </div>
+              </form>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // =========================================================================
     // COMPONENTE PRINCIPAL: APP
     // =========================================================================
     function App() {
@@ -1458,17 +1686,28 @@
         const FirebaseLib = window.FirebaseLib;
         if (!FirebaseLib) return;
 
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+        let firebaseConfig = null;
+        try {
+          if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+            firebaseConfig = JSON.parse(__firebase_config);
+          }
+        } catch (e) {
+          console.error("Firebase config parsing error", e);
+        }
+
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'robin-trade-shopper-mkt';
         
         if (!firebaseConfig) return;
 
-        try {
-          const app = FirebaseLib.initializeApp(firebaseConfig);
-          const auth = FirebaseLib.getAuth(app);
-          const db = FirebaseLib.getFirestore(app);
+        let heartbeatInterval = null;
+        let unsubscribe = null;
 
-          const initPresence = async () => {
+        const initPresence = async () => {
+          try {
+            const app = FirebaseLib.initializeApp(firebaseConfig);
+            const auth = FirebaseLib.getAuth(app);
+            const db = FirebaseLib.getFirestore(app);
+
             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
               await FirebaseLib.signInWithCustomToken(auth, __initial_auth_token);
             } else {
@@ -1482,20 +1721,24 @@
             const presenceRef = FirebaseLib.doc(db, 'artifacts', appId, 'public', 'data', 'presencia', currentUser.uid);
             
             const writeHeartbeat = async () => {
-              await FirebaseLib.setDoc(presenceRef, {
-                uid: currentUser.uid,
-                username: usuario,
-                nombre: nombreCompleto || `@${usuario}`,
-                lastSeen: new Date().getTime()
-              }, { merge: true });
+              try {
+                await FirebaseLib.setDoc(presenceRef, {
+                  uid: currentUser.uid,
+                  username: usuario,
+                  nombre: nombreCompleto || `@${usuario}`,
+                  lastSeen: new Date().getTime()
+                }, { merge: true });
+              } catch (e) {
+                console.warn("Heartbeat error", e);
+              }
             };
 
             await writeHeartbeat();
-            const heartbeatInterval = setInterval(writeHeartbeat, 20000);
+            heartbeatInterval = setInterval(writeHeartbeat, 20000);
 
             // Escuchar a todos los conectados
             const presenceCollection = FirebaseLib.collection(db, 'artifacts', appId, 'public', 'data', 'presencia');
-            const unsubscribe = FirebaseLib.onSnapshot(presenceCollection, (snapshot) => {
+            unsubscribe = FirebaseLib.onSnapshot(presenceCollection, (snapshot) => {
               const activeUsers = [];
               const now = new Date().getTime();
               snapshot.forEach((doc) => {
@@ -1507,23 +1750,20 @@
               });
               setUsuariosConectados(activeUsers);
             }, (err) => {
-              console.error("Presencia Error: ", err);
+              console.warn("Presence listener warning: ", err);
             });
 
-            return () => {
-              clearInterval(heartbeatInterval);
-              unsubscribe();
-            };
-          };
+          } catch (e) {
+            console.warn("Firebase Auth / Connection failed", e);
+          }
+        };
 
-          const cleanupPromise = initPresence();
-          return () => {
-            cleanupPromise.then(cleanup => cleanup && cleanup());
-          };
+        initPresence();
 
-        } catch (e) {
-          console.error("Firebase Init Error", e);
-        }
+        return () => {
+          if (heartbeatInterval) clearInterval(heartbeatInterval);
+          if (unsubscribe) unsubscribe();
+        };
       }, [usuario, nombreCompleto]);
 
       useEffect(() => {
@@ -2406,11 +2646,11 @@
                       }}
                       className={`flex items-center gap-2 w-full px-3 py-1.5 rounded-lg text-xs font-bold text-left transition-all ${
                         filtroMarca === "TODAS" && paginaActiva === "dashboard"
-                          ? "bg-zinc-100 text-zinc-900 font-extrabold"
+                          ? "bg-zinc-105 bg-zinc-200/50 text-zinc-900 font-extrabold"
                           : "text-zinc-500 hover:bg-zinc-100/30 hover:text-zinc-850"
                       }`}
                     >
-                      <i className="fa-solid fa-layer-group text-[10px] text-zinc-400"></i>
+                      <i className="fa-solid fa-layer-group text-[10px] text-zinc-450"></i>
                       <span>Todos los Clientes</span>
                     </button>
                     {marcasDisponibles.map(b => (
@@ -2423,7 +2663,7 @@
                         }}
                         className={`flex items-center gap-2 w-full px-3 py-1.5 rounded-lg text-xs font-bold text-left transition-all ${
                           filtroMarca === b && paginaActiva === "dashboard"
-                            ? "bg-zinc-100 text-zinc-900 font-extrabold"
+                            ? "bg-zinc-200/50 text-zinc-900 font-extrabold"
                             : "text-zinc-500 hover:bg-zinc-100/30 hover:text-zinc-850"
                         }`}
                       >
@@ -2893,7 +3133,7 @@
 
                   {usuario === "admin" && (
                     <div className="bg-white p-6 rounded-2xl border shadow-sm">
-                      <h3 className="text-base font-black uppercase tracking-wider border-b pb-3 text-red-650">Administración de Usuarios</h3>
+                      <h3 className="text-base font-black uppercase tracking-wider border-b pb-3 text-red-655">Administración de Usuarios</h3>
                       
                       <form onSubmit={handleAddUser} className="mt-6 flex flex-col gap-4">
                         <div className="flex gap-2">

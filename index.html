@@ -78,7 +78,7 @@
   <script type="text/babel">
 
     // 🟢 CONFIGURACIÓN DIRECTA DE LA BASE DE DATOS (Google Sheets)
-    const AUTO_API_URL = "https://script.google.com/macros/s/AKfycbz2e8lRzFV6eXFNHKmiLplWhkoPeo_oKy-tMJrpjR3OyKiPkjjirZE1qrZttf193kgMYg/exec";
+    const AUTO_API_URL = "https://script.google.com/macros/s/AKfycbz1-GZ86-7lXQp-pWREuClyD6V0P1v6e-f1K-tS-S6tY7_hP-90/exec";
     
     // Funciones auxiliares globales saneadas para garantizar el hoisting en Babel
     function getLocalStorageItemSafe(key, fallback = null) {
@@ -356,14 +356,6 @@
           </svg>
         );
       }
-      if (norm.includes("gear") || norm.includes("ajustes") || norm.includes("setting")) {
-        return (
-          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-          </svg>
-        );
-      }
       return (
         <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
           <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
@@ -382,10 +374,10 @@
     ];
 
     const ESTADOS_MAPA = [
-      { id: "Pendiente", dot: "bg-zinc-300", bg: "bg-zinc-100 text-zinc-700" },
-      { id: "En progreso", dot: "bg-blue-400", bg: "bg-[#EBF5FE] text-blue-700" },
-      { id: "Seguimiento", dot: "bg-amber-400", bg: "bg-[#FEF6E0] text-amber-700" },
-      { id: "En revision", dot: "bg-purple-400", bg: "bg-[#F5EEFC] text-purple-700" },
+      { id: "Pendiente", dot: "bg-[#7c7c7c]", bg: "bg-zinc-100 text-zinc-700" },
+      { id: "En progreso", dot: "bg-blue-500", bg: "bg-[#EBF5FE] text-blue-700" },
+      { id: "Seguimiento", dot: "bg-amber-500", bg: "bg-[#FEF6E0] text-amber-700" },
+      { id: "En revision", dot: "bg-purple-500", bg: "bg-[#F5EEFC] text-purple-700" },
       { id: "En pausa", dot: "bg-red-400", bg: "bg-[#FDF0EE] text-red-700" },
       { id: "Completada", dot: "bg-emerald-500", bg: "bg-[#EDFBF2] text-emerald-700" }
     ];
@@ -446,7 +438,7 @@
     };
 
     // =========================================================================
-    // 📅 COMPONENTE: CALENDARIO MENSUAL INTEGRADO (NOTION CALENDAR VIEW)
+    // 📅 COMPONENTE: CALENDARIO MENSUAL INTEGRADO (NOTION CALENDAR VIEW - FULL WIDTH)
     // =========================================================================
     function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle }) {
       const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth());
@@ -459,7 +451,6 @@
       
       const dayNames = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"];
 
-      // Navegación de mes
       const handlePrevMonth = () => {
         if (currentMonth === 0) {
           setCurrentMonth(11);
@@ -479,14 +470,13 @@
       };
 
       const gridCells = useMemo(() => {
-        const firstDay = new Date(currentYear, currentMonth, 1).getDay(); // Dom = 0, Lun = 1, etc.
-        const offset = firstDay === 0 ? 6 : firstDay - 1; // Ajustar a inicio de lunes (0 = Lunes, 6 = Domingo)
+        const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+        const offset = firstDay === 0 ? 6 : firstDay - 1; 
         const daysCount = new Date(currentYear, currentMonth + 1, 0).getDate();
 
         const cells = [];
         const prevMonthDays = new Date(currentYear, currentMonth, 0).getDate();
 
-        // Relleno mes anterior
         for (let i = offset - 1; i >= 0; i--) {
           cells.push({
             day: prevMonthDays - i,
@@ -496,7 +486,6 @@
           });
         }
 
-        // Días mes actual
         for (let i = 1; i <= daysCount; i++) {
           cells.push({
             day: i,
@@ -506,7 +495,6 @@
           });
         }
 
-        // Relleno mes siguiente hasta completar múltiplos de 7
         const remaining = 42 - cells.length;
         for (let i = 1; i <= remaining; i++) {
           cells.push({
@@ -528,23 +516,23 @@
       };
 
       return (
-        <div className="border border-zinc-200 rounded-md bg-white p-4">
-          <div className="flex items-center justify-between border-b pb-3 mb-3">
-            <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">Cronograma Mensual</span>
+        <div className="border border-zinc-200 rounded-md bg-white p-5 w-full">
+          <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-zinc-150">
+            <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Cronograma Mensual</span>
             <div className="flex items-center gap-3">
-              <span className="text-xs font-bold text-zinc-700 font-sans">
+              <span className="text-xs font-bold text-zinc-750 font-sans">
                 {monthNames[currentMonth]} {currentYear}
               </span>
               <div className="flex items-center gap-1 border border-zinc-200 rounded p-0.5 bg-zinc-50">
                 <button 
                   onClick={handlePrevMonth}
-                  className="p-1 text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 rounded transition-colors text-xs"
+                  className="p-1 text-zinc-500 hover:text-zinc-800 hover:bg-zinc-150 rounded transition-colors text-xs"
                 >
                   <i className="fa-solid fa-chevron-left"></i>
                 </button>
                 <button 
                   onClick={handleNextMonth}
-                  className="p-1 text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 rounded transition-colors text-xs"
+                  className="p-1 text-zinc-500 hover:text-zinc-800 hover:bg-zinc-150 rounded transition-colors text-xs"
                 >
                   <i className="fa-solid fa-chevron-right"></i>
                 </button>
@@ -552,13 +540,13 @@
             </div>
           </div>
 
-          {/* Cabecera días de semana */}
-          <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-tight mb-1">
+          {/* Cabecera de días de la semana */}
+          <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-tight mb-2">
             {dayNames.map(d => <div key={d} className="py-1">{d}</div>)}
           </div>
 
           {/* Cuadrícula del mes */}
-          <div className="grid grid-cols-7 gap-1 border-t border-zinc-100 pt-1">
+          <div className="grid grid-cols-7 gap-1.5">
             {gridCells.map((cell, idx) => {
               const dayTasks = tareas.filter(t => isSameDayTask(t, cell.year, cell.month, cell.day));
               const isToday = new Date().getDate() === cell.day && new Date().getMonth() === cell.month && new Date().getFullYear() === cell.year;
@@ -566,9 +554,9 @@
               return (
                 <div 
                   key={idx} 
-                  className={`min-h-[64px] border border-zinc-100 rounded p-1 flex flex-col justify-between transition-colors ${
-                    cell.isCurrentMonth ? 'bg-white' : 'bg-[#FAF9F6]/40 text-zinc-350'
-                  } ${isToday ? 'border-zinc-400 ring-[0.5px] ring-zinc-400/50' : ''}`}
+                  className={`min-h-[85px] border border-zinc-150 rounded p-1.5 flex flex-col justify-between transition-colors ${
+                    cell.isCurrentMonth ? 'bg-white' : 'bg-[#FAF9F6]/50 text-zinc-300'
+                  } ${isToday ? 'border-zinc-400 ring-[0.5px] ring-zinc-400/30' : ''}`}
                 >
                   {/* Número del día */}
                   <div className="flex items-center justify-between">
@@ -577,31 +565,23 @@
                     }`}>
                       {cell.day}
                     </span>
-                    {dayTasks.length > 0 && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
-                    )}
                   </div>
 
-                  {/* Listado compacto de entregables del día */}
-                  <div className="flex flex-col gap-0.5 mt-1 overflow-y-auto max-h-[42px] no-scrollbar">
-                    {dayTasks.slice(0, 3).map(t => {
+                  {/* Listado de entregables del día */}
+                  <div className="flex flex-col gap-1 mt-1.5 overflow-y-auto max-h-[58px] no-scrollbar">
+                    {dayTasks.map(t => {
                       const badgeStyle = getMarcaStyle(t.marca);
                       return (
                         <div 
                           key={t.idTarea}
                           onClick={() => onSelectTask(t)}
-                          className={`text-[8px] font-semibold truncate px-1 py-0.5 rounded cursor-pointer border border-zinc-150 transition-colors uppercase tracking-tight ${badgeStyle.bg} ${badgeStyle.text}`}
-                          title={t.info}
+                          className={`text-[9px] font-medium truncate px-1.5 py-0.5 rounded border border-transparent hover:border-zinc-300 transition-colors uppercase tracking-tight ${badgeStyle.bg} ${badgeStyle.text} cursor-pointer`}
+                          title={`${t.marca}: ${t.info}`}
                         >
                           {t.info}
                         </div>
                       );
                     })}
-                    {dayTasks.length > 3 && (
-                      <span className="text-[8px] text-zinc-400 font-bold block pl-1">
-                        +{dayTasks.length - 3} más
-                      </span>
-                    )}
                   </div>
 
                 </div>
@@ -687,7 +667,7 @@
                         </tr>
 
                         {tareasDeMarca.map(t => {
-                          const cEstado = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(t.estado)) || { color: "text-zinc-600", dot: "bg-zinc-300", bg: "bg-zinc-50" };
+                          const cEstado = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(t.estado)) || { color: "text-zinc-600", dot: "bg-[#7c7c7c]", bg: "bg-zinc-50" };
                           const cPrioridad = PRIORIDADES_MAPA.find(p => cleanPrioridad(p.id) === cleanPrioridad(t.prioridad)) || PRIORIDADES_MAPA[1];
                           const displayId = cleanIdTarea(t.idTarea);
                           
@@ -732,7 +712,7 @@
 
                               <td className="py-2.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
                                 <div className="inline-flex items-center justify-center">
-                                  <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md border border-zinc-150 ${cEstado.bg}`}>
+                                  <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded border border-zinc-150 ${cEstado.bg}`}>
                                     <span className={`w-1.5 h-1.5 rounded-full ${cEstado.dot}`}></span>
                                     <select
                                       value={t.estado}
@@ -1020,7 +1000,7 @@
       const [widgetTitulo, setWidgetTitulo] = useState("");
       const [widgetLink, setWidgetLink] = useState("");
       const [widgetIcon, setWidgetIcon] = useState("link");
-      const [widgetColor, setWidgetColor] = useState("bg-[#EBF5FE] text-blue-700");
+      const [widgetColor, setWidgetColor] = useState("bg-zinc-100 text-zinc-700");
       const [showAddWidgetModal, setShowAddWidgetModal] = useState(false);
 
       const stats = useMemo(() => {
@@ -1065,9 +1045,9 @@
       };
 
       return (
-        <div className="flex flex-col gap-6 animate-fade-in">
+        <div className="flex flex-col gap-5 animate-fade-in">
           {/* Bienvenida limpia */}
-          <div className="border-b border-zinc-100 pb-3 flex items-center justify-between">
+          <div className="border-b border-zinc-150 pb-2.5 flex items-center justify-between">
             <div>
               <h2 className="text-xl font-extrabold text-[#37352F] tracking-tight">
                 Home
@@ -1076,9 +1056,6 @@
                 Workspace unificado de Trade & Shopper Marketing.
               </p>
             </div>
-            <span className="text-[10px] font-semibold text-zinc-400 bg-zinc-50 border border-zinc-200 px-2 py-1 rounded">
-              Socio Estratégico ROBIN
-            </span>
           </div>
 
           {/* BARRA HORIZONTAL DE ACCESOS DIRECTOS (WIDGETS) */}
@@ -1125,6 +1102,47 @@
             </div>
           </div>
 
+          {/* PRIORIDAD ALTA ACTIVA - BARRA HORIZONTAL PRINCIPAL */}
+          <div className="border border-zinc-200 p-4 rounded-md bg-white flex flex-col gap-3">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
+              <span className="text-[10px] font-bold uppercase text-zinc-400 tracking-wider">Prioridad Alta Activa (Entregas Urgentes)</span>
+              <span className="text-[10px] bg-red-50 text-red-750 px-2 py-0.5 rounded border border-red-100 font-semibold">Urgentes</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {highPriorityTasks.length === 0 ? (
+                <div className="col-span-full py-4 text-center text-zinc-400 text-xs">
+                  No hay entregables urgentes pendientes en este momento.
+                </div>
+              ) : (
+                highPriorityTasks.map(t => {
+                  const cMarca = getMarcaStyle(t.marca);
+                  return (
+                    <div 
+                      key={t.idTarea} 
+                      onClick={() => onSelectTask(t)}
+                      className="p-3 border border-zinc-200 rounded hover:bg-zinc-50/60 transition-colors cursor-pointer flex flex-col justify-between gap-2 bg-white"
+                    >
+                      <div>
+                        <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                          <span className={`text-[9px] font-bold px-1.5 py-0.25 rounded border uppercase tracking-tight ${cMarca.bg} ${cMarca.text} ${cMarca.border}`}>
+                            {t.marca || "Otros"}
+                          </span>
+                          <span className="font-mono text-[9px] text-zinc-400 font-medium">{cleanIdTarea(t.idTarea)}</span>
+                        </div>
+                        <p className="text-xs font-semibold text-[#37352F] line-clamp-2 leading-relaxed">{t.info}</p>
+                      </div>
+                      <div className="flex items-center justify-between pt-1 border-t border-zinc-100 text-[10px] text-zinc-500">
+                        <span>Límite: <span className="font-bold text-zinc-700">{t.deadline ? formatearFecha(t.deadline) : "--/--"}</span></span>
+                        <i className="fa-solid fa-arrow-right text-zinc-300 text-[9px]"></i>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
           {/* Estadísticas en formato Notion Table */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 border border-zinc-200 rounded-md p-4 bg-[#FAF9F6]/20">
             <div>
@@ -1145,69 +1163,20 @@
             </div>
           </div>
 
-          {/* Sección de Calendario y Urgentes */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-            
-            {/* Calendario de entregables */}
-            <div className="lg:col-span-2">
-              <CalendarioNotion 
-                tareas={tareas} 
-                onSelectTask={onSelectTask} 
-                getMarcaStyle={getMarcaStyle}
-              />
-            </div>
-
-            {/* Urgentes de Prioridad Alta */}
-            <div className="border border-zinc-200 p-4 rounded-md bg-white flex flex-col gap-3">
-              <div className="flex items-center justify-between border-b pb-2">
-                <span className="text-xs font-bold uppercase text-zinc-500 tracking-wider">Entregas Urgentes</span>
-                <span className="text-[10px] bg-red-50 text-red-700 px-2 py-0.5 rounded border border-red-100 font-semibold">Prioridad Alta</span>
-              </div>
-
-              <div className="flex flex-col divide-y divide-zinc-100">
-                {highPriorityTasks.length === 0 ? (
-                  <div className="py-8 text-center text-zinc-400 text-xs">
-                    No hay entregables urgentes pendientes.
-                  </div>
-                ) : (
-                  highPriorityTasks.map(t => {
-                    const cMarca = getMarcaStyle(t.marca);
-                    return (
-                      <div 
-                        key={t.idTarea} 
-                        onClick={() => onSelectTask(t)}
-                        className="py-2.5 flex items-center justify-between gap-4 cursor-pointer hover:bg-zinc-50/65 transition-colors rounded px-1"
-                      >
-                        <div className="flex flex-col gap-0.5 overflow-hidden">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className={`text-[8px] font-bold px-1 py-0.25 rounded border uppercase tracking-tight ${cMarca.bg} ${cMarca.text} ${cMarca.border}`}>
-                              {t.marca || "Otros"}
-                            </span>
-                            <span className="font-mono text-[9px] text-zinc-400 font-semibold">{cleanIdTarea(t.idTarea)}</span>
-                          </div>
-                          <p className="text-xs font-medium text-[#37352F] truncate">{t.info}</p>
-                        </div>
-                        <div className="flex items-center gap-2 text-right shrink-0">
-                          <div>
-                            <span className="text-[8px] text-zinc-400 block font-normal">LIMITE</span>
-                            <span className="text-[10px] font-semibold text-zinc-600">{t.deadline ? formatearFecha(t.deadline) : "--/--"}</span>
-                          </div>
-                          <i className="fa-solid fa-chevron-right text-zinc-300 text-[10px]"></i>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
+          {/* Calendario de entregables - ANCHO COMPLETO */}
+          <div className="w-full">
+            <CalendarioNotion 
+              tareas={tareas} 
+              onSelectTask={onSelectTask} 
+              getMarcaStyle={getMarcaStyle}
+            />
           </div>
 
           {/* Modal para añadir enlace */}
           {showAddWidgetModal && (
             <div className="fixed inset-0 bg-black/10 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
-              <div className="bg-white p-5 rounded-md border border-zinc-300 shadow-md w-full max-w-sm animate-zoom-in">
-                <div className="flex items-center justify-between border-b pb-2 mb-3">
+              <div className="bg-white p-5 rounded border border-zinc-200 shadow-md w-full max-w-sm animate-zoom-in">
+                <div className="flex items-center justify-between border-b pb-2.5 mb-3.5 border-zinc-250">
                   <span className="text-xs font-bold uppercase text-zinc-500 tracking-wider">Añadir enlace</span>
                   <button 
                     onClick={() => setShowAddWidgetModal(false)}
@@ -1225,7 +1194,7 @@
                       placeholder="Ej: Carpeta de Diseños, Drive..."
                       value={widgetTitulo}
                       onChange={(e) => setWidgetTitulo(e.target.value)}
-                      className="w-full bg-zinc-50 border border-zinc-200 px-2.5 py-1.5 text-xs rounded focus:outline-none font-medium text-[#37352F]"
+                      className="w-full bg-[#FAF9F6]/60 border border-zinc-200 px-2.5 py-1.5 text-xs rounded focus:outline-none font-medium text-[#37352F]"
                     />
                   </div>
 
@@ -1237,17 +1206,17 @@
                       placeholder="https://docs.google.com/..."
                       value={widgetLink}
                       onChange={(e) => setWidgetLink(e.target.value)}
-                      className="w-full bg-zinc-50 border border-zinc-200 px-2.5 py-1.5 text-xs rounded focus:outline-none font-medium text-[#37352F]"
+                      className="w-full bg-[#FAF9F6]/60 border border-zinc-200 px-2.5 py-1.5 text-xs rounded focus:outline-none font-medium text-[#37352F]"
                     />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-3.5">
                     <div>
                       <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Icono</label>
                       <select 
                         value={widgetIcon}
                         onChange={(e) => setWidgetIcon(e.target.value)}
-                        className="w-full bg-zinc-50 border border-zinc-200 px-2 py-1.5 text-xs rounded focus:outline-none font-medium text-[#37352F]"
+                        className="w-full bg-[#FAF9F6] border border-zinc-200 px-2.5 py-1.5 text-xs rounded focus:outline-none font-medium text-[#37352F] cursor-pointer hover:bg-zinc-50 transition-colors"
                       >
                         <option value="link">Enlace</option>
                         <option value="chart">Métricas</option>
@@ -1263,7 +1232,7 @@
                       <select 
                         value={widgetColor}
                         onChange={(e) => handleAddWidgetColorClass(e.target.value)}
-                        className="w-full bg-zinc-50 border border-zinc-200 px-2 py-1.5 text-xs rounded focus:outline-none font-medium text-[#37352F]"
+                        className="w-full bg-[#FAF9F6] border border-zinc-200 px-2.5 py-1.5 text-xs rounded focus:outline-none font-medium text-[#37352F] cursor-pointer hover:bg-zinc-50 transition-colors"
                       >
                         <option value="bg-[#EBF5FE] text-blue-700">Azul</option>
                         <option value="bg-[#F5EEFC] text-purple-700">Morado</option>
@@ -1275,7 +1244,7 @@
                     </div>
                   </div>
 
-                  <div className="flex gap-2 justify-end mt-2">
+                  <div className="flex gap-2 justify-end mt-3 border-t pt-3.5 border-zinc-150">
                     <button 
                       type="button"
                       onClick={() => setShowAddWidgetModal(false)}
@@ -1285,7 +1254,7 @@
                     </button>
                     <button 
                       type="submit"
-                      className="px-3 py-1.5 bg-[#37352F] text-white text-xs font-semibold rounded hover:bg-[#2c2a26]"
+                      className="px-4 py-1.5 bg-[#37352F] text-white text-xs font-semibold rounded hover:bg-[#2c2a26]"
                     >
                       Guardar
                     </button>
@@ -1775,6 +1744,11 @@
         return usuario === "admin" || usuario === "fcolmenares";
       }, [usuario]);
 
+      // Comprobación de si es un usuario administrador restrictivo (Solo configuración)
+      const isConfigOnlyAdmin = useMemo(() => {
+        return usuario === "admin";
+      }, [usuario]);
+
       const [listaUsuarios, setListaUsuarios] = useState(() => {
         const guardados = localStorage.getItem("robin_lista_usuarios");
         return guardados ? JSON.parse(guardados) : ["fcolmenares", "ralvarez", "dsalavarria", "mbonilla", "gnebrus", "sgiucastro", "admin"];
@@ -1796,7 +1770,10 @@
       const [filtroPrioridad, setFiltroPrioridad] = useState("TODAS"); 
       const [searchQuery, setSearchQuery] = useState("");
       
-      const [paginaActiva, setPaginaActiva] = useState("home"); 
+      const [paginaActiva, setPaginaActiva] = useState(() => {
+        const u = getInicialUsuario();
+        return u === "admin" ? "configuracion" : "home";
+      }); 
       const [vistaModo, setVistaModo] = useState("TABLE"); 
 
       const [activeTask, setActiveTask] = useState(null);
@@ -1837,6 +1814,13 @@
         }, 100);
         return () => clearInterval(interval);
       }, []);
+
+      // Redireccionar al admin restrictivo a configuracion
+      useEffect(() => {
+        if (usuario === "admin" && paginaActiva !== "configuracion") {
+          setPaginaActiva("configuracion");
+        }
+      }, [usuario, paginaActiva]);
 
       useEffect(() => {
         if (!usuario || !firebaseLib) return;
@@ -1979,6 +1963,12 @@
       };
 
       const navegarA = (pagina, extraFn = null) => {
+        // Impedir navegación si es un admin puramente de configuración
+        if (isConfigOnlyAdmin && pagina !== "configuracion") {
+          setPaginaActiva("configuracion");
+          showToast("Función restringida para el administrador de ajustes", "info");
+          return;
+        }
         setPaginaActiva(pagina);
         if (extraFn) extraFn();
         setSidebarOpen(false);
@@ -1989,7 +1979,7 @@
         showToast("Registrando enlace...", "info");
 
         const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
-        if (!effectiveUrl || apiError) {
+        if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here") || apiError) {
           showToast("Enlace de área añadido localmente", "success");
           return;
         }
@@ -2023,7 +2013,7 @@
         showToast("Eliminando enlace...", "info");
 
         const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
-        if (!effectiveUrl || apiError) {
+        if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here") || apiError) {
           showToast("Enlace eliminado", "info");
           return;
         }
@@ -2072,6 +2062,11 @@
         setUsuario(userClean);
         localStorage.setItem("robin_usuario_actual", userClean);
         setLoginError("");
+        if (userClean === "admin") {
+          setPaginaActiva("configuracion");
+        } else {
+          setPaginaActiva("home");
+        }
         showToast(`Sesión iniciada: @${userClean}`, "success");
       };
 
@@ -2133,7 +2128,7 @@
         setApiError(null);
         
         const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
-        if (!effectiveUrl) {
+        if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here")) {
           setTareas([]); 
           if (!isBackground) showToast("Base de datos no configurada", "info");
           setLoading(false);
@@ -2462,152 +2457,27 @@
         });
       }, [tareas, filtroTiempo, filtroMarca, filtroEstado, filtroPrioridad, searchQuery]);
 
+      const metricaCounters = useMemo(() => {
+        const hoy = new Date();
+        const tHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
+        const activasHoy = tareas.filter(t => {
+          const tDeadline = obtenerTiempoFecha(t.deadline);
+          return tDeadline !== Infinity && tDeadline === tHoy && cleanEstado(t.estado) !== "completada";
+        }).length;
+
+        const atrasadas = tareas.filter(t => {
+          const tDeadline = obtenerTiempoFecha(t.deadline);
+          return tDeadline !== Infinity && tDeadline < tHoy && cleanEstado(t.estado) !== "completada";
+        }).length;
+        
+        return { activasHoy, atrasadas };
+      }, [tareas]);
+
       const getMarcaStyle = (marcaName) => {
         if (!marcaName) return { bg: "bg-zinc-150", text: "text-zinc-800", border: "border-zinc-200" };
         const clean = marcaName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
         return MARCAS_COLORES[clean] || { bg: "bg-zinc-100", text: "text-zinc-700", border: "border-zinc-200" };
       };
-
-      const handleSaveBrandMetadata = async (brand, newMeta) => {
-        const actualizados = { ...marcasMetadata, [brand]: newMeta };
-        setMarcasMetadata(actualizados);
-        showToast("Actualizando ficha de cliente...", "info");
-
-        const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
-        if (!effectiveUrl || apiError) {
-          showToast("Ficha guardada localmente", "success");
-          return;
-        }
-
-        setSyncing(true);
-        try {
-          await fetch(effectiveUrl, {
-            method: "POST", mode: "cors", redirect: "follow",
-            headers: { "Content-Type": "text/plain; charset=utf-8" },
-            body: JSON.stringify({
-              campo: "crearMarca",
-              nuevaMarca: brand,
-              logoUrl: newMeta.logoUrl,
-              ejecutivo: newMeta.ejecutivo,
-              disenador: newMeta.disenador,
-              content: newMeta.content
-            })
-          });
-          showToast("Ficha guardada en Google Sheets", "success");
-          await fetchData(true);
-        } catch (e) {
-          showToast("Guardado local (Falla de red)", "error");
-        } finally {
-          setSyncing(false);
-        }
-      };
-
-      const handleCreateBrand = async (brandPayload) => {
-        showToast("Insertando nueva hoja en Sheets...", "info");
-        const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
-        if (!effectiveUrl || apiError) {
-          const actualizadasMeta = {
-            ...marcasMetadata,
-            [brandPayload.nuevaMarca]: {
-              logoUrl: brandPayload.logoUrl,
-              ejecutivo: brandPayload.ejecutivo,
-              disenador: brandPayload.disenador,
-              content: brandPayload.content
-            }
-          };
-          setMarcasMetadata(actualizadasMeta);
-          showToast("Cliente creado localmente", "success");
-          return;
-        }
-
-        setSyncing(true);
-        try {
-          const res = await fetch(effectiveUrl, {
-            method: "POST", mode: "cors", redirect: "follow",
-            headers: { "Content-Type": "text/plain; charset=utf-8" },
-            body: JSON.stringify({
-              campo: "crearMarca",
-              nuevaMarca: brandPayload.nuevaMarca,
-              logoUrl: brandPayload.logoUrl,
-              ejecutivo: brandPayload.ejecutivo,
-              disenador: brandPayload.disenador,
-              content: brandPayload.content
-            })
-          });
-          const json = await res.json();
-          if (json.success) {
-            showToast("Nueva pestaña creada en Sheets", "success");
-            await fetchData(true);
-          }
-        } catch (e) {
-          showToast("Falla de red al crear marca", "error");
-        } finally {
-          setSyncing(false);
-        }
-      };
-
-      // =========================================================================
-      // 🛡️ CONTROL DE ACCESO (LOGIN MODERNO)
-      // =========================================================================
-      if (!usuario) {
-        return (
-          <div className="h-screen w-screen bg-[#FAFAFA] flex items-center justify-center p-4 select-none animate-fade-in">
-            <div className="bg-white border border-zinc-200 shadow-sm rounded-md p-6 md:p-8 w-full max-w-sm flex flex-col gap-6">
-              
-              <div className="flex flex-col items-center gap-1.5">
-                <RobinLogo className="h-8 w-auto" theme="notion" />
-                <span className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mt-1">Workspace Login</span>
-              </div>
-
-              {loginError && (
-                <div className="p-2.5 bg-red-50 text-red-650 border border-red-100 text-xs font-semibold rounded flex items-center gap-2">
-                  <i className="fa-solid fa-circle-exclamation text-red-550"></i>
-                  <span>{loginError}</span>
-                </div>
-              )}
-
-              <form onSubmit={handleLogin} className="flex flex-col gap-4">
-                <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Colaborador (Usuario)</label>
-                  <input 
-                    type="text" 
-                    name="username" 
-                    required 
-                    placeholder="Tu usuario..."
-                    className="w-full bg-zinc-50 border border-zinc-200 p-2.5 text-xs font-semibold rounded focus:outline-none text-[#37352F] placeholder-zinc-400"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Contraseña</label>
-                  <input 
-                    type="password" 
-                    required 
-                    placeholder="••••••••" 
-                    value={claveInput}
-                    onChange={(e) => setClaveInput(e.target.value)}
-                    className="w-full bg-zinc-50 border border-zinc-200 p-2.5 text-xs rounded focus:outline-none text-[#37352F]"
-                  />
-                </div>
-
-                <button 
-                  type="submit"
-                  className="w-full bg-[#37352F] hover:bg-[#2c2a26] text-white font-semibold py-2.5 px-4 rounded text-xs uppercase tracking-wider shadow-sm transition-colors mt-1"
-                >
-                  Acceder
-                </button>
-              </form>
-
-              <div className="text-center">
-                <p className="text-[10px] text-zinc-400 font-semibold leading-relaxed">
-                  Acceso exclusivo de Trade & Shopper Marketing.<br />
-                  Socio estratégico de marca ROBIN.
-                </p>
-              </div>
-            </div>
-          </div>
-        );
-      }
 
       return (
         <div className={`flex h-screen w-screen overflow-hidden ${currentTheme.bg} ${currentTheme.text} select-none transition-all`}>
@@ -2674,74 +2544,83 @@
                   </div>
                 </div>
 
-                <div className="px-2.5 pt-1">
-                  <button 
-                    disabled={isSubmitting || syncing}
-                    onClick={() => navegarA("agregar")}
-                    className="w-full bg-[#37352F] hover:bg-[#2c2a26] text-white font-medium py-1.5 px-3 rounded text-xs transition-colors flex items-center justify-center gap-1 shadow-sm disabled:opacity-50"
-                  >
-                    <SVGIcon.Plus />
-                    <span>Añadir entregable</span>
-                  </button>
-                </div>
+                {/* OCULTAR MENÚ PARA ADMINISTRADOR EXCLUSIVO DE AJUSTES */}
+                {!isConfigOnlyAdmin && (
+                  <div className="px-2.5 pt-1">
+                    <button 
+                      disabled={isSubmitting || syncing}
+                      onClick={() => navegarA("agregar")}
+                      className="w-full bg-[#37352F] hover:bg-[#2c2a26] text-white font-medium py-1.5 px-3 rounded text-xs transition-colors flex items-center justify-center gap-1 shadow-sm disabled:opacity-50"
+                    >
+                      <SVGIcon.Plus />
+                      <span>Añadir entregable</span>
+                    </button>
+                  </div>
+                )}
 
                 <nav className="p-2.5 flex flex-col gap-1">
-                  <span className="px-2 text-[8px] font-bold text-zinc-400 tracking-wider uppercase mb-1">Navegación</span>
-                  
-                  <button
-                    onClick={() => navegarA("home")}
-                    className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold transition-all ${
-                      paginaActiva === "home" ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-200" : "text-zinc-550 hover:bg-zinc-100/50"
-                    }`}
-                  >
-                    <SVGIcon.Home />Home
-                  </button>
-
-                  <button
-                    onClick={() => navegarA("dashboard", () => { setFiltroTiempo("TODAS"); setFiltroMarca("TODAS"); setFiltroEstado("TODOS"); setFiltroPrioridad("TODAS"); })}
-                    className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold transition-all ${
-                      paginaActiva === "dashboard" && filtroTiempo === "TODAS" && filtroMarca === "TODAS" && filtroEstado === "TODOS" && filtroPrioridad === "TODAS"
-                        ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-200" : "text-zinc-550 hover:bg-zinc-100/50"
-                    }`}
-                  >
-                    <SVGIcon.All />Todos los entregables
-                  </button>
-
-                  <span className="px-2 text-[8px] font-bold text-zinc-400 tracking-wider uppercase mb-1 mt-3">Marcas</span>
-                  <div className="flex flex-col gap-0.5 max-h-32 overflow-y-auto">
-                    <button
-                      onClick={() => { setFiltroMarca("TODAS"); setPaginaActiva("dashboard"); }}
-                      className={`flex items-center gap-2 w-full px-2 py-1 rounded text-[11px] font-semibold text-left transition-all ${
-                        filtroMarca === "TODAS" && paginaActiva === "dashboard" ? "bg-zinc-200/50 text-[#37352F] font-bold" : "text-zinc-550 hover:bg-zinc-100/30"
-                      }`}
-                    >
-                      <i className="fa-solid fa-layer-group text-[9px] text-zinc-400"></i>
-                      <span>Todos los Clientes</span>
-                    </button>
-                    {marcasDisponibles.map(b => (
+                  {/* MENÚ CONDICIONAL SEGÚN ROL DE USUARIO */}
+                  {!isConfigOnlyAdmin ? (
+                    <React.Fragment>
+                      <span className="px-2 text-[8px] font-bold text-zinc-400 tracking-wider uppercase mb-1">Navegación</span>
+                      
                       <button
-                        key={b}
-                        onClick={() => { setFiltroMarca(b); setFiltroTiempo("TODAS"); setPaginaActiva("dashboard"); }}
-                        className={`flex items-center gap-1.5 w-full px-2 py-1 rounded text-[11px] font-semibold text-left transition-all ${
-                          filtroMarca === b && paginaActiva === "dashboard" ? "bg-zinc-200/50 text-[#37352F] font-bold" : "text-zinc-550 hover:bg-zinc-100/30"
+                        onClick={() => navegarA("home")}
+                        className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold transition-all ${
+                          paginaActiva === "home" ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-200" : "text-zinc-550 hover:bg-zinc-100/50"
                         }`}
                       >
-                        <i className="fa-solid fa-chevron-right text-[7px] text-zinc-400"></i>
-                        <span className="truncate">{b}</span>
+                        <SVGIcon.Home />Home
                       </button>
-                    ))}
-                  </div>
 
-                  <span className="px-2 text-[8px] font-bold text-zinc-400 tracking-wider uppercase mb-1 mt-3">Administración</span>
-                  <button
-                    onClick={() => navegarA("clientes")}
-                    className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold transition-all ${
-                      paginaActiva === "clientes" ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-200" : "text-zinc-550 hover:bg-zinc-100/50"
-                    }`}
-                  >
-                    <i className="fa-regular fa-address-book text-zinc-400 text-[11px]"></i>Fichas Técnicas
-                  </button>
+                      <button
+                        onClick={() => navegarA("dashboard", () => { setFiltroTiempo("TODAS"); setFiltroMarca("TODAS"); setFiltroEstado("TODOS"); setFiltroPrioridad("TODAS"); })}
+                        className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold transition-all ${
+                          paginaActiva === "dashboard" && filtroTiempo === "TODAS" && filtroMarca === "TODAS" && filtroEstado === "TODOS" && filtroPrioridad === "TODAS"
+                            ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-200" : "text-zinc-550 hover:bg-zinc-100/50"
+                        }`}
+                      >
+                        <SVGIcon.All />Todos los entregables
+                      </button>
 
+                      <span className="px-2 text-[8px] font-bold text-zinc-400 tracking-wider uppercase mb-1 mt-3">Marcas</span>
+                      <div className="flex flex-col gap-0.5 max-h-32 overflow-y-auto">
+                        <button
+                          onClick={() => { setFiltroMarca("TODAS"); setPaginaActiva("dashboard"); }}
+                          className={`flex items-center gap-2 w-full px-2 py-1 rounded text-[11px] font-semibold text-left transition-all ${
+                            filtroMarca === "TODAS" && paginaActiva === "dashboard" ? "bg-zinc-200/50 text-[#37352F] font-bold" : "text-zinc-550 hover:bg-zinc-100/30"
+                          }`}
+                        >
+                          <i className="fa-solid fa-layer-group text-[9px] text-zinc-400"></i>
+                          <span>Todos los Clientes</span>
+                        </button>
+                        {marcasDisponibles.map(b => (
+                          <button
+                            key={b}
+                            onClick={() => { setFiltroMarca(b); setFiltroTiempo("TODAS"); setPaginaActiva("dashboard"); }}
+                            className={`flex items-center gap-1.5 w-full px-2 py-1 rounded text-[11px] font-semibold text-left transition-all ${
+                              filtroMarca === b && paginaActiva === "dashboard" ? "bg-zinc-200/50 text-[#37352F] font-bold" : "text-zinc-550 hover:bg-zinc-100/30"
+                            }`}
+                          >
+                            <i className="fa-solid fa-chevron-right text-[7px] text-zinc-400"></i>
+                            <span className="truncate">{b}</span>
+                          </button>
+                        ))}
+                      </div>
+
+                      <span className="px-2 text-[8px] font-bold text-zinc-400 tracking-wider uppercase mb-1 mt-3">Administración</span>
+                      <button
+                        onClick={() => navegarA("clientes")}
+                        className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold transition-all ${
+                          paginaActiva === "clientes" ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-200" : "text-zinc-550 hover:bg-zinc-100/50"
+                        }`}
+                      >
+                        <i className="fa-regular fa-address-book text-zinc-400 text-[11px]"></i>Fichas Técnicas
+                      </button>
+                    </React.Fragment>
+                  ) : null}
+
+                  <span className="px-2 text-[8px] font-bold text-zinc-400 tracking-wider uppercase mb-1 mt-3">Soporte</span>
                   <button
                     onClick={() => navegarA("configuracion")}
                     className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold transition-all ${
@@ -2775,7 +2654,7 @@
                   <i className="fa-solid fa-bars text-sm"></i>
                 </button>
                 <h1 className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-                  Trade & Shopper Marketing Workspace
+                  Trade & Shopper Marketing Workspace {isConfigOnlyAdmin ? "- Admin" : ""}
                 </h1>
               </div>
 
@@ -2799,20 +2678,22 @@
                   )}
                 </div>
 
-                <button 
-                  onClick={() => fetchData(false)}
-                  disabled={loading}
-                  className="p-1.5 text-zinc-400 hover:text-zinc-800 border rounded bg-white hover:bg-zinc-50 transition-colors"
-                  title="Actualizar base de datos"
-                >
-                  <i className={`fa-solid fa-arrows-rotate text-xs ${loading ? 'animate-spin' : ''}`}></i>
-                </button>
+                {!isConfigOnlyAdmin && (
+                  <button 
+                    onClick={() => fetchData(false)}
+                    disabled={loading}
+                    className="p-1.5 text-zinc-400 hover:text-zinc-800 border rounded bg-white hover:bg-zinc-50 transition-colors"
+                    title="Actualizar base de datos"
+                  >
+                    <i className={`fa-solid fa-arrows-rotate text-xs ${loading ? 'animate-spin' : ''}`}></i>
+                  </button>
+                )}
               </div>
             </header>
 
             <div className="flex-1 overflow-y-auto p-6 max-w-6xl mx-auto w-full">
               
-              {paginaActiva === "home" && (
+              {paginaActiva === "home" && !isConfigOnlyAdmin && (
                 <LayoutHome 
                   tareas={tareas} 
                   nombreUsuario={nombreCompleto} 
@@ -2828,7 +2709,7 @@
                 />
               )}
 
-              {paginaActiva === "agregar" && (
+              {paginaActiva === "agregar" && !isConfigOnlyAdmin && (
                 <div className="max-w-xl mx-auto border border-zinc-200 p-6 rounded-md bg-white animate-fade-in">
                   <h2 className="text-sm font-bold uppercase tracking-wider border-b pb-2 text-zinc-500">Crear Entregable</h2>
                   
@@ -2953,7 +2834,7 @@
                 </div>
               )}
 
-              {paginaActiva === "dashboard" && (
+              {paginaActiva === "dashboard" && !isConfigOnlyAdmin && (
                 <div className="flex flex-col gap-5 animate-fade-in">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
@@ -3078,7 +2959,6 @@
                       onSelectTask={(t) => { setActiveTask(t); setIsEditing(true); }}
                       onDeleteTask={(t) => setTaskToDelete(t)}
                       getMarcaStyle={getMarcaStyle}
-                      filtroTiempo={filtroTiempo}
                       currentTheme={currentTheme}
                     />
                   ) : (
@@ -3094,7 +2974,7 @@
                 </div>
               )}
 
-              {paginaActiva === "clientes" && (
+              {paginaActiva === "clientes" && !isConfigOnlyAdmin && (
                 <LayoutClientes 
                   marcas={marcasDisponibles}
                   marcasMetadata={marcasMetadata}
@@ -3106,8 +2986,8 @@
               {paginaActiva === "configuracion" && (
                 <div className="max-w-xl mx-auto border border-zinc-200 p-6 rounded-md bg-white animate-fade-in flex flex-col gap-6">
                   <div>
-                    <h2 className="text-sm font-bold uppercase tracking-wider border-b pb-2 text-zinc-500">Ajustes</h2>
-                    <p className="text-xs text-zinc-400 mt-1">Configuración del portal y perfiles de colaborador.</p>
+                    <h2 className="text-sm font-bold uppercase tracking-wider border-b pb-2 text-zinc-500">Ajustes del Sistema</h2>
+                    <p className="text-xs text-zinc-400 mt-1">Configuración técnica de origen de datos y autorización de personal.</p>
                   </div>
 
                   {/* Integración Google Sheets Informada */}
@@ -3115,37 +2995,39 @@
                     <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Base de Datos</span>
                     <div className="bg-[#FAF9F6] p-3 rounded border border-zinc-200 text-xs text-zinc-600 flex items-start gap-2.5 font-medium leading-normal">
                       <i className="fa-solid fa-circle-check text-emerald-500 mt-0.5"></i>
-                      <div>
+                      <div className="overflow-hidden">
                         <p className="text-[#37352F] font-bold">API de Google Sheets configurada</p>
-                        <p className="text-zinc-400 font-normal mt-0.5 text-[11px] truncate max-w-sm md:max-w-md">
+                        <p className="text-zinc-450 font-normal mt-0.5 text-[11px] truncate max-w-full">
                           Enlace activo: {AUTO_API_URL}
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  {/* Perfil */}
-                  <div className="flex flex-col gap-2">
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Colaborador</span>
-                    <form onSubmit={handleSaveNombreCompleto} className="bg-zinc-50 p-3 rounded border border-zinc-200 flex flex-col sm:flex-row gap-2 items-end">
-                      <div className="flex-1 w-full">
-                        <label className="block text-[10px] font-semibold text-zinc-400 mb-1">Nombre de perfil</label>
-                        <input 
-                          type="text" 
-                          placeholder="Francisco Colmenares"
-                          value={nombreCompleto}
-                          onChange={(e) => setNombreCompleto(e.target.value)}
-                          className="w-full bg-white border border-zinc-200 px-3 py-1.5 text-xs rounded focus:outline-none font-bold text-[#37352F]"
-                        />
-                      </div>
-                      <button 
-                        type="submit"
-                        className="bg-[#37352F] hover:bg-[#2c2a26] text-white text-xs font-semibold px-4 py-2 rounded transition-colors whitespace-nowrap"
-                      >
-                        Guardar
-                      </button>
-                    </form>
-                  </div>
+                  {/* Ocultar sección de datos personales para administrador global */}
+                  {!isConfigOnlyAdmin && (
+                    <div className="flex flex-col gap-2 animate-fade-in">
+                      <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Colaborador</span>
+                      <form onSubmit={handleSaveNombreCompleto} className="bg-zinc-50 p-3 rounded border border-zinc-200 flex flex-col sm:flex-row gap-2 items-end">
+                        <div className="flex-1 w-full">
+                          <label className="block text-[10px] font-semibold text-zinc-400 mb-1">Nombre de perfil</label>
+                          <input 
+                            type="text" 
+                            placeholder="Francisco Colmenares"
+                            value={nombreCompleto}
+                            onChange={(e) => setNombreCompleto(e.target.value)}
+                            className="w-full bg-white border border-zinc-200 px-3 py-1.5 text-xs rounded focus:outline-none font-bold text-[#37352F]"
+                          />
+                        </div>
+                        <button 
+                          type="submit"
+                          className="bg-[#37352F] hover:bg-[#2c2a26] text-white text-xs font-semibold px-4 py-2 rounded transition-colors whitespace-nowrap"
+                        >
+                          Guardar
+                        </button>
+                      </form>
+                    </div>
+                  )}
 
                   {/* Estilo Visual */}
                   <div className="flex flex-col gap-2">
@@ -3170,7 +3052,7 @@
                     </div>
                   </div>
 
-                  {/* Control de Usuarios */}
+                  {/* Control de Usuarios - Solo accesible para el rol de administrador */}
                   <div className="flex flex-col gap-2">
                     <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Usuarios autorizados</span>
                     {isAdmin ? (
@@ -3215,7 +3097,7 @@
                     ) : (
                       <div className="bg-zinc-50 p-3 rounded border border-zinc-200 text-zinc-500 text-xs font-medium flex items-start gap-2 leading-relaxed">
                         <i className="fa-solid fa-lock text-zinc-400 mt-0.5"></i>
-                        <span>Requiere privilegios de administrador para autorizar o quitar nuevos colaboradores.</span>
+                        <span>Requiere privilegios de administrador para autorizar o desautorizar colaboradores.</span>
                       </div>
                     )}
                   </div>
@@ -3227,7 +3109,7 @@
           </main>
 
           {/* MODALES ADICIONALES */}
-          {isEditing && activeTask && (
+          {isEditing && activeTask && !isConfigOnlyAdmin && (
             <ModalEdicionTarea 
               tarea={activeTask}
               onClose={() => { setIsEditing(false); setActiveTask(null); }}
@@ -3239,7 +3121,7 @@
             />
           )}
 
-          {taskToDelete && (
+          {taskToDelete && !isConfigOnlyAdmin && (
             <div className="fixed inset-0 bg-black/10 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
               <div className="bg-white p-5 rounded-md border border-zinc-300 shadow-md w-full max-w-sm animate-zoom-in flex flex-col gap-4">
                 <h4 className="text-xs font-bold uppercase text-zinc-500 tracking-wider border-b pb-2">Confirmar Eliminación</h4>

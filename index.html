@@ -70,7 +70,7 @@
     const { useState, useEffect, useMemo, useRef } = React;
 
     // =========================================================================
-    // ⚙Iconos SVG Premium vectoriales para la barra lateral
+    // ⚙ Iconos SVG Premium vectoriales para la barra lateral
     // =========================================================================
     const SVGIcon = {
       Home: () => (
@@ -115,89 +115,10 @@
     // ⚙️ URL API DE GOOGLE SHEETS
     // =========================================================================
     const AUTO_API_URL = "https://script.google.com/macros/s/AKfycbz2e8lRzFV6eXFNHKmiLplWhkoPeo_oKy-tMJrpjR3OyKiPkjjirZE1qrZttf193kgMYg/exec"; 
+
     // =========================================================================
-
-    // Limpiador estricto de emojis para mantener la interfaz ultra-limpia
-    function stripEmoji(str) {
-      if (!str) return "";
-      return String(str)
-        .replace(/[\u2600-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '')
-        .trim();
-    }
-
-    const generateBrandId = (marca) => {
-      const prefix = String(marca || "TASK").substring(0, 3).toUpperCase();
-      const randomNum = Math.floor(1000 + Math.random() * 9000);
-      return `${prefix}-${randomNum}`;
-    };
-
-    const getEffectiveApiUrl = (url) => {
-      if (!url) return "";
-      let clean = url.trim();
-      if (clean.includes("/a/macros/")) {
-        clean = clean.replace(/\/a\/macros\/[^\/]+\/s\//, "/macros/s/");
-      }
-      return clean;
-    };
-
-    // 🟢 Función de lectura segura de LocalStorage restablecida
-    const getLocalStorageItemSafe = (key, fallback = null) => {
-      try {
-        const val = localStorage.getItem(key);
-        if (val === null || val === undefined || val === "null" || val === "undefined" || val === "") {
-          return fallback;
-        }
-        return val;
-      } catch (e) {
-        return fallback;
-      }
-    };
-
-    // 🟢 Función de limpieza de ID de tarea declarada a nivel global (Accesible para todos los componentes)
-    function cleanIdTarea(id) {
-      if (!id) return "";
-      const idStr = String(id).trim();
-      if (idStr.includes("GMT") || (idStr.includes("2026") && idStr.length > 15) || idStr.includes("Venezuela") || idStr.startsWith("STB-")) {
-        return "";
-      }
-      return idStr;
-    }
-
-    function convertirFechaAInput(fechaStr) {
-      if (!fechaStr) return "";
-      let limpia = String(fechaStr).split("T")[0].trim();
-      if (/^\d{4}-\d{2}-\d{2}$/.test(limpia)) {
-        return limpia;
-      }
-      const match = limpia.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
-      if (match) {
-        const [_, dia, mes, anio] = match;
-        return `${anio}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-      }
-      const matchReverse = limpia.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
-      if (matchReverse) {
-        const [_, anio, mes, dia] = matchReverse;
-        return `${anio}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-      }
-      return limpia;
-    }
-
-    const RobinLogo = ({ className = "h-6 w-auto", theme }) => {
-      const isDarkTheme = theme === 'midnight';
-      return (
-        <img 
-          src="logo robin negro.png" 
-          alt="robin" 
-          className={`${className} ${isDarkTheme ? 'invert brightness-200' : ''} object-contain`}
-          onError={(e) => {
-            e.target.style.display = 'none';
-            const span = e.target.parentNode.querySelector('.fallback-logo');
-            if (span) span.style.display = 'inline-block';
-          }}
-        />
-      );
-    };
-
+    // 🟢 CONSTANTES Y CONFIGURACIONES DE ESTILO RESTAURADAS
+    // =========================================================================
     const MARCAS_COLORES = {
       "DIAGEO":      { bg: "bg-zinc-100", text: "text-zinc-800", border: "border-zinc-200" },
       "GAMA":        { bg: "bg-red-50", text: "text-red-800", border: "border-red-100" },
@@ -228,7 +149,7 @@
         text: "text-zinc-100",
         textMuted: "text-zinc-400",
         border: "border-zinc-800",
-        primary: "bg-zinc-100 text-zinc-950 hover:bg-zinc-200",
+        primary: "bg-zinc-100 text-zinc-955 hover:bg-zinc-200",
         accent: "bg-zinc-800 text-zinc-200",
         borderMuted: "border-zinc-800/60",
         shadow: "shadow-none border border-zinc-800"
@@ -271,6 +192,28 @@
       { className: "fa-gear", name: "Ajustes" }
     ];
 
+    // =========================================================================
+    // 🟢 COMPONENTE ROBIN LOGO VECTORIAL/IMAGEN RESTAURADO
+    // =========================================================================
+    const RobinLogo = ({ className = "h-6 w-auto", theme }) => {
+      const isDarkTheme = theme === 'midnight';
+      return (
+        <img 
+          src="logo robin negro.png" 
+          alt="robin" 
+          className={`${className} ${isDarkTheme ? 'invert brightness-200' : ''} object-contain`}
+          onError={(e) => {
+            e.target.style.display = 'none';
+            const span = e.target.parentNode.querySelector('.fallback-logo');
+            if (span) span.style.display = 'inline-block';
+          }}
+        />
+      );
+    };
+
+    // =========================================================================
+    // 🟢 FUNCIONES AUXILIARES GLOBALIZADAS Y CORREGIDAS
+    // =========================================================================
     function cleanEstado(val) {
       if (!val) return "";
       return String(val)
@@ -358,112 +301,155 @@
       return 2;
     }
 
-    // =========================================================================
-    // 👥 COMPONENTE: SELECTOR DE PERSONAS MEDIANTE CHIPS INTERACTIVOS
-    // =========================================================================
-    function SelectorPersonasChips({ personasSeleccionadas, onChange, listaGlobal, registrarNuevaPersona }) {
-      const [isOpen, setIsOpen] = useState(false);
-      const [busqueda, setBusqueda] = useState("");
+    // Limpiador de emojis
+    function stripEmoji(str) {
+      if (!str) return "";
+      return String(str)
+        .replace(/[\u2600-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '')
+        .trim();
+    }
 
-      const seleccionadas = useMemo(() => {
-        if (!personasSeleccionadas) return [];
-        return personasSeleccionadas.split(" ").map(s => s.trim()).filter(s => s.startsWith("@"));
-      }, [personasSeleccionadas]);
-
-      const sugeridos = useMemo(() => {
-        const q = busqueda.toLowerCase().trim();
-        return listaGlobal.filter(p => {
-          const coincideQuery = p.toLowerCase().includes(q);
-          const yaSeleccionado = seleccionadas.includes(p);
-          return coincideQuery && !yaSeleccionado;
-        });
-      }, [listaGlobal, seleccionadas, busqueda]);
-
-      const togglePersona = (p) => {
-        let nuevos;
-        if (seleccionadas.includes(p)) {
-          nuevos = seleccionadas.filter(item => item !== p);
-        } else {
-          nuevos = [...seleccionadas, p];
+    const getLocalStorageItemSafe = (key, fallback = null) => {
+      try {
+        const val = localStorage.getItem(key);
+        if (val === null || val === undefined || val === "null" || val === "undefined" || val === "") {
+          return fallback;
         }
-        onChange(nuevos.join(" "));
-      };
+        return val;
+      } catch (e) {
+        return fallback;
+      }
+    };
 
-      const handleAddNuevo = (e) => {
-        if (e.key === "Enter" || e.type === "click") {
-          e.preventDefault();
-          let limpio = busqueda.trim();
-          if (limpio.length > 1) {
-            const formateado = limpio.startsWith("@") ? limpio : "@" + limpio;
-            registrarNuevaPersona(formateado);
-            togglePersona(formateado);
-            setBusqueda("");
-          }
-        }
-      };
+    function cleanIdTarea(id) {
+      if (!id) return "";
+      const idStr = String(id).trim();
+      if (idStr.includes("GMT") || (idStr.includes("2026") && idStr.length > 15) || idStr.includes("Venezuela") || idStr.startsWith("STB-")) {
+        return "";
+      }
+      return idStr;
+    }
 
+    // =========================================================================
+    // ⚙ Componente de Icono SVG Premium vectorizado para reemplazar los iconos de widgets
+    // =========================================================================
+    const WidgetIcon = ({ iconName, className = "w-4 h-4" }) => {
+      const norm = (iconName || "").trim().toLowerCase();
+      
+      if (norm.includes("link") || norm.includes("enlace")) {
+        return (
+          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+        );
+      }
+      if (norm.includes("chart") || norm.includes("metricas") || norm.includes("metric")) {
+        return (
+          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16 8v8m-4-5v5m-4-2v2M2 4h12a2 2 0 012 2v12a2 2 0 01-2 2H2a2 2 0 01-2-2V6a2 2 0 012-2z" />
+          </svg>
+        );
+      }
+      if (norm.includes("folder") || norm.includes("carpeta")) {
+        return (
+          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          </svg>
+        );
+      }
+      if (norm.includes("file") || norm.includes("documento")) {
+        return (
+          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+        );
+      }
+      if (norm.includes("globe") || norm.includes("web")) {
+        return (
+          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+          </svg>
+        );
+      }
+      if (norm.includes("play") || norm.includes("video")) {
+        return (
+          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        );
+      }
+      if (norm.includes("image") || norm.includes("diseno") || norm.includes("design")) {
+        return (
+          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        );
+      }
+      if (norm.includes("user") || norm.includes("equipo") || norm.includes("people")) {
+        return (
+          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+        );
+      }
+      if (norm.includes("gear") || norm.includes("ajustes") || norm.includes("setting")) {
+        return (
+          <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        );
+      }
       return (
-        <div className="relative w-full text-left">
-          <div className="min-h-[38px] w-full bg-zinc-50 border border-zinc-200 rounded-lg p-1.5 flex flex-wrap gap-1 items-center">
-            {seleccionadas.map(p => (
-              <span key={p} className="inline-flex items-center gap-1 bg-zinc-950 text-white text-xs font-semibold px-2 py-0.5 rounded-md">
-                {p}
-                <button type="button" onClick={() => togglePersona(p)} className="hover:text-red-300">
-                  <i className="fa-solid fa-xmark text-[10px]"></i>
-                </button>
-              </span>
-            ))}
-            
-            <input 
-              type="text" 
-              placeholder={seleccionadas.length === 0 ? "Asignar persona..." : ""}
-              value={busqueda}
-              onChange={(e) => { setBusqueda(e.target.value); setIsOpen(true); }}
-              onFocus={() => setIsOpen(true)}
-              onKeyDown={handleAddNuevo}
-              className="flex-1 bg-transparent border-0 text-xs p-0.5 focus:outline-none focus:ring-0 min-w-[80px]"
-            />
-            
-            <button 
-              type="button" 
-              onClick={() => setIsOpen(!isOpen)}
-              className="text-zinc-400 hover:text-zinc-700 ml-auto px-1.5"
-            >
-              <i className="fa-solid fa-chevron-down text-[10px]"></i>
-            </button>
-          </div>
-
-          {isOpen && (
-            <div className="absolute z-50 w-full mt-1 bg-white border border-zinc-200 rounded-lg shadow-xl max-h-40 overflow-y-auto p-1.5 animate-zoom-in">
-              <div className="px-2 py-1 text-[10px] font-black text-zinc-400 uppercase tracking-wider border-b border-zinc-50">Sugerencias</div>
-              {sugeridos.map(p => (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => { togglePersona(p); setBusqueda(""); }}
-                  className="w-full text-left px-2.5 py-1.5 text-xs hover:bg-zinc-50 rounded font-medium text-zinc-700 flex items-center gap-1.5 transition-all"
-                >
-                  <i className="fa-regular fa-user-circle text-xs text-zinc-400"></i>
-                  <span>{p}</span>
-                </button>
-              ))}
-              
-              {busqueda.trim().length > 0 && !listaGlobal.includes(busqueda.trim()) && (
-                <button
-                  type="button"
-                  onClick={handleAddNuevo}
-                  className="w-full text-left px-2.5 py-1.5 text-xs hover:bg-zinc-100 text-zinc-900 rounded font-bold border-t border-zinc-100/50 mt-1 flex items-center justify-between"
-                >
-                  <span>Añadir miembro "{busqueda.trim()}"</span>
-                  <span className="text-[10px] bg-zinc-200 text-zinc-700 px-1 py-0.5 rounded">Enter</span>
-                </button>
-              )}
-            </div>
-          )}
-          
-          {isOpen && <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setIsOpen(false)}></div>}
-        </div>
+        <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+        </svg>
       );
+    };
+
+    // 🟢 Funciones asíncronas para el análisis sintáctico de las subtareas en Google Sheets (Markdown Checkbox compatible)
+    function parseDetalles(detallesRaw) {
+      const text = detallesRaw || "";
+      const lines = text.split('\n');
+      const notasLines = [];
+      const subtareas = [];
+      const historial = [];
+
+      lines.forEach(line => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith("•") || trimmed.startsWith("• [")) {
+          historial.push(trimmed);
+        } else if (trimmed.startsWith("- [ ]") || trimmed.startsWith("- [x]") || trimmed.startsWith("* [ ]") || trimmed.startsWith("* [x]")) {
+          const completed = trimmed.includes("[x]");
+          const taskText = trimmed.replace(/^[-*]\s*\[[ x]\]\s*/, "");
+          subtareas.push({ text: taskText, completed });
+        } else if (trimmed !== "") {
+          notasLines.push(line);
+        }
+      });
+
+      return {
+        notas: notasLines.join('\n'),
+        subtareas,
+        historial
+      };
+    }
+
+    function serializeDetalles(notas, subtareas, historial) {
+      let text = (notas || "").trim();
+      
+      if (subtareas && subtareas.length > 0) {
+        const subtasksText = subtareas.map(s => `- [${s.completed ? 'x' : ' '}] ${s.text}`).join('\n');
+        text = text ? `${text}\n\n${subtasksText}` : subtasksText;
+      }
+
+      if (historial && historial.length > 0) {
+        const historialText = historial.join('\n');
+        text = text ? `${text}\n\n${historialText}` : historialText;
+      }
+
+      return text;
     }
 
     // =========================================================================
@@ -907,46 +893,98 @@
     // COMPONENTE: MODAL FICHA DE SEGUIMIENTO (DRAWER LATERAL)
     // =========================================================================
     function ModalEdicionTarea({ task, onClose, onSave, onDeleteClick, marcasDisponibles, listaPersonas, registrarNuevaPersona, cleanIdTarea, syncing }) {
+      // Analizamos los detalles de Sheets para extraer por separado: Notas, Subtareas e Historial
+      const parsed = useMemo(() => parseDetalles(task.detalles || ""), [task.detalles]);
+
       const [categoria, setCategoria] = useState(task.categoria || "");
       const [info, setInfo] = useState(task.info || "");
       const [personas, setPersonas] = useState(task.personas || "");
-      const [detalles, setDetalles] = useState(task.detalles || "");
+      const [notas, setNotas] = useState(parsed.notas || "");
+      const [subtareas, setSubtareas] = useState(parsed.subtareas || []);
+      const [historial] = useState(parsed.historial || []);
       const [estado, setEstado] = useState(task.estado || "⚪ Pendiente");
       const [deadline, setDeadline] = useState(task.deadline || "");
       const [prioridad, setPrioridad] = useState(task.prioridad || "🟡 Media");
       
       const [nuevoStatus, setNuevoStatus] = useState("");
+      const [nuevaSubtareaText, setNuevaSubtareaText] = useState("");
       const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
 
       const valorDeadline = useMemo(() => convertirFechaAInput(deadline), [deadline]);
 
-      const parseDetallesYHistorial = useMemo(() => {
-        const lineas = detalles.split('\n');
-        const notasLimpias = [];
-        const logs = [];
+      // Métricas de progreso del checklist
+      const subtasksCompletadas = useMemo(() => subtareas.filter(s => s.completed).length, [subtareas]);
+      const subtasksTotal = subtareas.length;
+      const porcentajeProgreso = useMemo(() => {
+        if (subtasksTotal === 0) return 0;
+        return (subtasksCompletadas / subtasksTotal) * 100;
+      }, [subtasksCompletadas, subtasksTotal]);
 
-        lineas.forEach(line => {
-          if (line.trim().startsWith("•") || line.trim().startsWith("• [")) {
-            logs.push(line.trim());
-          } else if (line.trim() !== "") {
-            notasLimpias.push(line);
-          }
+      // Registra una subtarea y ejecuta guardado optimista
+      const handleAddSubtask = () => {
+        if (!nuevaSubtareaText.trim()) return;
+        const nuevas = [...subtareas, { text: nuevaSubtareaText.trim(), completed: false }];
+        setSubtareas(nuevas);
+        setNuevaSubtareaText("");
+        
+        const nuevosDetalles = serializeDetalles(notas, nuevas, historial);
+        onSave({
+          ...task,
+          categoria,
+          info,
+          personas,
+          detalles: nuevosDetalles,
+          estado,
+          deadline,
+          prioridad
         });
+      };
 
-        return {
-          notas: notasLimpias.join('\n'),
-          historial: logs
-        };
-      }, [detalles]);
+      // Alterna estado de subtarea y guarda en Sheets
+      const handleToggleSubtask = (idx) => {
+        const nuevas = subtareas.map((s, sIdx) => sIdx === idx ? { ...s, completed: !s.completed } : s);
+        setSubtareas(nuevas);
+        
+        const nuevosDetalles = serializeDetalles(notas, nuevas, historial);
+        onSave({
+          ...task,
+          categoria,
+          info,
+          personas,
+          detalles: nuevosDetalles,
+          estado,
+          deadline,
+          prioridad
+        });
+      };
 
+      // Elimina una subtarea y sincroniza
+      const handleDeleteSubtask = (idx) => {
+        const nuevas = subtareas.filter((_, sIdx) => sIdx !== idx);
+        setSubtareas(nuevas);
+        
+        const nuevosDetalles = serializeDetalles(notas, nuevas, historial);
+        onSave({
+          ...task,
+          categoria,
+          info,
+          personas,
+          detalles: nuevosDetalles,
+          estado,
+          deadline,
+          prioridad
+        });
+      };
+
+      // Registra un avance manual de auditoría
       const handleAgregarStatus = () => {
         if (!nuevoStatus.trim() || syncing || isSubmittingLocal) return;
         const hoy = new Date();
         const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
         const actualizacion = `• [${timestamp}] ${nuevoStatus.trim()} por @${localStorage.getItem("robin_usuario_actual")}`;
-        const nuevosDetalles = detalles ? `${detalles.trim()}\n${actualizacion}` : actualizacion;
+        const nuevasLinasHistorial = [...historial, actualizacion];
         
-        setDetalles(nuevosDetalles);
+        const nuevosDetalles = serializeDetalles(notas, subtareas, nuevasLinasHistorial);
         setNuevoStatus("");
         
         onSave({
@@ -966,12 +1004,13 @@
         if (syncing || isSubmittingLocal) return;
         setIsSubmittingLocal(true);
         try {
+          const nuevosDetalles = serializeDetalles(notas, subtareas, historial);
           await onSave({
             ...task,
             categoria,
             info,
             personas,
-            detalles,
+            detalles: nuevosDetalles,
             estado,
             deadline,
             prioridad
@@ -1044,7 +1083,7 @@
                   personasSeleccionadas={personas} 
                   onChange={(nuevas) => setPersonas(nuevas)}
                   listaGlobal={listaPersonas}
-                  registrarPersona={registrarNuevaPersona}
+                  registrarPersona={registrarPersona}
                 />
               </div>
 
@@ -1067,24 +1106,98 @@
               <div>
                 <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Descripción y Notas</label>
                 <textarea 
-                  value={parseDetallesYHistorial.notas} 
+                  value={notas} 
                   disabled={syncing || isSubmittingLocal}
-                  onChange={(e) => {
-                    const nuevoContenido = e.target.value;
-                    const logs = parseDetallesYHistorial.historial.join('\n');
-                    setDetalles(logs ? `${nuevoContenido.trim()}\n\n${logs}` : nuevoContenido);
-                  }} 
-                  rows="3"
+                  onChange={(e) => setNotas(e.target.value)} 
+                  rows="2"
                   placeholder="Instrucciones del entregable..."
-                  className="w-full bg-zinc-50 border border-zinc-200 p-2 text-xs rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-950 resize-none font-semibold text-zinc-700 disabled:opacity-75"
+                  className="w-full bg-zinc-50 border border-zinc-200 p-2.5 text-xs rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-950 resize-none font-semibold text-zinc-700 disabled:opacity-75"
                 ></textarea>
               </div>
 
-              {parseDetallesYHistorial.historial.length > 0 && (
+              {/* 🟢 Panel Premium de Subtareas (Checklist interactivo de nivel profesional) */}
+              <div className="border-t border-zinc-100 pt-3">
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-wider">Subtareas del Entregable</label>
+                  {subtasksTotal > 0 && (
+                    <span className="text-[10px] font-bold text-zinc-500">
+                      {subtasksCompletadas} de {subtasksTotal} completadas
+                    </span>
+                  )}
+                </div>
+
+                {/* Barra de progreso interactiva */}
+                {subtasksTotal > 0 && (
+                  <div className="w-full bg-zinc-100 h-1.5 rounded-full overflow-hidden mb-3.5 border border-zinc-200/50">
+                    <div 
+                      className="bg-zinc-950 h-full transition-all duration-300 rounded-full"
+                      style={{ width: `${porcentajeProgreso}%` }}
+                    ></div>
+                  </div>
+                )}
+
+                {/* Listado de subtareas */}
+                <div className="flex flex-col gap-1.5 mb-3 max-h-48 overflow-y-auto pr-1">
+                  {subtasksTotal === 0 ? (
+                    <p className="text-[11px] text-zinc-400 font-semibold italic py-1">Sin subtareas agregadas aún.</p>
+                  ) : (
+                    subtareas.map((sub, sIdx) => (
+                      <div key={sIdx} className="flex items-center justify-between gap-3 group py-1.5 px-2.5 hover:bg-zinc-50 rounded-lg transition-all border border-transparent hover:border-zinc-200/40">
+                        <label className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-0">
+                          <input 
+                            type="checkbox"
+                            checked={sub.completed}
+                            onChange={() => handleToggleSubtask(sIdx)}
+                            className="w-4 h-4 rounded text-zinc-900 border-zinc-300 focus:ring-0 cursor-pointer accent-zinc-950"
+                          />
+                          <span className={`text-xs font-semibold truncate ${sub.completed ? 'line-through text-zinc-400' : 'text-zinc-700'}`}>
+                            {sub.text}
+                          </span>
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSubtask(sIdx)}
+                          className="text-zinc-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                          title="Eliminar subtarea"
+                        >
+                          <i className="fa-solid fa-trash-can text-[10px]"></i>
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Formulario de nueva subtarea */}
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    placeholder="Escribe una subtarea nueva..." 
+                    value={nuevaSubtareaText}
+                    onChange={(e) => setNuevaSubtareaText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddSubtask();
+                      }
+                    }}
+                    className="flex-1 bg-zinc-50 border border-zinc-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none"
+                  />
+                  <button 
+                    type="button" 
+                    onClick={handleAddSubtask}
+                    disabled={!nuevaSubtareaText.trim()}
+                    className="px-3 py-1.5 bg-zinc-900 text-white hover:bg-black disabled:opacity-55 disabled:hover:bg-zinc-900 rounded-lg text-xs font-bold transition-all flex items-center justify-center shrink-0"
+                  >
+                    Añadir
+                  </button>
+                </div>
+              </div>
+
+              {historial.length > 0 && (
                 <div className="border-t border-zinc-100 pt-3">
                   <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Historial de Registros</label>
                   <div className="bg-zinc-50 border border-zinc-155 p-2.5 rounded-lg max-h-36 overflow-y-auto flex flex-col gap-1.5">
-                    {parseDetallesYHistorial.historial.map((log, lIdx) => (
+                    {historial.map((log, lIdx) => (
                       <div key={lIdx} className="text-[10px] text-zinc-500 font-mono font-bold leading-normal border-b border-zinc-100/50 pb-1 last:border-0 last:pb-0">
                         {log}
                       </div>
@@ -1151,8 +1264,8 @@
     function LayoutHome({ tareas, nombreUsuario, username, onSelectTask, onUpdateField, widgets, onAddWidget, onDeleteWidget, currentTheme, getMarcaStyle, cleanIdTarea }) {
       const [nuevoTitulo, setNuevoTitulo] = useState("");
       const [nuevoLink, setNuevoLink] = useState("");
-      const [nuevoIcon, setNuevoIcon] = useState("fa-link");
-      const [nuevoColor, setNuevoColor] = useState("bg-indigo-600");
+      const [nuevoIcon, setNewIcon] = useState("fa-link");
+      const [nuevoColor, setNewColor] = useState("bg-indigo-600");
       const [showAddForm, setShowAddForm] = useState(false);
 
       const [plannerSelectedDay, setPlannerSelectedDay] = useState(() => {
@@ -1267,17 +1380,25 @@
                     placeholder="https://..." 
                   />
                 </div>
-                <div>
-                  <label className="block text-[9px] font-bold text-zinc-400 uppercase mb-1">Icono representativo</label>
-                  <select value={nuevoIcon} onChange={e => setNewIcon(e.target.value)} className="bg-zinc-50 border p-1.5 text-xs rounded-lg font-bold">
-                    {BIBLIOTECA_ICONOS.map(i => (
-                      <option key={i.className} value={i.className}>{i.name}</option>
-                    ))}
-                  </select>
+                
+                {/* Selector de icono inteligente con vista previa real (SVG) al instante */}
+                <div className="flex items-end gap-2 shrink-0">
+                  <div>
+                    <label className="block text-[9px] font-bold text-zinc-400 uppercase mb-1">Icono</label>
+                    <select value={nuevoIcon} onChange={e => setNewIcon(e.target.value)} className="bg-zinc-50 border p-1.5 text-xs rounded-lg font-bold bg-white focus:outline-none">
+                      {BIBLIOTECA_ICONOS.map(i => (
+                        <option key={i.className} value={i.className}>{i.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className={`w-8 h-8 rounded-lg ${nuevoColor} text-white flex items-center justify-center text-xs shrink-0 shadow-sm transition-all mb-0.5`}>
+                    <WidgetIcon iconName={nuevoIcon} className="w-4.5 h-4.5" />
+                  </div>
                 </div>
+
                 <div>
                   <label className="block text-[9px] font-bold text-zinc-400 uppercase mb-1">Color fondo</label>
-                  <select value={nuevoColor} onChange={e => setNewColor(e.target.value)} className="bg-zinc-50 border p-1.5 text-xs rounded-lg font-bold">
+                  <select value={nuevoColor} onChange={e => setNewColor(e.target.value)} className="bg-zinc-50 border p-1.5 text-xs rounded-lg font-bold bg-white focus:outline-none">
                     <option value="bg-indigo-600">Azul Royal</option>
                     <option value="bg-emerald-600">Verde Jade</option>
                     <option value="bg-rose-650">Carmesí</option>
@@ -1307,7 +1428,8 @@
                       className={`flex items-center gap-3 p-3 rounded-xl border ${currentTheme.border} ${currentTheme.cardBg} hover:shadow-md transition-all h-full`}
                     >
                       <div className={`w-8 h-8 rounded-lg ${w.color || "bg-indigo-600"} text-white flex items-center justify-center text-xs shrink-0 shadow-sm`}>
-                        <i className={`fa-solid ${w.icon || "fa-link"}`}></i>
+                        {/* Renderizamos el icono vectorial real (SVG) */}
+                        <WidgetIcon iconName={w.icon} className="w-4 h-4" />
                       </div>
                       <span className="text-[11px] md:text-xs font-bold truncate pr-3">{w.titulo}</span>
                     </a>
@@ -1965,7 +2087,7 @@
           showToast("Widget eliminado correctamente", "success");
           fetchData(true);
         } catch (e) {
-          showToast("Error al eliminar widget online", "error");
+          showToast("Error al x eliminar widget online", "error");
         } finally {
           setSyncing(false);
         }
@@ -2546,56 +2668,6 @@
         }
       };
 
-      if (!usuario) {
-        return (
-          <div className="min-h-screen w-screen flex items-center justify-center bg-[#FAFAFA] p-4 text-zinc-800 select-none">
-            <form onSubmit={handleLogin} className="bg-white border border-zinc-200 p-6 md:p-8 rounded-2xl shadow-xl max-w-sm w-full flex flex-col gap-4 animate-zoom-in">
-              <div className="flex flex-col items-center gap-2 mb-2">
-                <RobinLogo className="h-10 w-auto" theme="notion" />
-                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mt-1">Trade & Shopper Marketing Portal</span>
-              </div>
-
-              {loginError && (
-                <div className="bg-red-50 border border-red-200 text-red-655 text-xs font-semibold p-3 rounded-lg flex items-center gap-2 animate-zoom-in">
-                  <i className="fa-solid fa-triangle-exclamation"></i>
-                  <span>{loginError}</span>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Nombre de Usuario (Sin @)</label>
-                <input
-                  type="text"
-                  name="username"
-                  required
-                  placeholder="ej: mbonilla"
-                  className="w-full bg-zinc-50 border border-zinc-200 rounded-lg p-2.5 text-xs font-bold focus:outline-none focus:ring-1 focus:ring-zinc-900"
-                />
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Contraseña de Acceso</label>
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  value={claveInput}
-                  onChange={(e) => setClaveInput(e.target.value)}
-                  className="w-full bg-zinc-50 border border-zinc-200 rounded-lg p-2.5 text-xs focus:outline-none focus:ring-1 focus:ring-zinc-900"
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-2.5 bg-zinc-900 hover:bg-black text-white text-xs font-bold rounded-lg transition-all shadow-sm mt-2"
-              >
-                Iniciar Sesión
-              </button>
-            </form>
-          </div>
-        );
-      }
-
       return (
         <div className={`flex h-screen w-screen overflow-hidden ${currentTheme.bg} ${currentTheme.text} select-none transition-all`}>
           
@@ -2694,7 +2766,7 @@
                     className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all ${
                       paginaActiva === "dashboard" && filtroTiempo === "TODAS" && filtroMarca === "TODAS" && filtroEstado === "TODOS" && filtroPrioridad === "TODAS"
                         ? "bg-white shadow-sm font-extrabold text-zinc-900 border border-zinc-100" 
-                        : "text-zinc-500 hover:bg-zinc-100/50 hover:text-zinc-800"
+                        : "text-zinc-500 hover:bg-zinc-100/50 hover:text-zinc-855"
                     }`}
                   >
                     <span className="flex items-center gap-2">
@@ -2760,7 +2832,7 @@
                     className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all ${
                       paginaActiva === "configuracion" 
                         ? "bg-white shadow-sm font-extrabold text-zinc-900 border border-zinc-100" 
-                        : "text-zinc-500 hover:bg-zinc-100/50 hover:text-zinc-800"
+                        : "text-zinc-500 hover:bg-zinc-100/50 hover:text-zinc-855"
                     }`}
                   >
                     <span className="flex items-center gap-2">
@@ -3245,7 +3317,7 @@
               onDeleteClick={(t) => setTaskToDelete(t)}
               marcasDisponibles={marcasDisponibles}
               listaPersonas={listaPersonas}
-              registrarNuevaPersona={registrarNuevaPersonaGlobal}
+              registrarPersona={registrarNuevaPersonaGlobal}
               cleanIdTarea={cleanIdTarea}
               syncing={syncing}
             />

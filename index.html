@@ -280,38 +280,38 @@
     const { useState, useEffect, useMemo, useRef } = React;
 
     // =========================================================================
-    // ⚙ Configuración de Constantes del Portal
+    // ⚙ Configuración de Constantes del Portal (Sin emojis, minimalista)
     // =========================================================================
     const LISTA_ESTADOS_VALIDOS = [
-      "⚪ Pendiente",
-      "🟡 En progreso",
-      "🔵 Seguimiento",
-      "🟣 En revision",
-      "🟠 En pausa",
-      "🟢 Completada"
+      "Pendiente",
+      "En progreso",
+      "Seguimiento",
+      "En revision",
+      "En pausa",
+      "Completada"
     ];
 
     const ESTADOS_MAPA = [
-      { id: "⚪ Pendiente", dot: "bg-zinc-300", color: "text-zinc-500" },
-      { id: "🟡 En progreso", dot: "bg-amber-400", color: "text-amber-600" },
-      { id: "🔵 Seguimiento", dot: "bg-blue-400", color: "text-blue-600" },
-      { id: "🟣 En revision", dot: "bg-purple-400", color: "text-purple-600" },
-      { id: "🟠 En pausa", dot: "bg-orange-400", color: "text-orange-600" },
-      { id: "🟢 Completada", dot: "bg-emerald-500", color: "text-emerald-600" }
+      { id: "Pendiente", dot: "bg-zinc-300", color: "text-zinc-500", bg: "bg-zinc-50 text-zinc-600 border-zinc-200" },
+      { id: "En progreso", dot: "bg-amber-400", color: "text-amber-600", bg: "bg-amber-50/70 text-amber-700 border-amber-200" },
+      { id: "Seguimiento", dot: "bg-blue-400", color: "text-blue-600", bg: "bg-blue-50/70 text-blue-700 border-blue-200" },
+      { id: "En revision", dot: "bg-purple-400", color: "text-purple-600", bg: "bg-purple-50/70 text-purple-700 border-purple-200" },
+      { id: "En pausa", dot: "bg-orange-400", color: "text-orange-600", bg: "bg-orange-50/70 text-orange-700 border-orange-200" },
+      { id: "Completada", dot: "bg-emerald-500", color: "text-emerald-600", bg: "bg-emerald-50/70 text-emerald-700 border-emerald-200" }
     ];
 
     const PRIORIDADES_MAPA = [
-      { id: "🔴 Alta", label: "🔴 Alta", color: "bg-red-50 text-red-700 border-red-200" },
-      { id: "🟡 Media", label: "🟡 Media", color: "bg-amber-50 text-amber-700 border-amber-200" },
-      { id: "🟢 Baja", label: "🟢 Baja", color: "bg-emerald-50 text-emerald-700 border-emerald-200" }
+      { id: "Alta", label: "Alta", color: "bg-red-50 text-red-700 border-red-200" },
+      { id: "Media", label: "Media", color: "bg-zinc-100 text-zinc-700 border-zinc-200" },
+      { id: "Baja", label: "Baja", color: "bg-zinc-50 text-zinc-550 border-zinc-150" }
     ];
 
     const MARCAS_COLORES = {
-      "LA SANTE": { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
-      "DIAGEO": { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
-      "GAMA": { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
+      "LA SANTE": { bg: "bg-zinc-100", text: "text-zinc-700", border: "border-zinc-200" },
+      "DIAGEO": { bg: "bg-zinc-100", text: "text-zinc-700", border: "border-zinc-200" },
+      "GAMA": { bg: "bg-zinc-100", text: "text-zinc-700", border: "border-zinc-200" },
       "ROBIN": { bg: "bg-zinc-900", text: "text-white", border: "border-zinc-800" },
-      "TMK": { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" }
+      "TMK": { bg: "bg-zinc-100", text: "text-zinc-700", border: "border-zinc-200" }
     };
 
     const TEMAS = {
@@ -380,7 +380,7 @@
     };
 
     // =========================================================================
-    // 🟢 COMPONENTE LOGO VECTORIAL/IMAGEN
+    // 🟢 COMPONENTE LOGO VECTORIAL/IMAGEN (Simplificado sin emojis)
     // =========================================================================
     const RobinLogo = ({ className = "h-6 w-auto", theme }) => {
       const isDarkTheme = theme === 'midnight';
@@ -477,7 +477,7 @@
     };
 
     // =========================================================================
-    // 📋 COMPONENTE: LAYOUT DE TABLA AGRUPADA
+    // 📋 COMPONENTE: LAYOUT DE TABLA AGRUPADA (Limpia y libre de emojis)
     // =========================================================================
     function LayoutTablaAgrupada({ tareas, onUpdateField, onSelectTask, onDeleteTask, getMarcaStyle, filtroTiempo, currentTheme }) {
       
@@ -570,7 +570,7 @@
                         </tr>
 
                         {tareasDeMarca.map(t => {
-                          const cEstado = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(t.estado)) || { color: "text-zinc-700", dot: "bg-zinc-300" };
+                          const cEstado = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(t.estado)) || { color: "text-zinc-700", dot: "bg-zinc-300", bg: "bg-zinc-50 border-zinc-200" };
                           const cPrioridad = PRIORIDADES_MAPA.find(p => cleanPrioridad(p.id) === cleanPrioridad(t.prioridad)) || PRIORIDADES_MAPA[1];
                           const displayId = cleanIdTarea(t.idTarea);
                           
@@ -587,13 +587,13 @@
                               <td className="py-4 px-5 text-center" onClick={(e) => e.stopPropagation()}>
                                 <div className="flex items-center justify-center">
                                   <select
-                                    value={t.prioridad || "🟡 Media"}
+                                    value={t.prioridad || "Media"}
                                     onChange={(e) => onUpdateField(t, "prioridad", e.target.value)}
                                     className={`text-[10px] font-bold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-none focus:ring-0 ${cPrioridad.color}`}
                                   >
                                     {PRIORIDADES_MAPA.map(p => (
                                       <option key={p.id} value={p.id} className="bg-white text-zinc-800 font-bold text-xs">
-                                        {stripEmoji(p.label)}
+                                        {p.label}
                                       </option>
                                     ))}
                                   </select>
@@ -606,7 +606,7 @@
 
                               <td className="py-4 px-5">
                                 <div className="max-w-md">
-                                  <p className="font-bold leading-snug">{t.info}</p>
+                                  <p className="font-bold leading-snug text-zinc-800">{t.info}</p>
                                   {t.detalles && (
                                     <p className="text-xs text-zinc-400 truncate mt-1 font-semibold leading-normal">
                                       {t.detalles.split('\n')[0]}
@@ -616,19 +616,21 @@
                               </td>
 
                               <td className="py-4 px-5 text-center" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex items-center justify-center gap-2">
-                                  <span className={`w-2 h-2 rounded-full ${cEstado.dot}`}></span>
-                                  <select
-                                    value={t.estado}
-                                    onChange={(e) => onUpdateField(t, "estado", e.target.value)}
-                                    className="text-xs font-bold py-1 bg-transparent border-0 cursor-pointer focus:outline-none focus:ring-0 text-zinc-800 font-sans"
-                                  >
-                                    {LISTA_ESTADOS_VALIDOS.map(opt => (
-                                      <option key={opt} value={opt} className="bg-white text-zinc-800">
-                                        {stripEmoji(opt)}
-                                      </option>
-                                    ))}
-                                  </select>
+                                <div className="flex items-center justify-center">
+                                  <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${cEstado.bg}`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full ${cEstado.dot}`}></span>
+                                    <select
+                                      value={t.estado}
+                                      onChange={(e) => onUpdateField(t, "estado", e.target.value)}
+                                      className="text-[10px] font-bold bg-transparent border-0 cursor-pointer focus:outline-none focus:ring-0 text-zinc-700 font-sans"
+                                    >
+                                      {LISTA_ESTADOS_VALIDOS.map(opt => (
+                                        <option key={opt} value={opt} className="bg-white text-zinc-800">
+                                          {opt}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
                                 </div>
                               </td>
 
@@ -722,7 +724,7 @@
                 <div className="flex items-center justify-between pb-2 border-b border-zinc-200/60">
                   <span className="text-xs font-black text-zinc-400 uppercase tracking-wider flex items-center gap-2">
                     <span className={`w-2.5 h-2.5 rounded-full ${col.dot}`}></span>
-                    {stripEmoji(col.id)}
+                    {col.id}
                   </span>
                   <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-200/60 text-zinc-655 font-bold">{tareasColumna.length}</span>
                 </div>
@@ -757,11 +759,11 @@
                               {t.marca || "Otros"}
                             </span>
                             <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full border uppercase ${cPrioridad.color}`}>
-                              {stripEmoji(cPrioridad.label)}
+                              {cPrioridad.label}
                             </span>
                           </div>
 
-                          <h4 className="text-sm font-bold leading-snug line-clamp-3">{t.info}</h4>
+                          <h4 className="text-sm font-bold leading-snug line-clamp-3 text-zinc-800">{t.info}</h4>
 
                           <div className="border-t border-zinc-200/50 pt-2 flex items-center justify-between text-xs font-bold text-zinc-400">
                             <span className="truncate max-w-[100px]">{t.personas || "Sin asignar"}</span>
@@ -966,10 +968,10 @@
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-zinc-200/60 shadow-sm">
             <div>
               <h2 className="text-xl font-black text-zinc-900 tracking-tight">
-                ¡Hola, {nombreUsuario || `@${username}`}! 👋
+                Hola, {nombreUsuario || `@${username}`}
               </h2>
               <p className="text-xs text-zinc-400 font-semibold mt-1">
-                Aquí tienes un resumen de los entregables y accesos directos de Trade & Shopper Marketing.
+                Resumen de los entregables y accesos directos de Trade & Shopper Marketing.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -1039,7 +1041,7 @@
                 {highPriorityTasks.length === 0 ? (
                   <div className="py-8 text-center text-zinc-400 text-xs font-semibold flex flex-col items-center justify-center gap-2">
                     <i className="fa-regular fa-face-smile text-2xl text-zinc-300"></i>
-                    Sin entregables de prioridad alta pendientes. ¡Buen trabajo!
+                    Sin entregables urgentes pendientes.
                   </div>
                 ) : (
                   highPriorityTasks.map(t => {
@@ -1061,7 +1063,7 @@
                         </div>
                         <div className="flex items-center gap-3 shrink-0 text-right">
                           <div>
-                            <span className="text-[10px] text-zinc-400 font-extrabold block">LÍMITE</span>
+                            <span className="text-[10px] text-zinc-400 font-extrabold block">LIMITE</span>
                             <span className="text-xs font-bold text-zinc-655">{t.deadline ? formatearFecha(t.deadline) : "--/--"}</span>
                           </div>
                           <i className="fa-solid fa-chevron-right text-zinc-300 text-xs"></i>
@@ -1315,7 +1317,7 @@
           <div className="lg:col-span-3 bg-white p-6 rounded-2xl border border-zinc-200/60 shadow-sm flex flex-col gap-6">
             <div className="flex items-center justify-between border-b pb-4">
               <div>
-                <h3 className="text-lg font-black text-zinc-900 tracking-tight">🏢 Ficha de Cliente: {selectedBrand}</h3>
+                <h3 className="text-lg font-black text-zinc-900 tracking-tight">Ficha de Cliente: {selectedBrand}</h3>
                 <p className="text-xs text-zinc-400 font-semibold mt-0.5">Configura el logo, contactos e información crítica de este cliente.</p>
               </div>
             </div>
@@ -1390,7 +1392,7 @@
             <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
               <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-2xl w-full max-w-sm animate-zoom-in">
                 <div className="flex items-center justify-between border-b pb-3 mb-4">
-                  <h4 className="text-sm font-black text-zinc-900 uppercase tracking-wider">Crear Nuevo Cliente (Sheets)</h4>
+                  <h4 className="text-sm font-black text-zinc-900 uppercase tracking-wider">Crear Nuevo Cliente</h4>
                   <button 
                     onClick={() => setShowAddBrandModal(false)}
                     className="text-zinc-400 hover:text-zinc-855"
@@ -1410,7 +1412,7 @@
                       className="w-full bg-zinc-50 border border-zinc-200 p-2.5 text-xs rounded-xl focus:outline-none font-black text-zinc-800"
                     />
                     <p className="text-[10px] text-zinc-400 font-semibold mt-1.5 leading-relaxed">
-                      ⚠️ Esto insertará una pestaña con este nombre en tu hoja de cálculo vinculada.
+                      Esto insertará una pestaña con este nombre en tu hoja de cálculo vinculada.
                     </p>
                   </div>
 
@@ -1444,8 +1446,8 @@
       const [info, setInfo] = useState(tarea.info || "");
       const [categoria, setCategoria] = useState(tarea.categoria || "");
       const [marca, setMarca] = useState(tarea.marca || "");
-      const [prioridad, setPrioridad] = useState(tarea.prioridad || "🟡 Media");
-      const [estado, setEstado] = useState(tarea.estado || "⚪ Pendiente");
+      const [prioridad, setPrioridad] = useState(tarea.prioridad || "Media");
+      const [estado, setEstado] = useState(tarea.estado || "Pendiente");
       const [deadline, setDeadline] = useState(tarea.deadline || "");
       const [personas, setPersonas] = useState(tarea.personas || "");
       const [rawDetalles, setRawDetalles] = useState(tarea.detalles || "");
@@ -1563,7 +1565,7 @@
                     className="w-full bg-zinc-50 border border-zinc-200 p-2.5 text-xs rounded-xl focus:outline-none font-bold text-zinc-800 bg-white"
                   >
                     {PRIORIDADES_MAPA.map(p => (
-                      <option key={p.id} value={p.id}>{stripEmoji(p.label)}</option>
+                      <option key={p.id} value={p.id}>{p.label}</option>
                     ))}
                   </select>
                 </div>
@@ -1576,7 +1578,7 @@
                     className="w-full bg-zinc-50 border border-zinc-200 p-2.5 text-xs rounded-xl focus:outline-none font-bold text-zinc-800 bg-white"
                   >
                     {LISTA_ESTADOS_VALIDOS.map(opt => (
-                      <option key={opt} value={opt}>{stripEmoji(opt)}</option>
+                      <option key={opt} value={opt}>{opt}</option>
                     ))}
                   </select>
                 </div>
@@ -1709,6 +1711,11 @@
       const [loginError, setLoginError] = useState("");
       const [sidebarOpen, setSidebarOpen] = useState(false);
 
+      // Comprobación de rol de Administrador en el front-end
+      const isAdmin = useMemo(() => {
+        return usuario === "admin" || usuario === "fcolmenares";
+      }, [usuario]);
+
       const [listaUsuarios, setListaUsuarios] = useState(() => {
         const guardados = localStorage.getItem("robin_lista_usuarios");
         return guardados ? JSON.parse(guardados) : ["fcolmenares", "ralvarez", "dsalavarria", "mbonilla", "gnebrus", "sgiucastro", "admin"];
@@ -1760,7 +1767,7 @@
       });
 
       const [nuevaTarea, setNuevaTarea] = useState({
-        marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", estado: "⚪ Pendiente", deadline: "", prioridad: "🟡 Media"
+        marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", estado: "Pendiente", deadline: "", prioridad: "Media"
       });
 
       // 🟢 Sondeo activo (polling) para esperar la carga asíncrona del script module de Firebase
@@ -2116,7 +2123,7 @@
                 deduplicadas.push({
                   ...t,
                   idTarea: realId,
-                  prioridad: t.prioridad || "🟡 Media"
+                  prioridad: t.prioridad || "Media"
                 });
               }
             });
@@ -2193,7 +2200,7 @@
               detalles: detallesConHistorial, 
               estado: campo === "estado" ? nuevoValor : tarea.estado,
               deadline: campo === "deadline" ? nuevoValor : tarea.deadline,
-              prioridad: campo === "prioridad" ? nuevoValor : (tarea.prioridad || "🟡 Media")
+              prioridad: campo === "prioridad" ? nuevoValor : (tarea.prioridad || "Media")
             })
           });
           showToast("Guardado en servidor", "success");
@@ -2261,7 +2268,7 @@
               detalles: taskConHistorial.detalles,
               estado: taskConHistorial.estado, 
               deadline: taskConHistorial.deadline, 
-              prioridad: taskConHistorial.prioridad || "🟡 Media",
+              prioridad: taskConHistorial.prioridad || "Media",
               campo: "todo"
             })
           });
@@ -2348,7 +2355,7 @@
         showToast("Registrando en el servidor...", "info");
 
         setNuevaTarea({
-          marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", estado: "⚪ Pendiente", deadline: "", prioridad: "🟡 Media"
+          marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", estado: "Pendiente", deadline: "", prioridad: "Media"
         });
         setPaginaActiva("dashboard");
 
@@ -2367,7 +2374,7 @@
             body: JSON.stringify({
               marca: nuevaConId.marca, idTarea: "", info: nuevaConId.info, categoria: nuevaConId.categoria,
               personas: nuevaConId.personas, detalles: nuevaConId.detalles, estado: nuevaConId.estado,
-              deadline: nuevaConId.deadline, prioridad: nuevaConId.prioridad || "🟡 Media", campo: "todo"
+              deadline: nuevaConId.deadline, prioridad: nuevaConId.prioridad || "Media", campo: "todo"
             })
           });
           const json = await res.json();
@@ -2573,7 +2580,7 @@
                     type="text" 
                     name="username" 
                     required 
-                    placeholder="Escribe tu usuario corporativo..."
+                    placeholder="Escribe tu usuario..."
                     className="w-full bg-zinc-50 border border-zinc-200 p-3 text-xs font-bold rounded-xl focus:outline-none text-zinc-800 placeholder-zinc-400"
                   />
                 </div>
@@ -2600,7 +2607,7 @@
 
               <div className="text-center">
                 <p className="text-[10px] text-zinc-400 font-semibold leading-relaxed">
-                  Sistema de control exclusivo de Trade & Shopper Marketing.<br />
+                  Sistema de control de Trade & Shopper Marketing.<br />
                   Socio estratégico de marca ROBIN.
                 </p>
               </div>
@@ -2912,7 +2919,7 @@
                           className="w-full bg-zinc-50 border p-2.5 text-xs rounded-xl focus:outline-none bg-white font-black"
                         >
                           {PRIORIDADES_MAPA.map(p => (
-                            <option key={p.id} value={p.id}>{stripEmoji(p.label)}</option>
+                            <option key={p.id} value={p.id}>{p.label}</option>
                           ))}
                         </select>
                       </div>
@@ -2937,7 +2944,7 @@
                           className="w-full bg-zinc-50 border p-2.5 text-xs rounded-xl focus:outline-none bg-white font-black"
                         >
                           {LISTA_ESTADOS_VALIDOS.map(opt => (
-                            <option key={opt} value={opt}>{stripEmoji(opt)}</option>
+                            <option key={opt} value={opt}>{opt}</option>
                           ))}
                         </select>
                       </div>
@@ -3044,9 +3051,9 @@
                           onChange={(e) => setFiltroMarca(e.target.value)}
                           className="w-full bg-zinc-50 border border-zinc-200 p-2 text-xs rounded-xl focus:outline-none font-bold text-zinc-700 bg-white"
                         >
-                          <option value="TODAS">📁 Todos los Clientes</option>
+                          <option value="TODAS">Todos los Clientes</option>
                           {marcasDisponibles.map(m => (
-                            <option key={m} value={m}>🏢 {m}</option>
+                            <option key={m} value={m}>{m}</option>
                           ))}
                         </select>
                       </div>
@@ -3058,9 +3065,9 @@
                           onChange={(e) => setFiltroEstado(e.target.value)}
                           className="w-full bg-zinc-50 border border-zinc-200 p-2 text-xs rounded-xl focus:outline-none font-bold text-zinc-700 bg-white"
                         >
-                          <option value="TODOS">⚡ Todos los Estados</option>
+                          <option value="TODOS">Todos los Estados</option>
                           {LISTA_ESTADOS_VALIDOS.map(opt => (
-                            <option key={opt} value={opt}>{stripEmoji(opt)}</option>
+                            <option key={opt} value={opt}>{opt}</option>
                           ))}
                         </select>
                       </div>
@@ -3072,9 +3079,9 @@
                           onChange={(e) => setFiltroPrioridad(e.target.value)}
                           className="w-full bg-zinc-50 border border-zinc-200 p-2 text-xs rounded-xl focus:outline-none font-bold text-zinc-700 bg-white"
                         >
-                          <option value="TODAS">🔥 Todas las Prioridades</option>
+                          <option value="TODAS">Todas las Prioridades</option>
                           {PRIORIDADES_MAPA.map(p => (
-                            <option key={p.id} value={p.id}>{stripEmoji(p.label)}</option>
+                            <option key={p.id} value={p.id}>{p.label}</option>
                           ))}
                         </select>
                       </div>
@@ -3090,7 +3097,7 @@
                             : "bg-zinc-50 border-zinc-200 text-zinc-500 hover:bg-zinc-100"
                         }`}
                       >
-                        📅 Todo el tiempo
+                        Todo el tiempo
                       </button>
                       <button 
                         onClick={() => setFiltroTiempo("HOY")}
@@ -3100,7 +3107,7 @@
                             : "bg-zinc-50 border-zinc-200 text-zinc-500 hover:bg-zinc-100"
                         }`}
                       >
-                        🕒 Entregas de Hoy 
+                        Entregas de Hoy 
                         {metricaCounters.activasHoy > 0 && (
                           <span className="bg-white text-amber-600 font-extrabold px-1.5 py-0.5 rounded-full text-[9px]">
                             {metricaCounters.activasHoy}
@@ -3115,7 +3122,7 @@
                             : "bg-zinc-50 border-zinc-200 text-zinc-500 hover:bg-zinc-100"
                         }`}
                       >
-                        🚨 Atrasados 
+                        Atrasados 
                         {metricaCounters.atrasadas > 0 && (
                           <span className="bg-white text-red-600 font-extrabold px-1.5 py-0.5 rounded-full text-[9px] animate-pulse">
                             {metricaCounters.atrasadas}
@@ -3130,7 +3137,7 @@
                             : "bg-zinc-50 border-zinc-200 text-zinc-500 hover:bg-zinc-100"
                         }`}
                       >
-                        🔮 Próximas entregas
+                        Próximas entregas
                       </button>
                     </div>
                   </div>
@@ -3177,31 +3184,38 @@
                     <p className="text-xs text-zinc-400 font-semibold mt-1">Personaliza el comportamiento del portal, enlaces con Google Sheets y autoriza nuevos usuarios.</p>
                   </div>
 
-                  {/* Integración Google Sheets */}
+                  {/* Integración Google Sheets (Solo administradores) */}
                   <div className="flex flex-col gap-3">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500">🔗 Google Sheets Integración</h3>
-                    <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-200">
-                      <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">URL de Google Apps Script Web App</label>
-                      <input 
-                        type="url" 
-                        placeholder="https://script.google.com/macros/s/.../exec"
-                        value={apiUrl}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setApiUrl(val);
-                          localStorage.setItem("robin_api_url", val);
-                        }}
-                        className="w-full bg-white border border-zinc-200 p-2.5 text-xs rounded-xl focus:outline-none font-semibold text-zinc-800"
-                      />
-                      <p className="text-[10px] text-zinc-400 font-semibold mt-1.5 leading-relaxed">
-                        Esta URL conecta tu portal con la hoja de cálculo de Google. Asegúrate de implementar el código de Google Apps Script correctamente.
-                      </p>
-                    </div>
+                    <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500">Integración Google Sheets</h3>
+                    {isAdmin ? (
+                      <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-200 animate-zoom-in">
+                        <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">URL de Google Apps Script Web App</label>
+                        <input 
+                          type="url" 
+                          placeholder="https://script.google.com/macros/s/.../exec"
+                          value={apiUrl}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setApiUrl(val);
+                            localStorage.setItem("robin_api_url", val);
+                          }}
+                          className="w-full bg-white border border-zinc-200 p-2.5 text-xs rounded-xl focus:outline-none font-semibold text-zinc-800"
+                        />
+                        <p className="text-[10px] text-zinc-400 font-semibold mt-1.5 leading-relaxed">
+                          Esta URL conecta tu portal con la hoja de cálculo de Google. Asegúrate de implementar el código de Google Apps Script correctamente.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-200 text-zinc-500 text-xs font-semibold flex items-start gap-2.5">
+                        <i className="fa-solid fa-lock text-zinc-400 mt-0.5"></i>
+                        <span>Requiere privilegios de administrador para modificar el origen de datos. Contacta a Francisco Colmenares para realizar cambios de servidor.</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Perfil / Nombre Completo */}
                   <div className="flex flex-col gap-3">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500">👤 Mi Colaborador</h3>
+                    <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500">Mi Colaborador</h3>
                     <form onSubmit={handleSaveNombreCompleto} className="bg-zinc-50 p-4 rounded-xl border border-zinc-200 flex flex-col sm:flex-row gap-3 items-end">
                       <div className="flex-1">
                         <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Tu Nombre Completo</label>
@@ -3224,7 +3238,7 @@
 
                   {/* Estilo y Personalización */}
                   <div className="flex flex-col gap-3">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500">🎨 Estilo Visual</h3>
+                    <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500">Estilo Visual</h3>
                     <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-200 grid grid-cols-2 gap-3">
                       <button 
                         onClick={() => handleThemeChange("notion")}
@@ -3232,7 +3246,7 @@
                           theme === "notion" ? "bg-white border-zinc-900 shadow-sm text-zinc-900" : "bg-white border-zinc-200 text-zinc-500 hover:border-zinc-300"
                         }`}
                       >
-                        ☀️ Notion Claro
+                        Notion Claro
                       </button>
                       <button 
                         onClick={() => handleThemeChange("midnight")}
@@ -3240,52 +3254,59 @@
                           theme === "midnight" ? "bg-zinc-900 border-zinc-700 shadow-sm text-white" : "bg-white border-zinc-200 text-zinc-500 hover:border-zinc-300"
                         }`}
                       >
-                        🌙 Midnight Oscuro
+                        Midnight Oscuro
                       </button>
                     </div>
                   </div>
 
-                  {/* Control de Usuarios Autorizados */}
+                  {/* Control de Usuarios Autorizados (Solo administradores) */}
                   <div className="flex flex-col gap-3">
-                    <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500">🛡️ Usuarios Autorizados</h3>
-                    <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-200 flex flex-col gap-4">
-                      <form onSubmit={handleAddUser} className="flex gap-2">
-                        <input 
-                          type="text" 
-                          placeholder="Ej: jgomez"
-                          value={nuevoUsuarioInput}
-                          onChange={(e) => setNuevoUsuarioInput(e.target.value)}
-                          className="w-full bg-white border border-zinc-200 p-2.5 text-xs rounded-xl focus:outline-none font-bold text-zinc-800"
-                        />
-                        <button 
-                          type="submit"
-                          className="bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl whitespace-nowrap"
-                        >
-                          Autorizar
-                        </button>
-                      </form>
-                      <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-                        {listaUsuarios.map(u => (
-                          <span key={u} className="inline-flex items-center gap-1.5 bg-white border border-zinc-200 text-zinc-800 text-[11px] font-bold px-2.5 py-1 rounded-lg">
-                            @{u}
-                            {u !== "admin" && (
-                              <button 
-                                type="button"
-                                onClick={() => {
-                                  const filtered = listaUsuarios.filter(item => item !== u);
-                                  setListaUsuarios(filtered);
-                                  localStorage.setItem("robin_lista_usuarios", JSON.stringify(filtered));
-                                  showToast(`Usuario @${u} desautorizado`, "info");
-                                }}
-                                className="text-zinc-400 hover:text-red-500 font-bold ml-1"
-                              >
-                                &times;
-                              </button>
-                            )}
-                          </span>
-                        ))}
+                    <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500">Usuarios Autorizados</h3>
+                    {isAdmin ? (
+                      <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-200 flex flex-col gap-4 animate-zoom-in">
+                        <form onSubmit={handleAddUser} className="flex gap-2">
+                          <input 
+                            type="text" 
+                            placeholder="Ej: jgomez"
+                            value={nuevoUsuarioInput}
+                            onChange={(e) => setNuevoUsuarioInput(e.target.value)}
+                            className="w-full bg-white border border-zinc-200 p-2.5 text-xs rounded-xl focus:outline-none font-bold text-zinc-800"
+                          />
+                          <button 
+                            type="submit"
+                            className="bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl whitespace-nowrap"
+                          >
+                            Autorizar
+                          </button>
+                        </form>
+                        <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                          {listaUsuarios.map(u => (
+                            <span key={u} className="inline-flex items-center gap-1.5 bg-white border border-zinc-200 text-zinc-800 text-[11px] font-bold px-2.5 py-1 rounded-lg">
+                              @{u}
+                              {u !== "admin" && (
+                                <button 
+                                  type="button"
+                                  onClick={() => {
+                                    const filtered = listaUsuarios.filter(item => item !== u);
+                                    setListaUsuarios(filtered);
+                                    localStorage.setItem("robin_lista_usuarios", JSON.stringify(filtered));
+                                    showToast(`Usuario @${u} desautorizado`, "info");
+                                  }}
+                                  className="text-zinc-400 hover:text-red-500 font-bold ml-1"
+                                >
+                                  &times;
+                                </button>
+                              )}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    </div>
+                    ) : (
+                      <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-200 text-zinc-500 text-xs font-semibold flex items-start gap-2.5">
+                        <i className="fa-solid fa-lock text-zinc-400 mt-0.5"></i>
+                        <span>La gestión de usuarios autorizados está restringida para tu perfil de colaborador.</span>
+                      </div>
+                    )}
                   </div>
 
                 </div>
@@ -3310,7 +3331,7 @@
           {taskToDelete && (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
               <div className="bg-white p-6 rounded-2xl border border-zinc-200 shadow-2xl w-full max-w-sm animate-zoom-in flex flex-col gap-4">
-                <h4 className="text-sm font-black text-zinc-900 uppercase tracking-wider border-b pb-3">🚨 Confirmar Eliminación</h4>
+                <h4 className="text-sm font-black text-zinc-900 uppercase tracking-wider border-b pb-3">Confirmar Eliminación</h4>
                 <p className="text-xs text-zinc-500 font-semibold leading-relaxed">
                   ¿Estás seguro de que deseas eliminar este entregable permanentemente del sistema?
                 </p>

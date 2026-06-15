@@ -41,6 +41,14 @@
     ::-webkit-scrollbar-thumb:hover {
       background: rgba(55, 53, 47, 0.25);
     }
+    /* Eliminar barra de scroll en contenedores horizontales */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
     /* Animaciones sutiles */
     .animate-fade-in {
       animation: fadeIn 0.15s ease-out forwards;
@@ -70,7 +78,6 @@
   <script type="text/babel">
 
     // 🟢 CONFIGURACIÓN DIRECTA DE LA BASE DE DATOS (Google Sheets)
-    // Cambia este enlace por tu URL real de Google Apps Script cuando lo requieras
     const AUTO_API_URL = "https://script.google.com/macros/s/AKfycbz2e8lRzFV6eXFNHKmiLplWhkoPeo_oKy-tMJrpjR3OyKiPkjjirZE1qrZttf193kgMYg/exec";
     
     // Funciones auxiliares globales saneadas para garantizar el hoisting en Babel
@@ -376,15 +383,15 @@
 
     const ESTADOS_MAPA = [
       { id: "Pendiente", dot: "bg-zinc-300", bg: "bg-zinc-100 text-zinc-700" },
-      { id: "En progreso", dot: "bg-blue-400", bg: "bg-blue-50 text-blue-700" },
-      { id: "Seguimiento", dot: "bg-amber-400", bg: "bg-amber-50 text-amber-700" },
-      { id: "En revision", dot: "bg-purple-400", bg: "bg-purple-50 text-purple-700" },
-      { id: "En pausa", dot: "bg-red-400", bg: "bg-red-50 text-red-700" },
-      { id: "Completada", dot: "bg-emerald-500", bg: "bg-emerald-50 text-emerald-700" }
+      { id: "En progreso", dot: "bg-blue-400", bg: "bg-[#EBF5FE] text-blue-700" },
+      { id: "Seguimiento", dot: "bg-amber-400", bg: "bg-[#FEF6E0] text-amber-700" },
+      { id: "En revision", dot: "bg-purple-400", bg: "bg-[#F5EEFC] text-purple-700" },
+      { id: "En pausa", dot: "bg-red-400", bg: "bg-[#FDF0EE] text-red-700" },
+      { id: "Completada", dot: "bg-emerald-500", bg: "bg-[#EDFBF2] text-emerald-700" }
     ];
 
     const PRIORIDADES_MAPA = [
-      { id: "Alta", label: "Alta", color: "bg-red-50 text-red-800 border-red-100" },
+      { id: "Alta", label: "Alta", color: "bg-red-50 text-red-850 border-red-100" },
       { id: "Media", label: "Media", color: "bg-zinc-100 text-zinc-700 border-zinc-200" },
       { id: "Baja", label: "Baja", color: "bg-zinc-50 text-zinc-500 border-zinc-100" }
     ];
@@ -437,6 +444,173 @@
         </svg>
       )
     };
+
+    // =========================================================================
+    // 📅 COMPONENTE: CALENDARIO MENSUAL INTEGRADO (NOTION CALENDAR VIEW)
+    // =========================================================================
+    function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle }) {
+      const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth());
+      const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
+
+      const monthNames = [
+        "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", 
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+      ];
+      
+      const dayNames = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"];
+
+      // Navegación de mes
+      const handlePrevMonth = () => {
+        if (currentMonth === 0) {
+          setCurrentMonth(11);
+          setCurrentYear(prev => prev - 1);
+        } else {
+          setCurrentMonth(prev => prev - 1);
+        }
+      };
+
+      const handleNextMonth = () => {
+        if (currentMonth === 11) {
+          setCurrentMonth(0);
+          setCurrentYear(prev => prev + 1);
+        } else {
+          setCurrentMonth(prev => prev + 1);
+        }
+      };
+
+      const gridCells = useMemo(() => {
+        const firstDay = new Date(currentYear, currentMonth, 1).getDay(); // Dom = 0, Lun = 1, etc.
+        const offset = firstDay === 0 ? 6 : firstDay - 1; // Ajustar a inicio de lunes (0 = Lunes, 6 = Domingo)
+        const daysCount = new Date(currentYear, currentMonth + 1, 0).getDate();
+
+        const cells = [];
+        const prevMonthDays = new Date(currentYear, currentMonth, 0).getDate();
+
+        // Relleno mes anterior
+        for (let i = offset - 1; i >= 0; i--) {
+          cells.push({
+            day: prevMonthDays - i,
+            isCurrentMonth: false,
+            month: currentMonth === 0 ? 11 : currentMonth - 1,
+            year: currentMonth === 0 ? currentYear - 1 : currentYear
+          });
+        }
+
+        // Días mes actual
+        for (let i = 1; i <= daysCount; i++) {
+          cells.push({
+            day: i,
+            isCurrentMonth: true,
+            month: currentMonth,
+            year: currentYear
+          });
+        }
+
+        // Relleno mes siguiente hasta completar múltiplos de 7
+        const remaining = 42 - cells.length;
+        for (let i = 1; i <= remaining; i++) {
+          cells.push({
+            day: i,
+            isCurrentMonth: false,
+            month: currentMonth === 11 ? 0 : currentMonth + 1,
+            year: currentMonth === 11 ? currentYear + 1 : currentYear
+          });
+        }
+
+        return cells;
+      }, [currentMonth, currentYear]);
+
+      const isSameDayTask = (task, y, m, d) => {
+        if (!task.deadline) return false;
+        const taskTime = obtenerTiempoFecha(task.deadline);
+        const cellTime = new Date(y, m, d).getTime();
+        return taskTime !== Infinity && taskTime === cellTime;
+      };
+
+      return (
+        <div className="border border-zinc-200 rounded-md bg-white p-4">
+          <div className="flex items-center justify-between border-b pb-3 mb-3">
+            <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">Cronograma Mensual</span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-bold text-zinc-700 font-sans">
+                {monthNames[currentMonth]} {currentYear}
+              </span>
+              <div className="flex items-center gap-1 border border-zinc-200 rounded p-0.5 bg-zinc-50">
+                <button 
+                  onClick={handlePrevMonth}
+                  className="p-1 text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 rounded transition-colors text-xs"
+                >
+                  <i className="fa-solid fa-chevron-left"></i>
+                </button>
+                <button 
+                  onClick={handleNextMonth}
+                  className="p-1 text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 rounded transition-colors text-xs"
+                >
+                  <i className="fa-solid fa-chevron-right"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Cabecera días de semana */}
+          <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-tight mb-1">
+            {dayNames.map(d => <div key={d} className="py-1">{d}</div>)}
+          </div>
+
+          {/* Cuadrícula del mes */}
+          <div className="grid grid-cols-7 gap-1 border-t border-zinc-100 pt-1">
+            {gridCells.map((cell, idx) => {
+              const dayTasks = tareas.filter(t => isSameDayTask(t, cell.year, cell.month, cell.day));
+              const isToday = new Date().getDate() === cell.day && new Date().getMonth() === cell.month && new Date().getFullYear() === cell.year;
+
+              return (
+                <div 
+                  key={idx} 
+                  className={`min-h-[64px] border border-zinc-100 rounded p-1 flex flex-col justify-between transition-colors ${
+                    cell.isCurrentMonth ? 'bg-white' : 'bg-[#FAF9F6]/40 text-zinc-350'
+                  } ${isToday ? 'border-zinc-400 ring-[0.5px] ring-zinc-400/50' : ''}`}
+                >
+                  {/* Número del día */}
+                  <div className="flex items-center justify-between">
+                    <span className={`text-[10px] font-bold ${
+                      isToday ? 'bg-[#37352F] text-white px-1 py-0.25 rounded-sm' : cell.isCurrentMonth ? 'text-zinc-700' : 'text-zinc-350'
+                    }`}>
+                      {cell.day}
+                    </span>
+                    {dayTasks.length > 0 && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-zinc-400"></span>
+                    )}
+                  </div>
+
+                  {/* Listado compacto de entregables del día */}
+                  <div className="flex flex-col gap-0.5 mt-1 overflow-y-auto max-h-[42px] no-scrollbar">
+                    {dayTasks.slice(0, 3).map(t => {
+                      const badgeStyle = getMarcaStyle(t.marca);
+                      return (
+                        <div 
+                          key={t.idTarea}
+                          onClick={() => onSelectTask(t)}
+                          className={`text-[8px] font-semibold truncate px-1 py-0.5 rounded cursor-pointer border border-zinc-150 transition-colors uppercase tracking-tight ${badgeStyle.bg} ${badgeStyle.text}`}
+                          title={t.info}
+                        >
+                          {t.info}
+                        </div>
+                      );
+                    })}
+                    {dayTasks.length > 3 && (
+                      <span className="text-[8px] text-zinc-400 font-bold block pl-1">
+                        +{dayTasks.length - 3} más
+                      </span>
+                    )}
+                  </div>
+
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
 
     // =========================================================================
     // 📋 COMPONENTE: LAYOUT DE TABLA AGRUPADA (ESTILO BASE DE DATOS NOTION)
@@ -846,6 +1020,7 @@
       const [widgetTitulo, setWidgetTitulo] = useState("");
       const [widgetLink, setWidgetLink] = useState("");
       const [widgetIcon, setWidgetIcon] = useState("link");
+      const [widgetColor, setWidgetColor] = useState("bg-[#EBF5FE] text-blue-700");
       const [showAddWidgetModal, setShowAddWidgetModal] = useState(false);
 
       const stats = useMemo(() => {
@@ -877,7 +1052,7 @@
           titulo: widgetTitulo.trim(),
           link: widgetLink.trim(),
           icon: widgetIcon,
-          color: "bg-zinc-100 text-zinc-700"
+          color: widgetColor
         };
         onAddWidget(nuevo);
         setWidgetTitulo("");
@@ -885,16 +1060,69 @@
         setShowAddWidgetModal(false);
       };
 
+      const handleAddWidgetColorClass = (val) => {
+        setWidgetColor(val);
+      };
+
       return (
         <div className="flex flex-col gap-6 animate-fade-in">
           {/* Bienvenida limpia */}
-          <div className="border-b pb-4">
-            <h2 className="text-xl font-extrabold text-[#37352F]">
-              Hola, {nombreUsuario || `@${username}`}
-            </h2>
-            <p className="text-xs text-zinc-500 font-normal mt-0.5">
-              Área de trabajo unificada de Trade & Shopper Marketing.
-            </p>
+          <div className="border-b border-zinc-100 pb-3 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-extrabold text-[#37352F] tracking-tight">
+                Home
+              </h2>
+              <p className="text-[11px] text-zinc-400 font-medium">
+                Workspace unificado de Trade & Shopper Marketing.
+              </p>
+            </div>
+            <span className="text-[10px] font-semibold text-zinc-400 bg-zinc-50 border border-zinc-200 px-2 py-1 rounded">
+              Socio Estratégico ROBIN
+            </span>
+          </div>
+
+          {/* BARRA HORIZONTAL DE ACCESOS DIRECTOS (WIDGETS) */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-1.5">
+              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Enlaces de interés</span>
+              <button 
+                onClick={() => setShowAddWidgetModal(true)}
+                className="text-[11px] font-semibold text-zinc-500 hover:text-zinc-800 transition-colors"
+              >
+                + Añadir enlace
+              </button>
+            </div>
+            <div className="flex items-center gap-3 overflow-x-auto py-1 pr-1 no-scrollbar">
+              {widgets.length === 0 ? (
+                <div className="text-xs text-zinc-400 italic py-1">No hay enlaces rápidos registrados.</div>
+              ) : (
+                widgets.map(w => (
+                  <div 
+                    key={w.id} 
+                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-zinc-200 bg-white hover:bg-zinc-50/50 transition-colors group shrink-0 shadow-sm"
+                  >
+                    <a 
+                      href={w.link} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2"
+                    >
+                      <div className={`p-1 rounded shrink-0 ${w.color || "bg-zinc-100 text-zinc-700"}`}>
+                        <WidgetIcon iconName={w.icon} className="w-3.5 h-3.5" />
+                      </div>
+                      <span className="text-xs font-semibold text-zinc-700 truncate max-w-[120px]">{w.titulo}</span>
+                    </a>
+                    <button 
+                      onClick={() => onDeleteWidget(w.id, w.titulo)}
+                      className="p-1 text-zinc-300 hover:text-red-500 rounded opacity-0 group-hover:opacity-100 transition-opacity ml-1"
+                      title="Eliminar enlace"
+                    >
+                      <i className="fa-regular fa-trash-can text-[10px]"></i>
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
 
           {/* Estadísticas en formato Notion Table */}
@@ -908,7 +1136,7 @@
               <span className="text-xl font-extrabold text-blue-600 mt-1 block">{stats.enProgreso}</span>
             </div>
             <div>
-              <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-tight block">Completadas</span>
+              <span className="text-[10px] font-semibold text-zinc-400 uppercase tracking-tight block">Completados</span>
               <span className="text-xl font-extrabold text-emerald-600 mt-1 block">{stats.completadas}</span>
             </div>
             <div>
@@ -917,17 +1145,28 @@
             </div>
           </div>
 
+          {/* Sección de Calendario y Urgentes */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-            {/* Urgentes */}
-            <div className="lg:col-span-2 border border-zinc-200 p-4 rounded-md flex flex-col gap-3">
+            
+            {/* Calendario de entregables */}
+            <div className="lg:col-span-2">
+              <CalendarioNotion 
+                tareas={tareas} 
+                onSelectTask={onSelectTask} 
+                getMarcaStyle={getMarcaStyle}
+              />
+            </div>
+
+            {/* Urgentes de Prioridad Alta */}
+            <div className="border border-zinc-200 p-4 rounded-md bg-white flex flex-col gap-3">
               <div className="flex items-center justify-between border-b pb-2">
-                <span className="text-xs font-bold uppercase text-zinc-500 tracking-wider">Entregas de prioridad alta</span>
-                <span className="text-[10px] bg-red-50 text-red-700 px-2 py-0.5 rounded border border-red-100 font-semibold">Urgentes</span>
+                <span className="text-xs font-bold uppercase text-zinc-500 tracking-wider">Entregas Urgentes</span>
+                <span className="text-[10px] bg-red-50 text-red-700 px-2 py-0.5 rounded border border-red-100 font-semibold">Prioridad Alta</span>
               </div>
 
               <div className="flex flex-col divide-y divide-zinc-100">
                 {highPriorityTasks.length === 0 ? (
-                  <div className="py-6 text-center text-zinc-400 text-xs">
+                  <div className="py-8 text-center text-zinc-400 text-xs">
                     No hay entregables urgentes pendientes.
                   </div>
                 ) : (
@@ -937,7 +1176,7 @@
                       <div 
                         key={t.idTarea} 
                         onClick={() => onSelectTask(t)}
-                        className="py-2 flex items-center justify-between gap-4 cursor-pointer hover:bg-zinc-50/60 transition-colors rounded px-1"
+                        className="py-2.5 flex items-center justify-between gap-4 cursor-pointer hover:bg-zinc-50/65 transition-colors rounded px-1"
                       >
                         <div className="flex flex-col gap-0.5 overflow-hidden">
                           <div className="flex items-center gap-1.5 flex-wrap">
@@ -950,8 +1189,8 @@
                         </div>
                         <div className="flex items-center gap-2 text-right shrink-0">
                           <div>
-                            <span className="text-[9px] text-zinc-400 block font-normal">LIMITE</span>
-                            <span className="text-[11px] font-medium text-zinc-600">{t.deadline ? formatearFecha(t.deadline) : "--/--"}</span>
+                            <span className="text-[8px] text-zinc-400 block font-normal">LIMITE</span>
+                            <span className="text-[10px] font-semibold text-zinc-600">{t.deadline ? formatearFecha(t.deadline) : "--/--"}</span>
                           </div>
                           <i className="fa-solid fa-chevron-right text-zinc-300 text-[10px]"></i>
                         </div>
@@ -962,53 +1201,6 @@
               </div>
             </div>
 
-            {/* Accesos Rápidos */}
-            <div className="border border-zinc-200 p-4 rounded-md flex flex-col gap-3">
-              <div className="flex items-center justify-between border-b pb-2">
-                <span className="text-xs font-bold uppercase text-zinc-500 tracking-wider">Enlaces de interés</span>
-                <button 
-                  onClick={() => setShowAddWidgetModal(true)}
-                  className="text-[10px] font-semibold text-zinc-500 hover:text-zinc-800 transition-colors"
-                >
-                  + Añadir
-                </button>
-              </div>
-
-              <div className="flex flex-col gap-1.5 max-h-60 overflow-y-auto">
-                {widgets.length === 0 ? (
-                  <div className="py-6 text-center text-zinc-400 text-xs">
-                    No hay enlaces agregados aún.
-                  </div>
-                ) : (
-                  widgets.map(w => (
-                    <div 
-                      key={w.id} 
-                      className="flex items-center justify-between p-2 rounded border border-zinc-150 bg-zinc-50/50 hover:bg-zinc-100/50 transition-colors group"
-                    >
-                      <a 
-                        href={w.link} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 flex-1 overflow-hidden"
-                      >
-                        <div className="p-1 rounded bg-white border shrink-0 text-zinc-500">
-                          <WidgetIcon iconName={w.icon} />
-                        </div>
-                        <div className="overflow-hidden">
-                          <span className="text-xs font-medium text-[#37352F] truncate block">{w.titulo}</span>
-                        </div>
-                      </a>
-                      <button 
-                        onClick={() => onDeleteWidget(w.id, w.titulo)}
-                        className="p-1 text-zinc-300 hover:text-red-500 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <i className="fa-regular fa-trash-can text-[10px]"></i>
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
           </div>
 
           {/* Modal para añadir enlace */}
@@ -1016,7 +1208,7 @@
             <div className="fixed inset-0 bg-black/10 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
               <div className="bg-white p-5 rounded-md border border-zinc-300 shadow-md w-full max-w-sm animate-zoom-in">
                 <div className="flex items-center justify-between border-b pb-2 mb-3">
-                  <span className="text-xs font-bold uppercase text-zinc-500 tracking-wider">Añadir Acceso Rápido</span>
+                  <span className="text-xs font-bold uppercase text-zinc-500 tracking-wider">Añadir enlace</span>
                   <button 
                     onClick={() => setShowAddWidgetModal(false)}
                     className="text-zinc-400 hover:text-zinc-800 font-bold"
@@ -1033,7 +1225,7 @@
                       placeholder="Ej: Carpeta de Diseños, Drive..."
                       value={widgetTitulo}
                       onChange={(e) => setWidgetTitulo(e.target.value)}
-                      className="w-full bg-zinc-50 border border-zinc-200 px-2 py-1.5 text-xs rounded focus:outline-none font-medium text-[#37352F]"
+                      className="w-full bg-zinc-50 border border-zinc-200 px-2.5 py-1.5 text-xs rounded focus:outline-none font-medium text-[#37352F]"
                     />
                   </div>
 
@@ -1045,24 +1237,42 @@
                       placeholder="https://docs.google.com/..."
                       value={widgetLink}
                       onChange={(e) => setWidgetLink(e.target.value)}
-                      className="w-full bg-zinc-50 border border-zinc-200 px-2 py-1.5 text-xs rounded focus:outline-none font-medium text-[#37352F]"
+                      className="w-full bg-zinc-50 border border-zinc-200 px-2.5 py-1.5 text-xs rounded focus:outline-none font-medium text-[#37352F]"
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Icono</label>
-                    <select 
-                      value={widgetIcon}
-                      onChange={(e) => setWidgetIcon(e.target.value)}
-                      className="w-full bg-zinc-50 border border-zinc-200 px-2 py-1.5 text-xs rounded focus:outline-none font-medium text-[#37352F]"
-                    >
-                      <option value="link">Enlace</option>
-                      <option value="chart">Reporte / Métricas</option>
-                      <option value="folder">Carpeta (Drive)</option>
-                      <option value="file">Documento</option>
-                      <option value="globe">Página Web</option>
-                      <option value="image">Diseño / Imagen</option>
-                    </select>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Icono</label>
+                      <select 
+                        value={widgetIcon}
+                        onChange={(e) => setWidgetIcon(e.target.value)}
+                        className="w-full bg-zinc-50 border border-zinc-200 px-2 py-1.5 text-xs rounded focus:outline-none font-medium text-[#37352F]"
+                      >
+                        <option value="link">Enlace</option>
+                        <option value="chart">Métricas</option>
+                        <option value="folder">Carpeta (Drive)</option>
+                        <option value="file">Documento</option>
+                        <option value="globe">Web</option>
+                        <option value="image">Diseño / Imagen</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Color Estilo</label>
+                      <select 
+                        value={widgetColor}
+                        onChange={(e) => handleAddWidgetColorClass(e.target.value)}
+                        className="w-full bg-zinc-50 border border-zinc-200 px-2 py-1.5 text-xs rounded focus:outline-none font-medium text-[#37352F]"
+                      >
+                        <option value="bg-[#EBF5FE] text-blue-700">Azul</option>
+                        <option value="bg-[#F5EEFC] text-purple-700">Morado</option>
+                        <option value="bg-[#FEF6E0] text-amber-700">Naranja</option>
+                        <option value="bg-[#EDFBF2] text-emerald-700">Verde</option>
+                        <option value="bg-[#FDF0EE] text-red-700">Rojo</option>
+                        <option value="bg-zinc-100 text-zinc-700">Gris</option>
+                      </select>
+                    </div>
                   </div>
 
                   <div className="flex gap-2 justify-end mt-2">
@@ -1186,7 +1396,7 @@
                     placeholder="https://..." 
                     value={logoUrl} 
                     onChange={(e) => setLogoUrl(e.target.value)}
-                    className="w-full bg-zinc-50 border border-zinc-200 px-3 py-1.5 text-xs rounded focus:outline-none font-medium text-[#37352F]" 
+                    className="w-full bg-zinc-50 border border-zinc-200 px-3 py-1.5 text-xs rounded focus:outline-none font-semibold text-[#37352F]" 
                   />
                 </div>
                 {logoUrl && (
@@ -2252,22 +2462,6 @@
         });
       }, [tareas, filtroTiempo, filtroMarca, filtroEstado, filtroPrioridad, searchQuery]);
 
-      const metricaCounters = useMemo(() => {
-        const hoy = new Date();
-        const tHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
-        const activasHoy = tareas.filter(t => {
-          const tDeadline = obtenerTiempoFecha(t.deadline);
-          return tDeadline !== Infinity && tDeadline === tHoy && cleanEstado(t.estado) !== "completada";
-        }).length;
-
-        const atrasadas = tareas.filter(t => {
-          const tDeadline = obtenerTiempoFecha(t.deadline);
-          return tDeadline !== Infinity && tDeadline < tHoy && cleanEstado(t.estado) !== "completada";
-        }).length;
-        
-        return { activasHoy, atrasadas };
-      }, [tareas]);
-
       const getMarcaStyle = (marcaName) => {
         if (!marcaName) return { bg: "bg-zinc-150", text: "text-zinc-800", border: "border-zinc-200" };
         const clean = marcaName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
@@ -2352,6 +2546,69 @@
         }
       };
 
+      // =========================================================================
+      // 🛡️ CONTROL DE ACCESO (LOGIN MODERNO)
+      // =========================================================================
+      if (!usuario) {
+        return (
+          <div className="h-screen w-screen bg-[#FAFAFA] flex items-center justify-center p-4 select-none animate-fade-in">
+            <div className="bg-white border border-zinc-200 shadow-sm rounded-md p-6 md:p-8 w-full max-w-sm flex flex-col gap-6">
+              
+              <div className="flex flex-col items-center gap-1.5">
+                <RobinLogo className="h-8 w-auto" theme="notion" />
+                <span className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mt-1">Workspace Login</span>
+              </div>
+
+              {loginError && (
+                <div className="p-2.5 bg-red-50 text-red-650 border border-red-100 text-xs font-semibold rounded flex items-center gap-2">
+                  <i className="fa-solid fa-circle-exclamation text-red-550"></i>
+                  <span>{loginError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleLogin} className="flex flex-col gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Colaborador (Usuario)</label>
+                  <input 
+                    type="text" 
+                    name="username" 
+                    required 
+                    placeholder="Tu usuario..."
+                    className="w-full bg-zinc-50 border border-zinc-200 p-2.5 text-xs font-semibold rounded focus:outline-none text-[#37352F] placeholder-zinc-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Contraseña</label>
+                  <input 
+                    type="password" 
+                    required 
+                    placeholder="••••••••" 
+                    value={claveInput}
+                    onChange={(e) => setClaveInput(e.target.value)}
+                    className="w-full bg-zinc-50 border border-zinc-200 p-2.5 text-xs rounded focus:outline-none text-[#37352F]"
+                  />
+                </div>
+
+                <button 
+                  type="submit"
+                  className="w-full bg-[#37352F] hover:bg-[#2c2a26] text-white font-semibold py-2.5 px-4 rounded text-xs uppercase tracking-wider shadow-sm transition-colors mt-1"
+                >
+                  Acceder
+                </button>
+              </form>
+
+              <div className="text-center">
+                <p className="text-[10px] text-zinc-400 font-semibold leading-relaxed">
+                  Acceso exclusivo de Trade & Shopper Marketing.<br />
+                  Socio estratégico de marca ROBIN.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div className={`flex h-screen w-screen overflow-hidden ${currentTheme.bg} ${currentTheme.text} select-none transition-all`}>
           
@@ -2408,7 +2665,7 @@
                       ) : (
                         usuariosConectados.map((u, index) => (
                           <div key={u.uid || `user-${index}`} className="flex items-center gap-1 text-[9px] text-zinc-600 truncate font-medium">
-                            <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                             <span className="truncate">{u.nombre || `@${u.username}`}</span>
                           </div>
                         ))
@@ -2437,7 +2694,7 @@
                       paginaActiva === "home" ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-200" : "text-zinc-550 hover:bg-zinc-100/50"
                     }`}
                   >
-                    <SVGIcon.Home />Dashboard Inicio
+                    <SVGIcon.Home />Home
                   </button>
 
                   <button

@@ -50,7 +50,7 @@
   <!-- Aplicación React -->
   <script type="text/babel">
     (function() {
-      // Rutina autoejecutable antes de inicializar React para evitar que el estado "null" quede atrapado en el caché del navegador
+      // Evitar que estados "null" corrompan las variables en caché
       ['robin_usuario_actual', 'robin_nombre_completo', 'robin_theme'].forEach(key => {
         const val = localStorage.getItem(key);
         if (val === 'null' || val === 'undefined' || val === 'null ' || val === ' undefined' || !val) {
@@ -183,6 +183,7 @@
       "GAMA":        { bg: "bg-red-50", text: "text-red-800", border: "border-red-100" },
       "LA SANTE":    { bg: "bg-emerald-50", text: "text-emerald-800", border: "border-emerald-100" },
       "LA SANTE ":   { bg: "bg-emerald-50", text: "text-emerald-800", border: "border-emerald-100" },
+      "SANTE":       { bg: "bg-emerald-50", text: "text-emerald-800", border: "border-emerald-100" },
       "ROBIN":       { bg: "bg-stone-900", text: "text-white", border: "border-stone-800" },
       "TMK":         { bg: "bg-amber-50", text: "text-amber-800", border: "border-amber-100" }
     };
@@ -196,7 +197,7 @@
         text: "text-zinc-900",
         textMuted: "text-zinc-500",
         border: "border-zinc-200/80",
-        primary: "bg-zinc-900 text-white hover:bg-zinc-850",
+        primary: "bg-zinc-900 text-white hover:bg-zinc-800",
         accent: "bg-zinc-100 text-zinc-800",
         borderMuted: "border-zinc-100",
         shadow: "shadow-sm border border-zinc-200/50"
@@ -253,12 +254,12 @@
 
     // Estados con Emoji homologados
     const ESTADOS_MAPA = [
-      { id: "⚪ Pendiente", label: "Pendiente", color: "bg-zinc-50 text-zinc-655 border-zinc-200", dot: "bg-zinc-400" },
-      { id: "🔵 En progreso", label: "En Progreso", color: "bg-blue-50 text-blue-800 border-blue-100", dot: "bg-blue-600" },
+      { id: "⚪ Pendiente", label: "Pendiente", color: "bg-zinc-50 text-zinc-600 border-zinc-200", dot: "bg-zinc-400" },
+      { id: "🔵 En progreso", label: "En progreso", color: "bg-blue-50 text-blue-800 border-blue-100", dot: "bg-blue-600" },
       { id: "🟡 Seguimiento", label: "Seguimiento", color: "bg-purple-50 text-purple-800 border-purple-100", dot: "bg-purple-600" },
       { id: "🟠 En revisión", label: "Revisión", color: "bg-orange-50 text-orange-800 border-orange-100", dot: "bg-orange-600" }, 
-      { id: "🔴 En pausa", label: "Pausa", color: "bg-rose-50 text-rose-800 border-rose-100", dot: "bg-red-655" }, 
-      { id: "🟢 Completada", label: "Completada", color: "bg-emerald-50 text-emerald-800 border-emerald-100", dot: "bg-emerald-655" }
+      { id: "🔴 En pausa", label: "Pausa", color: "bg-rose-50 text-rose-800 border-rose-100", dot: "bg-red-500" }, 
+      { id: "🟢 Completada", label: "Completada", color: "bg-emerald-50 text-emerald-800 border-emerald-100", dot: "bg-emerald-500" }
     ];
 
     const LISTA_ESTADOS_VALIDOS = [
@@ -270,21 +271,31 @@
       "🟢 Completada"
     ];
 
+    // Mapeo y Colores para Prioridades
+    const PRIORIDADES_MAPA = [
+      { id: "🔴 Alta", label: "Alta", color: "bg-rose-50 text-rose-700 border-rose-200", dot: "bg-rose-500", weight: 3 },
+      { id: "🟡 Media", label: "Media", color: "bg-amber-50 text-amber-700 border-amber-200", dot: "bg-amber-500", weight: 2 },
+      { id: "🔵 Baja", label: "Baja", color: "bg-slate-50 text-slate-700 border-slate-200", dot: "bg-slate-400", weight: 1 }
+    ];
+
     function cleanEstado(val) {
       if (!val) return "";
       return String(val)
         .replace(/[\u2600-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '')
         .normalize("NFD")
         .replace(/[\u0300-\u036f]/g, "")
-        .replace(/[^\w\s]/gi, '')
         .toLowerCase()
         .trim();
     }
 
-    function isStatusCompleted(estado) {
-      if (!estado) return false;
-      const clean = cleanEstado(estado);
-      return clean === "completada" || clean === "completado";
+    function cleanPrioridad(val) {
+      if (!val) return "media";
+      return String(val)
+        .replace(/[\u2600-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, '')
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim();
     }
 
     function formatearFecha(fechaStr) {
@@ -303,7 +314,7 @@
       }
       var str = String(val).trim();
       
-      // Controlar fechas con GMT, formato extendido o timezone offset
+      // Controlar fechas con timezone offsets
       if (str.includes("GMT") || str.includes("Venezuela") || str.includes(":") || (isNaN(str[0]) && isNaN(parseInt(str, 10)))) {
         var parsedDate = new Date(str);
         if (!isNaN(parsedDate.getTime())) {
@@ -311,7 +322,6 @@
         }
       }
 
-      // Remover cualquier componente de tiempo (T00:00:00 o similar)
       str = str.split(/[ T]/)[0].trim();
       var partes = str.split(/[-/]/);
       if (partes.length === 3) {
@@ -332,7 +342,6 @@
       return Infinity;
     }
 
-    // Comparador unificado de fechas resistente a formatos mixtos (slash vs dash, ISO)
     function sonMismasFechas(d1, d2) {
       if (!d1 || !d2) return false;
       const t1 = obtenerTiempoFecha(d1);
@@ -340,15 +349,22 @@
       return t1 !== Infinity && t2 !== Infinity && t1 === t2;
     }
 
-    // Validador estricto de IDs de tareas reales de la base de datos (Ej: SAN-123, DIA-104)
     function isValidIdTarea(id) {
       if (!id) return false;
       const idStr = String(id).trim().toUpperCase();
       if (idStr.length === 0) return false;
-      if (idStr.includes("GMT") || idStr.includes("VENEZUELA") || idStr.includes(":") || idStr.includes(" ")) return false;
+      if (idStr.includes("GMT") || idStr.includes("VENEZUELA") || idStr.includes(":")) return false;
       if (idStr === "PENDIENTE" || idStr === "EN PROGRESO" || idStr === "SEGUIMIENTO" || idStr === "EN REVISION" || idStr === "EN PAUSA" || idStr === "COMPLETADA") return false;
       if (/^\d{2}[/-]\d{2}[/-]\d{4}$/.test(idStr) || /^\d{4}[/-]\d{2}[/-]\d{2}$/.test(idStr)) return false;
-      return /^[A-Z]{2,4}-\d+$/i.test(idStr);
+      return true;
+    }
+
+    // Retorna el peso numérico de la prioridad para ordenar
+    function getPriorityWeight(priText) {
+      const clean = cleanPrioridad(priText);
+      if (clean === "alta") return 3;
+      if (clean === "baja") return 1;
+      return 2; // Media por defecto
     }
 
     // =========================================================================
@@ -460,7 +476,7 @@
     }
 
     // =========================================================================
-    // 📋 COMPONENTE: LAYOUT DE TABLA AGRUPADA (Agrupado por Marca, Ordenado por Estado)
+    // 📋 COMPONENTE: LAYOUT DE TABLA AGRUPADA (Agrupado por Marca, Ordenado por Prioridad y Estado)
     // =========================================================================
     function LayoutTablaAgrupada({ tareas, onUpdateField, onSelectTask, onDeleteTask, getMarcaStyle, filtroTiempo, cleanIdTarea, currentTheme }) {
       
@@ -475,7 +491,9 @@
           agrupamiento[marcaKey].push(t);
         });
 
-        const PRIORIDADES = {
+        // Orden de prioridad primario (Alta -> Media -> Baja)
+        // Orden de estado secundario (Pendiente ... Completada)
+        const PRIORIDADES_ESTADOS = {
           "pendiente": 1,
           "en progreso": 2,
           "seguimiento": 3,
@@ -486,9 +504,17 @@
 
         Object.keys(agrupamiento).forEach(marca => {
           agrupamiento[marca].sort((a, b) => {
+            // 1. Ordenar por prioridad (Alta -> Media -> Baja)
+            const pesoA = getPriorityWeight(a.prioridad);
+            const pesoB = getPriorityWeight(b.prioridad);
+            if (pesoA !== pesoB) {
+              return pesoB - pesoA; // Pesos mayores primero (Alta = 3, Baja = 1)
+            }
+            
+            // 2. Ordenar por estado secundario
             const estA = cleanEstado(a.estado);
             const estB = cleanEstado(b.estado);
-            return (PRIORIDADES[estA] || 50) - (PRIORIDADES[estB] || 50);
+            return (PRIORIDADES_ESTADOS[estA] || 50) - (PRIORIDADES_ESTADOS[estB] || 50);
           });
         });
 
@@ -500,32 +526,28 @@
       return (
         <div className={`border ${currentTheme.border} rounded-xl shadow-sm overflow-hidden animate-slide-in ${currentTheme.cardBg} w-full max-w-full`}>
           <div className="overflow-x-auto w-full block">
-            <table className="w-full text-left border-collapse min-w-[800px]">
+            <table className="w-full text-left border-collapse min-w-[900px]">
               <thead>
                 <tr className="bg-zinc-50/50 border-b border-zinc-200/65 text-xs font-bold text-zinc-400 uppercase tracking-wider">
                   <th className="py-3.5 px-5 text-center w-24">ID</th>
+                  <th className="py-3.5 px-5 w-24 text-center">Prioridad</th>
                   <th className="py-3.5 px-5 w-28">Categoría</th>
                   <th className="py-3.5 px-5">Entregable</th>
-                  <th className="py-3.5 px-5 w-36 text-center">Estado</th>
-                  <th className="py-3.5 px-5 w-32 text-center">Fecha Límite</th>
-                  <th className="py-3.5 px-5 w-32">Asignado</th>
+                  <th className="py-3.5 px-5 w-32 text-center">Estado</th>
+                  <th className="py-3.5 px-5 w-28 text-center">Fecha Límite</th>
+                  <th className="py-3.5 px-5 w-28">Asignado</th>
                   <th className="py-3.5 px-5 text-center w-16">Acciones</th>
                 </tr>
               </thead>
               <tbody className="text-sm divide-y divide-zinc-150/40">
                 {totalTareas === 0 ? (
                   <tr>
-                    <td colSpan="7" className="py-20 text-center text-zinc-455 bg-zinc-50/5">
+                    <td colSpan="8" className="py-20 text-center text-zinc-500 bg-zinc-50/5">
                       <div className="flex flex-col items-center justify-center gap-2 py-6">
                         <i className="fa-regular fa-folder-open text-zinc-300 text-3xl"></i>
                         <p className="font-extrabold text-sm">Sin entregables en esta pestaña</p>
                         <p className="text-xs text-zinc-400 leading-relaxed px-4">
-                          {filtroTiempo === "HOY" 
-                            ? "No tienes entregables agendados para el día de hoy. Haz clic en 'Todas las Tareas' o 'Atrasadas' en los filtros."
-                            : filtroTiempo === "ATRASADAS"
-                            ? "¡Excelente! No se registran tareas pendientes con fecha límite vencida."
-                            : "Cambia tus filtros o crea un nuevo entregable."
-                          }
+                          Cambia tus filtros o crea un nuevo entregable.
                         </p>
                       </div>
                     </td>
@@ -538,7 +560,7 @@
                     return (
                       <React.Fragment key={marca}>
                         <tr className="bg-zinc-100/50 border-y border-zinc-200/30">
-                          <td colSpan="7" className="py-3 px-5">
+                          <td colSpan="8" className="py-3 px-5">
                             <div className="flex items-center gap-3">
                               <span className={`text-[10px] font-black px-2.5 py-1 rounded-md border uppercase tracking-wider ${badgeMarcaStyle.bg} ${badgeMarcaStyle.text} ${badgeMarcaStyle.border}`}>
                                 {marca}
@@ -552,6 +574,7 @@
 
                         {tareasDeMarca.map(t => {
                           const cEstado = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(t.estado)) || { color: "text-zinc-700", dot: "bg-zinc-300" };
+                          const cPrioridad = PRIORIDADES_MAPA.find(p => cleanPrioridad(p.id) === cleanPrioridad(t.prioridad)) || PRIORIDADES_MAPA[1];
                           const displayId = cleanIdTarea(t.idTarea);
                           
                           return (
@@ -560,8 +583,24 @@
                               onClick={() => onSelectTask(t)}
                               className="hover:bg-zinc-50/40 transition-all cursor-pointer border-b border-zinc-100"
                             >
-                              <td className="py-4 px-5 font-mono text-xs text-zinc-455 font-bold text-center">
+                              <td className="py-4 px-5 font-mono text-xs text-zinc-500 font-bold text-center">
                                 {displayId || "---"}
+                              </td>
+
+                              <td className="py-4 px-5 text-center" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center justify-center">
+                                  <select
+                                    value={t.prioridad || "🟡 Media"}
+                                    onChange={(e) => onUpdateField(t, "prioridad", e.target.value)}
+                                    className={`text-[10px] font-bold px-2 py-1 rounded-full border cursor-pointer focus:outline-none focus:ring-0 ${cPrioridad.color}`}
+                                  >
+                                    {PRIORIDADES_MAPA.map(p => (
+                                      <option key={p.id} value={p.id} className="bg-white text-zinc-800 font-bold text-xs">
+                                        {p.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
                               </td>
                               
                               <td className="py-4 px-5 text-zinc-500 font-bold text-xs truncate max-w-[110px]">
@@ -585,10 +624,10 @@
                                   <select
                                     value={t.estado}
                                     onChange={(e) => onUpdateField(t, "estado", e.target.value)}
-                                    className="text-xs font-bold py-1 bg-transparent border-0 cursor-pointer focus:outline-none focus:ring-0 text-zinc-655 font-sans"
+                                    className="text-xs font-bold py-1 bg-transparent border-0 cursor-pointer focus:outline-none focus:ring-0 text-zinc-600 font-sans"
                                   >
                                     {LISTA_ESTADOS_VALIDOS.map(opt => (
-                                      <option key={opt} value={opt} className="bg-white text-zinc-855">
+                                      <option key={opt} value={opt} className="bg-white text-zinc-800">
                                         {opt.substring(opt.indexOf(" ") + 1)}
                                       </option>
                                     ))}
@@ -610,7 +649,7 @@
                                 />
                               </td>
 
-                              <td className="py-4 px-5 text-zinc-555 font-bold text-xs">
+                              <td className="py-4 px-5 text-zinc-600 font-bold text-xs">
                                 <span className="truncate max-w-[90px] block">{t.personas || "Sin asignar"}</span>
                               </td>
 
@@ -662,10 +701,16 @@
         }
       };
 
+      // Ordenar las tareas de cada columna por Prioridad de forma descendente (Alta -> Media -> Baja)
+      const ordenarTareasPorPrioridad = (tareasList) => {
+        return [...tareasList].sort((a, b) => getPriorityWeight(b.prioridad) - getPriorityWeight(a.prioridad));
+      };
+
       return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-start h-full animate-slide-in">
           {ESTADOS_MAPA.map(col => {
-            const tareasColumna = tareas.filter(t => cleanEstado(t.estado) === cleanEstado(col.id));
+            const tareasColumnaRaw = tareas.filter(t => cleanEstado(t.estado) === cleanEstado(col.id));
+            const tareasColumna = ordenarTareasPorPrioridad(tareasColumnaRaw);
             const isOverThis = dragOverCol === col.id;
             
             return (
@@ -683,7 +728,7 @@
                     <span className={`w-2.5 h-2.5 rounded-full ${col.dot}`}></span>
                     {col.id.substring(col.id.indexOf(" ") + 1)}
                   </span>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-200/60 text-zinc-655 font-bold">{tareasColumna.length}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-200/60 text-zinc-600 font-bold">{tareasColumna.length}</span>
                 </div>
 
                 <div className="flex flex-col gap-2.5 overflow-y-auto max-h-[520px]">
@@ -694,6 +739,7 @@
                   ) : (
                     tareasColumna.map(t => {
                       const cMarca = getMarcaStyle(t.marca);
+                      const cPrioridad = PRIORIDADES_MAPA.find(p => cleanPrioridad(p.id) === cleanPrioridad(t.prioridad)) || PRIORIDADES_MAPA[1];
                       const displayId = cleanIdTarea(t.idTarea);
                       
                       const avanzarEstado = (e) => {
@@ -715,9 +761,9 @@
                             <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider border ${cMarca.bg} ${cMarca.text} ${cMarca.border}`}>
                               {t.marca || "Otros"}
                             </span>
-                            {displayId && (
-                              <span className="text-[10px] font-mono text-zinc-400 font-bold">{displayId}</span>
-                            )}
+                            <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full border uppercase ${cPrioridad.color}`}>
+                              {cPrioridad.label}
+                            </span>
                           </div>
 
                           <h4 className="text-sm font-bold leading-snug line-clamp-3">{t.info}</h4>
@@ -730,7 +776,7 @@
                           <div className="flex items-center gap-1.5 mt-1 pt-1.5 border-t border-zinc-200/50">
                             <button 
                               onClick={avanzarEstado}
-                              className="flex-1 text-center py-1 bg-zinc-100 hover:bg-zinc-200/80 text-zinc-655 font-bold text-[9px] rounded-lg border border-zinc-200/50 uppercase tracking-wider transition-all"
+                              className="flex-1 text-center py-1 bg-zinc-100 hover:bg-zinc-200/80 text-zinc-600 font-bold text-[9px] rounded-lg border border-zinc-200/50 uppercase tracking-wider transition-all"
                             >
                               Siguiente
                             </button>
@@ -803,13 +849,13 @@
             </h3>
             
             <div className="flex items-center gap-1 bg-zinc-50 p-1 rounded-lg border border-zinc-200">
-              <button onClick={() => navegarMes(-1)} className="hover:bg-white text-zinc-655 p-1 rounded-md text-[10px] md:text-xs">
+              <button onClick={() => navegarMes(-1)} className="hover:bg-white text-zinc-600 p-1 rounded-md text-[10px] md:text-xs">
                 <i className="fa-solid fa-chevron-left px-1"></i>
               </button>
               <button onClick={() => setCurrentDate(new Date())} className="hover:bg-white text-zinc-800 px-2 md:px-3 py-0.5 rounded-md text-[10px] md:text-xs font-bold">
                 Hoy
               </button>
-              <button onClick={() => navegarMes(1)} className="hover:bg-white text-zinc-655 p-1 rounded-md text-[10px] md:text-xs">
+              <button onClick={() => navegarMes(1)} className="hover:bg-white text-zinc-600 p-1 rounded-md text-[10px] md:text-xs">
                 <i className="fa-solid fa-chevron-right px-1"></i>
               </button>
             </div>
@@ -824,7 +870,9 @@
               ))}
 
               {diasDelMes.map((cell, index) => {
-                const tareasDia = cell.fechaStr ? tareas.filter(t => sonMismasFechas(t.deadline, cell.fechaStr)) : [];
+                const tareasDiaRaw = cell.fechaStr ? tareas.filter(t => sonMismasFechas(t.deadline, cell.fechaStr)) : [];
+                // Ordenar tareas del día en el calendario por prioridad descendente
+                const tareasDia = [...tareasDiaRaw].sort((a, b) => getPriorityWeight(b.prioridad) - getPriorityWeight(a.prioridad));
                 const esHoy = cell.fechaStr === new Date().toISOString().split('T')[0];
 
                 return (
@@ -857,7 +905,7 @@
                             onClick={() => onSelectTask(t)}
                             className={`p-1 rounded-md text-[8px] md:text-[10px] font-extrabold border truncate cursor-pointer transition-colors block w-full text-left shrink-0 ${
                               esAlerta 
-                                ? 'bg-orange-50 border-orange-200 text-orange-850 hover:bg-orange-100' 
+                                ? 'bg-orange-50 border-orange-200 text-orange-800 hover:bg-orange-100' 
                                 : 'bg-zinc-100/70 border-zinc-200 text-zinc-800 hover:bg-zinc-200'
                             }`}
                             title={`${t.marca}: ${t.info}`}
@@ -880,13 +928,14 @@
     // =========================================================================
     // COMPONENTE: MODAL FICHA DE SEGUIMIENTO (DRAWER LATERAL)
     // =========================================================================
-    function ModalEdicionTarea({ task, onClose, onSave, onDeleteClick, marcasDisponibles, listaPersonas, registrarNuevaPersona, cleanIdTarea }) {
+    function ModalEdicionTarea({ task, onClose, onSave, onDeleteClick, marcasDisponibles, listaPersonas, registrarNuevaPersona, cleanIdTarea, syncing }) {
       const [categoria, setCategoria] = useState(task.categoria || "");
       const [info, setInfo] = useState(task.info || "");
       const [personas, setPersonas] = useState(task.personas || "");
       const [detalles, setDetalles] = useState(task.detalles || "");
       const [estado, setEstado] = useState(task.estado || "⚪ Pendiente");
       const [deadline, setDeadline] = useState(task.deadline || "");
+      const [prioridad, setPrioridad] = useState(task.prioridad || "🟡 Media");
       
       const [nuevoStatus, setNuevoStatus] = useState("");
       const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
@@ -902,7 +951,7 @@
           if (line.trim().startsWith("•") || line.trim().startsWith("• [")) {
             logs.push(line.trim());
           } else if (line.trim() !== "") {
-            notes: notasLimpias.push(line);
+            notasLimpias.push(line);
           }
         });
 
@@ -913,7 +962,7 @@
       }, [detalles]);
 
       const handleAgregarStatus = () => {
-        if (!nuevoStatus.trim() || isSubmittingLocal) return;
+        if (!nuevoStatus.trim() || syncing || isSubmittingLocal) return;
         const hoy = new Date();
         const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
         const actualizacion = `• [${timestamp}] ${nuevoStatus.trim()} por @${localStorage.getItem("robin_usuario_actual")}`;
@@ -929,13 +978,14 @@
           personas,
           detalles: nuevosDetalles,
           estado,
-          deadline
+          deadline,
+          prioridad
         });
       };
 
       const handleFormSubmit = async (e) => {
         e.preventDefault();
-        if (isSubmittingLocal) return;
+        if (syncing || isSubmittingLocal) return;
         setIsSubmittingLocal(true);
         try {
           await onSave({
@@ -945,7 +995,8 @@
             personas,
             detalles,
             estado,
-            deadline
+            deadline,
+            prioridad
           });
         } finally {
           setIsSubmittingLocal(false);
@@ -964,7 +1015,7 @@
                 <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Ficha de Seguimiento</span>
                 {cleanedId && <span className="text-[11px] font-mono text-zinc-500 font-bold mt-0.5">{cleanedId}</span>}
               </div>
-              <button type="button" onClick={onClose} className="text-zinc-400 hover:text-zinc-800 text-sm p-1">
+              <button type="button" onClick={onClose} disabled={syncing || isSubmittingLocal} className="text-zinc-400 hover:text-zinc-800 text-sm p-1 disabled:opacity-50">
                 <i className="fa-solid fa-xmark text-lg"></i>
               </button>
             </div>
@@ -983,14 +1034,30 @@
                 </select>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Categoría</label>
-                <input type="text" value={categoria} onChange={(e) => setCategoria(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-sm rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-950 font-bold text-zinc-700" />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Categoría</label>
+                  <input type="text" disabled={syncing || isSubmittingLocal} value={categoria} onChange={(e) => setCategoria(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-sm rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-950 font-bold text-zinc-700 disabled:opacity-75" />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Prioridad</label>
+                  <select 
+                    disabled={syncing || isSubmittingLocal} 
+                    value={prioridad} 
+                    onChange={(e) => setPrioridad(e.target.value)} 
+                    className="w-full bg-zinc-50 border border-zinc-200 p-2 text-sm rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-950 font-bold text-zinc-700 bg-white"
+                  >
+                    {PRIORIDADES_MAPA.map(p => (
+                      <option key={p.id} value={p.id}>{p.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Título / Entregable</label>
-                <input type="text" required value={info} onChange={(e) => setInfo(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-sm rounded-lg font-bold text-zinc-855 focus:outline-none focus:ring-1 focus:ring-zinc-950" />
+                <input type="text" required disabled={syncing || isSubmittingLocal} value={info} onChange={(e) => setInfo(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-sm rounded-lg font-bold text-zinc-800 focus:outline-none focus:ring-1 focus:ring-zinc-950 disabled:opacity-75" />
               </div>
 
               <div>
@@ -1006,7 +1073,7 @@
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Estado</label>
-                  <select value={estado} onChange={(e) => setEstado(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-xs rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-950 bg-white font-black text-zinc-755">
+                  <select disabled={syncing || isSubmittingLocal} value={estado} onChange={(e) => setEstado(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-xs rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-950 bg-white font-black text-zinc-700 disabled:opacity-75">
                     {LISTA_ESTADOS_VALIDOS.map(opt => (
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
@@ -1015,7 +1082,7 @@
 
                 <div>
                   <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Fecha límite</label>
-                  <input type="date" value={valorDeadline} onChange={(e) => setDeadline(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-xs rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-950 font-bold" />
+                  <input type="date" disabled={syncing || isSubmittingLocal} value={valorDeadline} onChange={(e) => setDeadline(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 p-2 text-xs rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-950 font-bold disabled:opacity-75" />
                 </div>
               </div>
 
@@ -1023,6 +1090,7 @@
                 <label className="block text-xs font-bold text-zinc-400 uppercase tracking-wider mb-1">Descripción y Notas</label>
                 <textarea 
                   value={parseDetallesYHistorial.notas} 
+                  disabled={syncing || isSubmittingLocal}
                   onChange={(e) => {
                     const nuevoContenido = e.target.value;
                     const logs = parseDetallesYHistorial.historial.join('\n');
@@ -1030,14 +1098,14 @@
                   }} 
                   rows="3"
                   placeholder="Instrucciones del entregable..."
-                  className="w-full bg-zinc-50 border border-zinc-200 p-2 text-xs rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-950 resize-none font-semibold text-zinc-700"
+                  className="w-full bg-zinc-50 border border-zinc-200 p-2 text-xs rounded-lg focus:outline-none focus:ring-1 focus:ring-zinc-950 resize-none font-semibold text-zinc-700 disabled:opacity-75"
                 ></textarea>
               </div>
 
               {parseDetallesYHistorial.historial.length > 0 && (
                 <div className="border-t border-zinc-100 pt-3">
                   <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2">Historial de Registros</label>
-                  <div className="bg-zinc-50 border border-zinc-155 p-2.5 rounded-lg max-h-36 overflow-y-auto flex flex-col gap-1.5">
+                  <div className="bg-zinc-50 border border-zinc-150 p-2.5 rounded-lg max-h-36 overflow-y-auto flex flex-col gap-1.5">
                     {parseDetallesYHistorial.historial.map((log, lIdx) => (
                       <div key={lIdx} className="text-[10px] text-zinc-500 font-mono font-bold leading-normal border-b border-zinc-100/50 pb-1 last:border-0 last:pb-0">
                         {log}
@@ -1054,8 +1122,9 @@
                     type="text" 
                     placeholder="Avance o comentario nuevo..." 
                     value={nuevoStatus} 
+                    disabled={syncing || isSubmittingLocal}
                     onChange={(e) => setNuevoStatus(e.target.value)} 
-                    className="flex-1 bg-white border border-zinc-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none"
+                    className="flex-1 bg-white border border-zinc-200 rounded-lg px-2.5 py-1.5 text-xs focus:outline-none disabled:opacity-75"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
@@ -1066,7 +1135,7 @@
                   <button 
                     type="button" 
                     onClick={handleAgregarStatus} 
-                    disabled={!nuevoStatus.trim()}
+                    disabled={syncing || isSubmittingLocal || !nuevoStatus.trim()}
                     className="bg-zinc-900 hover:bg-black text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 disabled:opacity-50"
                   >
                     Registrar
@@ -1077,17 +1146,18 @@
               <div className="flex items-center justify-between gap-1.5 pt-4 border-t border-zinc-150 mt-auto">
                 <button 
                   type="button" 
+                  disabled={syncing || isSubmittingLocal}
                   onClick={() => onDeleteClick(task)}
-                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-655 font-bold text-xs rounded-lg transition-all border border-red-200/50"
+                  className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 font-bold text-xs rounded-lg transition-all border border-red-200/50 disabled:opacity-50"
                 >
                   <i className="fa-regular fa-trash-can mr-1.5"></i>Eliminar
                 </button>
                 <div className="flex items-center gap-1.5">
-                  <button type="button" onClick={onClose} className="px-3.5 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-lg transition-all">
+                  <button type="button" disabled={syncing || isSubmittingLocal} onClick={onClose} className="px-3.5 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-700 font-bold text-xs rounded-lg transition-all disabled:opacity-50">
                     Cerrar
                   </button>
-                  <button type="submit" className="px-4 py-1.5 bg-zinc-900 hover:bg-black text-white font-bold text-xs rounded-lg transition-all shadow-sm">
-                    Guardar
+                  <button type="submit" disabled={syncing || isSubmittingLocal} className="px-4 py-1.5 bg-zinc-900 hover:bg-black text-white font-bold text-xs rounded-lg transition-all shadow-sm disabled:opacity-50">
+                    {syncing || isSubmittingLocal ? 'Guardando...' : 'Guardar'}
                   </button>
                 </div>
               </div>
@@ -1114,19 +1184,18 @@
       const isAdmin = username === "admin";
       const saludoNombre = nombreUsuario && nombreUsuario !== "null" ? nombreUsuario : `@${username}`;
 
-      const tareasDeHoy = useMemo(() => {
-        const hoy = new Date();
-        const tHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
-
+      // 🚨 TAREAS CLAVE DEL HOME: Las 5 más importantes sin completar (Prioridad ALTA de cualquier marca y fecha)
+      const tareasMasImportantes = useMemo(() => {
         return tareas.filter(t => {
-          const tDeadline = obtenerTiempoFecha(t.deadline);
-          const esHoy = tDeadline === tHoy;
-          const noCompletada = !isStatusCompleted(t.estado);
-          return esHoy && noCompletada;
+          const noCompletada = cleanEstado(t.estado) !== "completada";
+          const esPrioridadAlta = cleanPrioridad(t.prioridad) === "alta";
+          return noCompletada && esPrioridadAlta;
         })
         .sort((a, b) => {
-          const PRIORIDADES = { "pendiente": 1, "en progreso": 2, "seguimiento": 3, "en revision": 4, "en pausa": 5 };
-          return (PRIORIDADES[cleanEstado(a.estado)] || 50) - (PRIORIDADES[cleanEstado(b.estado)] || 50);
+          // Ordenar secundariamente por deadline (los deadlines más antiguos o urgentes primero)
+          const tA = obtenerTiempoFecha(a.deadline);
+          const tB = obtenerTiempoFecha(b.deadline);
+          return tA - tB;
         })
         .slice(0, 5);
       }, [tareas]);
@@ -1182,7 +1251,7 @@
           <div className={`p-4 md:p-6 rounded-2xl border ${currentTheme.border} ${currentTheme.cardBg} flex justify-between items-center shadow-sm`}>
             <div>
               <h2 className="text-lg md:text-xl font-black tracking-tight text-zinc-900">¡Hola, {saludoNombre}! 👋</h2>
-              <p className="text-[11px] md:text-xs text-zinc-455 font-semibold mt-1">Este es el resumen general de actividades del área de Trade & Shopper Marketing.</p>
+              <p className="text-[11px] md:text-xs text-zinc-500 font-semibold mt-1">Este es el resumen general de actividades del área de Trade & Shopper Marketing.</p>
             </div>
             <div className="hidden md:block">
               <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 bg-zinc-100 px-3 py-1 rounded-full">
@@ -1207,15 +1276,15 @@
             {showAddForm && isAdmin && (
               <form onSubmit={handleSubmitWidget} className={`p-4 rounded-xl border ${currentTheme.border} ${currentTheme.cardBg} flex flex-wrap gap-3 items-end animate-zoom-in`}>
                 <div className="flex-1 min-w-[150px]">
-                  <label className="block text-[9px] font-bold text-zinc-455 uppercase mb-1">Título</label>
+                  <label className="block text-[9px] font-bold text-zinc-400 uppercase mb-1">Título</label>
                   <input type="text" required value={nuevoTitulo} onChange={e => setNuevoTitulo(e.target.value)} className="w-full bg-zinc-50 border p-1.5 text-xs rounded-lg" placeholder="AnyDesk, Solicitudes, etc..." />
                 </div>
                 <div className="flex-1 min-w-[200px]">
-                  <label className="block text-[9px] font-bold text-zinc-455 uppercase mb-1">Link URL</label>
+                  <label className="block text-[9px] font-bold text-zinc-400 uppercase mb-1">Link URL</label>
                   <input type="url" required value={nuevoLink} onChange={e => setNewLink(e.target.value)} className="w-full bg-zinc-50 border p-1.5 text-xs rounded-lg" placeholder="https://..." />
                 </div>
                 <div>
-                  <label className="block text-[9px] font-bold text-zinc-455 uppercase mb-1">Color</label>
+                  <label className="block text-[9px] font-bold text-zinc-400 uppercase mb-1">Color</label>
                   <select value={nuevoColor} onChange={e => setNewColor(e.target.value)} className="bg-zinc-50 border p-1.5 text-xs rounded-lg font-bold">
                     <option value="bg-indigo-500">Azul Indigo</option>
                     <option value="bg-emerald-500">Verde Esmeralda</option>
@@ -1267,18 +1336,18 @@
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             
             <div className="lg:col-span-7 flex flex-col gap-3">
-              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-zinc-400">5 Tareas Clave de Hoy</span>
+              <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-zinc-400">🔥 5 Entregables Clave (Prioridad Alta)</span>
               <div className={`border ${currentTheme.border} rounded-2xl p-4 md:p-5 flex flex-col gap-3 ${currentTheme.cardBg}`}>
-                {tareasDeHoy.length === 0 ? (
-                  <div className="py-12 text-center text-zinc-455 flex flex-col items-center gap-2">
-                    <i className="fa-regular fa-calendar-check text-2xl text-emerald-500"></i>
-                    <p className="text-xs font-bold">¡Estás al día por hoy!</p>
-                    <p className="text-[10px] text-zinc-400">No hay entregables prioritarios pendientes para hoy.</p>
+                {tareasMasImportantes.length === 0 ? (
+                  <div className="py-12 text-center text-zinc-500 flex flex-col items-center gap-2">
+                    <i className="fa-regular fa-circle-check text-2xl text-emerald-500"></i>
+                    <p className="text-xs font-bold">¡No hay urgencias pendientes!</p>
+                    <p className="text-[10px] text-zinc-400">No hay entregables con prioridad alta sin completar actualmente.</p>
                   </div>
                 ) : (
-                  tareasDeHoy.map(t => {
+                  tareasMasImportantes.map(t => {
                     const cMarca = getMarcaStyle(t.marca);
-                    const cEstado = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(t.estado)) || { color: "text-zinc-655", dot: "bg-zinc-455" };
+                    const cEstado = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(t.estado)) || { color: "text-zinc-600", dot: "bg-zinc-400" };
 
                     return (
                       <div 
@@ -1291,7 +1360,7 @@
                             <span className={`text-[8px] font-black px-1.5 py-0.5 rounded border uppercase tracking-wider ${cMarca.bg} ${cMarca.text} ${cMarca.border}`}>
                               {t.marca}
                             </span>
-                            {t.idTarea && <span className="text-[9px] font-mono text-zinc-400 font-bold">{t.idTarea}</span>}
+                            <span className="text-[9px] font-mono text-zinc-400 font-bold">{t.idTarea || "---"}</span>
                           </div>
                           <span className="text-xs font-extrabold truncate text-zinc-800">{t.info}</span>
                         </div>
@@ -1322,7 +1391,7 @@
               <span className="text-[10px] md:text-xs font-black uppercase tracking-widest text-zinc-400">Planificador Mensual</span>
               <div className={`border ${currentTheme.border} rounded-2xl p-4 md:p-5 flex flex-col gap-4 ${currentTheme.cardBg}`}>
                 <div className="flex justify-between items-center border-b pb-2">
-                  <span className="text-xs font-bold text-zinc-855">{nombresMeses[hoy.getMonth()]} {hoy.getFullYear()}</span>
+                  <span className="text-xs font-bold text-zinc-800">{nombresMeses[hoy.getMonth()]} {hoy.getFullYear()}</span>
                 </div>
                 
                 <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-zinc-400 border-b pb-1.5">
@@ -1501,7 +1570,7 @@
                   </div>
 
                   <div>
-                    <h3 className="text-sm font-black text-zinc-855 uppercase tracking-wider">{brand}</h3>
+                    <h3 className="text-sm font-black text-zinc-800 uppercase tracking-wider">{brand}</h3>
                     <span className="text-[10px] text-zinc-400 font-black uppercase tracking-widest block mt-0.5">Cliente de Agencia</span>
                   </div>
 
@@ -1509,15 +1578,15 @@
                     <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest block border-b pb-1">Responsables de Área</span>
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-zinc-455 font-bold">Ejecutivo:</span>
+                        <span className="text-zinc-500 font-bold">Ejecutivo:</span>
                         <span className="font-extrabold text-zinc-800">{metadata.ejecutivo || "Sin asignar"}</span>
                       </div>
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-zinc-455 font-bold">Diseñador:</span>
+                        <span className="text-zinc-500 font-bold">Diseñador:</span>
                         <span className="font-extrabold text-zinc-800">{metadata.disenador || "Sin asignar"}</span>
                       </div>
                       <div className="flex items-center justify-between text-xs">
-                        <span className="text-zinc-455 font-bold">Content:</span>
+                        <span className="text-zinc-500 font-bold">Content:</span>
                         <span className="font-extrabold text-zinc-800">{metadata.content || "Sin asignar"}</span>
                       </div>
                     </div>
@@ -1543,30 +1612,30 @@
               >
                 <div className="flex items-center justify-between pb-2 border-b">
                   <h3 className="text-sm font-black uppercase tracking-wider">Crear Nuevo Cliente (Hoja Sheets)</h3>
-                  <button type="button" onClick={() => setShowAddBrandModal(false)} className="text-zinc-400 hover:text-zinc-855">
+                  <button type="button" onClick={() => setShowAddBrandModal(false)} className="text-zinc-400 hover:text-zinc-800">
                     <i className="fa-solid fa-xmark"></i>
                   </button>
                 </div>
 
                 <div className="flex flex-col gap-3 text-xs">
                   <div>
-                    <label className="block font-bold text-zinc-455 uppercase mb-1">Nombre de la Marca (Nueva pestaña)</label>
+                    <label className="block font-bold text-zinc-500 uppercase mb-1">Nombre de la Marca (Nueva pestaña)</label>
                     <input type="text" required value={newBrandName} onChange={e => setNewBrandName(e.target.value)} placeholder="Ej: Coca Cola" className="w-full bg-zinc-50 border p-2 rounded-lg font-bold" />
                   </div>
                   <div>
-                    <label className="block font-bold text-zinc-455 uppercase mb-1">Enlace del Logotipo (URL de imagen)</label>
+                    <label className="block font-bold text-zinc-500 uppercase mb-1">Enlace del Logotipo (URL de imagen)</label>
                     <input type="url" value={newLogoUrl} onChange={e => setNewLogoUrl(e.target.value)} placeholder="https://..." className="w-full bg-zinc-50 border p-2 rounded-lg" />
                   </div>
                   <div>
-                    <label className="block font-bold text-zinc-455 uppercase mb-1">Ejecutivo de la cuenta</label>
+                    <label className="block font-bold text-zinc-500 uppercase mb-1">Ejecutivo de la cuenta</label>
                     <input type="text" value={newEjecutivo} onChange={e => setNewEjecutivo(e.target.value)} placeholder="ej: @ralvarez" className="w-full bg-zinc-50 border p-2 rounded-lg" />
                   </div>
                   <div>
-                    <label className="block font-bold text-zinc-455 uppercase mb-1">Diseñador Asignado</label>
+                    <label className="block font-bold text-zinc-500 uppercase mb-1">Diseñador Asignado</label>
                     <input type="text" value={newDisenador} onChange={e => setNewDisenador(e.target.value)} placeholder="ej: @dsalavarria" className="w-full bg-zinc-50 border p-2 rounded-lg" />
                   </div>
                   <div>
-                    <label className="block font-bold text-zinc-455 uppercase mb-1">Content Creator</label>
+                    <label className="block font-bold text-zinc-500 uppercase mb-1">Content Creator</label>
                     <input type="text" value={newContent} onChange={e => setNewContent(e.target.value)} placeholder="ej: @fcolmenares" className="w-full bg-zinc-50 border p-2 rounded-lg" />
                   </div>
                 </div>
@@ -1588,26 +1657,26 @@
               >
                 <div className="flex items-center justify-between pb-2 border-b">
                   <h3 className="text-sm font-black uppercase tracking-wider">Ficha Técnica: {showEditBrandModal}</h3>
-                  <button type="button" onClick={() => setShowEditBrandModal(null)} className="text-zinc-400 hover:text-zinc-855">
+                  <button type="button" onClick={() => setShowEditBrandModal(null)} className="text-zinc-400 hover:text-zinc-800">
                     <i className="fa-solid fa-xmark"></i>
                   </button>
                 </div>
 
                 <div className="flex flex-col gap-3 text-xs">
                   <div>
-                    <label className="block font-bold text-zinc-455 uppercase mb-1">Logo URL</label>
+                    <label className="block font-bold text-zinc-500 uppercase mb-1">Logo URL</label>
                     <input type="url" value={editLogoUrl} onChange={e => setEditLogoUrl(e.target.value)} placeholder="https://..." className="w-full bg-zinc-50 border p-2 rounded-lg" />
                   </div>
                   <div>
-                    <label className="block font-bold text-zinc-455 uppercase mb-1">Ejecutivo de la cuenta</label>
+                    <label className="block font-bold text-zinc-500 uppercase mb-1">Ejecutivo de la cuenta</label>
                     <input type="text" value={editEjecutivo} onChange={e => setEditEjecutivo(e.target.value)} placeholder="ej: @ralvarez" className="w-full bg-zinc-50 border p-2 rounded-lg font-bold" />
                   </div>
                   <div>
-                    <label className="block font-bold text-zinc-455 uppercase mb-1">Diseñador Asignado</label>
+                    <label className="block font-bold text-zinc-500 uppercase mb-1">Diseñador Asignado</label>
                     <input type="text" value={editDisenador} onChange={e => setEditDisenador(e.target.value)} placeholder="ej: @dsalavarria" className="w-full bg-zinc-50 border p-2 rounded-lg font-bold" />
                   </div>
                   <div>
-                    <label className="block font-bold text-zinc-455 uppercase mb-1">Content Creator</label>
+                    <label className="block font-bold text-zinc-500 uppercase mb-1">Content Creator</label>
                     <input type="text" value={editContent} onChange={e => setEditContent(e.target.value)} placeholder="ej: @fcolmenares" className="w-full bg-zinc-50 border p-2 rounded-lg font-bold" />
                   </div>
                 </div>
@@ -1647,13 +1716,15 @@
 
       const [tareas, setTareas] = useState([]);
       const [loading, setLoading] = useState(false);
-      const [syncing, setSyncing] = useState(false); // Maneja la sincronización pasiva en background (Nube)
+      const [syncing, setSyncing] = useState(false);
       const [toast, setToast] = useState(null);
       const [apiError, setApiError] = useState(null);
+      const [isSubmitting, setIsSubmitting] = useState(false);
       
       const [filtroTiempo, setFiltroTiempo] = useState("HOY"); 
       const [filtroMarca, setFiltroMarca] = useState("TODAS");
       const [filtroEstado, setFiltroEstado] = useState("TODOS");
+      const [filtroPrioridad, setFiltroPrioridad] = useState("TODAS"); // Filtro por Prioridad
       const [searchQuery, setSearchQuery] = useState("");
       
       const [paginaActiva, setPaginaActiva] = useState("home"); 
@@ -1678,7 +1749,7 @@
       });
 
       const [nuevaTarea, setNuevaTarea] = useState({
-        marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", estado: "⚪ Pendiente", deadline: ""
+        marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", estado: "⚪ Pendiente", deadline: "", prioridad: "🟡 Media"
       });
 
       useEffect(() => {
@@ -1703,15 +1774,14 @@
       useEffect(() => {
         if (!usuario) return;
 
-        // Auto-refresco silencioso cada 30 segundos
         const autoRefreshInterval = setInterval(() => {
-          if (!syncing && !loading) {
+          if (!syncing && !loading && !isSubmitting) {
             fetchData(true); 
           }
         }, 30 * 1000); 
         
         return () => clearInterval(autoRefreshInterval);
-      }, [usuario, syncing, loading]);
+      }, [usuario, syncing, loading, isSubmitting]);
 
       useEffect(() => {
         if (tareas.length > 0) {
@@ -1741,7 +1811,6 @@
         setTimeout(() => setToast(null), 4000);
       };
 
-      // UX inteligente: Limpia filtros cruzados al navegar por categorías temporales
       const navegarA = (pagina, extraFn = null) => {
         setPaginaActiva(pagina);
         if (extraFn) extraFn();
@@ -1773,7 +1842,8 @@
               campo: "todo"
             })
           });
-          showToast("Accesos sincronizados con la nube", "success");
+          showToast("Widget sincronizado online", "success");
+          fetchData(true);
         } catch (e) {
           showToast("Error al guardar widget online", "error");
         } finally {
@@ -1803,7 +1873,8 @@
               campo: "eliminar"
             })
           });
-          showToast("Accesos actualizados en la nube", "success");
+          showToast("Widget de área eliminado", "success");
+          fetchData(true);
         } catch (e) {
           showToast("Error al eliminar widget online", "error");
         } finally {
@@ -1815,6 +1886,12 @@
         e.preventDefault();
         localStorage.setItem("robin_nombre_completo", nombreCompleto);
         showToast("Nombre completo configurado", "success");
+      };
+
+      const handleThemeChange = (newTheme) => {
+        setTheme(newTheme);
+        localStorage.setItem("robin_theme", newTheme);
+        showToast(`Estilo cambiado a ${newTheme.toUpperCase()}`, "success");
       };
 
       const handleLogin = (e) => {
@@ -1864,25 +1941,32 @@
         registrarNuevaPersonaGlobal("@" + nuevo);
 
         setNuevoUsuarioInput("");
-        showToast("Usuario autorizado correctamente", "success");
+        showToast(`Usuario @${nuevo} añadido correctamente`, "success");
       };
 
-      const handleThemeChange = (newTheme) => {
-        setTheme(newTheme);
-        localStorage.setItem("robin_theme", newTheme);
-        showToast(`Estilo cambiado a ${newTheme.toUpperCase()}`, "success");
+      const generarIdDeterminista = (t) => {
+        const contentSeed = `${t.marca || "GEN"}-${t.info || ""}-${t.deadline || ""}`;
+        let hash = 0;
+        for (let i = 0; i < contentSeed.length; i++) {
+          hash = ((hash << 5) - hash) + contentSeed.charCodeAt(i);
+          hash |= 0;
+        }
+        const prefix = String(t.marca || "TSK").substring(0, 3).toUpperCase().replace(/[^A-Z]/g, "X");
+        return `STB-${prefix}-${Math.abs(hash) % 100000}`;
       };
 
       // FETCH DE DATOS: Agrupamiento, deduplicación e inyección de seguridad
       const fetchData = async (isBackground = false) => {
         if (!isBackground) setLoading(true);
+        setSyncing(true);
         setApiError(null);
         
         const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
         if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here")) {
           setTareas([]); 
-          if (!isBackground) showToast("Base de datos no configurada o vacía", "info");
+          if (!isBackground) showToast("Base de datos no configurada", "info");
           setLoading(false);
+          setSyncing(false);
           return;
         }
 
@@ -1898,12 +1982,11 @@
               setWidgets(json.widgets);
             }
 
-            // 📋 2. Filtrar tareas y aplicar VALIDACIÓN ESTRICTA contra desalineaciones corruptas
+            // 📋 2. Filtrar tareas y aplicar VALIDACIÓN ESTRICTA
             const tareasValidas = json.data.filter(t => {
               if (!t.info || t.info.toString().trim() === "") return false;
               if (!t.marca || t.marca.toString().trim() === "") return false;
               
-              // Si la marca es un estado debido a desalineación, es corrupto
               const cleanM = t.marca.toString().trim().toLowerCase();
               if (cleanM === "pendiente" || cleanM.includes("progreso") || cleanM.includes("seguimiento") || cleanM.includes("revision") || cleanM.includes("pausa") || cleanM.includes("completada") || cleanM === "config_marcas") {
                 return false;
@@ -1911,7 +1994,7 @@
               return true;
             });
             
-            // 🧼 3. Deduplicación inteligente utilizando únicamente IDs reales o vacíos (STB- preventivos)
+            // 🧼 3. Deduplicación inteligente
             const deduplicadas = [];
             const seenKeys = new Set();
 
@@ -1919,14 +2002,16 @@
               const cleanId = t.idTarea ? String(t.idTarea).trim() : "";
               const hasRealId = isValidIdTarea(cleanId);
               
-              const realId = hasRealId ? cleanId : "";
+              const realId = hasRealId ? cleanId : generarIdDeterminista(t);
               const key = `${t.marca || ""}|${t.info || ""}|${t.deadline || ""}`.toLowerCase().replace(/\s+/g, " ").trim();
                 
               if (!seenKeys.has(key)) {
                 seenKeys.add(key);
                 deduplicadas.push({
                   ...t,
-                  idTarea: realId
+                  idTarea: realId,
+                  // Si no viene prioridad de la API, le asignamos "🟡 Media" por defecto
+                  prioridad: t.prioridad || "🟡 Media"
                 });
               }
             });
@@ -1950,13 +2035,15 @@
           if (!isBackground) showToast("Error al conectar con Google Sheets", "error");
         } finally {
           setLoading(false);
+          setSyncing(false);
         }
       };
 
       const handleUpdateField = async (tarea, campo, nuevoValor) => {
         if (!nuevoValor && nuevoValor !== "") return;
+        if (isSubmitting || syncing) return;
 
-        const taskTargetId = cleanIdTarea(tarea.idTarea);
+        const taskTargetId = tarea.idTarea || generateBrandId(tarea.marca);
 
         let detallesConHistorial = tarea.detalles || "";
         if (campo === "estado") {
@@ -1966,7 +2053,6 @@
           detallesConHistorial = detallesConHistorial + registro;
         }
 
-        // ⚡ PASO OPTIMISTA: Actualiza el estado local en pantalla de inmediato
         const temp = tareas.map(t => {
           if ((t.idTarea === tarea.idTarea && t.idTarea) || t.info === tarea.info) {
             return { 
@@ -1986,7 +2072,6 @@
           return;
         }
 
-        // Sincroniza silenciosamente en background sin bloquear la interfaz
         setSyncing(true);
         try {
           await fetch(effectiveUrl, {
@@ -2002,19 +2087,28 @@
               personas: tarea.personas,
               detalles: detallesConHistorial, 
               estado: campo === "estado" ? nuevoValor : tarea.estado,
-              deadline: campo === "deadline" ? nuevoValor : tarea.deadline
+              deadline: campo === "deadline" ? nuevoValor : tarea.deadline,
+              prioridad: campo === "prioridad" ? nuevoValor : (tarea.prioridad || "🟡 Media")
             })
           });
+          showToast("Sincronizado en Sheets", "success");
+          await fetchData(true);
         } catch (e) {
-          showToast("Error de red al actualizar en la nube", "error");
+          showToast("Error de red al actualizar", "error");
         } finally {
           setSyncing(false);
         }
       };
 
       const handleSaveTaskModal = async (editedTask) => {
+        if (isSubmitting || syncing) return;
+        setIsSubmitting(true);
+
         const index = tareas.findIndex(t => (t.idTarea === editedTask.idTarea && t.idTarea) || t.info === editedTask.info);
-        if (index === -1) return;
+        if (index === -1) {
+          setIsSubmitting(false);
+          return;
+        }
 
         const hoy = new Date();
         const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
@@ -2027,14 +2121,13 @@
         if (original.personas !== editedTask.personas) cambios.push("asignados");
         if (original.estado !== editedTask.estado) cambios.push(`estado a "${editedTask.estado}"`);
         if (original.deadline !== editedTask.deadline) cambios.push("fecha límite");
+        if (original.prioridad !== editedTask.prioridad) cambios.push("prioridad");
 
         if (cambios.length > 0) {
           detallesAudoria += `\n• [${timestamp}] Editado (${cambios.join(", ")}) por @${usuario}`;
         }
 
         const taskConHistorial = { ...editedTask, detalles: detallesAudoria };
-
-        // ⚡ PASO OPTIMISTA: Guardamos en pantalla localmente y cerramos la ficha lateral al instante
         const copiaTareas = [...tareas];
         copiaTareas[index] = taskConHistorial;
         setTareas(copiaTareas);
@@ -2043,11 +2136,11 @@
 
         const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
         if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here") || apiError) {
-          showToast("Cambios guardados de forma local", "success");
+          showToast("Guardado localmente", "success");
+          setIsSubmitting(false);
           return;
         }
 
-        // Envío asíncrono pasivo a Google Sheets
         setSyncing(true);
         try {
           await fetch(effectiveUrl, {
@@ -2055,7 +2148,7 @@
             headers: { "Content-Type": "text/plain; charset=utf-8" },
             body: JSON.stringify({
               marca: taskConHistorial.marca, 
-              idTarea: cleanIdTarea(taskConHistorial.idTarea), 
+              idTarea: taskConHistorial.idTarea, 
               info: taskConHistorial.info,
               originalInfo: original.info, 
               categoria: taskConHistorial.categoria, 
@@ -2063,27 +2156,34 @@
               detalles: taskConHistorial.detalles,
               estado: taskConHistorial.estado, 
               deadline: taskConHistorial.deadline, 
+              prioridad: taskConHistorial.prioridad || "🟡 Media",
               campo: "todo"
             })
           });
-          showToast("Ficha sincronizada con Sheets", "success");
+          showToast("Guardado en Google Sheets", "success");
+          await fetchData(true);
         } catch (e) {
-          showToast("Error de conexión. Se guardó localmente.", "error");
+          showToast("Error de conexión. Se conservó en local.", "error");
         } finally {
           setSyncing(false);
+          setIsSubmitting(false);
         }
       };
 
       const handleDeleteTask = async (tarea) => {
-        // ⚡ PASO OPTIMISTA: Borrado de pantalla instantáneo
+        if (isSubmitting || syncing) return;
+        setIsSubmitting(true);
+
         setTareas(prev => prev.filter(t => !(t.idTarea === tarea.idTarea && t.info === tarea.info)));
         setTaskToDelete(null);
         setIsEditing(false);
         setActiveTask(null);
+        showToast("Eliminando entregable...", "info");
 
         const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
         if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here") || apiError) {
-          showToast("Eliminado localmente", "success");
+          showToast("Eliminado de la interfaz local", "success");
+          setIsSubmitting(false);
           return;
         }
 
@@ -2094,7 +2194,7 @@
             headers: { "Content-Type": "text/plain; charset=utf-8" },
             body: JSON.stringify({
               marca: tarea.marca, 
-              idTarea: cleanIdTarea(tarea.idTarea), 
+              idTarea: tarea.idTarea.startsWith("STB-") ? "" : tarea.idTarea, 
               info: tarea.info, 
               categoria: tarea.categoria, 
               campo: "eliminar"
@@ -2102,23 +2202,32 @@
           });
           const json = await res.json();
           if (json.success) {
-            showToast("Entregable borrado en Sheets", "success");
+            showToast("Eliminado de Google Sheets", "success");
+            await fetchData(true);
+          } else {
+            showToast("Error al eliminar del servidor", "error");
+            await fetchData(true);
           }
         } catch (e) {
-          showToast("Error al borrar en la nube. Se conserva local.", "error");
+          showToast("Fallo al eliminar en Sheets", "error");
+          await fetchData(true);
         } finally {
           setSyncing(false);
+          setIsSubmitting(false);
         }
       };
 
       const handleCreateTask = async (e) => {
         e.preventDefault();
+        if (isSubmitting || syncing) return; 
         
         if (!nuevaTarea.info.trim()) {
           showToast("Describe la tarea primero", "error");
           return;
         }
 
+        setIsSubmitting(true);
+        const autoId = generateBrandId(nuevaTarea.marca);
         const hoy = new Date();
         const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
         const historialInicial = `• [${timestamp}] Creado por @${usuario}`;
@@ -2127,21 +2236,21 @@
           : historialInicial;
 
         const nuevaConId = {
-          ...nuevaTarea, idTarea: "", detalles: detallesConCreador, fecha: new Date().toISOString().split('T')[0]
+          ...nuevaTarea, idTarea: autoId, detalles: detallesConCreador, fecha: new Date().toISOString().split('T')[0]
         };
 
-        // ⚡ PASO OPTIMISTA: Insertamos de inmediato en la lista y regresamos al dashboard
         setTareas([nuevaConId, ...tareas]);
-        setPaginaActiva("dashboard"); 
-        showToast("Entregable creado. Sincronizando con Sheets...", "info");
+        showToast("Registrando en el servidor...", "info");
 
         setNuevaTarea({
-          marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", estado: "⚪ Pendiente", deadline: ""
+          marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", estado: "⚪ Pendiente", deadline: "", prioridad: "🟡 Media"
         });
+        setPaginaActiva("dashboard");
 
         const effectiveUrl = getEffectiveApiUrl(AUTO_API_URL);
         if (!effectiveUrl || effectiveUrl.includes("your_actual_url_here") || apiError) {
-          showToast("Guardado localmente", "success");
+          showToast("Registrado localmente", "success");
+          setIsSubmitting(false);
           return;
         }
 
@@ -2153,18 +2262,19 @@
             body: JSON.stringify({
               marca: nuevaConId.marca, idTarea: "", info: nuevaConId.info, categoria: nuevaConId.categoria,
               personas: nuevaConId.personas, detalles: nuevaConId.detalles, estado: nuevaConId.estado,
-              deadline: nuevaConId.deadline, campo: "todo"
+              deadline: nuevaConId.deadline, prioridad: nuevaConId.prioridad || "🟡 Media", campo: "todo"
             })
           });
           const json = await res.json();
           if (json.success) {
-            showToast("Sincronizado con Google Sheets", "success");
-            await fetchData(true); // Traemos en silencio el nuevo ID real autogenerado por Sheets
+            showToast("Registrado con éxito en Sheets", "success");
+            await fetchData(true);
           }
         } catch (e) {
-          showToast("Error de red. Cambio conservado en local.", "error");
+          showToast("Guardado localmente (Sin conexión)", "error");
         } finally {
           setSyncing(false);
+          setIsSubmitting(false);
         }
       };
 
@@ -2178,7 +2288,6 @@
         }
       };
 
-      // Incluye los metadatos creados por el administrador aunque no tengan tareas aún
       const marcasDisponibles = useMemo(() => {
         const marcasUnicas = new Set(tareas.map(t => t.marca).filter(Boolean));
         const marcasEnMetadata = Object.keys(marcasMetadata);
@@ -2189,13 +2298,13 @@
       const cleanIdTarea = (id) => {
         if (!id) return "";
         const idStr = String(id).trim();
-        if (!isValidIdTarea(idStr)) {
+        if (idStr.includes("GMT") || (idStr.includes("2026") && idStr.length > 15) || idStr.includes("Venezuela") || idStr.startsWith("STB-")) {
           return "";
         }
         return idStr;
       };
 
-      // 🔄 Filtro de Tareas del Dashboard (Estrictamente con bases de datos del calendario)
+      // 🔄 Filtro de Tareas del Dashboard
       const tareasFiltradas = useMemo(() => {
         const hoy = new Date();
         const tHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
@@ -2206,12 +2315,12 @@
           if (filtroTiempo === "HOY") {
             const tieneFechaReal = tDeadline !== Infinity;
             const esHoy = tieneFechaReal && tDeadline === tHoy;
-            const esCompletada = isStatusCompleted(t.estado);
+            const esCompletada = cleanEstado(t.estado) === "completada";
             if (!esHoy || esCompletada) return false;
           } else if (filtroTiempo === "ATRASADAS") {
             const tieneFechaReal = tDeadline !== Infinity;
             const esAtrasada = tieneFechaReal && tDeadline < tHoy;
-            const esCompletada = isStatusCompleted(t.estado);
+            const esCompletada = cleanEstado(t.estado) === "completada";
             if (!esAtrasada || esCompletada) return false;
           } else if (filtroTiempo === "FUTURAS") {
             const esFutura = tDeadline !== Infinity && tDeadline > tHoy;
@@ -2220,6 +2329,7 @@
 
           if (filtroMarca !== "TODAS" && t.marca.toUpperCase() !== filtroMarca.toUpperCase()) return false;
           if (filtroEstado !== "TODOS" && cleanEstado(t.estado) !== cleanEstado(filtroEstado)) return false;
+          if (filtroPrioridad !== "TODAS" && cleanPrioridad(t.prioridad) !== cleanPrioridad(filtroPrioridad)) return false;
 
           if (searchQuery.trim() !== "") {
             const q = searchQuery.toLowerCase();
@@ -2233,13 +2343,14 @@
 
           return true;
         });
-      }, [tareas, filtroTiempo, filtroMarca, filtroEstado, searchQuery]);
+      }, [tareas, filtroTiempo, filtroMarca, filtroEstado, filtroPrioridad, searchQuery]);
 
       // 📅 Filtro exclusivo para el Calendario 
       const tareasParaCalendario = useMemo(() => {
         return tareas.filter(t => {
           if (filtroMarca !== "TODAS" && t.marca.toUpperCase() !== filtroMarca.toUpperCase()) return false;
           if (filtroEstado !== "TODOS" && cleanEstado(t.estado) !== cleanEstado(filtroEstado)) return false;
+          if (filtroPrioridad !== "TODAS" && cleanPrioridad(t.prioridad) !== cleanPrioridad(filtroPrioridad)) return false;
 
           if (searchQuery.trim() !== "") {
             const q = searchQuery.toLowerCase();
@@ -2253,37 +2364,35 @@
 
           return true;
         });
-      }, [tareas, filtroMarca, filtroEstado, searchQuery]);
+      }, [tareas, filtroMarca, filtroEstado, filtroPrioridad, searchQuery]);
 
-      // Badges del Sidebar
+      // Contadores del menú lateral
       const metricaCounters = useMemo(() => {
         const hoy = new Date();
         const tHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
 
         const activasHoy = tareas.filter(t => {
           const tDeadline = obtenerTiempoFecha(t.deadline);
-          return tDeadline !== Infinity && tDeadline === tHoy && !isStatusCompleted(t.estado);
+          return tDeadline !== Infinity && tDeadline === tHoy && cleanEstado(t.estado) !== "completada";
         }).length;
 
         const atrasadas = tareas.filter(t => {
           const tDeadline = obtenerTiempoFecha(t.deadline);
-          return tDeadline !== Infinity && tDeadline < tHoy && !isStatusCompleted(t.estado);
+          return tDeadline !== Infinity && tDeadline < tHoy && cleanEstado(t.estado) !== "completada";
         }).length;
         
         const futuras = tareas.filter(t => {
           const tDeadline = obtenerTiempoFecha(t.deadline);
           return tDeadline !== Infinity && tDeadline > tHoy;
         }).length;
-        
-        const completadasHoy = tareas.filter(t => isStatusCompleted(t.estado)).length;
 
-        return { activasHoy, atrasadas, futuras, completadasHoy };
+        return { activasHoy, atrasadas, futuras };
       }, [tareas]);
 
       const getMarcaStyle = (marcaName) => {
-        if (!marcaName) return { bg: "bg-zinc-100", text: "text-zinc-855", border: "border-zinc-200" };
+        if (!marcaName) return { bg: "bg-zinc-100", text: "text-zinc-800", border: "border-zinc-200" };
         const clean = marcaName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
-        return MARCAS_COLORES[clean] || { bg: "bg-zinc-150", text: "text-zinc-700", border: "border-zinc-300" };
+        return MARCAS_COLORES[clean] || { bg: "bg-zinc-100", text: "text-zinc-700", border: "border-zinc-300" };
       };
 
       const handleSaveBrandMetadata = async (brand, newMeta) => {
@@ -2312,6 +2421,7 @@
             })
           });
           showToast("Ficha guardada en Google Sheets", "success");
+          await fetchData(true);
         } catch (e) {
           showToast("Guardado local (Falla de red)", "error");
         } finally {
@@ -2417,7 +2527,7 @@
         <div className={`flex h-screen w-screen overflow-hidden ${currentTheme.bg} ${currentTheme.text} select-none transition-all`}>
           
           {toast && (
-            <div className="fixed bottom-6 right-6 z-[100] px-4 py-3.5 rounded-xl shadow-xl text-xs font-bold flex items-center gap-2 border bg-zinc-900 text-white border-zinc-850 animate-zoom-in">
+            <div className="fixed bottom-6 right-6 z-[100] px-4 py-3.5 rounded-xl shadow-xl text-xs font-bold flex items-center gap-2 border bg-zinc-900 text-white border-zinc-800 animate-zoom-in">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
               <span>{toast.msg}</span>
             </div>
@@ -2430,7 +2540,6 @@
             />
           )}
 
-          {}
           <aside className={`
             fixed inset-y-0 left-0 z-50 w-56 ${currentTheme.sidebarBg} border-r ${currentTheme.border} flex flex-col justify-between shrink-0 transition-transform duration-300 transform
             ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
@@ -2460,7 +2569,7 @@
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                       </span>
-                      <span className="text-xs font-black truncate text-zinc-855">@{usuario} (Tú)</span>
+                      <span className="text-xs font-black truncate text-zinc-800">@{usuario} (Tú)</span>
                     </div>
                   </div>
 
@@ -2479,8 +2588,9 @@
 
                 <div className="px-3 pt-1">
                   <button 
+                    disabled={isSubmitting || syncing}
                     onClick={() => navegarA("agregar")}
-                    className={`w-full ${currentTheme.primary} font-bold py-2 px-3 rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm`}
+                    className={`w-full ${currentTheme.primary} font-bold py-2 px-3 rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50`}
                   >
                     <SVGIcon.Plus />
                     <span>Añadir Entregable</span>
@@ -2506,7 +2616,7 @@
                   <span className="px-2 text-[9px] font-extrabold text-zinc-400 tracking-wider uppercase mb-1 mt-2">Filtros Temporales</span>
 
                   <button
-                    onClick={() => navegarA("dashboard", () => { setFiltroTiempo("HOY"); setFiltroEstado("TODOS"); setFiltroMarca("TODAS"); })}
+                    onClick={() => navegarA("dashboard", () => { setFiltroTiempo("HOY"); setFiltroEstado("TODOS"); setFiltroMarca("TODAS"); setFiltroPrioridad("TODAS"); })}
                     className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all ${
                       paginaActiva === "dashboard" && filtroTiempo === "HOY" 
                         ? "bg-white shadow-sm font-extrabold text-zinc-900 border border-zinc-100" 
@@ -2520,7 +2630,7 @@
                   </button>
 
                   <button
-                    onClick={() => navegarA("dashboard", () => { setFiltroTiempo("ATRASADAS"); setFiltroEstado("TODOS"); setFiltroMarca("TODAS"); })}
+                    onClick={() => navegarA("dashboard", () => { setFiltroTiempo("ATRASADAS"); setFiltroEstado("TODOS"); setFiltroMarca("TODAS"); setFiltroPrioridad("TODAS"); })}
                     className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all ${
                       paginaActiva === "dashboard" && filtroTiempo === "ATRASADAS" 
                         ? "bg-white shadow-sm font-extrabold text-zinc-900 border border-zinc-100" 
@@ -2534,7 +2644,7 @@
                   </button>
 
                   <button
-                    onClick={() => navegarA("dashboard", () => { setFiltroTiempo("FUTURAS"); setFiltroEstado("TODOS"); setFiltroMarca("TODAS"); })}
+                    onClick={() => navegarA("dashboard", () => { setFiltroTiempo("FUTURAS"); setFiltroEstado("TODOS"); setFiltroMarca("TODAS"); setFiltroPrioridad("TODAS"); })}
                     className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all ${
                       paginaActiva === "dashboard" && filtroTiempo === "FUTURAS" 
                         ? "bg-white shadow-sm font-extrabold text-zinc-900 border border-zinc-100" 
@@ -2548,7 +2658,7 @@
                   </button>
 
                   <button
-                    onClick={() => navegarA("dashboard", () => { setFiltroTiempo("TODAS"); setFiltroMarca("TODAS"); setFiltroEstado("TODOS"); })}
+                    onClick={() => navegarA("dashboard", () => { setFiltroTiempo("TODAS"); setFiltroMarca("TODAS"); setFiltroEstado("TODOS"); setFiltroPrioridad("TODAS"); })}
                     className={`flex items-center justify-between w-full px-3 py-2 rounded-lg text-xs font-bold transition-all ${
                       paginaActiva === "dashboard" && filtroTiempo === "TODAS"
                         ? "bg-white shadow-sm font-extrabold text-zinc-900 border border-zinc-100" 
@@ -2601,13 +2711,13 @@
             </div>
           </aside>
 
-          {}
+          {/* MAIN CONTAINER */}
           <main className="flex-1 flex flex-col overflow-hidden">
             <header className="bg-white/40 border-b border-zinc-200/50 px-6 py-4 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <button 
                   onClick={() => setSidebarOpen(true)}
-                  className="md:hidden text-zinc-655 p-1 text-lg hover:bg-zinc-100 rounded-lg"
+                  className="md:hidden text-zinc-600 p-1 text-lg hover:bg-zinc-100 rounded-lg"
                 >
                   <i className="fa-solid fa-bars"></i>
                 </button>
@@ -2615,32 +2725,6 @@
                   {paginaActiva === "home" ? "Portal ROBIN" : paginaActiva === "dashboard" ? `Filtro: ${filtroTiempo}` : paginaActiva === "clientes" ? "Directorio" : "Ajustes"}
                 </h1>
               </div>
-
-              {paginaActiva === "dashboard" && (
-                <div className="flex items-center gap-2 bg-zinc-100/60 p-1.5 rounded-xl border">
-                  <button 
-                    onClick={() => setVistaModo("TABLE")}
-                    title="Vista de Tabla"
-                    className={`p-1 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${vistaModo === "TABLE" ? "bg-white shadow text-zinc-900" : "text-zinc-400 hover:text-zinc-800"}`}
-                  >
-                    Tabla
-                  </button>
-                  <button 
-                    onClick={() => setVistaModo("KANBAN")}
-                    title="Vista Kanban"
-                    className={`p-1 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${vistaModo === "KANBAN" ? "bg-white shadow text-zinc-900" : "text-zinc-400 hover:text-zinc-800"}`}
-                  >
-                    Kanban
-                  </button>
-                  <button 
-                    onClick={() => setVistaModo("CALENDAR")}
-                    title="Vista Calendario"
-                    className={`p-1 px-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${vistaModo === "CALENDAR" ? "bg-white shadow text-zinc-900" : "text-zinc-400 hover:text-zinc-800"}`}
-                  >
-                    Calendario
-                  </button>
-                </div>
-              )}
 
               {/* CONTROLES DE SINCRONIZACIÓN AUTOMÁTICA EN SEGUNDO PLANO */}
               <div className="flex items-center gap-3">
@@ -2650,7 +2734,7 @@
                   {syncing ? (
                     <>
                       <i className="fa-solid fa-cloud-arrow-up text-blue-500 animate-spin text-[11px]"></i>
-                      <span className="text-zinc-500 text-[10px] font-black uppercase tracking-wider">Guardando...</span>
+                      <span className="text-zinc-500 text-[10px] font-black uppercase tracking-wider">Sincronizando...</span>
                     </>
                   ) : apiError ? (
                     <>
@@ -2669,7 +2753,7 @@
                   onClick={() => fetchData(false)}
                   disabled={loading}
                   className="p-2 text-zinc-500 hover:text-zinc-900 bg-white hover:bg-zinc-50 border rounded-xl shadow-sm transition-all"
-                  title="Forzar refresco completo de la base de datos"
+                  title="Forzar refresco completo"
                 >
                   <i className={`fa-solid fa-arrows-rotate ${loading ? 'animate-spin' : ''}`}></i>
                 </button>
@@ -2702,7 +2786,7 @@
                   <form onSubmit={handleCreateTask} className="flex flex-col gap-4 mt-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-zinc-455 uppercase tracking-wider mb-1">Marca / Pestaña Sheets</label>
+                        <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Marca / Pestaña Sheets</label>
                         <select 
                           value={nuevaTarea.marca} 
                           onChange={(e) => setNuevaTarea({...nuevaTarea, marca: e.target.value})}
@@ -2715,10 +2799,10 @@
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-zinc-455 uppercase tracking-wider mb-1">Categoría</label>
+                        <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Categoría</label>
                         <input 
                           type="text" 
-                          placeholder="Ej: Material POP, Redes Sociales, etc..." 
+                          placeholder="Ej: Material POP, Redes Sociales..." 
                           value={nuevaTarea.categoria} 
                           onChange={(e) => setNuevaTarea({...nuevaTarea, categoria: e.target.value})}
                           className="w-full bg-zinc-50 border p-2 text-xs rounded-xl focus:outline-none font-bold" 
@@ -2726,20 +2810,35 @@
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-zinc-455 uppercase tracking-wider mb-1">Título del entregable / Tarea clave</label>
-                      <input 
-                        type="text" 
-                        required 
-                        placeholder="Describe el entregable principal aquí..." 
-                        value={nuevaTarea.info} 
-                        onChange={(e) => setNuevaTarea({...nuevaTarea, info: e.target.value})}
-                        className="w-full bg-zinc-50 border p-2 text-xs rounded-xl focus:outline-none font-bold text-zinc-800" 
-                      />
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Título del entregable</label>
+                        <input 
+                          type="text" 
+                          required 
+                          placeholder="Describe el entregable principal..." 
+                          value={nuevaTarea.info} 
+                          onChange={(e) => setNuevaTarea({...nuevaTarea, info: e.target.value})}
+                          className="w-full bg-zinc-50 border p-2 text-xs rounded-xl focus:outline-none font-bold text-zinc-800" 
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Prioridad del Entregable</label>
+                        <select 
+                          value={nuevaTarea.prioridad} 
+                          onChange={(e) => setNuevaTarea({...nuevaTarea, prioridad: e.target.value})}
+                          className="w-full bg-zinc-50 border p-2.5 text-xs rounded-xl focus:outline-none bg-white font-black"
+                        >
+                          {PRIORIDADES_MAPA.map(p => (
+                            <option key={p.id} value={p.id}>{p.label}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-zinc-455 uppercase tracking-wider mb-1">Asignar miembros de área</label>
+                      <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Asignar miembros de área</label>
                       <SelectorPersonasChips 
                         personasSeleccionadas={nuevaTarea.personas}
                         onChange={(val) => setNuevaTarea({...nuevaTarea, personas: val})}
@@ -2750,7 +2849,7 @@
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-zinc-455 uppercase tracking-wider mb-1">Estado Inicial</label>
+                        <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Estado Inicial</label>
                         <select 
                           value={nuevaTarea.estado} 
                           onChange={(e) => setNuevaTarea({...nuevaTarea, estado: e.target.value})}
@@ -2763,7 +2862,7 @@
                       </div>
 
                       <div>
-                        <label className="block text-xs font-bold text-zinc-455 uppercase tracking-wider mb-1">Fecha de Entrega (Deadline)</label>
+                        <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Fecha de Entrega (Deadline)</label>
                         <input 
                           type="date" 
                           required
@@ -2775,7 +2874,7 @@
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-zinc-455 uppercase tracking-wider mb-1">Instrucciones y Especificaciones</label>
+                      <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">Instrucciones y Especificaciones</label>
                       <textarea 
                         rows="3" 
                         placeholder="Añade descripciones del entregable..." 
@@ -2808,48 +2907,102 @@
               {paginaActiva === "dashboard" && (
                 <div className="flex flex-col gap-4">
                   
-                  {/* Barra de Filtros interactiva */}
-                  <div className={`p-4 rounded-xl border flex flex-wrap gap-4 items-center justify-between ${currentTheme.cardBg} ${currentTheme.border}`}>
-                    <div className="flex flex-wrap gap-3 items-center">
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Filtrar por Marca</span>
+                  {}
+                  {/* BARRA DE HERRAMIENTAS ULTRA-ESTILIZADA ESTILO NOTION/LINEAR */}
+                  <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl border bg-white ${currentTheme.border} shadow-sm`}>
+                    
+                    {/* Filtros compactos horizontales */}
+                    <div className="flex flex-wrap items-center gap-3">
+                      
+                      {/* Filtro Marca */}
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-50/80 border border-zinc-200/80 rounded-lg text-xs font-bold text-zinc-700">
+                        <i className="fa-solid fa-tag text-zinc-400"></i>
+                        <span className="text-[10px] text-zinc-400 font-extrabold uppercase">Marca:</span>
                         <select 
                           value={filtroMarca} 
                           onChange={(e) => setFiltroMarca(e.target.value)}
-                          className="bg-zinc-50 border border-zinc-200 rounded-lg p-1.5 text-xs font-bold text-zinc-700 focus:outline-none bg-white min-w-[120px]"
+                          className="bg-transparent border-0 font-bold focus:ring-0 focus:outline-none cursor-pointer p-0 pr-6 text-zinc-700"
                         >
-                          <option value="TODAS">TODAS LAS MARCAS</option>
+                          <option value="TODAS">TODAS</option>
                           {marcasDisponibles.map(m => (
                             <option key={m} value={m}>{m.toUpperCase()}</option>
                           ))}
                         </select>
                       </div>
 
-                      <div className="flex flex-col gap-1">
-                        <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest">Filtrar por Estado</span>
+                      {/* Filtro Estado */}
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-50/80 border border-zinc-200/80 rounded-lg text-xs font-bold text-zinc-700">
+                        <i className="fa-solid fa-list-check text-zinc-400"></i>
+                        <span className="text-[10px] text-zinc-400 font-extrabold uppercase">Estado:</span>
                         <select 
                           value={filtroEstado} 
                           onChange={(e) => setFiltroEstado(e.target.value)}
-                          className="bg-zinc-50 border border-zinc-200 rounded-lg p-1.5 text-xs font-bold text-zinc-700 focus:outline-none bg-white min-w-[120px]"
+                          className="bg-transparent border-0 font-bold focus:ring-0 focus:outline-none cursor-pointer p-0 pr-6 text-zinc-700"
                         >
-                          <option value="TODOS">TODOS LOS ESTADOS</option>
+                          <option value="TODOS">TODOS</option>
                           {LISTA_ESTADOS_VALIDOS.map(opt => (
                             <option key={opt} value={opt}>{opt.substring(opt.indexOf(" ") + 1).toUpperCase()}</option>
                           ))}
                         </select>
                       </div>
+
+                      {/* Filtro Prioridad */}
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-50/80 border border-zinc-200/80 rounded-lg text-xs font-bold text-zinc-700">
+                        <i className="fa-solid fa-circle-exclamation text-zinc-400"></i>
+                        <span className="text-[10px] text-zinc-400 font-extrabold uppercase">Prioridad:</span>
+                        <select 
+                          value={filtroPrioridad} 
+                          onChange={(e) => setFiltroPrioridad(e.target.value)}
+                          className="bg-transparent border-0 font-bold focus:ring-0 focus:outline-none cursor-pointer p-0 pr-6 text-zinc-700"
+                        >
+                          <option value="TODAS">TODAS</option>
+                          {PRIORIDADES_MAPA.map(p => (
+                            <option key={p.id} value={p.id}>{p.label.toUpperCase()}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Caja de Búsqueda Inline */}
+                      <div className="flex items-center gap-2 px-3 py-1.5 bg-zinc-50/85 border border-zinc-200/80 rounded-lg w-full max-w-[200px]">
+                        <i className="fa-solid fa-magnifying-glass text-zinc-400 text-xs"></i>
+                        <input 
+                          type="text" 
+                          placeholder="Buscar..." 
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="bg-transparent border-0 focus:ring-0 focus:outline-none text-xs w-full p-0 font-bold text-zinc-700"
+                        />
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-2 bg-zinc-50 border border-zinc-200 px-3 py-1.5 rounded-xl w-full sm:max-w-xs">
-                      <i className="fa-solid fa-magnifying-glass text-zinc-400 text-xs"></i>
-                      <input 
-                        type="text" 
-                        placeholder="Buscar entregables..." 
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="bg-transparent border-0 focus:ring-0 focus:outline-none text-xs w-full p-0 font-semibold"
-                      />
+                    {/* Segmented Control para Selección de Vista */}
+                    <div className="flex items-center bg-zinc-100 p-0.5 rounded-lg border border-zinc-200/40">
+                      <button 
+                        onClick={() => setVistaModo("TABLE")}
+                        className={`px-3.5 py-1.5 rounded-md text-[10px] font-black uppercase tracking-wider transition-all duration-150 ${
+                          vistaModo === "TABLE" ? "bg-white shadow text-zinc-900 font-black" : "text-zinc-400 hover:text-zinc-800"
+                        }`}
+                      >
+                        Tabla
+                      </button>
+                      <button 
+                        onClick={() => setVistaModo("KANBAN")}
+                        className={`px-3.5 py-1.5 rounded-md text-[10px] font-black uppercase tracking-wider transition-all duration-150 ${
+                          vistaModo === "KANBAN" ? "bg-white shadow text-zinc-900 font-black" : "text-zinc-400 hover:text-zinc-800"
+                        }`}
+                      >
+                        Kanban
+                      </button>
+                      <button 
+                        onClick={() => setVistaModo("CALENDAR")}
+                        className={`px-3.5 py-1.5 rounded-md text-[10px] font-black uppercase tracking-wider transition-all duration-150 ${
+                          vistaModo === "CALENDAR" ? "bg-white shadow text-zinc-900 font-black" : "text-zinc-400 hover:text-zinc-800"
+                        }`}
+                      >
+                        Calendario
+                      </button>
                     </div>
+
                   </div>
 
                   {/* Renderizado condicional según vistaModo */}
@@ -2915,7 +3068,7 @@
                     
                     <div className="mt-6 flex flex-col gap-4">
                       <div>
-                        <span className="block text-xs font-bold text-zinc-455 uppercase tracking-wider mb-2">Tema y Estilo de Interfaz</span>
+                        <span className="block text-xs font-bold text-zinc-450 uppercase tracking-wider mb-2">Tema y Estilo de Interfaz</span>
                         <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                           {Object.keys(TEMAS).map(tKey => (
                             <button
@@ -2938,7 +3091,7 @@
                     
                     <form onSubmit={handleSaveNombreCompleto} className="mt-6 flex flex-col gap-4">
                       <div>
-                        <label className="block text-xs font-bold text-zinc-455 uppercase tracking-wider mb-1">Nombre Completo del Colaborador</label>
+                        <label className="block text-xs font-bold text-zinc-450 uppercase tracking-wider mb-1">Nombre Completo del Colaborador</label>
                         <input 
                           type="text" 
                           placeholder="Ej: Miguel Bonilla" 
@@ -2973,7 +3126,7 @@
                         </div>
 
                         <div className="border-t pt-3">
-                          <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-2">Miembros del área autorizados</span>
+                          <span className="text-[10px] font-bold text-zinc-450 uppercase tracking-wider block mb-2">Miembros del área autorizados</span>
                           <div className="flex flex-wrap gap-1.5">
                             {listaUsuarios.map(u => (
                               <span key={u} className="bg-zinc-100 text-zinc-700 text-xs font-extrabold px-2.5 py-1 rounded-lg border border-zinc-200">
@@ -3002,6 +3155,7 @@
               listaPersonas={listaPersonas}
               registrarNuevaPersona={registrarNuevaPersonaGlobal}
               cleanIdTarea={cleanIdTarea}
+              syncing={syncing}
             />
           )}
 
@@ -3014,7 +3168,7 @@
                 </div>
                 <div>
                   <h3 className="font-extrabold text-sm text-zinc-900">¿Eliminar entregable?</h3>
-                  <p className="text-xs text-zinc-455 mt-1">Esta acción no se puede deshacer y borrará permanentemente la fila de la pestaña de la marca en Google Sheets.</p>
+                  <p className="text-xs text-zinc-500 mt-1">Esta acción no se puede deshacer y borrará la fila de la pestaña en Google Sheets.</p>
                 </div>
                 <div className="flex gap-2">
                   <button 
@@ -3046,3 +3200,7 @@
   </script>
 </body>
 </html>
+```
+eof
+
+He finalizado la actualización visual de la barra de filtros y la lógica de prioridades para el portal ROBIN. La cabecera se ve ahora extremadamente limpia y moderna, de la mano con los selectores de marcas, estados y prioridades que simplifican el flujo y ordenan el portal de manera instantánea.

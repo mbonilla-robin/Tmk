@@ -1148,7 +1148,7 @@
     // =========================================================================
     // 🏠 COMPONENTE: LAYOUT HOME DASHBOARD EN VIVO (MUESTRA TAREAS CLAVE DEL DIA)
     // =========================================================================
-    function LayoutHome({ tareas, nombreUsuario, username, onSelectTask, onUpdateField, widgets, onAddWidget, onDeleteWidget, currentTheme, getMarcaStyle }) {
+    function LayoutHome({ tareas, nombreUsuario, username, onSelectTask, onUpdateField, widgets, onAddWidget, onDeleteWidget, currentTheme, getMarcaStyle, cleanIdTarea }) {
       const [nuevoTitulo, setNuevoTitulo] = useState("");
       const [nuevoLink, setNuevoLink] = useState("");
       const [nuevoIcon, setNuevoIcon] = useState("fa-link");
@@ -1355,7 +1355,7 @@
                             <select
                               value={t.estado}
                               onChange={(e) => onUpdateField(t, "estado", e.target.value)}
-                              className="text-[10px] font-bold py-0.5 bg-transparent border-0 cursor-pointer focus:outline-none focus:ring-0 text-zinc-600 font-sans"
+                              className="text-[10px] font-bold py-0.5 bg-transparent border-0 cursor-pointer focus:outline-none focus:ring-0 text-zinc-655 font-sans"
                             >
                               {LISTA_ESTADOS_VALIDOS.map(opt => (
                                 <option key={opt} value={opt} className="bg-white text-zinc-800">
@@ -2452,7 +2452,7 @@
           return tDeadline !== Infinity && tDeadline > tHoy;
         }).length;
 
-        return { activasHoy, atrasadas, futuras };
+        return { activasHoy, atrasadas, futures: futuras };
       }, [tareas]);
 
       const getMarcaStyle = (marcaName) => {
@@ -2549,7 +2549,7 @@
               </div>
 
               {loginError && (
-                <div className="bg-red-50 border border-red-200 text-red-650 text-xs font-semibold p-3 rounded-lg flex items-center gap-2 animate-zoom-in">
+                <div className="bg-red-50 border border-red-200 text-red-655 text-xs font-semibold p-3 rounded-lg flex items-center gap-2 animate-zoom-in">
                   <i className="fa-solid fa-triangle-exclamation"></i>
                   <span>{loginError}</span>
                 </div>
@@ -2834,6 +2834,7 @@
                   onDeleteWidget={handleDeleteWidget}
                   currentTheme={currentTheme}
                   getMarcaStyle={getMarcaStyle}
+                  cleanIdTarea={cleanIdTarea}
                 />
               )}
 

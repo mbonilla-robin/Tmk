@@ -80,7 +80,7 @@
     // 🟢 CONFIGURACIÓN DIRECTA DE LA BASE DE DATOS (Google Sheets)
     const AUTO_API_URL = "https://script.google.com/macros/s/AKfycbz2e8lRzFV6eXFNHKmiLplWhkoPeo_oKy-tMJrpjR3OyKiPkjjirZE1qrZttf193kgMYg/exec";
     
-    // Funciones auxiliares globales saneadas para garantizar el hoisting en Babel
+    // Funciones auxiliares globales saneadas para garantizar el hoisting en Babel y prevenir errores en sandbox
     function getLocalStorageItemSafe(key, fallback = null) {
       try {
         const val = localStorage.getItem(key);
@@ -90,6 +90,30 @@
         return val;
       } catch (e) {
         return fallback;
+      }
+    }
+
+    function setLocalStorageItemSafe(key, value) {
+      try {
+        localStorage.setItem(key, value);
+      } catch (e) {
+        console.warn("Acceso a almacenamiento local restringido por el navegador.", e);
+      }
+    }
+
+    function removeLocalStorageItemSafe(key) {
+      try {
+        localStorage.removeItem(key);
+      } catch (e) {
+        console.warn("Acceso a almacenamiento local restringido por el navegador.", e);
+      }
+    }
+
+    function clearLocalStorageSafe() {
+      try {
+        localStorage.clear();
+      } catch (e) {
+        console.warn("Acceso a almacenamiento local restringido por el navegador.", e);
       }
     }
 
@@ -374,18 +398,18 @@
     ];
 
     const ESTADOS_MAPA = [
-      { id: "Pendiente", dot: "bg-[#7c7c7c]", bg: "bg-zinc-100 text-zinc-700" },
-      { id: "En progreso", dot: "bg-blue-500", bg: "bg-[#EBF5FE] text-blue-700" },
-      { id: "Seguimiento", dot: "bg-amber-500", bg: "bg-[#FEF6E0] text-amber-700" },
-      { id: "En revision", dot: "bg-purple-500", bg: "bg-[#F5EEFC] text-purple-700" },
-      { id: "En pausa", dot: "bg-red-400", bg: "bg-[#FDF0EE] text-red-700" },
-      { id: "Completada", dot: "bg-emerald-500", bg: "bg-[#EDFBF2] text-emerald-700" }
+      { id: "Pendiente", dot: "bg-zinc-400", bg: "bg-zinc-50 text-zinc-600 border-zinc-200" },
+      { id: "En progreso", dot: "bg-blue-500", bg: "bg-blue-50 text-blue-700 border-blue-150" },
+      { id: "Seguimiento", dot: "bg-amber-500", bg: "bg-amber-50 text-amber-700 border-amber-150" },
+      { id: "En revision", dot: "bg-purple-500", bg: "bg-purple-50 text-purple-700 border-purple-150" },
+      { id: "En pausa", dot: "bg-red-400", bg: "bg-red-50 text-red-700 border-red-150" },
+      { id: "Completada", dot: "bg-emerald-500", bg: "bg-emerald-50 text-emerald-700 border-emerald-150" }
     ];
 
     const PRIORIDADES_MAPA = [
-      { id: "Alta", label: "Alta", color: "bg-red-50 text-red-855 border-red-100" },
+      { id: "Alta", label: "Alta", color: "bg-red-50 text-red-800 border-red-100" },
       { id: "Media", label: "Media", color: "bg-zinc-100 text-zinc-700 border-zinc-200" },
-      { id: "Baja", label: "Baja", color: "bg-zinc-50 text-zinc-500 border-zinc-100" }
+      { id: "Baja", label: "Baja", color: "bg-zinc-50 text-zinc-550 border-zinc-100" }
     ];
 
     const MARCAS_COLORES = {
@@ -515,12 +539,23 @@
         return taskTime !== Infinity && taskTime === cellTime;
       };
 
+      const getMarcaStyleCalendar = (marcaName) => {
+        if (!marcaName) return { bg: "bg-zinc-50 text-zinc-700 border-l-2 border-l-zinc-400" };
+        const clean = marcaName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+        if (clean === "LA SANTE") return { bg: "bg-blue-50/50 text-blue-700 border-l-2 border-l-blue-400 border-zinc-100" };
+        if (clean === "DIAGEO") return { bg: "bg-purple-50/50 text-purple-700 border-l-2 border-l-purple-400 border-zinc-100" };
+        if (clean === "GAMA") return { bg: "bg-orange-50/50 text-orange-700 border-l-2 border-l-orange-400 border-zinc-100" };
+        if (clean === "ROBIN") return { bg: "bg-zinc-900 text-white border-l-2 border-l-zinc-800 border-zinc-950" };
+        if (clean === "TMK") return { bg: "bg-emerald-50/50 text-emerald-700 border-l-2 border-l-emerald-400 border-zinc-100" };
+        return { bg: "bg-zinc-50 text-zinc-700 border-l-2 border-l-zinc-400 border-zinc-100" };
+      };
+
       return (
         <div className="border border-zinc-200 rounded-md bg-white p-5 w-full">
           <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-zinc-150">
             <span className="text-xs font-bold uppercase tracking-wider text-zinc-400">Cronograma Mensual</span>
             <div className="flex items-center gap-3">
-              <span className="text-xs font-bold text-zinc-750 font-sans">
+              <span className="text-xs font-bold text-zinc-755 font-sans">
                 {monthNames[currentMonth]} {currentYear}
               </span>
               <div className="flex items-center gap-1 border border-zinc-200 rounded p-0.5 bg-zinc-50">
@@ -545,7 +580,7 @@
             {dayNames.map(d => <div key={d} className="py-1">{d}</div>)}
           </div>
 
-          {/* Cuadrícula del mes */}
+          {/* Cuadrícula del mes con altura generosa */}
           <div className="grid grid-cols-7 gap-1.5">
             {gridCells.map((cell, idx) => {
               const dayTasks = tareas.filter(t => isSameDayTask(t, cell.year, cell.month, cell.day));
@@ -554,28 +589,28 @@
               return (
                 <div 
                   key={idx} 
-                  className={`min-h-[85px] border border-zinc-150 rounded p-1.5 flex flex-col justify-between transition-colors ${
+                  className={`min-h-[110px] border border-zinc-150 rounded p-2 flex flex-col justify-between transition-colors ${
                     cell.isCurrentMonth ? 'bg-white' : 'bg-[#FAF9F6]/50 text-zinc-300'
-                  } ${isToday ? 'border-zinc-400 ring-[0.5px] ring-zinc-400/30' : ''}`}
+                  } ${isToday ? 'border-zinc-400 ring-[0.5px] ring-zinc-400/30 bg-zinc-50/30' : ''}`}
                 >
                   {/* Número del día */}
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between mb-1 shrink-0">
                     <span className={`text-[10px] font-bold ${
-                      isToday ? 'bg-[#37352F] text-white px-1 py-0.25 rounded-sm' : cell.isCurrentMonth ? 'text-zinc-700' : 'text-zinc-350'
+                      isToday ? 'bg-[#37352F] text-white px-1.5 py-0.5 rounded-sm' : cell.isCurrentMonth ? 'text-zinc-700' : 'text-zinc-350'
                     }`}>
                       {cell.day}
                     </span>
                   </div>
 
-                  {/* Listado de entregables del día */}
-                  <div className="flex flex-col gap-1 mt-1.5 overflow-y-auto max-h-[58px] no-scrollbar">
+                  {/* Listado de entregables del día con scrollbar invisible para evitar cortes de texto */}
+                  <div className="flex-1 flex flex-col gap-1 overflow-y-auto max-h-[80px] no-scrollbar">
                     {dayTasks.map(t => {
-                      const badgeStyle = getMarcaStyle(t.marca);
+                      const calStyle = getMarcaStyleCalendar(t.marca);
                       return (
                         <div 
                           key={t.idTarea}
                           onClick={() => onSelectTask(t)}
-                          className={`text-[9px] font-medium truncate px-1.5 py-0.5 rounded border border-transparent hover:border-zinc-300 transition-colors uppercase tracking-tight ${badgeStyle.bg} ${badgeStyle.text} cursor-pointer`}
+                          className={`text-[9px] font-semibold truncate px-2 py-0.5 rounded-sm border border-transparent transition-colors uppercase tracking-tight ${calStyle.bg} ${calStyle.text} ${calStyle.border} cursor-pointer`}
                           title={`${t.marca}: ${t.info}`}
                         >
                           {t.info}
@@ -1176,7 +1211,7 @@
           {showAddWidgetModal && (
             <div className="fixed inset-0 bg-black/10 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
               <div className="bg-white p-5 rounded border border-zinc-200 shadow-md w-full max-w-sm animate-zoom-in">
-                <div className="flex items-center justify-between border-b pb-2.5 mb-3.5 border-zinc-250">
+                <div className="flex items-center justify-between border-b pb-2.5 mb-3.5 border-zinc-200">
                   <span className="text-xs font-bold uppercase text-zinc-500 tracking-wider">Añadir enlace</span>
                   <button 
                     onClick={() => setShowAddWidgetModal(false)}
@@ -1185,7 +1220,7 @@
                     &times;
                   </button>
                 </div>
-                <form onSubmit={handleCreateWidget} className="flex flex-col gap-3">
+                <form onSubmit={handleCreateWidget} className="flex flex-col gap-3.5">
                   <div>
                     <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Nombre</label>
                     <input 
@@ -1194,7 +1229,7 @@
                       placeholder="Ej: Carpeta de Diseños, Drive..."
                       value={widgetTitulo}
                       onChange={(e) => setWidgetTitulo(e.target.value)}
-                      className="w-full bg-[#FAF9F6]/60 border border-zinc-200 px-2.5 py-1.5 text-xs rounded focus:outline-none font-medium text-[#37352F]"
+                      className="w-full bg-white border border-zinc-200 px-3 py-1.5 text-xs rounded focus:border-zinc-400 focus:outline-none font-semibold text-[#37352F]"
                     />
                   </div>
 
@@ -1206,7 +1241,7 @@
                       placeholder="https://docs.google.com/..."
                       value={widgetLink}
                       onChange={(e) => setWidgetLink(e.target.value)}
-                      className="w-full bg-[#FAF9F6]/60 border border-zinc-200 px-2.5 py-1.5 text-xs rounded focus:outline-none font-medium text-[#37352F]"
+                      className="w-full bg-white border border-zinc-200 px-3 py-1.5 text-xs rounded focus:border-zinc-400 focus:outline-none font-semibold text-[#37352F]"
                     />
                   </div>
 
@@ -1216,7 +1251,7 @@
                       <select 
                         value={widgetIcon}
                         onChange={(e) => setWidgetIcon(e.target.value)}
-                        className="w-full bg-[#FAF9F6] border border-zinc-200 px-2.5 py-1.5 text-xs rounded focus:outline-none font-medium text-[#37352F] cursor-pointer hover:bg-zinc-50 transition-colors"
+                        className="w-full bg-white border border-zinc-200 px-3 py-1.5 text-xs rounded focus:border-zinc-400 focus:outline-none font-semibold text-[#37352F] cursor-pointer hover:bg-zinc-50 transition-colors"
                       >
                         <option value="link">Enlace</option>
                         <option value="chart">Métricas</option>
@@ -1232,7 +1267,7 @@
                       <select 
                         value={widgetColor}
                         onChange={(e) => handleAddWidgetColorClass(e.target.value)}
-                        className="w-full bg-[#FAF9F6] border border-zinc-200 px-2.5 py-1.5 text-xs rounded focus:outline-none font-medium text-[#37352F] cursor-pointer hover:bg-zinc-50 transition-colors"
+                        className="w-full bg-white border border-zinc-200 px-3 py-1.5 text-xs rounded focus:border-zinc-400 focus:outline-none font-semibold text-[#37352F] cursor-pointer hover:bg-zinc-50 transition-colors"
                       >
                         <option value="bg-[#EBF5FE] text-blue-700">Azul</option>
                         <option value="bg-[#F5EEFC] text-purple-700">Morado</option>
@@ -1750,11 +1785,15 @@
       }, [usuario]);
 
       const [listaUsuarios, setListaUsuarios] = useState(() => {
-        const guardados = localStorage.getItem("robin_lista_usuarios");
-        return guardados ? JSON.parse(guardados) : ["fcolmenares", "ralvarez", "dsalavarria", "mbonilla", "gnebrus", "sgiucastro", "admin"];
+        try {
+          const guardados = getLocalStorageItemSafe("robin_lista_usuarios", null);
+          return guardados ? JSON.parse(guardados) : ["fcolmenares", "ralvarez", "dsalavarria", "mbonilla", "gnebrus", "sgiucastro", "admin"];
+        } catch(e) {
+          return ["fcolmenares", "ralvarez", "dsalavarria", "mbonilla", "gnebrus", "sgiucastro", "admin"];
+        }
       });
 
-      const [theme, setTheme] = useState(() => localStorage.getItem("robin_theme") || "notion");
+      const [theme, setTheme] = useState(() => getLocalStorageItemSafe("robin_theme", "notion"));
       const currentTheme = useMemo(() => TEMAS[theme] || TEMAS.notion, [theme]);
 
       const [tareas, setTareas] = useState([]);
@@ -1792,8 +1831,10 @@
       const [usuariosConectados, setUsuariosConectados] = useState([]);
 
       const [listaPersonas, setListaPersonas] = useState(() => {
-        const guardadas = localStorage.getItem("robin_personas_v2");
-        if (guardadas) return JSON.parse(guardadas);
+        try {
+          const guardadas = getLocalStorageItemSafe("robin_personas_v2", null);
+          if (guardadas) return JSON.parse(guardadas);
+        } catch(e) {}
         return ["@fcolmenares", "@ralvarez", "@dsalavarria", "@mbonilla", "@gnebrus", "@sgiucastro"];
       });
 
@@ -1906,14 +1947,14 @@
       }, [usuario, nombreCompleto, firebaseLib]);
 
       useEffect(() => {
-        const u = localStorage.getItem("robin_usuario_actual");
-        if (u === "null" || u === "undefined") {
-          localStorage.removeItem("robin_usuario_actual");
+        const u = getLocalStorageItemSafe("robin_usuario_actual", null);
+        if (!u) {
+          removeLocalStorageItemSafe("robin_usuario_actual");
           setUsuario(null);
         }
-        const n = localStorage.getItem("robin_nombre_completo");
-        if (n === "null" || n === "undefined") {
-          localStorage.removeItem("robin_nombre_completo");
+        const n = getLocalStorageItemSafe("robin_nombre_completo", null);
+        if (!n) {
+          removeLocalStorageItemSafe("robin_nombre_completo");
           setNombreCompleto("");
         }
       }, []);
@@ -1951,7 +1992,7 @@
           });
           if (detectadas.size > 0) {
             const combinadas = Array.from(new Set([...listaPersonas, ...detectadas]));
-            localStorage.setItem("robin_personas_v2", JSON.stringify(combinadas));
+            setLocalStorageItemSafe("robin_personas_v2", JSON.stringify(combinadas));
             setListaPersonas(combinadas);
           }
         }
@@ -2038,13 +2079,13 @@
 
       const handleSaveNombreCompleto = (e) => {
         e.preventDefault();
-        localStorage.setItem("robin_nombre_completo", nombreCompleto);
+        setLocalStorageItemSafe("robin_nombre_completo", nombreCompleto);
         showToast("Nombre guardado", "success");
       };
 
       const handleThemeChange = (newTheme) => {
         setTheme(newTheme);
-        localStorage.setItem("robin_theme", newTheme);
+        setLocalStorageItemSafe("robin_theme", newTheme);
         showToast(`Tema cambiado`, "success");
       };
 
@@ -2060,7 +2101,7 @@
           return;
         }
         setUsuario(userClean);
-        localStorage.setItem("robin_usuario_actual", userClean);
+        setLocalStorageItemSafe("robin_usuario_actual", userClean);
         setLoginError("");
         if (userClean === "admin") {
           setPaginaActiva("configuracion");
@@ -2072,9 +2113,9 @@
 
       const handleLogout = () => {
         try {
-          localStorage.removeItem("robin_usuario_actual");
-          localStorage.removeItem("robin_nombre_completo");
-          localStorage.clear(); 
+          removeLocalStorageItemSafe("robin_usuario_actual");
+          removeLocalStorageItemSafe("robin_nombre_completo");
+          clearLocalStorageSafe(); 
         } catch (e) {
           console.error("Error al limpiar sesión local:", e);
         }
@@ -2095,7 +2136,7 @@
         }
         const comb = Array.from(new Set([...listaUsuarios, nuevo]));
         setListaUsuarios(comb);
-        localStorage.setItem("robin_lista_usuarios", JSON.stringify(comb));
+        setLocalStorageItemSafe("robin_lista_usuarios", JSON.stringify(comb));
         registrarNuevaPersonaGlobal("@" + nuevo);
         setNuevoUsuarioInput("");
         showToast("Usuario autorizado", "success");
@@ -2107,7 +2148,7 @@
         if (finalName.length > 1 && !listaPersonas.includes(finalName)) {
           const actualizadas = [...listaPersonas, finalName];
           setListaPersonas(actualizadas);
-          localStorage.setItem("robin_personas_v2", JSON.stringify(actualizadas));
+          setLocalStorageItemSafe("robin_personas_v2", JSON.stringify(actualizadas));
         }
       };
 
@@ -2410,69 +2451,6 @@
         }
       };
 
-      const marcasDisponibles = useMemo(() => {
-        const marcasUnicas = new Set(tareas.map(t => t.marca).filter(Boolean));
-        const marcasEnMetadata = Object.keys(marcasMetadata);
-        const defaults = ["La Santé", "DIAGEO", "GAMA", "ROBIN", "TMK"];
-        return Array.from(new Set([...defaults, ...marcasEnMetadata, ...marcasUnicas]));
-      }, [tareas, marcasMetadata]);
-
-      const tareasFiltradas = useMemo(() => {
-        const hoy = new Date();
-        const tHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
-        
-        return tareas.filter(t => {
-          const tDeadline = obtenerTiempoFecha(t.deadline);
-          
-          if (filtroTiempo === "HOY") {
-            const tieneFechaReal = tDeadline !== Infinity;
-            const esHoy = tieneFechaReal && tDeadline === tHoy;
-            const esCompletada = cleanEstado(t.estado) === "completada";
-            if (!esHoy || esCompletada) return false;
-          } else if (filtroTiempo === "ATRASADAS") {
-            const tieneFechaReal = tDeadline !== Infinity;
-            const esAtrasada = tieneFechaReal && tDeadline < tHoy;
-            const esCompletada = cleanEstado(t.estado) === "completada";
-            if (!esAtrasada || esCompletada) return false;
-          } else if (filtroTiempo === "FUTURAS") {
-            const esFutura = tDeadline !== Infinity && tDeadline > tHoy;
-            if (!esFutura) return false;
-          }
-
-          if (filtroMarca !== "TODAS" && (t.marca || "").toUpperCase() !== filtroMarca.toUpperCase()) return false;
-          if (filtroEstado !== "TODOS" && cleanEstado(t.estado) !== cleanEstado(filtroEstado)) return false;
-          if (filtroPrioridad !== "TODAS" && cleanPrioridad(t.prioridad) !== cleanPrioridad(filtroPrioridad)) return false;
-
-          if (searchQuery.trim() !== "") {
-            const q = searchQuery.toLowerCase();
-            return (
-              (t.info || "").toLowerCase().includes(q) ||
-              (t.detalles && (t.detalles || "").toLowerCase().includes(q)) ||
-              (t.personas && (t.personas || "").toLowerCase().includes(q)) ||
-              (t.categoria && (t.categoria || "").toLowerCase().includes(q))
-            );
-          }
-
-          return true;
-        });
-      }, [tareas, filtroTiempo, filtroMarca, filtroEstado, filtroPrioridad, searchQuery]);
-
-      const metricaCounters = useMemo(() => {
-        const hoy = new Date();
-        const tHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
-        const activasHoy = tareas.filter(t => {
-          const tDeadline = obtenerTiempoFecha(t.deadline);
-          return tDeadline !== Infinity && tDeadline === tHoy && cleanEstado(t.estado) !== "completada";
-        }).length;
-
-        const atrasadas = tareas.filter(t => {
-          const tDeadline = obtenerTiempoFecha(t.deadline);
-          return tDeadline !== Infinity && tDeadline < tHoy && cleanEstado(t.estado) !== "completada";
-        }).length;
-        
-        return { activasHoy, atrasadas };
-      }, [tareas]);
-
       const getMarcaStyle = (marcaName) => {
         if (!marcaName) return { bg: "bg-zinc-150", text: "text-zinc-800", border: "border-zinc-200" };
         const clean = marcaName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
@@ -2557,6 +2535,67 @@
         }
       };
 
+      // UI DE ACCESO EXCLUSIVO
+      if (!usuario) {
+        return (
+          <div className="h-screen w-screen bg-[#FAFAFA] flex items-center justify-center p-4 select-none animate-fade-in">
+            <div className="bg-white border border-zinc-200 shadow-sm rounded-md p-6 md:p-8 w-full max-w-sm flex flex-col gap-6">
+              
+              <div className="flex flex-col items-center gap-1.5">
+                <RobinLogo className="h-8 w-auto" theme="notion" />
+                <span className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mt-1">Workspace Login</span>
+              </div>
+
+              {loginError && (
+                <div className="p-2.5 bg-red-50 text-red-650 border border-red-100 text-xs font-semibold rounded flex items-center gap-2">
+                  <i className="fa-solid fa-circle-exclamation text-red-550"></i>
+                  <span>{loginError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleLogin} className="flex flex-col gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Colaborador (Usuario)</label>
+                  <input 
+                    type="text" 
+                    name="username" 
+                    required 
+                    placeholder="Tu usuario..."
+                    className="w-full bg-zinc-50 border border-zinc-200 p-2.5 text-xs font-semibold rounded focus:outline-none text-[#37352F] placeholder-zinc-400"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Contraseña</label>
+                  <input 
+                    type="password" 
+                    required 
+                    placeholder="••••••••" 
+                    value={claveInput}
+                    onChange={(e) => setClaveInput(e.target.value)}
+                    className="w-full bg-zinc-50 border border-zinc-200 p-2.5 text-xs rounded focus:outline-none text-[#37352F]"
+                  />
+                </div>
+
+                <button 
+                  type="submit"
+                  className="w-full bg-[#37352F] hover:bg-[#2c2a26] text-white font-semibold py-2.5 px-4 rounded text-xs uppercase tracking-wider shadow-sm transition-colors mt-1"
+                >
+                  Acceder
+                </button>
+              </form>
+
+              <div className="text-center">
+                <p className="text-[10px] text-zinc-400 font-semibold leading-relaxed">
+                  Acceso exclusivo de Trade & Shopper Marketing.<br />
+                  Socio estratégico de marca ROBIN.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      }
+
       return (
         <div className={`flex h-screen w-screen overflow-hidden ${currentTheme.bg} ${currentTheme.text} select-none transition-all`}>
           
@@ -2567,63 +2606,62 @@
             </div>
           )}
 
-          {sidebarOpen && (
+          {sidebarOpen && !isConfigOnlyAdmin && (
             <div 
               onClick={() => setSidebarOpen(false)}
               className="fixed inset-0 bg-black/10 backdrop-blur-[1px] z-40 md:hidden"
             />
           )}
 
-          {/* MENÚ LATERAL ESTILO NOTION */}
-          <aside className={`
-            fixed inset-y-0 left-0 z-50 w-52 ${currentTheme.sidebarBg} border-r border-zinc-200 flex flex-col justify-between shrink-0 transition-transform duration-200 transform
-            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-            md:relative md:translate-x-0
-          `}>
-            <div className="flex flex-col h-full justify-between pb-4 overflow-y-auto">
-              <div>
-                <div className="p-4 border-b border-zinc-200 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <RobinLogo className="h-5 w-auto" theme={theme} />
-                    <span className="fallback-logo text-xs font-bold text-zinc-900 tracking-wider" style={{display: 'none'}}>ROBIN</span>
-                  </div>
-                  <button 
-                    onClick={() => setSidebarOpen(false)}
-                    className="md:hidden text-zinc-400 hover:text-zinc-800 p-1"
-                  >
-                    <i className="fa-solid fa-xmark text-sm"></i>
-                  </button>
-                </div>
-
-                <div className="mx-2.5 my-2.5 p-2 rounded bg-[#FAF9F6] border border-zinc-200 flex flex-col gap-1.5">
-                  <div className="flex items-center gap-1.5 overflow-hidden">
-                    <span className="relative flex h-1.5 w-1.5 shrink-0">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-                    </span>
-                    <span className="text-[11px] font-bold truncate text-[#37352F]">@{usuario}</span>
+          {/* MENÚ LATERAL ESTILO NOTION - OCULTO COMPLETAMENTE PARA EL ADMIN GLOBAL DE CONFIGURACIÓN */}
+          {!isConfigOnlyAdmin && (
+            <aside className={`
+              fixed inset-y-0 left-0 z-50 w-52 ${currentTheme.sidebarBg} border-r border-zinc-200 flex flex-col justify-between shrink-0 transition-transform duration-200 transform
+              ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+              md:relative md:translate-x-0
+            `}>
+              <div className="flex flex-col h-full justify-between pb-4 overflow-y-auto">
+                <div>
+                  <div className="p-4 border-b border-zinc-200 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <RobinLogo className="h-5 w-auto" theme={theme} />
+                      <span className="fallback-logo text-xs font-bold text-zinc-900 tracking-wider" style={{display: 'none'}}>ROBIN</span>
+                    </div>
+                    <button 
+                      onClick={() => setSidebarOpen(false)}
+                      className="md:hidden text-zinc-400 hover:text-zinc-800 p-1"
+                    >
+                      <i className="fa-solid fa-xmark text-sm"></i>
+                    </button>
                   </div>
 
-                  {/* Panel de Presencia */}
-                  <div className="border-t border-zinc-200/60 pt-1.5">
-                    <span className="text-[7.5px] font-semibold text-zinc-400 tracking-wider block mb-1 uppercase">En línea</span>
-                    <div className="flex flex-col gap-1 max-h-20 overflow-y-auto">
-                      {usuariosConectados.length === 0 ? (
-                        <div className="text-[9px] text-zinc-400 italic">Conectando...</div>
-                      ) : (
-                        usuariosConectados.map((u, index) => (
-                          <div key={u.uid || `user-${index}`} className="flex items-center gap-1 text-[9px] text-zinc-600 truncate font-medium">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                            <span className="truncate">{u.nombre || `@${u.username}`}</span>
-                          </div>
-                        ))
-                      )}
+                  <div className="mx-2.5 my-2.5 p-2 rounded bg-[#FAF9F6] border border-zinc-200 flex flex-col gap-1.5">
+                    <div className="flex items-center gap-1.5 overflow-hidden">
+                      <span className="relative flex h-1.5 w-1.5 shrink-0">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                      </span>
+                      <span className="text-[11px] font-bold truncate text-[#37352F]">@{usuario}</span>
+                    </div>
+
+                    {/* Panel de Presencia */}
+                    <div className="border-t border-zinc-200/60 pt-1.5">
+                      <span className="text-[7.5px] font-semibold text-zinc-400 tracking-wider block mb-1 uppercase">En línea</span>
+                      <div className="flex flex-col gap-1 max-h-20 overflow-y-auto">
+                        {usuariosConectados.length === 0 ? (
+                          <div className="text-[9px] text-zinc-400 italic">Conectando...</div>
+                        ) : (
+                          usuariosConectados.map((u, index) => (
+                            <div key={u.uid || `user-${index}`} className="flex items-center gap-1 text-[9px] text-zinc-600 truncate font-medium">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                              <span className="truncate">{u.nombre || `@${u.username}`}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* OCULTAR MENÚ PARA ADMINISTRADOR EXCLUSIVO DE AJUSTES */}
-                {!isConfigOnlyAdmin && (
                   <div className="px-2.5 pt-1">
                     <button 
                       disabled={isSubmitting || syncing}
@@ -2634,103 +2672,100 @@
                       <span>Añadir entregable</span>
                     </button>
                   </div>
-                )}
 
-                <nav className="p-2.5 flex flex-col gap-1">
-                  {/* MENÚ CONDICIONAL SEGÚN ROL DE USUARIO */}
-                  {!isConfigOnlyAdmin ? (
-                    <React.Fragment>
-                      <span className="px-2 text-[8px] font-bold text-zinc-400 tracking-wider uppercase mb-1">Navegación</span>
-                      
+                  <nav className="p-2.5 flex flex-col gap-1">
+                    <span className="px-2 text-[8px] font-bold text-zinc-400 tracking-wider uppercase mb-1">Navegación</span>
+                    
+                    <button
+                      onClick={() => navegarA("home")}
+                      className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold transition-all ${
+                        paginaActiva === "home" ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-200" : "text-zinc-550 hover:bg-zinc-100/50"
+                      }`}
+                    >
+                      <SVGIcon.Home />Home
+                    </button>
+
+                    <button
+                      onClick={() => navegarA("dashboard", () => { setFiltroTiempo("TODAS"); setFiltroMarca("TODAS"); setFiltroEstado("TODOS"); setFiltroPrioridad("TODAS"); })}
+                      className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold transition-all ${
+                        paginaActiva === "dashboard" && filtroTiempo === "TODAS" && filtroMarca === "TODAS" && filtroEstado === "TODOS" && filtroPrioridad === "TODAS"
+                          ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-200" : "text-zinc-550 hover:bg-zinc-100/50"
+                      }`}
+                    >
+                      <SVGIcon.All />Todos los entregables
+                    </button>
+
+                    <span className="px-2 text-[8px] font-bold text-zinc-400 tracking-wider uppercase mb-1 mt-3">Marcas</span>
+                    <div className="flex flex-col gap-0.5 max-h-32 overflow-y-auto">
                       <button
-                        onClick={() => navegarA("home")}
-                        className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold transition-all ${
-                          paginaActiva === "home" ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-200" : "text-zinc-550 hover:bg-zinc-100/50"
+                        onClick={() => { setFiltroMarca("TODAS"); setPaginaActiva("dashboard"); }}
+                        className={`flex items-center gap-2 w-full px-2 py-1 rounded text-[11px] font-semibold text-left transition-all ${
+                          filtroMarca === "TODAS" && paginaActiva === "dashboard" ? "bg-zinc-200/50 text-[#37352F] font-bold" : "text-zinc-550 hover:bg-zinc-100/30"
                         }`}
                       >
-                        <SVGIcon.Home />Home
+                        <i className="fa-solid fa-layer-group text-[9px] text-zinc-400"></i>
+                        <span>Todos los Clientes</span>
                       </button>
-
-                      <button
-                        onClick={() => navegarA("dashboard", () => { setFiltroTiempo("TODAS"); setFiltroMarca("TODAS"); setFiltroEstado("TODOS"); setFiltroPrioridad("TODAS"); })}
-                        className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold transition-all ${
-                          paginaActiva === "dashboard" && filtroTiempo === "TODAS" && filtroMarca === "TODAS" && filtroEstado === "TODOS" && filtroPrioridad === "TODAS"
-                            ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-200" : "text-zinc-550 hover:bg-zinc-100/50"
-                        }`}
-                      >
-                        <SVGIcon.All />Todos los entregables
-                      </button>
-
-                      <span className="px-2 text-[8px] font-bold text-zinc-400 tracking-wider uppercase mb-1 mt-3">Marcas</span>
-                      <div className="flex flex-col gap-0.5 max-h-32 overflow-y-auto">
+                      {marcasDisponibles.map(b => (
                         <button
-                          onClick={() => { setFiltroMarca("TODAS"); setPaginaActiva("dashboard"); }}
-                          className={`flex items-center gap-2 w-full px-2 py-1 rounded text-[11px] font-semibold text-left transition-all ${
-                            filtroMarca === "TODAS" && paginaActiva === "dashboard" ? "bg-zinc-200/50 text-[#37352F] font-bold" : "text-zinc-550 hover:bg-zinc-100/30"
+                          key={b}
+                          onClick={() => { setFiltroMarca(b); setFiltroTiempo("TODAS"); setPaginaActiva("dashboard"); }}
+                          className={`flex items-center gap-1.5 w-full px-2 py-1 rounded text-[11px] font-semibold text-left transition-all ${
+                            filtroMarca === b && paginaActiva === "dashboard" ? "bg-zinc-200/50 text-[#37352F] font-bold" : "text-zinc-550 hover:bg-zinc-100/30"
                           }`}
                         >
-                          <i className="fa-solid fa-layer-group text-[9px] text-zinc-400"></i>
-                          <span>Todos los Clientes</span>
+                          <i className="fa-solid fa-chevron-right text-[7px] text-zinc-400"></i>
+                          <span className="truncate">{b}</span>
                         </button>
-                        {marcasDisponibles.map(b => (
-                          <button
-                            key={b}
-                            onClick={() => { setFiltroMarca(b); setFiltroTiempo("TODAS"); setPaginaActiva("dashboard"); }}
-                            className={`flex items-center gap-1.5 w-full px-2 py-1 rounded text-[11px] font-semibold text-left transition-all ${
-                              filtroMarca === b && paginaActiva === "dashboard" ? "bg-zinc-200/50 text-[#37352F] font-bold" : "text-zinc-550 hover:bg-zinc-100/30"
-                            }`}
-                          >
-                            <i className="fa-solid fa-chevron-right text-[7px] text-zinc-400"></i>
-                            <span className="truncate">{b}</span>
-                          </button>
-                        ))}
-                      </div>
+                      ))}
+                    </div>
 
-                      <span className="px-2 text-[8px] font-bold text-zinc-400 tracking-wider uppercase mb-1 mt-3">Administración</span>
-                      <button
-                        onClick={() => navegarA("clientes")}
-                        className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold transition-all ${
-                          paginaActiva === "clientes" ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-200" : "text-zinc-550 hover:bg-zinc-100/50"
-                        }`}
-                      >
-                        <i className="fa-regular fa-address-book text-zinc-400 text-[11px]"></i>Fichas Técnicas
-                      </button>
-                    </React.Fragment>
-                  ) : null}
+                    <span className="px-2 text-[8px] font-bold text-zinc-400 tracking-wider uppercase mb-1 mt-3">Administración</span>
+                    <button
+                      onClick={() => navegarA("clientes")}
+                      className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold transition-all ${
+                        paginaActiva === "clientes" ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-200" : "text-zinc-550 hover:bg-zinc-100/50"
+                      }`}
+                    >
+                      <i className="fa-regular fa-address-book text-zinc-400 text-[11px]"></i>Fichas Técnicas
+                    </button>
 
-                  <span className="px-2 text-[8px] font-bold text-zinc-400 tracking-wider uppercase mb-1 mt-3">Soporte</span>
+                    <span className="px-2 text-[8px] font-bold text-zinc-400 tracking-wider uppercase mb-1 mt-3">Soporte</span>
+                    <button
+                      onClick={() => navegarA("configuracion")}
+                      className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold transition-all ${
+                        paginaActiva === "configuracion" ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-200" : "text-zinc-550 hover:bg-zinc-100/50"
+                      }`}
+                    >
+                      <i className="fa-solid fa-sliders text-zinc-400 text-[11px]"></i>Ajustes Portal
+                    </button>
+                  </nav>
+                </div>
+
+                <div className="px-3 pt-3">
                   <button
-                    onClick={() => navegarA("configuracion")}
-                    className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold transition-all ${
-                      paginaActiva === "configuracion" ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-200" : "text-zinc-550 hover:bg-zinc-100/50"
-                    }`}
+                    onClick={handleLogout}
+                    className="w-full text-center py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded border border-red-200 transition-colors"
                   >
-                    <i className="fa-solid fa-sliders text-zinc-400 text-[11px]"></i>Ajustes Portal
+                    Cerrar Sesión
                   </button>
-                </nav>
+                </div>
               </div>
-
-              <div className="px-3 pt-3">
-                <button
-                  onClick={handleLogout}
-                  className="w-full text-center py-1.5 text-xs font-semibold text-red-650 bg-red-50 hover:bg-red-100 rounded border border-red-200 transition-colors"
-                >
-                  Cerrar Sesión
-                </button>
-              </div>
-            </div>
-          </aside>
+            </aside>
+          )}
 
           {/* CONTENEDOR PRINCIPAL */}
           <main className="flex-1 flex flex-col overflow-hidden bg-white">
             <header className="bg-white border-b border-zinc-200 px-6 py-3 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
-                <button 
-                  onClick={() => setSidebarOpen(true)}
-                  className="md:hidden text-zinc-600 p-1 hover:bg-zinc-100 rounded"
-                >
-                  <i className="fa-solid fa-bars text-sm"></i>
-                </button>
+                {sidebarOpen && !isConfigOnlyAdmin && (
+                  <button 
+                    onClick={() => setSidebarOpen(true)}
+                    className="md:hidden text-zinc-600 p-1 hover:bg-zinc-100 rounded"
+                  >
+                    <i className="fa-solid fa-bars text-sm"></i>
+                  </button>
+                )}
                 <h1 className="text-xs font-bold uppercase tracking-widest text-zinc-400">
                   Trade & Shopper Marketing Workspace {isConfigOnlyAdmin ? "- Admin" : ""}
                 </h1>
@@ -2755,6 +2790,16 @@
                     </>
                   )}
                 </div>
+
+                {/* BOTÓN CERRAR SESIÓN EXCLUSIVO PARA ROL ADMIN GLOBAL (HEADER) */}
+                {isConfigOnlyAdmin && (
+                  <button
+                    onClick={handleLogout}
+                    className="px-3.5 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded border border-red-200 transition-colors"
+                  >
+                    Cerrar Sesión
+                  </button>
+                )}
 
                 {!isConfigOnlyAdmin && (
                   <button 
@@ -3160,7 +3205,7 @@
                                   onClick={() => {
                                     const filtered = listaUsuarios.filter(item => item !== u);
                                     setListaUsuarios(filtered);
-                                    localStorage.setItem("robin_lista_usuarios", JSON.stringify(filtered));
+                                    setLocalStorageItemSafe("robin_lista_usuarios", JSON.stringify(filtered));
                                     showToast(`Usuario desautorizado`, "info");
                                   }}
                                   className="text-zinc-400 hover:text-red-500 font-bold ml-1"

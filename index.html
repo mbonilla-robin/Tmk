@@ -45,14 +45,14 @@
 
   <div id="root" class="h-screen w-screen overflow-hidden"></div>
 
-  <!-- Importaciones de Firebase para Presencia Multiusuario en Tiempo Real -->
+  <!-- Importaciones de Firebase para Presencia Multiusuario en Tiempo Real (ESM Seguro) -->
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
     import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, setDoc, onSnapshot, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     window.FirebaseLib = {
-      initializeApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, setDoc, onSnapshot, collection, serverTimestamp
+      initializeApp, getApps, getApp, getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken, getFirestore, doc, setDoc, onSnapshot, collection, serverTimestamp
     };
   </script>
 
@@ -140,6 +140,7 @@
       return clean;
     };
 
+    // 🟢 Función de lectura segura de LocalStorage restablecida
     const getLocalStorageItemSafe = (key, fallback = null) => {
       try {
         const val = localStorage.getItem(key);
@@ -225,7 +226,7 @@
     };
 
     const ESTADOS_MAPA = [
-      { id: "⚪ Pendiente", label: "Pendiente", color: "bg-zinc-100 text-zinc-650", dot: "bg-zinc-400" },
+      { id: "⚪ Pendiente", label: "Pendiente", color: "bg-zinc-100 text-zinc-655", dot: "bg-zinc-400" },
       { id: "🔵 En progreso", label: "En progreso", color: "bg-blue-50 text-blue-800", dot: "bg-blue-500" },
       { id: "🟡 Seguimiento", label: "Seguimiento", color: "bg-purple-50 text-purple-800", dot: "bg-purple-500" },
       { id: "🟠 En revisión", label: "En revisión", color: "bg-orange-50 text-orange-800", dot: "bg-orange-500" }, 
@@ -600,7 +601,7 @@
                                   <select
                                     value={t.estado}
                                     onChange={(e) => onUpdateField(t, "estado", e.target.value)}
-                                    className="text-xs font-bold py-1 bg-transparent border-0 cursor-pointer focus:outline-none focus:ring-0 text-zinc-700 font-sans"
+                                    className="text-xs font-bold py-1 bg-transparent border-0 cursor-pointer focus:outline-none focus:ring-0 text-zinc-800 font-sans"
                                   >
                                     {LISTA_ESTADOS_VALIDOS.map(opt => (
                                       <option key={opt} value={opt} className="bg-white text-zinc-800">
@@ -823,7 +824,7 @@
             </h3>
             
             <div className="flex items-center gap-1 bg-zinc-50 p-0.5 rounded-lg border border-zinc-200">
-              <button onClick={() => navegarMes(-1)} className="hover:bg-white text-zinc-650 p-1 rounded-md text-[10px]">
+              <button onClick={() => navegarMes(-1)} className="hover:bg-white text-zinc-655 p-1 rounded-md text-[10px]">
                 <i className="fa-solid fa-chevron-left px-1"></i>
               </button>
               <button onClick={() => setCurrentDate(new Date())} className="hover:bg-white text-zinc-800 px-2 py-0.5 rounded-md text-[10px] font-bold">
@@ -1344,7 +1345,7 @@
                             <select
                               value={t.estado}
                               onChange={(e) => onUpdateField(t, "estado", e.target.value)}
-                              className="text-[10px] font-bold py-0.5 bg-transparent border-0 cursor-pointer focus:outline-none focus:ring-0 text-zinc-600 font-sans"
+                              className="text-[10px] font-bold py-0.5 bg-transparent border-0 cursor-pointer focus:outline-none focus:ring-0 text-zinc-655 font-sans"
                             >
                               {LISTA_ESTADOS_VALIDOS.map(opt => (
                                 <option key={opt} value={opt} className="bg-white text-zinc-800">
@@ -1648,7 +1649,7 @@
                     <input type="text" value={editDisenador} onChange={e => setEditDisenador(e.target.value)} placeholder="ej: @dsalavarria" className="w-full bg-zinc-50 border p-2 rounded-lg font-bold" />
                   </div>
                   <div>
-                    <label className="block font-bold text-zinc-455 uppercase mb-1">Content Creator</label>
+                    <label className="block text-zinc-455 uppercase mb-1">Content Creator</label>
                     <input type="text" value={editContent} onChange={e => setEditContent(e.target.value)} placeholder="ej: @fcolmenares" className="w-full bg-zinc-50 border p-2 rounded-lg font-bold" />
                   </div>
                 </div>
@@ -1709,7 +1710,8 @@
       const [marcasMetadata, setMarcasMetadata] = useState({});
       const [widgets, setWidgets] = useState([]);
 
-      // 🟢 Estado de Presencia en tiempo real
+      // 🟢 Estados de Firebase cargados asíncronamente
+      const [firebaseLib, setFirebaseLib] = useState(null);
       const [usuariosConectados, setUsuariosConectados] = useState([]);
 
       const [listaPersonas, setListaPersonas] = useState(() => {
@@ -1722,11 +1724,25 @@
         marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", estado: "⚪ Pendiente", deadline: "", prioridad: "🟡 Media"
       });
 
-      // 🟢 Inicialización de Presencia en Vivo vía Firestore (BLINDADO)
+      // 🟢 Sondeo activo (polling) para esperar la carga asíncrona del script module de Firebase
       useEffect(() => {
-        if (!usuario) return;
-        const FirebaseLib = window.FirebaseLib;
-        if (!FirebaseLib) return;
+        if (window.FirebaseLib) {
+          setFirebaseLib(window.FirebaseLib);
+          return;
+        }
+        const interval = setInterval(() => {
+          if (window.FirebaseLib) {
+            setFirebaseLib(window.FirebaseLib);
+            clearInterval(interval);
+          }
+        }, 100);
+        return () => clearInterval(interval);
+      }, []);
+
+      // 🟢 Inicialización de Presencia en Vivo vía Firestore (BLINDADO de re-inicialización)
+      useEffect(() => {
+        if (!usuario || !firebaseLib) return;
+        const FirebaseLib = firebaseLib;
 
         let firebaseConfig = null;
         try {
@@ -1738,7 +1754,6 @@
         }
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'robin-trade-shopper-mkt';
-        
         if (!firebaseConfig) return;
 
         let heartbeatInterval = null;
@@ -1746,7 +1761,11 @@
 
         const initPresence = async () => {
           try {
-            const app = FirebaseLib.initializeApp(firebaseConfig);
+            // Verificamos si ya hay instancias activas para NO llamar a initializeApp dos veces
+            const app = FirebaseLib.getApps().length === 0 
+              ? FirebaseLib.initializeApp(firebaseConfig) 
+              : FirebaseLib.getApp();
+              
             const auth = FirebaseLib.getAuth(app);
             const db = FirebaseLib.getFirestore(app);
 
@@ -1803,7 +1822,7 @@
           if (heartbeatInterval) clearInterval(heartbeatInterval);
           if (unsubscribe) unsubscribe();
         };
-      }, [usuario, nombreCompleto]);
+      }, [usuario, nombreCompleto, firebaseLib]);
 
       useEffect(() => {
         const u = localStorage.getItem("robin_usuario_actual");
@@ -1994,7 +2013,7 @@
         registrarNuevaPersonaGlobal("@" + nuevo);
 
         setNuevoUsuarioInput("");
-        showToast(`Usuario @${nuevo} autorizado`, "success");
+        showToast("Usuario @nuevo autorizado", "success");
       };
 
       const generarIdDeterminista = (t) => {
@@ -2172,7 +2191,7 @@
         if (original.prioridad !== editedTask.prioridad) cambios.push("prioridad");
 
         if (cambios.length > 0) {
-          detallesAudoria += `\n• [${timestamp}] Editado (${cambios.join(", ")}) por @${usuario}`;
+          detallesAudoria += `\n• [${timestamp}] Editado (${changes.join(", ")}) por @${usuario}`;
         }
 
         const taskConHistorial = { ...editedTask, detalles: detallesAudoria };
@@ -2374,17 +2393,17 @@
             if (!esFutura) return false;
           }
 
-          if (filtroMarca !== "TODAS" && t.marca.toUpperCase() !== filtroMarca.toUpperCase()) return false;
+          if (filtroMarca !== "TODAS" && (t.marca || "").toUpperCase() !== filtroMarca.toUpperCase()) return false;
           if (filtroEstado !== "TODOS" && cleanEstado(t.estado) !== cleanEstado(filtroEstado)) return false;
           if (filtroPrioridad !== "TODAS" && cleanPrioridad(t.prioridad) !== cleanPrioridad(filtroPrioridad)) return false;
 
           if (searchQuery.trim() !== "") {
             const q = searchQuery.toLowerCase();
             return (
-              t.info.toLowerCase().includes(q) ||
-              (t.detalles && t.detalles.toLowerCase().includes(q)) ||
-              (t.personas && t.personas.toLowerCase().includes(q)) ||
-              (t.categoria && t.categoria.toLowerCase().includes(q))
+              (t.info || "").toLowerCase().includes(q) ||
+              (t.detalles && (t.detalles || "").toLowerCase().includes(q)) ||
+              (t.personas && (t.personas || "").toLowerCase().includes(q)) ||
+              (t.categoria && (t.categoria || "").toLowerCase().includes(q))
             );
           }
 
@@ -2394,17 +2413,17 @@
 
       const tareasParaCalendario = useMemo(() => {
         return tareas.filter(t => {
-          if (filtroMarca !== "TODAS" && t.marca.toUpperCase() !== filtroMarca.toUpperCase()) return false;
+          if (filtroMarca !== "TODAS" && (t.marca || "").toUpperCase() !== filtroMarca.toUpperCase()) return false;
           if (filtroEstado !== "TODOS" && cleanEstado(t.estado) !== cleanEstado(filtroEstado)) return false;
           if (filtroPrioridad !== "TODAS" && cleanPrioridad(t.prioridad) !== cleanPrioridad(filtroPrioridad)) return false;
 
           if (searchQuery.trim() !== "") {
             const q = searchQuery.toLowerCase();
             return (
-              t.info.toLowerCase().includes(q) ||
-              (t.detalles && t.detalles.toLowerCase().includes(q)) ||
-              (t.personas && t.personas.toLowerCase().includes(q)) ||
-              (t.categoria && t.categoria.toLowerCase().includes(q))
+              (t.info || "").toLowerCase().includes(q) ||
+              (t.detalles && (t.detalles || "").toLowerCase().includes(q)) ||
+              (t.personas && (t.personas || "").toLowerCase().includes(q)) ||
+              (t.categoria && (t.categoria || "").toLowerCase().includes(q))
             );
           }
 
@@ -2623,8 +2642,8 @@
                       {usuariosConectados.length === 0 ? (
                         <div className="text-[10px] text-zinc-400 font-semibold italic">Cargando presencia...</div>
                       ) : (
-                        usuariosConectados.map(u => (
-                          <div key={u.uid} className="flex items-center gap-1.5 text-[10px] text-zinc-655 font-bold truncate">
+                        usuariosConectados.map((u, index) => (
+                          <div key={u.uid || `user-${index}`} className="flex items-center gap-1.5 text-[10px] text-zinc-655 font-bold truncate">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                             <span className="truncate">{u.nombre || `@${u.username}`}</span>
                           </div>
@@ -2686,7 +2705,7 @@
                       className={`flex items-center gap-2 w-full px-3 py-1.5 rounded-lg text-xs font-bold text-left transition-all ${
                         filtroMarca === "TODAS" && paginaActiva === "dashboard"
                           ? "bg-zinc-200/50 text-zinc-900 font-extrabold"
-                          : "text-zinc-500 hover:bg-zinc-100/30 hover:text-zinc-850"
+                          : "text-zinc-500 hover:bg-zinc-100/30 hover:text-zinc-855"
                       }`}
                     >
                       <i className="fa-solid fa-layer-group text-[10px] text-zinc-450"></i>
@@ -2703,7 +2722,7 @@
                         className={`flex items-center gap-2 w-full px-3 py-1.5 rounded-lg text-xs font-bold text-left transition-all ${
                           filtroMarca === b && paginaActiva === "dashboard"
                             ? "bg-zinc-200/50 text-zinc-900 font-extrabold"
-                            : "text-zinc-500 hover:bg-zinc-100/30 hover:text-zinc-850"
+                            : "text-zinc-500 hover:bg-zinc-100/30 hover:text-zinc-855"
                         }`}
                       >
                         <i className="fa-solid fa-chevron-right text-[8px] text-zinc-400"></i>
@@ -3216,7 +3235,7 @@
               onDeleteClick={(t) => setTaskToDelete(t)}
               marcasDisponibles={marcasDisponibles}
               listaPersonas={listaPersonas}
-              registrarNuevaPersona={registrarNuevaPersonaGlobal}
+              registrarNuevaPersona={registrarNuevaPersona}
               cleanIdTarea={cleanIdTarea}
               syncing={syncing}
             />

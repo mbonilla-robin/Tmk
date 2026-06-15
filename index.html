@@ -70,7 +70,7 @@
     const { useState, useEffect, useMemo, useRef } = React;
 
     // =========================================================================
-    // ⚙️ Iconos SVG Premium vectoriales para la barra lateral
+    // ⚙Iconos SVG Premium vectoriales para la barra lateral
     // =========================================================================
     const SVGIcon = {
       Home: () => (
@@ -152,6 +152,16 @@
         return fallback;
       }
     };
+
+    // 🟢 Función de limpieza de ID de tarea declarada a nivel global (Accesible para todos los componentes)
+    function cleanIdTarea(id) {
+      if (!id) return "";
+      const idStr = String(id).trim();
+      if (idStr.includes("GMT") || (idStr.includes("2026") && idStr.length > 15) || idStr.includes("Venezuela") || idStr.startsWith("STB-")) {
+        return "";
+      }
+      return idStr;
+    }
 
     function convertirFechaAInput(fechaStr) {
       if (!fechaStr) return "";
@@ -1104,7 +1114,7 @@
                     type="button" 
                     onClick={handleAgregarStatus} 
                     disabled={syncing || isSubmittingLocal || !nuevoStatus.trim()}
-                    className="bg-zinc-900 hover:bg-black text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 disabled:opacity-50"
+                    className="bg-zinc-950 hover:bg-black text-white px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 disabled:opacity-50"
                   >
                     Registrar
                   </button>
@@ -1136,7 +1146,7 @@
     }
 
     // =========================================================================
-    // 🏠 COMPONENTE: LAYOUT HOME DASHBOARD EN VIVO
+    // 🏠 COMPONENTE: LAYOUT HOME DASHBOARD EN VIVO (MUESTRA TAREAS CLAVE DEL DIA)
     // =========================================================================
     function LayoutHome({ tareas, nombreUsuario, username, onSelectTask, onUpdateField, widgets, onAddWidget, onDeleteWidget, currentTheme, getMarcaStyle }) {
       const [nuevoTitulo, setNuevoTitulo] = useState("");
@@ -1345,7 +1355,7 @@
                             <select
                               value={t.estado}
                               onChange={(e) => onUpdateField(t, "estado", e.target.value)}
-                              className="text-[10px] font-bold py-0.5 bg-transparent border-0 cursor-pointer focus:outline-none focus:ring-0 text-zinc-655 font-sans"
+                              className="text-[10px] font-bold py-0.5 bg-transparent border-0 cursor-pointer focus:outline-none focus:ring-0 text-zinc-600 font-sans"
                             >
                               {LISTA_ESTADOS_VALIDOS.map(opt => (
                                 <option key={opt} value={opt} className="bg-white text-zinc-800">
@@ -1609,7 +1619,7 @@
                   </div>
                   <div>
                     <label className="block font-bold text-zinc-455 uppercase mb-1">Content Creator</label>
-                    <input type="text" value={newContent} onChange={e => setNewContent(e.target.value)} placeholder="ej: @fcolmenares" className="w-full bg-zinc-50 border p-2 rounded-lg" />
+                    <input type="text" value={newContent} onChange={e => setNewContent(e.target.value)} placeholder="ej: @fcolmenares" className="w-full bg-zinc-50 border p-2 rounded-lg font-bold" />
                   </div>
                 </div>
 
@@ -1656,7 +1666,7 @@
 
                 <div className="flex justify-end gap-2 pt-3 border-t">
                   <button type="button" onClick={() => setShowEditBrandModal(null)} className="px-4 py-2 bg-zinc-100 hover:bg-zinc-200 font-bold rounded-lg">Cancelar</button>
-                  <button type="submit" className="px-4 py-2 bg-zinc-950 hover:bg-black text-white font-bold rounded-lg">Guardar Ficha</button>
+                  <button type="submit" className="px-4 py-2 bg-zinc-955 hover:bg-black text-white font-bold rounded-lg">Guardar Ficha</button>
                 </div>
               </form>
             </div>
@@ -2191,7 +2201,8 @@
         if (original.prioridad !== editedTask.prioridad) cambios.push("prioridad");
 
         if (cambios.length > 0) {
-          detallesAudoria += `\n• [${timestamp}] Editado (${changes.join(", ")}) por @${usuario}`;
+          // 🟢 Corregido: "changes.join" cambiado a "cambios.join" para evitar ReferenceError fatal en modal
+          detallesAudoria += `\n• [${timestamp}] Editado (${cambios.join(", ")}) por @${usuario}`;
         }
 
         const taskConHistorial = { ...editedTask, detalles: detallesAudoria };
@@ -2361,15 +2372,6 @@
         const defaults = ["La Santé", "DIAGEO", "GAMA", "ROBIN", "TMK"];
         return Array.from(new Set([...defaults, ...marcasEnMetadata, ...marcasUnicas]));
       }, [tareas, marcasMetadata]);
-
-      const cleanIdTarea = (id) => {
-        if (!id) return "";
-        const idStr = String(id).trim();
-        if (idStr.includes("GMT") || (idStr.includes("2026") && idStr.length > 15) || idStr.includes("Venezuela") || idStr.startsWith("STB-")) {
-          return "";
-        }
-        return idStr;
-      };
 
       const tareasFiltradas = useMemo(() => {
         const hoy = new Date();

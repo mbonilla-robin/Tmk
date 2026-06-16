@@ -1163,7 +1163,7 @@ function App() {
     }
   };
 
-  const handleCreateTask = async (e) => {
+  const handleCreateTask = async (e, detallesSerializados) => {
     e.preventDefault();
     if (isSubmitting || syncing) return; 
     
@@ -1181,8 +1181,9 @@ function App() {
     const hoy = new Date();
     const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
     const historialInicial = `• [${timestamp}] Creado por @${usuario}`;
-    const detallesConCreador = nuevaTarea.detalles 
-      ? `${nuevaTarea.detalles.trim()}\n\n${historialInicial}` 
+    const detallesBase = detallesSerializados ?? nuevaTarea.detalles;
+    const detallesConCreador = detallesBase
+      ? `${detallesBase.trim()}\n\n${historialInicial}`
       : historialInicial;
 
     const nuevaConId = normalizarTareaCampos({

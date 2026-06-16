@@ -190,7 +190,7 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
         type="button"
         onClick={() => onSelectTask(t)}
         className={`w-full h-[52px] shrink-0 text-left rounded border border-zinc-200 border-l-[3px] bg-white hover:bg-zinc-50/80 transition-colors p-1.5 flex flex-col justify-between ${calStyle.border}`}
-        title={`${formatearMarca(t.marca)} · ${t.estado || "Sin estado"} · ${t.info}`}
+        title={`${formatearMarca(t.marca)} · ${normalizarEstado(t.estado) || "Sin estado"} · ${t.info}`}
       >
         <p className="text-[10px] font-medium text-zinc-800 leading-[13px] h-[26px] overflow-hidden line-clamp-2">
           {t.info}
@@ -349,7 +349,7 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
       >
         <span className="block text-ui-sm font-medium leading-snug">{t.info}</span>
         <span className="block text-ui-sm opacity-60 mt-0.5">
-          {formatearMarca(t.marca)} · {t.estado || "Sin estado"}
+          {formatearMarca(t.marca)} · {normalizarEstado(t.estado) || "Sin estado"}
         </span>
       </div>
     );

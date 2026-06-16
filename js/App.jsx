@@ -570,7 +570,7 @@ function App() {
       if (campo === "estado") {
         detalles += `\n• [${timestamp}] Estado cambiado a "${nuevoValor}" por @${usuario}`;
       }
-      const valorFinal = campo === "prioridad" ? normalizarPrioridad(nuevoValor) : nuevoValor;
+      const valorFinal = normalizarValorCampoTarea(campo, nuevoValor);
       return {
         ...t,
         idTarea: t.idTarea || generateBrandId(t.marca),
@@ -589,6 +589,7 @@ function App() {
 
     setSyncing(true);
     try {
+      const valorFinal = normalizarValorCampoTarea(campo, nuevoValor);
       for (const tarea of objetivos) {
         const actualizada = actualizadas.find(t => getTaskSelectionKey(t) === getTaskSelectionKey(tarea));
         const taskTargetId = actualizada.idTarea;
@@ -597,11 +598,11 @@ function App() {
           headers: { "Content-Type": "text/plain; charset=utf-8" },
           body: JSON.stringify({
             marca: tarea.marca, idTarea: taskTargetId, info: tarea.info, categoria: tarea.categoria,
-            campo: "todo", valor: nuevoValor, personas: tarea.personas,
+            campo: "todo", valor: valorFinal, personas: tarea.personas,
             detalles: actualizada.detalles,
-            estado: campo === "estado" ? nuevoValor : tarea.estado,
-            deadline: campo === "deadline" ? nuevoValor : tarea.deadline,
-            prioridad: campo === "prioridad" ? normalizarPrioridad(nuevoValor) : normalizarPrioridad(tarea.prioridad)
+            estado: campo === "estado" ? valorFinal : normalizarEstado(tarea.estado),
+            deadline: campo === "deadline" ? valorFinal : normalizarDeadline(tarea.deadline),
+            prioridad: campo === "prioridad" ? valorFinal : normalizarPrioridad(tarea.prioridad)
           })
         });
       }
@@ -917,11 +918,10 @@ function App() {
             const key = `${t.marca || ""}|${t.info || ""}|${t.deadline || ""}`.toLowerCase().replace(/\s+/g, " ").trim();
             if (!seenKeys.has(key)) {
               seenKeys.add(key);
-              deduplicadas.push({
+              deduplicadas.push(normalizarTareaCampos({
                 ...t,
-                idTarea: realId,
-                prioridad: normalizarPrioridad(t.prioridad || t.Prioridad)
-              });
+                idTarea: realId
+              }));
             }
           });
 
@@ -975,7 +975,7 @@ function App() {
       detallesConHistorial = detallesConHistorial + registro;
     }
 
-    const valorFinal = campo === "prioridad" ? normalizarPrioridad(nuevoValor) : nuevoValor;
+    const valorFinal = normalizarValorCampoTarea(campo, nuevoValor);
 
     const temp = tareas.map(t => {
       if ((t.idTarea === tarea.idTarea && t.idTarea) || t.info === tarea.info) {
@@ -1001,13 +1001,13 @@ function App() {
       await fetchRobinApi(effectiveUrl, {
         method: "POST", mode: "cors", redirect: "follow",
         headers: { "Content-Type": "text/plain; charset=utf-8" },
-        body: JSON.stringify({
-          marca: tarea.marca, idTarea: taskTargetId, info: tarea.info, categoria: tarea.categoria,
-          campo: "todo", valor: nuevoValor, personas: tarea.personas, detalles: detallesConHistorial, 
-          estado: campo === "estado" ? nuevoValor : tarea.estado,
-          deadline: campo === "deadline" ? nuevoValor : tarea.deadline,
-          prioridad: campo === "prioridad" ? valorFinal : normalizarPrioridad(tarea.prioridad)
-        })
+          body: JSON.stringify({
+            marca: tarea.marca, idTarea: taskTargetId, info: tarea.info, categoria: tarea.categoria,
+            campo: "todo", valor: valorFinal, personas: tarea.personas, detalles: detallesConHistorial, 
+            estado: campo === "estado" ? valorFinal : normalizarEstado(tarea.estado),
+            deadline: campo === "deadline" ? valorFinal : normalizarDeadline(tarea.deadline),
+            prioridad: campo === "prioridad" ? valorFinal : normalizarPrioridad(tarea.prioridad)
+          })
       });
       showToast("Cambios guardados", "success");
       await fetchData(true);
@@ -1025,10 +1025,16 @@ function App() {
     await handleUpdateField(tarea, "estado", "Completada");
   };
 
+  const abrirEdicionTarea = (t) => {
+    const actual = normalizarTareaCampos(resolverTareaActual(tareas, t));
+    setActiveTask(actual);
+    setIsEditing(true);
+  };
+
   const layoutTablaProps = {
     tareas: tareasFiltradas,
     onUpdateField: handleUpdateField,
-    onSelectTask: (t) => { setActiveTask(t); setIsEditing(true); },
+    onSelectTask: abrirEdicionTarea,
     onDeleteTask: (t) => setTaskToDelete(t),
     onSolicitarCompletar: (t) => setTaskToComplete(t),
     getMarcaStyle,
@@ -1068,8 +1074,8 @@ function App() {
     if (original.info !== editedTask.info) cambios.push("título");
     if (original.categoria !== editedTask.categoria) cambios.push("categoría");
     if (original.personas !== editedTask.personas) cambios.push("asignados");
-    if (original.estado !== editedTask.estado) cambios.push(`estado a "${editedTask.estado}"`);
-    if (original.deadline !== editedTask.deadline) cambios.push("fecha límite");
+    if (normalizarEstado(original.estado) !== normalizarEstado(editedTask.estado)) cambios.push(`estado a "${normalizarEstado(editedTask.estado)}"`);
+    if (normalizarDeadline(original.deadline) !== normalizarDeadline(editedTask.deadline)) cambios.push("fecha límite");
     const prioridadNormalizada = normalizarPrioridad(editedTask.prioridad);
     if (normalizarPrioridad(original.prioridad) !== prioridadNormalizada) cambios.push("prioridad");
 
@@ -1077,7 +1083,7 @@ function App() {
       detallesAudoria += `\n• [${timestamp}] Editado (${cambios.join(", ")}) por @${usuario}`;
     }
 
-    const taskConHistorial = { ...editedTask, prioridad: prioridadNormalizada, detalles: detallesAudoria };
+    const taskConHistorial = normalizarTareaCampos({ ...editedTask, prioridad: prioridadNormalizada, detalles: detallesAudoria });
     const copiaTareas = [...tareas];
     copiaTareas[index] = taskConHistorial;
     setTareas(copiaTareas);
@@ -1165,6 +1171,10 @@ function App() {
       showToast("Ingresa el título del entregable", "error");
       return;
     }
+    if (!normalizarDeadline(nuevaTarea.deadline)) {
+      showToast("Ingresa una fecha válida (ej: 16/06/2026)", "error");
+      return;
+    }
 
     setIsSubmitting(true);
     const autoId = generateBrandId(nuevaTarea.marca);
@@ -1175,13 +1185,12 @@ function App() {
       ? `${nuevaTarea.detalles.trim()}\n\n${historialInicial}` 
       : historialInicial;
 
-    const nuevaConId = {
+    const nuevaConId = normalizarTareaCampos({
       ...nuevaTarea,
       idTarea: autoId,
-      prioridad: normalizarPrioridad(nuevaTarea.prioridad),
       detalles: detallesConCreador,
       fecha: new Date().toISOString().split('T')[0]
-    };
+    });
 
     setTareas([nuevaConId, ...tareas]);
     showToast("Creando...", "info");
@@ -1484,7 +1493,7 @@ function App() {
               tareas={tareas} 
               nombreUsuario={nombreCompleto} 
               username={usuario} 
-              onSelectTask={(t) => { setActiveTask(t); setIsEditing(true); }}
+              onSelectTask={abrirEdicionTarea}
               onUpdateField={handleUpdateField}
               widgets={widgets}
               currentTheme={currentTheme}
@@ -1611,12 +1620,15 @@ function App() {
                             <option value="">Prioridad...</option>
                             {PRIORIDADES_MAPA.map(p => (<option key={p.id} value={p.id}>{p.label}</option>))}
                           </select>
-                          <input
-                            type="date"
+                          <InputFechaLibre
                             value={bulkDeadline}
-                            onChange={(e) => { const val = e.target.value; setBulkDeadline(val); if (val) handleBulkUpdate("deadline", val); }}
+                            onChange={setBulkDeadline}
+                            onBlurExtra={(val) => {
+                              const norm = normalizarDeadline(val);
+                              if (norm) handleBulkUpdate("deadline", norm);
+                            }}
                             className="col-span-2 text-ui-sm border border-zinc-200 rounded px-2 py-1.5 bg-white w-full"
-                            title="Cambiar fecha límite"
+                            placeholder="Fecha límite (dd/mm/aaaa)"
                           />
                         </div>
                         <button type="button" onClick={limpiarSeleccionTareas} className="text-ui-sm text-zinc-500 text-left">Limpiar selección</button>
@@ -1626,7 +1638,7 @@ function App() {
                     {vistaModo === "TABLE" ? (
                       <LayoutTablaAgrupada {...layoutTablaProps} />
                     ) : (
-                      <LayoutKanban tareas={tareasFiltradas} onUpdateField={handleUpdateField} onSelectTask={(t) => { setActiveTask(t); setIsEditing(true); }} onDeleteTask={(t) => setTaskToDelete(t)} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
+                      <LayoutKanban tareas={tareasFiltradas} onUpdateField={handleUpdateField} onSelectTask={abrirEdicionTarea} onDeleteTask={(t) => setTaskToDelete(t)} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
                     )}
                   </>
                 )}
@@ -1717,7 +1729,16 @@ function App() {
                     <option value="">Cambiar prioridad...</option>
                     {PRIORIDADES_MAPA.map(p => (<option key={p.id} value={p.id}>{p.label}</option>))}
                   </select>
-                  <input type="date" value={bulkDeadline} onChange={(e) => { const val = e.target.value; setBulkDeadline(val); if (val) handleBulkUpdate("deadline", val); }} className="text-ui-sm border border-zinc-200 rounded px-2 py-1 bg-white" title="Cambiar fecha límite" />
+                  <InputFechaLibre
+                    value={bulkDeadline}
+                    onChange={setBulkDeadline}
+                    onBlurExtra={(val) => {
+                      const norm = normalizarDeadline(val);
+                      if (norm) handleBulkUpdate("deadline", norm);
+                    }}
+                    className="text-ui-sm border border-zinc-200 rounded px-2 py-1 bg-white"
+                    placeholder="Fecha límite"
+                  />
                   <button type="button" onClick={limpiarSeleccionTareas} className="text-ui-sm text-zinc-500 hover:text-zinc-800 ml-auto">Limpiar selección</button>
                 </div>
               )}
@@ -1725,7 +1746,7 @@ function App() {
               {vistaModo === "TABLE" ? (
                 <LayoutTablaAgrupada {...layoutTablaProps} />
               ) : (
-                <LayoutKanban tareas={tareasFiltradas} onUpdateField={handleUpdateField} onSelectTask={(t) => { setActiveTask(t); setIsEditing(true); }} onDeleteTask={(t) => setTaskToDelete(t)} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
+                <LayoutKanban tareas={tareasFiltradas} onUpdateField={handleUpdateField} onSelectTask={abrirEdicionTarea} onDeleteTask={(t) => setTaskToDelete(t)} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
               )}
               </div>
             </>
@@ -2067,7 +2088,8 @@ function App() {
       {!isConfigOnlyAdmin && isEditing && activeTask && (
         <ModalPortal>
           <ModalEdicionTarea 
-            tarea={activeTask}
+            key={getTaskSelectionKey(activeTask)}
+            tarea={normalizarTareaCampos(resolverTareaActual(tareas, activeTask))}
             onClose={() => { setIsEditing(false); setActiveTask(null); }}
             onSave={handleSaveTaskModal}
             listaPersonas={listaPersonas}

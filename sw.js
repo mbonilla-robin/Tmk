@@ -53,6 +53,7 @@ const STATIC_ASSETS = [
   "./js/components/LayoutHome.jsx",
   "./js/components/ModalPortal.jsx",
   "./js/components/LayoutClientes.jsx",
+  "./js/components/InputFechaLibre.jsx",
   "./js/components/ModalEdicionTarea.jsx",
   "./js/components/WidgetsAdminPanel.jsx",
   "./js/components/MobileSubpageBar.jsx",

@@ -15,8 +15,9 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   const [categoria, setCategoria] = useState(tarea.categoria || "");
   const [marca, setMarca] = useState(tarea.marca || "");
   const [prioridad, setPrioridad] = useState(normalizarPrioridad(tarea.prioridad));
-  const [estado, setEstado] = useState(tarea.estado || "Pendiente");
-  const [deadline, setDeadline] = useState(tarea.deadline || "");
+  const [estado, setEstado] = useState(normalizarEstado(tarea.estado));
+  const [deadline, setDeadline] = useState(deadlineParaEdicion(tarea.deadline));
+  const [deadlineError, setDeadlineError] = useState("");
   const [personas, setPersonas] = useState(tarea.personas || "");
   const [rawDetalles, setRawDetalles] = useState(tarea.detalles || "");
 
@@ -25,6 +26,33 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   const [notes, setNotes] = useState(parsed.notes || parsed.notas);
   const [subtareas, setSubtareas] = useState(parsed.subtareas);
   const [nuevoSubtareaText, setNuevoSubtareaText] = useState("");
+
+  useEffect(() => {
+    const detalles = tarea.detalles || "";
+    const parsedDetalles = parseDetalles(detalles);
+    setInfo(tarea.info || "");
+    setCategoria(tarea.categoria || "");
+    setMarca(tarea.marca || "");
+    setPrioridad(normalizarPrioridad(tarea.prioridad));
+    setEstado(normalizarEstado(tarea.estado));
+    setDeadline(deadlineParaEdicion(tarea.deadline));
+    setDeadlineError("");
+    setPersonas(tarea.personas || "");
+    setRawDetalles(detalles);
+    setNotes(parsedDetalles.notes || parsedDetalles.notas);
+    setSubtareas(parsedDetalles.subtareas);
+    setNuevoSubtareaText("");
+  }, [
+    tarea.idTarea,
+    tarea.info,
+    tarea.categoria,
+    tarea.marca,
+    tarea.prioridad,
+    tarea.estado,
+    tarea.deadline,
+    tarea.personas,
+    tarea.detalles
+  ]);
 
   const estadoVisual = useMemo(() => {
     return ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(estado)) || ESTADOS_MAPA[0];
@@ -62,12 +90,22 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const fechaNorm = normalizarDeadline(deadline);
+    if (!fechaNorm) {
+      setDeadlineError(deadline.trim() ? "Fecha no válida. Ej: 16/06/2026" : "La fecha de entrega es obligatoria");
+      return;
+    }
+    setDeadlineError("");
     const tFinal = serializeDetalles(notes, subtareas, parsed.historial);
     onSave({
       ...tarea,
       info: info.trim(),
       categoria: categoria.trim(),
-      marca, prioridad: normalizarPrioridad(prioridad), estado, deadline, personas,
+      marca,
+      prioridad: normalizarPrioridad(prioridad),
+      estado: normalizarEstado(estado),
+      deadline: fechaNorm,
+      personas,
       detalles: tFinal
     });
   };
@@ -156,13 +194,17 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
             </PropertyRow>
 
             <PropertyRow icon="fa-regular fa-calendar" label="Entrega">
-              <input
-                type="date"
-                required
-                value={convertirFechaAInput(deadline)}
-                onChange={(e) => setDeadline(e.target.value)}
-                className={inputPropClass}
-              />
+              <div className="flex flex-col gap-0.5">
+                <InputFechaLibre
+                  value={deadline}
+                  onChange={(val) => { setDeadline(val); if (deadlineError) setDeadlineError(""); }}
+                  className={inputPropClass}
+                  required
+                />
+                {deadlineError && (
+                  <span className="text-[11px] text-red-500">{deadlineError}</span>
+                )}
+              </div>
             </PropertyRow>
 
             <PropertyRow icon="fa-regular fa-user" label="Asignados">

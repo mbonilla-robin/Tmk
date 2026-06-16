@@ -93,12 +93,11 @@ function FormularioCrearEntregable({
             </PropertyRow>
 
             <PropertyRow icon="fa-regular fa-calendar" label="Entrega">
-              <input
-                type="date"
-                required
-                value={convertirFechaAInput(nuevaTarea.deadline)}
-                onChange={(e) => setNuevaTarea({ ...nuevaTarea, deadline: e.target.value })}
+              <InputFechaLibre
+                value={nuevaTarea.deadline}
+                onChange={(val) => setNuevaTarea({ ...nuevaTarea, deadline: val })}
                 className={inputPropClass}
+                required
               />
             </PropertyRow>
 

@@ -96,7 +96,7 @@ function NotionTaskRow({
         <div className="notion-task-meta">
           <span className={`notion-task-estado-pill ${cEstado.bg}`}>
             <span className={`notion-task-dot ${cEstado.dot}`} />
-            {t.estado || "—"}
+            {normalizarEstado(t.estado) || "—"}
           </span>
 
           {t.deadline && (

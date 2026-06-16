@@ -15,6 +15,20 @@ function cleanEstado(val) {
     .trim();
 }
 
+function normalizarEstado(val) {
+  const clean = cleanEstado(val);
+  if (!clean) return "Pendiente";
+  const match = LISTA_ESTADOS_VALIDOS.find(opt => cleanEstado(opt) === clean);
+  if (match) return match;
+  if (clean === "completado") return "Completada";
+  if (clean.includes("progreso")) return "En progreso";
+  if (clean.includes("revision")) return "En revision";
+  if (clean.includes("pausa")) return "En pausa";
+  if (clean.includes("seguimiento")) return "Seguimiento";
+  if (clean.includes("completad")) return "Completada";
+  return "Pendiente";
+}
+
 function cleanPrioridad(val) {
   if (!val) return "media";
   return String(val)

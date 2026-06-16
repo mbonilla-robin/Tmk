@@ -171,7 +171,7 @@ function LayoutHome({
                     <div className="flex flex-col gap-1 pt-1 border-t border-current/10 text-[10px] opacity-85">
                       <span className="inline-flex items-center gap-1.5 min-w-0">
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cEstado.dot}`}></span>
-                        <span className="truncate">{t.estado || "Sin estado"}</span>
+                        <span className="truncate">{normalizarEstado(t.estado) || "Sin estado"}</span>
                       </span>
                       <span className="inline-flex items-center gap-1.5 min-w-0">
                         <SVGIcon.Calendar className="w-2.5 h-2.5 opacity-60 shrink-0" />

@@ -30,6 +30,33 @@ function getTaskSelectionKey(t) {
   return `${t.marca || ""}|${t.info || ""}|${t.deadline || ""}`.toLowerCase().trim();
 }
 
+function resolverTareaActual(tareas, tareaRef) {
+  if (!tareaRef) return null;
+  const key = getTaskSelectionKey(tareaRef);
+  const found = (tareas || []).find(t => getTaskSelectionKey(t) === key);
+  if (found) return found;
+  const porId = tareaRef.idTarea
+    ? (tareas || []).find(t => t.idTarea && t.idTarea === tareaRef.idTarea)
+    : null;
+  return porId || tareaRef;
+}
+
+function normalizarTareaCampos(t) {
+  return {
+    ...t,
+    estado: normalizarEstado(t.estado),
+    prioridad: normalizarPrioridad(t.prioridad || t.Prioridad),
+    deadline: normalizarDeadline(t.deadline)
+  };
+}
+
+function normalizarValorCampoTarea(campo, valor) {
+  if (campo === "prioridad") return normalizarPrioridad(valor);
+  if (campo === "estado") return normalizarEstado(valor);
+  if (campo === "deadline") return normalizarDeadline(valor);
+  return valor;
+}
+
 const ORDEN_ESTADOS_LISTA = {
   "pendiente": 1,
   "en progreso": 2,

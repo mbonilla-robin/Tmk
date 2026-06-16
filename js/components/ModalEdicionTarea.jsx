@@ -2,7 +2,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   const [info, setInfo] = useState(tarea.info || "");
   const [categoria, setCategoria] = useState(tarea.categoria || "");
   const [marca, setMarca] = useState(tarea.marca || "");
-  const [prioridad, setPrioridad] = useState(tarea.prioridad || "Media");
+  const [prioridad, setPrioridad] = useState(normalizarPrioridad(tarea.prioridad));
   const [estado, setEstado] = useState(tarea.estado || "Pendiente");
   const [deadline, setDeadline] = useState(tarea.deadline || "");
   const [personas, setPersonas] = useState(tarea.personas || "");
@@ -48,7 +48,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
       ...tarea,
       info: info.trim(),
       categoria: categoria.trim(),
-      marca, prioridad, estado, deadline, personas,
+      marca, prioridad: normalizarPrioridad(prioridad), estado, deadline, personas,
       detalles: tFinal
     });
   };

@@ -77,21 +77,26 @@ function BloquePersonasLectura({ titulo, items, mostrarTipo }) {
   );
 }
 
-function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, onRegisterBrand }) {
+function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, onRegisterBrand, onDeleteBrand }) {
   const [vista, setVista] = useState("grid");
   const [selectedBrand, setSelectedBrand] = useState(marcas[0] || "La Santé");
   const [ficha, setFicha] = useState(() => metadataMarcaVacia());
 
   const [nuevaMarcaNombre, setNuevaMarcaNombre] = useState("");
   const [showAddBrandModal, setShowAddBrandModal] = useState(false);
-
-  const currentMeta = useMemo(() => {
-    return obtenerMetadataMarca(marcasMetadata, selectedBrand);
-  }, [selectedBrand, marcasMetadata]);
+  const [marcaAEliminar, setMarcaAEliminar] = useState(null);
+  const [eliminando, setEliminando] = useState(false);
+  const [fichaSucia, setFichaSucia] = useState(false);
 
   useEffect(() => {
-    setFicha(currentMeta);
-  }, [selectedBrand, currentMeta]);
+    setFicha(obtenerMetadataMarca(marcasMetadata, selectedBrand));
+    setFichaSucia(false);
+  }, [selectedBrand]);
+
+  useEffect(() => {
+    if (fichaSucia) return;
+    setFicha(obtenerMetadataMarca(marcasMetadata, selectedBrand));
+  }, [marcasMetadata, selectedBrand, fichaSucia]);
 
   const abrirDetalle = (marca) => {
     setSelectedBrand(marca);
@@ -105,7 +110,10 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
   const handleSave = (e) => {
     e.preventDefault();
     if (!canEdit) return;
-    onSaveBrandMetadata(selectedBrand, normalizarMetadataMarcaEntry(ficha));
+    const normalizada = normalizarMetadataMarcaEntry(ficha);
+    onSaveBrandMetadata(selectedBrand, normalizada);
+    setFicha(normalizada);
+    setFichaSucia(false);
   };
 
   const handleAddBrandSubmit = (e) => {
@@ -120,8 +128,57 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
   };
 
   const actualizarFicha = (campo, valor) => {
+    setFichaSucia(true);
     setFicha(prev => ({ ...prev, [campo]: valor }));
   };
+
+  const confirmarEliminarMarca = async () => {
+    if (!marcaAEliminar || !onDeleteBrand || eliminando) return;
+    setEliminando(true);
+    try {
+      const ok = await onDeleteBrand(marcaAEliminar);
+      if (ok) {
+        setMarcaAEliminar(null);
+        setVista("grid");
+      }
+    } finally {
+      setEliminando(false);
+    }
+  };
+
+  const modalEliminarMarca = marcaAEliminar && (
+    <ModalPortal>
+      <div className="fixed inset-0 bg-black/10 backdrop-blur-sm z-[250] flex items-center justify-center p-4 overflow-y-auto">
+        <div className="bg-white p-5 rounded-md border border-zinc-300 shadow-md w-full max-w-sm animate-zoom-in my-auto flex flex-col gap-4">
+          <h4 className="text-xs font-bold uppercase text-zinc-500 tracking-wider border-b pb-2">
+            Eliminar cliente
+          </h4>
+          <p className="text-xs text-zinc-500 leading-relaxed font-semibold">
+            ¿Eliminar permanentemente a <span className="text-zinc-800">{formatearMarca(marcaAEliminar)}</span>?
+            Se borrará su pestaña en Google Sheets y todos sus entregables.
+          </p>
+          <div className="flex gap-2 justify-end">
+            <button
+              type="button"
+              onClick={() => setMarcaAEliminar(null)}
+              disabled={eliminando}
+              className="px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-800"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={confirmarEliminarMarca}
+              disabled={eliminando}
+              className="px-4 py-1.5 bg-red-650 hover:bg-red-500 text-white text-xs font-semibold rounded disabled:opacity-50"
+            >
+              {eliminando ? "Eliminando..." : "Eliminar"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </ModalPortal>
+  );
 
   if (vista === "grid") {
     return (
@@ -154,13 +211,29 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
               const meta = obtenerMetadataMarca(marcasMetadata, m);
               const estilo = getMarcaStyle(m);
               return (
-                <button
+                <div
                   key={m}
-                  type="button"
-                  onClick={() => abrirDetalle(m)}
-                  className={`text-left border rounded-md p-4 flex flex-col gap-3 hover:brightness-[0.98] transition-all ${estilo.bg} ${estilo.text} ${estilo.border}`}
+                  className={`relative text-left border rounded-md p-4 flex flex-col gap-3 hover:brightness-[0.98] transition-all ${estilo.bg} ${estilo.text} ${estilo.border}`}
                 >
-                  <div className="flex items-start justify-between gap-2">
+                  {canEdit && onDeleteBrand && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMarcaAEliminar(m);
+                      }}
+                      className="absolute top-2 right-2 p-1.5 rounded opacity-50 hover:opacity-100 hover:bg-black/5 transition-all"
+                      title="Eliminar cliente"
+                    >
+                      <i className="fa-regular fa-trash-can text-[10px]"></i>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => abrirDetalle(m)}
+                    className="text-left flex flex-col gap-3 w-full"
+                  >
+                  <div className="flex items-start justify-between gap-2 pr-6">
                     <div className="min-w-0">
                       <span className="text-sm font-bold block">{formatearMarca(m)}</span>
                       <span className="text-[10px] opacity-60 font-medium">Ficha técnica</span>
@@ -201,15 +274,17 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
                   <span className="text-[10px] font-bold opacity-60 mt-auto">
                     {canEdit ? "Ver / Editar →" : "Ver detalle →"}
                   </span>
-                </button>
+                  </button>
+                </div>
               );
             })}
           </div>
         )}
 
         {canEdit && showAddBrandModal && (
-          <div className="fixed inset-0 bg-black/10 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
-            <div className="bg-white p-5 rounded-md border border-zinc-300 shadow-md w-full max-w-sm animate-zoom-in">
+          <ModalPortal>
+          <div className="fixed inset-0 bg-black/10 backdrop-blur-sm z-[250] flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white p-5 rounded-md border border-zinc-300 shadow-md w-full max-w-sm animate-zoom-in my-auto">
               <div className="flex items-center justify-between border-b pb-2 mb-3">
                 <span className="text-xs font-bold uppercase text-zinc-500 tracking-wider">Crear Nuevo Cliente</span>
                 <button
@@ -250,7 +325,10 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
               </form>
             </div>
           </div>
+          </ModalPortal>
         )}
+
+        {modalEliminarMarca}
       </div>
     );
   }
@@ -332,10 +410,19 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
               />
             </div>
 
-            <div className="flex justify-end pt-4 border-t border-zinc-200/60">
+            <div className="flex justify-between items-center pt-4 border-t border-zinc-200/60 gap-2">
+              {onDeleteBrand && (
+                <button
+                  type="button"
+                  onClick={() => setMarcaAEliminar(selectedBrand)}
+                  className="px-3 py-2 text-red-600 hover:bg-red-50 text-xs font-semibold rounded transition-colors"
+                >
+                  Eliminar cliente
+                </button>
+              )}
               <button
                 type="submit"
-                className="px-4 py-2 bg-[#37352F] text-white hover:bg-[#2c2a26] text-xs font-semibold rounded shadow-sm transition-colors"
+                className="px-4 py-2 bg-[#37352F] text-white hover:bg-[#2c2a26] text-xs font-semibold rounded shadow-sm transition-colors ml-auto"
               >
                 Guardar Ficha
               </button>
@@ -366,6 +453,8 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
           </div>
         )}
       </div>
+
+      {modalEliminarMarca}
     </div>
   );
 }

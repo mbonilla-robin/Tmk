@@ -2,11 +2,12 @@ function App() {
   const [usuario, setUsuario] = useState(() => getInicialUsuario());
   const [claveInput, setClaveInput] = useState("");
   const [loginError, setLoginError] = useState("");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const isAdmin = useMemo(() => {
     return usuario === "admin" || usuario === "fcolmenares";
   }, [usuario]);
+
+  const canEditFichas = useMemo(() => usuario === "admin", [usuario]);
 
   // Comprobación de si es un usuario administrador restrictivo (Solo configuración)
   const isConfigOnlyAdmin = useMemo(() => {
@@ -42,13 +43,17 @@ function App() {
     const u = getInicialUsuario();
     return u === "admin" ? "configuracion" : "home";
   }); 
-  const [vistaModo, setVistaModo] = useState("TABLE"); 
+  const [vistaModo, setVistaModo] = useState(() => getUserPreference("vistaModo", "TABLE")); 
 
   const [activeTask, setActiveTask] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
   const [nuevoUsuarioInput, setNuevoUsuarioInput] = useState("");
   const [clientesReset, setClientesReset] = useState(0);
+  const [tareasSeleccionadas, setTareasSeleccionadas] = useState(() => new Set());
+  const [bulkEstado, setBulkEstado] = useState("");
+  const [bulkPrioridad, setBulkPrioridad] = useState("");
+  const [bulkDeadline, setBulkDeadline] = useState("");
 
   const [nombreCompleto, setNombreCompleto] = useState(() => {
     return getLocalStorageItemSafe("robin_nombre_completo", "");
@@ -60,6 +65,10 @@ function App() {
   const [usuariosConectados, setUsuariosConectados] = useState([]);
   const [presenceEstado, setPresenceEstado] = useState("idle");
 
+  const [syncDetalleVisible, setSyncDetalleVisible] = useState(false);
+  const [dashboardMobileVista, setDashboardMobileVista] = useState("lista");
+  const [configMobileSeccion, setConfigMobileSeccion] = useState(null);
+
   const [listaPersonas, setListaPersonas] = useState(() => {
     try {
       const guardadas = getLocalStorageItemSafe("robin_personas_v2", null);
@@ -68,6 +77,25 @@ function App() {
     return ["@fcolmenares", "@ralvarez", "@dsalavarria", "@mbonilla", "@gnebrus", "@sgiucastro"];
   });
 
+  const palabraEstadoSync = useMemo(() => {
+    if (!isApiConfigured()) return "Sin API";
+    if (loading || syncing) return "Sincronizando";
+    if (apiError) return "Error";
+    return "Sincronizado";
+  }, [loading, syncing, apiError]);
+
+  const filtrosDashboardActivos = useMemo(() => {
+    return filtroMarca !== "TODAS" ||
+      filtroEstado !== "TODOS" ||
+      filtroPrioridad !== "TODAS" ||
+      filtroTiempo !== "TODAS" ||
+      searchQuery.trim() !== "";
+  }, [filtroMarca, filtroEstado, filtroPrioridad, filtroTiempo, searchQuery]);
+
+  const handleSyncClick = () => {
+    setSyncDetalleVisible(prev => !prev);
+  };
+
   const [nuevaTarea, setNuevaTarea] = useState({
     marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", estado: "Pendiente", deadline: "", prioridad: "Media"
   });
@@ -75,7 +103,6 @@ function App() {
   // 🚨 UBICACIÓN CORRECTA DE VARIABLES COMPUTADAS Y useMemo (Evita ReferenceError y TDZ)
   const marcasDisponibles = useMemo(() => {
     return obtenerMarcasUnicas([
-      "La Santé", "Diageo", "Gama", "Robin", "TMK",
       ...Object.keys(marcasMetadata),
       ...tareas.map(t => t.marca).filter(Boolean)
     ]);
@@ -105,7 +132,7 @@ function App() {
 
       if (filtroMarca !== "TODAS" && !marcasCoinciden(t.marca, filtroMarca)) return false;
       if (filtroEstado !== "TODOS" && cleanEstado(t.estado) !== cleanEstado(filtroEstado)) return false;
-      if (filtroPrioridad !== "TODAS" && cleanPrioridad(t.prioridad) !== cleanPrioridad(filtroPrioridad)) return false;
+      if (filtroPrioridad !== "TODAS" && normalizarPrioridad(t.prioridad) !== normalizarPrioridad(filtroPrioridad)) return false;
 
       if (searchQuery.trim() !== "") {
         const q = searchQuery.toLowerCase();
@@ -162,8 +189,13 @@ function App() {
       enviarHeartbeatPresencia(apiUrl, usuario, nombreCompleto);
     }, 20000);
 
+    const presencePollInterval = setInterval(() => {
+      fetchData(true);
+    }, 20000);
+
     return () => {
       clearInterval(heartbeatInterval);
+      clearInterval(presencePollInterval);
       setUsuariosConectados([]);
       setPresenceEstado("idle");
     };
@@ -252,9 +284,13 @@ function App() {
       return;
     }
     setPaginaActiva(pagina);
+    if (pagina !== "dashboard") {
+      limpiarSeleccionTareas();
+      setDashboardMobileVista("lista");
+    }
+    if (pagina !== "configuracion") setConfigMobileSeccion(null);
     if (pagina === "clientes") setClientesReset(n => n + 1);
     if (extraFn) extraFn();
-    setSidebarOpen(false);
   };
 
   const handleAddWidget = async (nuevoWidget) => {
@@ -281,7 +317,7 @@ function App() {
           idTarea: nuevoWidget.id,
           info: nuevoWidget.titulo,
           detalles: nuevoWidget.link,
-          categoria: nuevoWidget.icon,
+          categoria: empaquetarWidgetCategoria(nuevoWidget.seccion, nuevoWidget.icon),
           personas: nuevoWidget.color,
           campo: "todo"
         })
@@ -351,7 +387,7 @@ function App() {
           idTarea: widgetActualizado.id,
           info: widgetActualizado.titulo,
           detalles: widgetActualizado.link,
-          categoria: widgetActualizado.icon,
+          categoria: empaquetarWidgetCategoria(widgetActualizado.seccion, widgetActualizado.icon),
           personas: widgetActualizado.color,
           campo: "todo"
         })
@@ -371,9 +407,86 @@ function App() {
     showToast("Nombre guardado", "success");
   };
 
+  const toggleSeleccionTarea = (tarea) => {
+    const key = getTaskSelectionKey(tarea);
+    setTareasSeleccionadas(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const limpiarSeleccionTareas = () => {
+    setTareasSeleccionadas(new Set());
+    setBulkEstado("");
+    setBulkPrioridad("");
+    setBulkDeadline("");
+  };
+
+  const handleBulkUpdate = async (campo, nuevoValor) => {
+    if (!nuevoValor && campo !== "deadline") return;
+    const keys = tareasSeleccionadas;
+    const objetivos = tareas.filter(t => keys.has(getTaskSelectionKey(t)));
+    if (!objetivos.length || isSubmitting || syncing) return;
+
+    const hoy = new Date();
+    const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
+
+    const actualizadas = tareas.map(t => {
+      if (!keys.has(getTaskSelectionKey(t))) return t;
+      let detalles = t.detalles || "";
+      if (campo === "estado") {
+        detalles += `\n• [${timestamp}] Estado cambiado a "${nuevoValor}" por @${usuario}`;
+      }
+      const valorFinal = campo === "prioridad" ? normalizarPrioridad(nuevoValor) : nuevoValor;
+      return {
+        ...t,
+        idTarea: t.idTarea || generateBrandId(t.marca),
+        [campo]: valorFinal,
+        detalles: campo === "estado" ? detalles : t.detalles
+      };
+    });
+    setTareas(actualizadas);
+
+    const effectiveUrl = getConfiguredApiUrl();
+    if (!effectiveUrl || apiError) {
+      limpiarSeleccionTareas();
+      showToast(`${objetivos.length} entregable(s) actualizado(s) localmente`, "success");
+      return;
+    }
+
+    setSyncing(true);
+    try {
+      for (const tarea of objetivos) {
+        const actualizada = actualizadas.find(t => getTaskSelectionKey(t) === getTaskSelectionKey(tarea));
+        const taskTargetId = actualizada.idTarea;
+        await fetch(effectiveUrl, {
+          method: "POST", mode: "cors", redirect: "follow",
+          headers: { "Content-Type": "text/plain; charset=utf-8" },
+          body: JSON.stringify({
+            marca: tarea.marca, idTarea: taskTargetId, info: tarea.info, categoria: tarea.categoria,
+            campo: "todo", valor: nuevoValor, personas: tarea.personas,
+            detalles: actualizada.detalles,
+            estado: campo === "estado" ? nuevoValor : tarea.estado,
+            deadline: campo === "deadline" ? nuevoValor : tarea.deadline,
+            prioridad: campo === "prioridad" ? normalizarPrioridad(nuevoValor) : normalizarPrioridad(tarea.prioridad)
+          })
+        });
+      }
+      limpiarSeleccionTareas();
+      showToast(`${objetivos.length} entregable(s) actualizado(s)`, "success");
+      await fetchData(true);
+    } catch (e) {
+      showToast("Error al sincronizar cambios masivos", "error");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleSaveBrandMetadata = async (brand, newMeta) => {
-    if (!isAdmin) {
-      showToast("Solo un administrador puede editar fichas de cliente", "error");
+    if (!canEditFichas) {
+      showToast("Solo el usuario admin puede editar fichas de cliente", "error");
       return;
     }
     const actualizados = { ...marcasMetadata, [formatearMarca(brand)]: normalizarMetadataMarcaEntry(newMeta) };
@@ -399,7 +512,6 @@ function App() {
         })
       });
       showToast("Ficha guardada en Google Sheets", "success");
-      await fetchData(true);
     } catch (e) {
       showToast("Guardado local (Falla de red)", "error");
     } finally {
@@ -407,9 +519,77 @@ function App() {
     }
   };
 
+  const handleDeleteBrand = async (brand) => {
+    if (!canEditFichas) {
+      showToast("Solo el usuario admin puede eliminar clientes", "error");
+      return false;
+    }
+
+    const nombreMarca = formatearMarca(brand);
+    const tareasMarca = tareas.filter(t => marcasCoinciden(t.marca, nombreMarca)).length;
+    const otrasMarcas = marcasDisponibles.filter(m => !marcasCoinciden(m, nombreMarca));
+
+    setMarcasMetadata(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(k => {
+        if (marcasCoinciden(k, nombreMarca)) delete next[k];
+      });
+      return next;
+    });
+    setTareas(prev => prev.filter(t => !marcasCoinciden(t.marca, nombreMarca)));
+    if (filtroMarca !== "TODAS" && marcasCoinciden(filtroMarca, nombreMarca)) {
+      setFiltroMarca("TODAS");
+    }
+    if (nuevaTarea.marca && marcasCoinciden(nuevaTarea.marca, nombreMarca)) {
+      setNuevaTarea(prev => ({ ...prev, marca: otrasMarcas[0] || prev.marca }));
+    }
+
+    showToast(
+      tareasMarca > 0
+        ? `Eliminando cliente y ${tareasMarca} entregable(s)...`
+        : "Eliminando cliente...",
+      "info"
+    );
+
+    const effectiveUrl = getConfiguredApiUrl();
+    if (!isApiConfigured() || apiError) {
+      showToast("Cliente eliminado localmente", "success");
+      setClientesReset(n => n + 1);
+      return true;
+    }
+
+    setSyncing(true);
+    try {
+      const res = await fetch(effectiveUrl, {
+        method: "POST", mode: "cors", redirect: "follow",
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+        body: JSON.stringify({
+          campo: "eliminarMarca",
+          nuevaMarca: nombreMarca
+        })
+      });
+      const json = await res.json();
+      if (json.success) {
+        showToast("Cliente eliminado de Google Sheets", "success");
+        await fetchData(true);
+        setClientesReset(n => n + 1);
+        return true;
+      }
+      showToast(json.error || "Error al eliminar cliente en Sheets", "error");
+      await fetchData(true);
+      return false;
+    } catch (e) {
+      showToast("Falla de conexión al eliminar cliente", "error");
+      await fetchData(true);
+      return false;
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleCreateBrand = async (brandPayload) => {
-    if (!isAdmin) {
-      showToast("Solo un administrador puede crear clientes", "error");
+    if (!canEditFichas) {
+      showToast("Solo el usuario admin puede crear clientes", "error");
       return;
     }
     showToast("Insertando nueva hoja en Sheets...", "info");
@@ -541,18 +721,19 @@ function App() {
         const json = await res.json();
 
         if (json.success && json.data) {
-          if (json.widgets) {
-            setWidgets(json.widgets);
-          }
+          const widgetsLimpios = filtrarWidgetsReales(json.widgets || []).map(normalizarWidgetDesdeApi).filter(Boolean);
+          setWidgets(widgetsLimpios);
 
-          setUsuariosConectados(extraerPresenciaDesdeDatos(json.data));
+          setUsuariosConectados(obtenerUsuariosEnLinea(json.data, json.widgets, json.presencia));
           setPresenceEstado("ready");
 
           const tareasValidas = json.data.filter(t => {
             if (!t.info || t.info.toString().trim() === "") return false;
             if (!t.marca || t.marca.toString().trim() === "") return false;
+            const cleanId = String(t.idTarea || "").trim().toUpperCase();
+            if (cleanId.startsWith("PRESENCE-")) return false;
             const cleanM = t.marca.toString().trim().toLowerCase();
-            if (cleanM === "pendiente" || cleanM.includes("progreso") || cleanM.includes("seguimiento") || cleanM.includes("revision") || cleanM.includes("pausa") || cleanM.includes("completada") || cleanM === "config_marcas") {
+            if (cleanM === "pendiente" || cleanM.includes("progreso") || cleanM.includes("seguimiento") || cleanM.includes("revision") || cleanM.includes("pausa") || cleanM.includes("completada") || cleanM === "config_marcas" || cleanM === "presencia") {
               return false;
             }
             return true;
@@ -568,7 +749,11 @@ function App() {
             const key = `${t.marca || ""}|${t.info || ""}|${t.deadline || ""}`.toLowerCase().replace(/\s+/g, " ").trim();
             if (!seenKeys.has(key)) {
               seenKeys.add(key);
-              deduplicadas.push({ ...t, idTarea: realId, prioridad: t.prioridad || "Media" });
+              deduplicadas.push({
+                ...t,
+                idTarea: realId,
+                prioridad: normalizarPrioridad(t.prioridad || t.Prioridad)
+              });
             }
           });
 
@@ -618,12 +803,14 @@ function App() {
       detallesConHistorial = detallesConHistorial + registro;
     }
 
+    const valorFinal = campo === "prioridad" ? normalizarPrioridad(nuevoValor) : nuevoValor;
+
     const temp = tareas.map(t => {
       if ((t.idTarea === tarea.idTarea && t.idTarea) || t.info === tarea.info) {
         return { 
           ...t, 
           idTarea: taskTargetId,
-          [campo]: nuevoValor,
+          [campo]: valorFinal,
           detalles: campo === "estado" ? detallesConHistorial : t.detalles
         };
       }
@@ -647,7 +834,7 @@ function App() {
           campo: "todo", valor: nuevoValor, personas: tarea.personas, detalles: detallesConHistorial, 
           estado: campo === "estado" ? nuevoValor : tarea.estado,
           deadline: campo === "deadline" ? nuevoValor : tarea.deadline,
-          prioridad: campo === "prioridad" ? nuevoValor : (tarea.prioridad || "Media")
+          prioridad: campo === "prioridad" ? valorFinal : normalizarPrioridad(tarea.prioridad)
         })
       });
       showToast("Cambios guardados", "success");
@@ -680,13 +867,14 @@ function App() {
     if (original.personas !== editedTask.personas) cambios.push("asignados");
     if (original.estado !== editedTask.estado) cambios.push(`estado a "${editedTask.estado}"`);
     if (original.deadline !== editedTask.deadline) cambios.push("fecha límite");
-    if (original.prioridad !== editedTask.prioridad) cambios.push("prioridad");
+    const prioridadNormalizada = normalizarPrioridad(editedTask.prioridad);
+    if (normalizarPrioridad(original.prioridad) !== prioridadNormalizada) cambios.push("prioridad");
 
     if (cambios.length > 0) {
       detallesAudoria += `\n• [${timestamp}] Editado (${cambios.join(", ")}) por @${usuario}`;
     }
 
-    const taskConHistorial = { ...editedTask, detalles: detallesAudoria };
+    const taskConHistorial = { ...editedTask, prioridad: prioridadNormalizada, detalles: detallesAudoria };
     const copiaTareas = [...tareas];
     copiaTareas[index] = taskConHistorial;
     setTareas(copiaTareas);
@@ -709,7 +897,7 @@ function App() {
           marca: taskConHistorial.marca, idTarea: taskConHistorial.idTarea, info: taskConHistorial.info,
           originalInfo: original.info, categoria: taskConHistorial.categoria, personas: taskConHistorial.personas, 
           detalles: taskConHistorial.detalles, estado: taskConHistorial.estado, deadline: taskConHistorial.deadline, 
-          prioridad: taskConHistorial.prioridad || "Media", campo: "todo"
+          prioridad: normalizarPrioridad(taskConHistorial.prioridad), campo: "todo"
         })
       });
       showToast("Sincronizado", "success");
@@ -785,7 +973,11 @@ function App() {
       : historialInicial;
 
     const nuevaConId = {
-      ...nuevaTarea, idTarea: autoId, detalles: detallesConCreador, fecha: new Date().toISOString().split('T')[0]
+      ...nuevaTarea,
+      idTarea: autoId,
+      prioridad: normalizarPrioridad(nuevaTarea.prioridad),
+      detalles: detallesConCreador,
+      fecha: new Date().toISOString().split('T')[0]
     };
 
     setTareas([nuevaConId, ...tareas]);
@@ -811,7 +1003,7 @@ function App() {
         body: JSON.stringify({
           marca: nuevaConId.marca, idTarea: "", info: nuevaConId.info, categoria: nuevaConId.categoria,
           personas: nuevaConId.personas, detalles: nuevaConId.detalles, estado: nuevaConId.estado,
-          deadline: nuevaConId.deadline, prioridad: nuevaConId.prioridad || "Media", campo: "todo"
+          deadline: nuevaConId.deadline, prioridad: normalizarPrioridad(nuevaConId.prioridad), campo: "todo"
         })
       });
       const json = await res.json();
@@ -892,70 +1084,60 @@ function App() {
     <div className={`flex h-screen w-screen overflow-hidden ${currentTheme.bg} ${currentTheme.text} select-none transition-all`}>
       
       {toast && (
-        <div className="fixed bottom-6 right-6 z-[100] px-4 py-2.5 rounded shadow text-xs font-semibold flex items-center gap-2 border bg-zinc-900 text-white border-zinc-800 animate-zoom-in">
+        <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] right-4 md:bottom-6 md:right-6 z-[40] px-4 py-2.5 rounded shadow text-xs font-semibold flex items-center gap-2 border bg-zinc-900 text-white border-zinc-800 animate-zoom-in">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
           <span>{toast.msg}</span>
         </div>
       )}
 
-      {sidebarOpen && !isConfigOnlyAdmin && (
-        <div 
-          onClick={() => setSidebarOpen(false)}
-          className="fixed inset-0 bg-black/10 backdrop-blur-[1px] z-40 md:hidden"
-        />
-      )}
-
-      {/* MENÚ LATERAL ESTILO NOTION - OCULTO COMPLETAMENTE PARA EL ADMIN GLOBAL DE CONFIGURACIÓN */}
+      {/* MENÚ LATERAL ESTILO NOTION - SOLO DESKTOP (md+); móvil usa MobileNavBar */}
       {!isConfigOnlyAdmin && (
         <aside className={`
-          fixed inset-y-0 left-0 z-50 w-52 ${currentTheme.sidebarBg} border-r border-zinc-200 flex flex-col justify-between shrink-0 transition-transform duration-200 transform
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-          md:relative md:translate-x-0
+          hidden md:flex
+          relative inset-y-0 left-0 z-50 w-52 ${currentTheme.sidebarBg} border-r border-zinc-200 flex-col justify-between shrink-0
         `}>
           <div className="flex flex-col h-full justify-between pb-4 overflow-y-auto">
             <div>
-              <div className="p-4 border-b border-zinc-200 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <RobinLogo className="h-5 w-auto" theme={theme} />
-                  <span className="fallback-logo text-xs font-bold text-zinc-900 tracking-wider" style={{display: 'none'}}>ROBIN</span>
+              <div className="app-header-bar app-header-bar--sidebar justify-between">
+                <div className="flex items-center min-h-0 py-1">
+                  <RobinLogo className="h-10 w-auto max-w-[120px]" theme={theme} />
+                  <span className="fallback-logo text-xl font-bold text-zinc-900 tracking-tight leading-none" style={{display: 'none'}}>robin</span>
                 </div>
-                <button 
-                  onClick={() => setSidebarOpen(false)}
-                  className="md:hidden text-zinc-400 hover:text-zinc-800 p-1"
-                >
-                  <i className="fa-solid fa-xmark text-sm"></i>
-                </button>
               </div>
 
-              <div className="mx-2.5 my-2.5 p-2 rounded bg-[#FAF9F6] border border-zinc-200 flex flex-col gap-1.5">
-                <div className="flex items-center gap-1.5 overflow-hidden">
-                  <span className="relative flex h-1.5 w-1.5 shrink-0">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-                  </span>
-                  <span className="text-[11px] font-bold truncate text-[#37352F]">@{usuario}</span>
-                </div>
+              <div className="mx-2.5 my-2.5 p-2.5 rounded bg-[#FAF9F6] border border-zinc-200 flex flex-col gap-2">
+                <span className="text-section">En línea</span>
 
-                {/* Panel de Presencia */}
-                <div className="border-t border-zinc-200/60 pt-1.5">
-                  <span className="text-[7.5px] font-semibold text-zinc-400 tracking-wider block mb-1 uppercase">En línea</span>
-                  <div className="flex flex-col gap-1 max-h-20 overflow-y-auto">
-                    {presenceEstado === "connecting" && (
-                      <div className="text-[9px] text-zinc-400 italic">Conectando...</div>
-                    )}
-                    {presenceEstado === "error" && (
-                      <div className="text-[9px] text-red-400 italic">Sin conexión</div>
-                    )}
-                    {presenceEstado === "ready" && otrosUsuariosEnLinea.length === 0 && (
-                      <div className="text-[9px] text-zinc-400 italic">Solo tú en línea</div>
-                    )}
-                    {presenceEstado === "ready" && otrosUsuariosEnLinea.map((u, index) => (
-                      <div key={u.uid || `user-${index}`} className="flex items-center gap-1 text-[9px] text-zinc-600 truncate font-medium">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span className="truncate">{u.nombre || `@${u.username}`}</span>
-                      </div>
-                    ))}
+                <div className="flex flex-col gap-1.5">
+                  {/* Usuario actual — siempre primero */}
+                  <div className="flex items-center gap-1.5 overflow-hidden">
+                    <span className="relative flex h-1.5 w-1.5 shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                    </span>
+                    <span className="text-ui font-semibold truncate text-[#37352F]">@{usuario}</span>
                   </div>
+
+                  {/* Otros usuarios conectados — debajo del tuyo */}
+                  {presenceEstado === "ready" && otrosUsuariosEnLinea.map((u, index) => (
+                    <div key={u.uid || `user-${index}`} className="flex items-center gap-1.5 pl-0.5 overflow-hidden">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
+                      <span className="text-ui-sm text-zinc-600 truncate font-medium">
+                        {u.nombre || (u.username ? `@${String(u.username).replace(/^@/, "")}` : "Usuario")}
+                      </span>
+                    </div>
+                  ))}
+
+                  {/* Estado / mensaje inferior */}
+                  {presenceEstado === "connecting" && (
+                    <div className="text-ui-sm text-zinc-400 italic pl-0.5">Conectando...</div>
+                  )}
+                  {presenceEstado === "error" && (
+                    <div className="text-ui-sm text-red-400 italic pl-0.5">Sin conexión</div>
+                  )}
+                  {presenceEstado === "ready" && otrosUsuariosEnLinea.length === 0 && (
+                    <div className="text-ui-sm text-zinc-400 italic pl-0.5">Solo tú</div>
+                  )}
                 </div>
               </div>
 
@@ -963,7 +1145,7 @@ function App() {
                 <button 
                   disabled={isSubmitting || syncing}
                   onClick={() => navegarA("agregar")}
-                  className="w-full bg-[#37352F] hover:bg-[#2c2a26] text-white font-medium py-1.5 px-3 rounded text-xs transition-colors flex items-center justify-center gap-1 shadow-sm disabled:opacity-50"
+                  className="w-full bg-[#37352F] hover:bg-[#2c2a26] text-white font-medium py-1.5 px-3 rounded text-ui transition-colors flex items-center justify-center gap-1 shadow-sm disabled:opacity-50"
                 >
                   <SVGIcon.Plus />
                   <span>Añadir entregable</span>
@@ -971,12 +1153,12 @@ function App() {
               </div>
 
               <nav className="p-2.5 flex flex-col gap-1">
-                <span className="px-2 text-[8px] font-bold text-zinc-400 tracking-wider uppercase mb-1">Navegación</span>
+                <span className="px-2 text-section mb-1">Navegación</span>
                 
                 <button
                   onClick={() => navegarA("home")}
-                  className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold transition-all ${
-                    paginaActiva === "home" ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-200" : "text-zinc-550 hover:bg-zinc-100/50"
+                  className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-ui font-medium transition-all ${
+                    paginaActiva === "home" ? "bg-white shadow-sm text-zinc-900 border border-zinc-200" : "text-zinc-600 hover:bg-zinc-100/50"
                   }`}
                 >
                   <SVGIcon.Home />Home
@@ -984,47 +1166,48 @@ function App() {
 
                 <button
                   onClick={() => navegarA("dashboard", () => { setFiltroTiempo("TODAS"); setFiltroMarca("TODAS"); setFiltroEstado("TODOS"); setFiltroPrioridad("TODAS"); })}
-                  className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold transition-all ${
+                  className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-ui font-medium transition-all ${
                     paginaActiva === "dashboard" && filtroTiempo === "TODAS" && filtroMarca === "TODAS" && filtroEstado === "TODOS" && filtroPrioridad === "TODAS"
-                      ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-200" : "text-zinc-550 hover:bg-zinc-100/50"
+                      ? "bg-white shadow-sm text-zinc-900 border border-zinc-200" : "text-zinc-600 hover:bg-zinc-100/50"
                   }`}
                 >
                   <SVGIcon.All />Todos los entregables
                 </button>
 
-                <span className="px-2 text-[8px] font-bold text-zinc-400 tracking-wider uppercase mb-1 mt-3">Marcas</span>
+                <span className="px-2 text-section mb-1 mt-2">Marcas</span>
                 <div className="flex flex-col gap-0.5">
                   <button
                     onClick={() => navegarA("clientes")}
-                    className={`flex items-center gap-2 w-full px-2 py-1 rounded text-[11px] font-semibold text-left transition-all ${
-                      paginaActiva === "clientes" ? "bg-zinc-200/50 text-[#37352F] font-bold" : "text-zinc-550 hover:bg-zinc-100/30"
+                    className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-ui font-medium text-left transition-all ${
+                      paginaActiva === "clientes" ? "bg-zinc-200/50 text-[#37352F]" : "text-zinc-600 hover:bg-zinc-100/30"
                     }`}
                   >
-                    <i className="fa-solid fa-layer-group text-[9px] text-zinc-400"></i>
-                    <span>Todos los Clientes</span>
+                    <i className="fa-solid fa-layer-group text-[10px] text-zinc-400"></i>
+                    <span>Todos los clientes</span>
                   </button>
                   {marcasDisponibles.map(b => (
                     <button
                       key={b}
                       onClick={() => { setFiltroMarca(b); setFiltroTiempo("TODAS"); navegarA("dashboard"); }}
-                      className={`flex items-center gap-1.5 w-full px-2 py-1 rounded text-[11px] font-semibold text-left transition-all ${
-                        marcasCoinciden(filtroMarca, b) && paginaActiva === "dashboard" ? "bg-zinc-200/50 text-[#37352F] font-bold" : "text-zinc-550 hover:bg-zinc-100/30"
+                      className={`flex items-center gap-1.5 w-full px-2 py-1.5 rounded text-ui font-medium text-left transition-all ${
+                        marcasCoinciden(filtroMarca, b) && paginaActiva === "dashboard" ? "bg-zinc-200/50 text-[#37352F]" : "text-zinc-600 hover:bg-zinc-100/30"
                       }`}
                     >
-                      <i className="fa-solid fa-chevron-right text-[7px] text-zinc-400"></i>
+                      <i className="fa-solid fa-chevron-right text-[8px] text-zinc-400"></i>
                       <span className="truncate">{formatearMarca(b)}</span>
                     </button>
                   ))}
                 </div>
 
-                <span className="px-2 text-[8px] font-bold text-zinc-400 tracking-wider uppercase mb-1 mt-3">Soporte</span>
+                <span className="px-2 text-section mb-1 mt-2">Soporte</span>
                 <button
                   onClick={() => navegarA("configuracion")}
-                  className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-xs font-semibold transition-all ${
-                    paginaActiva === "configuracion" ? "bg-white shadow-sm font-bold text-zinc-900 border border-zinc-200" : "text-zinc-550 hover:bg-zinc-100/50"
+                  className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-ui font-medium transition-all ${
+                    paginaActiva === "configuracion" ? "bg-white shadow-sm text-zinc-900 border border-zinc-200" : "text-zinc-600 hover:bg-zinc-100/50"
                   }`}
                 >
-                  <i className="fa-solid fa-sliders text-zinc-400 text-[11px]"></i>Ajustes Portal
+                  <i className="fa-solid fa-sliders text-[10px] text-zinc-400"></i>
+                  Ajustes
                 </button>
               </nav>
             </div>
@@ -1032,9 +1215,9 @@ function App() {
             <div className="px-3 pt-3">
               <button
                 onClick={handleLogout}
-                className="w-full text-center py-1.5 text-xs font-semibold text-red-650 bg-red-50 hover:bg-red-100 rounded border border-red-200 transition-colors"
+                className="w-full text-center py-1.5 text-ui font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded border border-red-200 transition-colors"
               >
-                Cerrar Sesión
+                Cerrar sesión
               </button>
             </div>
           </div>
@@ -1043,40 +1226,41 @@ function App() {
 
       {/* CONTENEDOR PRINCIPAL */}
       <main className="flex-1 flex flex-col overflow-hidden bg-white">
-        <header className="bg-white border-b border-zinc-200 px-6 py-3 flex items-center justify-between shrink-0">
+        <header className={`app-header-bar bg-white px-6 justify-between ${!isConfigOnlyAdmin ? "hidden md:flex" : "flex"}`}>
           <div className="flex items-center gap-3">
-            {sidebarOpen && !isConfigOnlyAdmin && (
-              <button 
-                onClick={() => setSidebarOpen(true)}
-                className="md:hidden text-zinc-600 p-1 hover:bg-zinc-100 rounded"
-              >
-                <i className="fa-solid fa-bars text-sm"></i>
-              </button>
-            )}
-            <h1 className="text-xs font-bold uppercase tracking-widest text-zinc-400">
-              Trade & Shopper Marketing Workspace {isConfigOnlyAdmin ? "- Admin" : ""}
+            <h1 className="text-ui font-semibold text-zinc-500">
+              Trade & Shopper Marketing{isConfigOnlyAdmin ? " · Admin" : ""}
             </h1>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-semibold bg-zinc-50 border border-zinc-200">
+            <button
+              type="button"
+              onClick={handleSyncClick}
+              className={`flex items-center gap-2 rounded border px-2 py-1.5 transition-all ${
+                syncing
+                  ? "border-blue-200 bg-blue-50"
+                  : apiError
+                    ? "border-red-200 bg-red-50"
+                    : "border-zinc-200 bg-zinc-50 hover:bg-zinc-100"
+              }`}
+              title="Estado de sincronización"
+            >
               {syncing ? (
-                <>
-                  <i className="fa-solid fa-cloud-arrow-up text-blue-500 animate-spin text-[10px]"></i>
-                  <span className="text-zinc-400 text-[9px] font-bold uppercase">Sincronizando</span>
-                </>
+                <i className="fa-solid fa-cloud-arrow-up text-blue-500 animate-pulse text-sm" />
               ) : apiError ? (
-                <>
-                  <i className="fa-solid fa-cloud-arrow-down text-red-400 text-[10px]"></i>
-                  <span className="text-zinc-400 text-[9px] font-bold uppercase">Local</span>
-                </>
+                <i className="fa-solid fa-cloud-arrow-down text-red-400 text-sm" />
               ) : (
-                <>
-                  <i className="fa-solid fa-cloud text-emerald-500 text-[10px]"></i>
-                  <span className="text-zinc-400 text-[9px] font-bold uppercase">Sincronizado</span>
-                </>
+                <i className="fa-solid fa-cloud text-emerald-500 text-sm" />
               )}
-            </div>
+              {syncDetalleVisible && (
+                <span className={`text-ui-sm font-semibold ${
+                  syncing ? "text-blue-600" : apiError ? "text-red-500" : "text-emerald-600"
+                }`}>
+                  {palabraEstadoSync}
+                </span>
+              )}
+            </button>
 
             {/* BOTÓN CERRAR SESIÓN EXCLUSIVO PARA ROL ADMIN GLOBAL (HEADER) */}
             {isConfigOnlyAdmin && (
@@ -1101,7 +1285,7 @@ function App() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-6 max-w-6xl mx-auto w-full">
+        <div className={`flex-1 overflow-y-auto overflow-x-hidden max-w-6xl mx-auto w-full min-h-0 ${!isConfigOnlyAdmin ? "robin-mobile-main md:p-6" : "p-4 md:p-6"}`}>
           
           {paginaActiva === "home" && !isConfigOnlyAdmin && (
             <LayoutHome 
@@ -1113,6 +1297,8 @@ function App() {
               widgets={widgets}
               currentTheme={currentTheme}
               getMarcaStyle={getMarcaStyle}
+              otrosUsuariosEnLinea={otrosUsuariosEnLinea}
+              presenceEstado={presenceEstado}
             />
           )}
 
@@ -1242,143 +1428,183 @@ function App() {
           )}
 
           {paginaActiva === "dashboard" && !isConfigOnlyAdmin && (
-            <div className="flex flex-col gap-5 animate-fade-in">
+            <>
+              {/* ── Móvil: lista o subpágina de filtros ── */}
+              <div className="md:hidden flex flex-col gap-3 animate-fade-in">
+                {dashboardMobileVista === "filtros" ? (
+                  <div className="flex flex-col gap-3">
+                    <MobileSubpageBar title="Filtros" onBack={() => setDashboardMobileVista("lista")} backLabel="Lista" />
+                    <div className="border border-zinc-200 p-3 rounded-md flex flex-col gap-3 bg-white">
+                      <div className="flex flex-col gap-3">
+                        <select value={filtroMarca} onChange={(e) => setFiltroMarca(e.target.value)} className="w-full bg-white border border-zinc-200 p-2 text-ui rounded text-zinc-600">
+                          <option value="TODAS">Todos los clientes</option>
+                          {marcasDisponibles.map(m => (<option key={m} value={m}>{formatearMarca(m)}</option>))}
+                        </select>
+                        <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} className="w-full bg-white border border-zinc-200 p-2 text-ui rounded text-zinc-600">
+                          <option value="TODOS">Todos los estados</option>
+                          {LISTA_ESTADOS_VALIDOS.map(opt => (<option key={opt} value={opt}>{opt}</option>))}
+                        </select>
+                        <select value={filtroPrioridad} onChange={(e) => setFiltroPrioridad(e.target.value)} className="w-full bg-white border border-zinc-200 p-2 text-ui rounded text-zinc-600">
+                          <option value="TODAS">Todas las prioridades</option>
+                          {PRIORIDADES_MAPA.map(p => (<option key={p.id} value={p.id}>{p.label}</option>))}
+                        </select>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1.5 pt-1">
+                        <button onClick={() => setFiltroTiempo("TODAS")} className={`px-2 py-2 rounded text-[10px] font-semibold border ${filtroTiempo === "TODAS" ? "bg-[#37352F] text-white border-zinc-900" : "bg-white border-zinc-200 text-zinc-600"}`}>Todo</button>
+                        <button onClick={() => setFiltroTiempo("HOY")} className={`px-2 py-2 rounded text-[10px] font-semibold border ${filtroTiempo === "HOY" ? "bg-blue-600 text-white border-blue-700" : "bg-white border-zinc-200 text-zinc-600"}`}>Hoy{metricaCounters.activasHoy > 0 ? ` (${metricaCounters.activasHoy})` : ""}</button>
+                        <button onClick={() => setFiltroTiempo("ATRASADAS")} className={`px-2 py-2 rounded text-[10px] font-semibold border ${filtroTiempo === "ATRASADAS" ? "bg-red-600 text-white border-red-700" : "bg-white border-zinc-200 text-zinc-600"}`}>Atraso{metricaCounters.atrasadas > 0 ? ` (${metricaCounters.atrasadas})` : ""}</button>
+                      </div>
+                      {filtrosDashboardActivos && (
+                        <button
+                          type="button"
+                          onClick={() => { setFiltroTiempo("TODAS"); setFiltroMarca("TODAS"); setFiltroEstado("TODOS"); setFiltroPrioridad("TODAS"); setSearchQuery(""); }}
+                          className="w-full py-2 text-ui-sm font-medium text-zinc-500 border border-zinc-200 rounded-md"
+                        >
+                          Limpiar filtros
+                        </button>
+                      )}
+                      <button type="button" onClick={() => setDashboardMobileVista("lista")} className="w-full py-2.5 bg-[#37352F] text-white text-ui font-semibold rounded-md">
+                        Ver {tareasFiltradas.length} resultados
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mobile-dash-toolbar">
+                      <div className="min-w-0">
+                        <h2 className="text-sm font-bold text-[#37352F] truncate">
+                          {filtroMarca === "TODAS" ? "Todos los entregables" : formatearMarca(filtroMarca)}
+                        </h2>
+                        <p className="text-[10px] text-zinc-400">
+                          {tareasFiltradas.length} resultado{tareasFiltradas.length !== 1 ? "s" : ""}
+                          {filtrosDashboardActivos ? " · filtros activos" : ""}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button type="button" onClick={() => setDashboardMobileVista("filtros")} className={`mobile-icon-btn ${filtrosDashboardActivos ? "has-badge" : ""}`} title="Filtros">
+                          <i className="fa-solid fa-filter"></i>
+                        </button>
+                        <button type="button" onClick={() => { setVistaModo("TABLE"); setUserPreference("vistaModo", "TABLE"); }} className={`mobile-icon-btn ${vistaModo === "TABLE" ? "is-active" : ""}`} title="Lista">
+                          <i className="fa-solid fa-list"></i>
+                        </button>
+                        <button type="button" onClick={() => { setVistaModo("KANBAN"); setUserPreference("vistaModo", "KANBAN"); }} className={`mobile-icon-btn ${vistaModo === "KANBAN" ? "is-active" : ""}`} title="Tablero">
+                          <i className="fa-solid fa-chart-simple"></i>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="relative">
+                      <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-zinc-400">
+                        <i className="fa-solid fa-magnifying-glass text-[10px]"></i>
+                      </span>
+                      <input type="text" placeholder="Buscar..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-white border border-zinc-200 pl-8 pr-3 py-2 text-ui rounded-md focus:outline-none text-[#37352F]" />
+                    </div>
+
+                    {tareasSeleccionadas.size > 0 && (
+                      <div className="border border-zinc-200 rounded-md p-2.5 bg-[#FAF9F6] flex flex-col gap-2">
+                        <span className="text-ui-sm font-semibold text-zinc-700">{tareasSeleccionadas.size} seleccionado{tareasSeleccionadas.size !== 1 ? "s" : ""}</span>
+                        <div className="grid grid-cols-2 gap-2">
+                          <select value={bulkEstado} onChange={(e) => { const val = e.target.value; setBulkEstado(val); if (val) handleBulkUpdate("estado", val); }} className="text-ui-sm border border-zinc-200 rounded px-2 py-1.5 bg-white">
+                            <option value="">Estado...</option>
+                            {LISTA_ESTADOS_VALIDOS.map(opt => (<option key={opt} value={opt}>{opt}</option>))}
+                          </select>
+                          <select value={bulkPrioridad} onChange={(e) => { const val = e.target.value; setBulkPrioridad(val); if (val) handleBulkUpdate("prioridad", val); }} className="text-ui-sm border border-zinc-200 rounded px-2 py-1.5 bg-white">
+                            <option value="">Prioridad...</option>
+                            {PRIORIDADES_MAPA.map(p => (<option key={p.id} value={p.id}>{p.label}</option>))}
+                          </select>
+                        </div>
+                        <button type="button" onClick={limpiarSeleccionTareas} className="text-ui-sm text-zinc-500 text-left">Limpiar selección</button>
+                      </div>
+                    )}
+
+                    {vistaModo === "TABLE" ? (
+                      <LayoutTablaAgrupada tareas={tareasFiltradas} onUpdateField={handleUpdateField} onSelectTask={(t) => { setActiveTask(t); setIsEditing(true); }} onDeleteTask={(t) => setTaskToDelete(t)} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} tareasSeleccionadas={tareasSeleccionadas} onToggleSeleccion={toggleSeleccionTarea} onToggleSeleccionGrupo={(lista, seleccionar) => { setTareasSeleccionadas(prev => { const next = new Set(prev); lista.forEach(t => { const key = getTaskSelectionKey(t); if (seleccionar) next.add(key); else next.delete(key); }); return next; }); }} />
+                    ) : (
+                      <LayoutKanban tareas={tareasFiltradas} onUpdateField={handleUpdateField} onSelectTask={(t) => { setActiveTask(t); setIsEditing(true); }} onDeleteTask={(t) => setTaskToDelete(t)} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
+                    )}
+                  </>
+                )}
+              </div>
+
+              {/* ── Desktop: sin cambios ── */}
+              <div className="hidden md:flex flex-col gap-5 animate-fade-in">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-base font-bold text-[#37352F]">
-                    {filtroMarca === "TODAS" ? "Entregables del Área" : `Entregables: ${filtroMarca}`}
+                  <h2 className="text-ui font-semibold text-[#37352F]">
+                    {filtroMarca === "TODAS" ? "Entregables del área" : `Entregables: ${formatearMarca(filtroMarca)}`}
                   </h2>
-                  <p className="text-xs text-zinc-400">
-                    Mostrando {tareasFiltradas.length} de {tareas.length} entregables activos.
+                  <p className="text-ui-sm text-zinc-400 mt-0.5">
+                    Mostrando {tareasFiltradas.length} de {tareas.length} entregables activos
                   </p>
                 </div>
 
-                {/* Selector de Vista */}
                 <div className="flex items-center gap-1 bg-[#FAF9F6] p-1 rounded border border-zinc-200">
-                  <button 
-                    onClick={() => setVistaModo("TABLE")}
-                    className={`px-3 py-1 text-xs font-medium rounded transition-colors flex items-center gap-1.5 ${
-                      vistaModo === "TABLE" ? "bg-white text-zinc-800 border" : "text-zinc-450 hover:text-zinc-700"
-                    }`}
-                  >
+                  <button onClick={() => { setVistaModo("TABLE"); setUserPreference("vistaModo", "TABLE"); }} className={`px-3 py-1 text-ui font-medium rounded transition-colors flex items-center gap-1.5 ${vistaModo === "TABLE" ? "bg-white text-zinc-800 border" : "text-zinc-450 hover:text-zinc-700"}`}>
                     <i className="fa-solid fa-list"></i> Lista
                   </button>
-                  <button 
-                    onClick={() => setVistaModo("KANBAN")}
-                    className={`px-3 py-1 text-xs font-medium rounded transition-colors flex items-center gap-1.5 ${
-                      vistaModo === "KANBAN" ? "bg-white text-zinc-800 border" : "text-zinc-450 hover:text-zinc-700"
-                    }`}
-                  >
+                  <button onClick={() => { setVistaModo("KANBAN"); setUserPreference("vistaModo", "KANBAN"); }} className={`px-3 py-1 text-ui font-medium rounded transition-colors flex items-center gap-1.5 ${vistaModo === "KANBAN" ? "bg-white text-zinc-800 border" : "text-zinc-450 hover:text-zinc-700"}`}>
                     <i className="fa-solid fa-chart-simple"></i> Tablero
                   </button>
                 </div>
               </div>
 
-              {/* Panel de Filtros Notion */}
               <div className="border border-zinc-200 p-3.5 rounded-md flex flex-col gap-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="relative">
                     <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-zinc-400">
                       <i className="fa-solid fa-magnifying-glass text-[10px]"></i>
                     </span>
-                    <input 
-                      type="text" 
-                      placeholder="Buscar..." 
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full bg-[#FAF9F6]/50 border border-zinc-200 pl-8 pr-3 py-1 text-xs rounded focus:outline-none font-semibold text-[#37352F]"
-                    />
+                    <input type="text" placeholder="Buscar..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-[#FAF9F6]/50 border border-zinc-200 pl-8 pr-3 py-1.5 text-ui rounded focus:outline-none text-[#37352F]" />
                   </div>
-
                   <div>
-                    <select 
-                      value={filtroMarca}
-                      onChange={(e) => setFiltroMarca(e.target.value)}
-                      className="w-full bg-white border border-zinc-200 p-1 text-xs rounded focus:outline-none font-semibold text-zinc-600"
-                    >
+                    <select value={filtroMarca} onChange={(e) => setFiltroMarca(e.target.value)} className="w-full bg-white border border-zinc-200 p-1.5 text-ui rounded focus:outline-none text-zinc-600">
                       <option value="TODAS">Clientes: Todos</option>
-                      {marcasDisponibles.map(m => (
-                        <option key={m} value={m}>{formatearMarca(m)}</option>
-                      ))}
+                      {marcasDisponibles.map(m => (<option key={m} value={m}>{formatearMarca(m)}</option>))}
                     </select>
                   </div>
-
                   <div>
-                    <select 
-                      value={filtroEstado}
-                      onChange={(e) => setFiltroEstado(e.target.value)}
-                      className="w-full bg-white border border-zinc-200 p-1 text-xs rounded focus:outline-none font-semibold text-zinc-600"
-                    >
+                    <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} className="w-full bg-white border border-zinc-200 p-1.5 text-ui rounded focus:outline-none text-zinc-600">
                       <option value="TODOS">Estados: Todos</option>
-                      {LISTA_ESTADOS_VALIDOS.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
+                      {LISTA_ESTADOS_VALIDOS.map(opt => (<option key={opt} value={opt}>{opt}</option>))}
                     </select>
                   </div>
-
                   <div>
-                    <select 
-                      value={filtroPrioridad}
-                      onChange={(e) => setFiltroPrioridad(e.target.value)}
-                      className="w-full bg-white border border-zinc-200 p-1 text-xs rounded focus:outline-none font-semibold text-zinc-600"
-                    >
+                    <select value={filtroPrioridad} onChange={(e) => setFiltroPrioridad(e.target.value)} className="w-full bg-white border border-zinc-200 p-1.5 text-ui rounded focus:outline-none text-zinc-600">
                       <option value="TODAS">Prioridades: Todas</option>
-                      {PRIORIDADES_MAPA.map(p => (
-                        <option key={p.id} value={p.id}>{p.label}</option>
-                      ))}
+                      {PRIORIDADES_MAPA.map(p => (<option key={p.id} value={p.id}>{p.label}</option>))}
                     </select>
                   </div>
                 </div>
-
                 <div className="flex flex-wrap gap-1.5 pt-2 border-t border-zinc-150">
-                  <button 
-                    onClick={() => setFiltroTiempo("TODAS")}
-                    className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all border ${
-                      filtroTiempo === "TODAS" ? "bg-[#37352F] text-white border-zinc-900" : "bg-white border-zinc-200 text-zinc-550 hover:bg-zinc-50"
-                    }`}
-                  >
-                    Todo el tiempo
-                  </button>
-                  <button 
-                    onClick={() => setFiltroTiempo("HOY")}
-                    className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all border flex items-center gap-1 ${
-                      filtroTiempo === "HOY" ? "bg-blue-600 text-white border-blue-700" : "bg-white border-zinc-200 text-zinc-550 hover:bg-zinc-50"
-                    }`}
-                  >
-                    Entrega hoy {metricaCounters.activasHoy > 0 ? `(${metricaCounters.activasHoy})` : ""}
-                  </button>
-                  <button 
-                    onClick={() => setFiltroTiempo("ATRASADAS")}
-                    className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all border flex items-center gap-1 ${
-                      filtroTiempo === "ATRASADAS" ? "bg-red-600 text-white border-red-700" : "bg-white border-zinc-200 text-zinc-550 hover:bg-zinc-50"
-                    }`}
-                  >
-                    Atrasados {metricaCounters.atrasadas > 0 ? `(${metricaCounters.atrasadas})` : ""}
-                  </button>
+                  <button onClick={() => setFiltroTiempo("TODAS")} className={`px-2.5 py-1 rounded text-ui-sm font-medium transition-all border ${filtroTiempo === "TODAS" ? "bg-[#37352F] text-white border-zinc-900" : "bg-white border-zinc-200 text-zinc-550 hover:bg-zinc-50"}`}>Todo el tiempo</button>
+                  <button onClick={() => setFiltroTiempo("HOY")} className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all border flex items-center gap-1 ${filtroTiempo === "HOY" ? "bg-blue-600 text-white border-blue-700" : "bg-white border-zinc-200 text-zinc-550 hover:bg-zinc-50"}`}>Entrega hoy {metricaCounters.activasHoy > 0 ? `(${metricaCounters.activasHoy})` : ""}</button>
+                  <button onClick={() => setFiltroTiempo("ATRASADAS")} className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all border flex items-center gap-1 ${filtroTiempo === "ATRASADAS" ? "bg-red-600 text-white border-red-700" : "bg-white border-zinc-200 text-zinc-550 hover:bg-zinc-50"}`}>Atrasados {metricaCounters.atrasadas > 0 ? `(${metricaCounters.atrasadas})` : ""}</button>
                 </div>
               </div>
 
-              {/* Renderizado de Tareas */}
-              {vistaModo === "TABLE" ? (
-                <LayoutTablaAgrupada 
-                  tareas={tareasFiltradas}
-                  onUpdateField={handleUpdateField}
-                  onSelectTask={(t) => { setActiveTask(t); setIsEditing(true); }}
-                  onDeleteTask={(t) => setTaskToDelete(t)}
-                  getMarcaStyle={getMarcaStyle}
-                  currentTheme={currentTheme}
-                />
-              ) : (
-                <LayoutKanban 
-                  tareas={tareasFiltradas}
-                  onUpdateField={handleUpdateField}
-                  onSelectTask={(t) => { setActiveTask(t); setIsEditing(true); }}
-                  onDeleteTask={(t) => setTaskToDelete(t)}
-                  getMarcaStyle={getMarcaStyle}
-                  currentTheme={currentTheme}
-                />
+              {tareasSeleccionadas.size > 0 && (
+                <div className="border border-zinc-200 rounded-md p-3 bg-[#FAF9F6] flex flex-wrap items-center gap-3">
+                  <span className="text-ui font-semibold text-zinc-700">{tareasSeleccionadas.size} seleccionado{tareasSeleccionadas.size !== 1 ? "s" : ""}</span>
+                  <select value={bulkEstado} onChange={(e) => { const val = e.target.value; setBulkEstado(val); if (val) handleBulkUpdate("estado", val); }} className="text-ui-sm border border-zinc-200 rounded px-2 py-1 bg-white">
+                    <option value="">Cambiar estado...</option>
+                    {LISTA_ESTADOS_VALIDOS.map(opt => (<option key={opt} value={opt}>{opt}</option>))}
+                  </select>
+                  <select value={bulkPrioridad} onChange={(e) => { const val = e.target.value; setBulkPrioridad(val); if (val) handleBulkUpdate("prioridad", val); }} className="text-ui-sm border border-zinc-200 rounded px-2 py-1 bg-white">
+                    <option value="">Cambiar prioridad...</option>
+                    {PRIORIDADES_MAPA.map(p => (<option key={p.id} value={p.id}>{p.label}</option>))}
+                  </select>
+                  <input type="date" value={bulkDeadline} onChange={(e) => { const val = e.target.value; setBulkDeadline(val); if (val) handleBulkUpdate("deadline", val); }} className="text-ui-sm border border-zinc-200 rounded px-2 py-1 bg-white" title="Cambiar fecha límite" />
+                  <button type="button" onClick={limpiarSeleccionTareas} className="text-ui-sm text-zinc-500 hover:text-zinc-800 ml-auto">Limpiar selección</button>
+                </div>
               )}
-            </div>
+
+              {vistaModo === "TABLE" ? (
+                <LayoutTablaAgrupada tareas={tareasFiltradas} onUpdateField={handleUpdateField} onSelectTask={(t) => { setActiveTask(t); setIsEditing(true); }} onDeleteTask={(t) => setTaskToDelete(t)} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} tareasSeleccionadas={tareasSeleccionadas} onToggleSeleccion={toggleSeleccionTarea} onToggleSeleccionGrupo={(lista, seleccionar) => { setTareasSeleccionadas(prev => { const next = new Set(prev); lista.forEach(t => { const key = getTaskSelectionKey(t); if (seleccionar) next.add(key); else next.delete(key); }); return next; }); }} />
+              ) : (
+                <LayoutKanban tareas={tareasFiltradas} onUpdateField={handleUpdateField} onSelectTask={(t) => { setActiveTask(t); setIsEditing(true); }} onDeleteTask={(t) => setTaskToDelete(t)} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
+              )}
+              </div>
+            </>
           )}
 
           {paginaActiva === "clientes" && !isConfigOnlyAdmin && (
@@ -1386,14 +1612,132 @@ function App() {
               key={clientesReset}
               marcas={marcasDisponibles}
               marcasMetadata={marcasMetadata}
-              canEdit={isAdmin}
+              canEdit={canEditFichas}
               onSaveBrandMetadata={handleSaveBrandMetadata}
               onRegisterBrand={handleCreateBrand}
+              onDeleteBrand={handleDeleteBrand}
             />
           )}
 
           {paginaActiva === "configuracion" && (
-            <div className="max-w-xl mx-auto border border-zinc-200 p-6 rounded-md bg-white animate-fade-in flex flex-col gap-6">
+            <>
+              {/* Móvil: menú + subpáginas */}
+              <div className="md:hidden flex flex-col gap-3 animate-fade-in">
+                {configMobileSeccion ? (
+                  <div className="flex flex-col gap-3">
+                    <MobileSubpageBar
+                      title={
+                        configMobileSeccion === "perfil" ? "Perfil" :
+                        configMobileSeccion === "tema" ? "Tema" :
+                        configMobileSeccion === "api" ? "Base de datos" :
+                        configMobileSeccion === "usuarios" ? "Usuarios" :
+                        configMobileSeccion === "widgets" ? "Enlaces" :
+                        configMobileSeccion === "clientes" ? "Fichas clientes" : "Ajustes"
+                      }
+                      onBack={() => setConfigMobileSeccion(null)}
+                    />
+
+                    {configMobileSeccion === "perfil" && !isConfigOnlyAdmin && (
+                      <form onSubmit={handleSaveNombreCompleto} className="bg-white border border-zinc-200 p-3 rounded-md flex flex-col gap-3">
+                        <input type="text" placeholder="Tu nombre" value={nombreCompleto} onChange={(e) => setNombreCompleto(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 px-3 py-2 text-sm rounded font-semibold text-[#37352F]" />
+                        <button type="submit" className="w-full py-2.5 bg-[#37352F] text-white text-ui font-semibold rounded-md">Guardar</button>
+                      </form>
+                    )}
+
+                    {configMobileSeccion === "tema" && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <button onClick={() => handleThemeChange("notion")} className={`p-3 rounded-md border text-sm font-semibold ${theme === "notion" ? "bg-[#37352F] text-white" : "bg-white border-zinc-200 text-zinc-600"}`}>Claro</button>
+                        <button onClick={() => handleThemeChange("midnight")} className={`p-3 rounded-md border text-sm font-semibold ${theme === "midnight" ? "bg-zinc-800 text-white" : "bg-white border-zinc-200 text-zinc-600"}`}>Oscuro</button>
+                      </div>
+                    )}
+
+                    {configMobileSeccion === "api" && (
+                      <div className="bg-[#FAF9F6] p-3 rounded-md border border-zinc-200 text-xs text-zinc-600 flex items-start gap-2">
+                        <i className="fa-solid fa-circle-check text-emerald-500 mt-0.5"></i>
+                        <div className="min-w-0">
+                          <p className="font-bold text-[#37352F]">Sheets conectado</p>
+                          <p className="text-[11px] text-zinc-400 mt-1 break-all">{AUTO_API_URL}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    {configMobileSeccion === "usuarios" && (
+                      isAdmin ? (
+                        <div className="bg-white border border-zinc-200 p-3 rounded-md flex flex-col gap-3">
+                          <form onSubmit={handleAddUser} className="flex gap-2">
+                            <input type="text" placeholder="Usuario" value={nuevoUsuarioInput} onChange={(e) => setNuevoUsuarioInput(e.target.value)} className="flex-1 bg-zinc-50 border border-zinc-200 px-3 py-2 text-sm rounded font-semibold" />
+                            <button type="submit" className="px-3 py-2 bg-[#37352F] text-white text-ui font-semibold rounded-md">+</button>
+                          </form>
+                          <div className="flex flex-wrap gap-1.5">
+                            {listaUsuarios.map(u => (
+                              <span key={u} className="inline-flex items-center gap-1 bg-zinc-50 border border-zinc-200 text-zinc-800 text-[11px] font-semibold px-2 py-1 rounded-full">
+                                @{u}
+                                {u !== "admin" && (
+                                  <button type="button" onClick={() => { const filtered = listaUsuarios.filter(item => item !== u); setListaUsuarios(filtered); setLocalStorageItemSafe("robin_lista_usuarios", JSON.stringify(filtered)); showToast("Usuario desautorizado", "info"); }} className="text-zinc-400 font-bold">&times;</button>
+                                )}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-ui-sm text-zinc-500 bg-zinc-50 border border-zinc-200 rounded-md p-3">Solo administradores.</p>
+                      )
+                    )}
+
+                    {configMobileSeccion === "widgets" && isConfigOnlyAdmin && (
+                      <WidgetsAdminPanel widgets={widgets} onAddWidget={handleAddWidget} onEditWidget={handleEditWidget} onDeleteWidget={handleDeleteWidget} />
+                    )}
+
+                    {configMobileSeccion === "clientes" && isConfigOnlyAdmin && (
+                      <LayoutClientes key={clientesReset} marcas={marcasDisponibles} marcasMetadata={marcasMetadata} canEdit={canEditFichas} onSaveBrandMetadata={handleSaveBrandMetadata} onRegisterBrand={handleCreateBrand} onDeleteBrand={handleDeleteBrand} />
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <h2 className="text-base font-bold text-[#37352F] mb-1">Ajustes</h2>
+
+                    {!isConfigOnlyAdmin && (
+                      <button type="button" onClick={() => setConfigMobileSeccion("perfil")} className="mobile-menu-btn">
+                        <span><i className="fa-solid fa-user"></i> Perfil</span>
+                        <i className="fa-solid fa-chevron-right text-[10px] text-zinc-300"></i>
+                      </button>
+                    )}
+                    <button type="button" onClick={() => setConfigMobileSeccion("tema")} className="mobile-menu-btn">
+                      <span><i className="fa-solid fa-palette"></i> Tema</span>
+                      <i className="fa-solid fa-chevron-right text-[10px] text-zinc-300"></i>
+                    </button>
+                    <button type="button" onClick={() => setConfigMobileSeccion("api")} className="mobile-menu-btn">
+                      <span><i className="fa-solid fa-database"></i> Base de datos</span>
+                      <i className="fa-solid fa-chevron-right text-[10px] text-zinc-300"></i>
+                    </button>
+                    {(isAdmin || !isConfigOnlyAdmin) && (
+                      <button type="button" onClick={() => setConfigMobileSeccion("usuarios")} className="mobile-menu-btn">
+                        <span><i className="fa-solid fa-users"></i> Usuarios</span>
+                        <i className="fa-solid fa-chevron-right text-[10px] text-zinc-300"></i>
+                      </button>
+                    )}
+                    {isConfigOnlyAdmin && (
+                      <>
+                        <button type="button" onClick={() => setConfigMobileSeccion("widgets")} className="mobile-menu-btn">
+                          <span><i className="fa-solid fa-link"></i> Enlaces</span>
+                          <i className="fa-solid fa-chevron-right text-[10px] text-zinc-300"></i>
+                        </button>
+                        <button type="button" onClick={() => setConfigMobileSeccion("clientes")} className="mobile-menu-btn">
+                          <span><i className="fa-solid fa-id-card"></i> Fichas clientes</span>
+                          <i className="fa-solid fa-chevron-right text-[10px] text-zinc-300"></i>
+                        </button>
+                      </>
+                    )}
+
+                    <button type="button" onClick={handleLogout} className="mobile-menu-btn is-danger mt-2">
+                      <span><i className="fa-solid fa-right-from-bracket"></i> Cerrar sesión</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Desktop: sin cambios */}
+              <div className={`hidden md:flex ${isConfigOnlyAdmin ? "max-w-6xl" : "max-w-xl"} mx-auto border border-zinc-200 p-6 rounded-md bg-white animate-fade-in flex-col gap-6`}>
               <div>
                 <h2 className="text-sm font-bold uppercase tracking-wider border-b pb-2 text-zinc-500">Ajustes del Sistema</h2>
                 <p className="text-xs text-zinc-400 mt-1">Configuración técnica de origen de datos y autorización de personal.</p>
@@ -1470,6 +1814,24 @@ function App() {
                 />
               )}
 
+              {isConfigOnlyAdmin && (
+                <div className="flex flex-col gap-3 border-t border-zinc-200 pt-5">
+                  <div>
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Fichas técnicas de clientes</span>
+                    <p className="text-xs text-zinc-400 mt-1">Gestión de equipos, contactos y lineamientos por marca.</p>
+                  </div>
+                  <LayoutClientes
+                    key={clientesReset}
+                    marcas={marcasDisponibles}
+                    marcasMetadata={marcasMetadata}
+                    canEdit={canEditFichas}
+                    onSaveBrandMetadata={handleSaveBrandMetadata}
+                    onRegisterBrand={handleCreateBrand}
+                    onDeleteBrand={handleDeleteBrand}
+                  />
+                </div>
+              )}
+
               {/* Control de Usuarios - Solo accesible para el rol de administrador */}
               <div className="flex flex-col gap-2">
                 <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Usuarios autorizados</span>
@@ -1520,23 +1882,45 @@ function App() {
                 )}
               </div>
 
-            </div>
+              </div>
+            </>
           )}
 
         </div>
       </main>
 
+      {!isConfigOnlyAdmin && (
+        <MobileNavBar
+          paginaActiva={paginaActiva}
+          navegarA={navegarA}
+          filtroMarca={filtroMarca}
+          setFiltroMarca={setFiltroMarca}
+          setFiltroTiempo={setFiltroTiempo}
+          setFiltroEstado={setFiltroEstado}
+          setFiltroPrioridad={setFiltroPrioridad}
+          usuario={usuario}
+          syncing={syncing}
+          apiError={apiError}
+          palabraEstadoSync={palabraEstadoSync}
+          onSyncClick={handleSyncClick}
+          onRefresh={() => fetchData(false)}
+          loading={loading}
+        />
+      )}
+
       {/* MODALES ADICIONALES */}
       {isEditing && activeTask && !isConfigOnlyAdmin && (
-        <ModalEdicionTarea 
-          tarea={activeTask}
-          onClose={() => { setIsEditing(false); setActiveTask(null); }}
-          onSave={handleSaveTaskModal}
-          listaPersonas={listaPersonas}
-          registrarNuevaPersona={registrarNuevaPersonaGlobal}
-          marcasDisponibles={marcasDisponibles}
-          isSubmitting={isSubmitting}
-        />
+        <ModalPortal>
+          <ModalEdicionTarea 
+            tarea={activeTask}
+            onClose={() => { setIsEditing(false); setActiveTask(null); }}
+            onSave={handleSaveTaskModal}
+            listaPersonas={listaPersonas}
+            registrarNuevaPersona={registrarNuevaPersonaGlobal}
+            marcasDisponibles={marcasDisponibles}
+            isSubmitting={isSubmitting}
+          />
+        </ModalPortal>
       )}
 
       {taskToDelete && !isConfigOnlyAdmin && (

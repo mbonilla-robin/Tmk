@@ -1,8 +1,12 @@
 function WidgetsAdminPanel({ widgets, onAddWidget, onEditWidget, onDeleteWidget }) {
+  const widgetsVisibles = useMemo(() => {
+    return filtrarWidgetsReales(widgets).map(normalizarWidgetDesdeApi).filter(Boolean);
+  }, [widgets]);
   const [widgetTitulo, setWidgetTitulo] = useState("");
   const [widgetLink, setWidgetLink] = useState("");
   const [widgetIcon, setWidgetIcon] = useState("link");
-  const [widgetColor, setWidgetColor] = useState("bg-zinc-100 text-zinc-700");
+  const [widgetColor, setWidgetColor] = useState("sky");
+  const [widgetSeccion, setWidgetSeccion] = useState("robin");
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
@@ -10,7 +14,8 @@ function WidgetsAdminPanel({ widgets, onAddWidget, onEditWidget, onDeleteWidget 
     setWidgetTitulo("");
     setWidgetLink("");
     setWidgetIcon("link");
-    setWidgetColor("bg-zinc-100 text-zinc-700");
+    setWidgetColor("sky");
+    setWidgetSeccion("robin");
     setEditingId(null);
   };
 
@@ -24,7 +29,8 @@ function WidgetsAdminPanel({ widgets, onAddWidget, onEditWidget, onDeleteWidget 
     setWidgetTitulo(w.titulo || "");
     setWidgetLink(w.link || "");
     setWidgetIcon(w.icon || "link");
-    setWidgetColor(w.color || "bg-zinc-100 text-zinc-700");
+    setWidgetColor(resolverClaveColorWidget(w.color || "sky"));
+    setWidgetSeccion(normalizarSeccionWidget(w.seccion || "robin"));
     setShowModal(true);
   };
 
@@ -43,7 +49,8 @@ function WidgetsAdminPanel({ widgets, onAddWidget, onEditWidget, onDeleteWidget 
         titulo: widgetTitulo.trim(),
         link: widgetLink.trim(),
         icon: widgetIcon,
-        color: widgetColor
+        color: widgetColor,
+        seccion: widgetSeccion
       });
     } else {
       onAddWidget({
@@ -51,7 +58,8 @@ function WidgetsAdminPanel({ widgets, onAddWidget, onEditWidget, onDeleteWidget 
         titulo: widgetTitulo.trim(),
         link: widgetLink.trim(),
         icon: widgetIcon,
-        color: widgetColor
+        color: widgetColor,
+        seccion: widgetSeccion
       });
     }
     closeModal();
@@ -60,7 +68,7 @@ function WidgetsAdminPanel({ widgets, onAddWidget, onEditWidget, onDeleteWidget 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Enlaces de interés (Home)</span>
+        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Accesos</span>
         <button
           type="button"
           onClick={openAddModal}
@@ -71,20 +79,25 @@ function WidgetsAdminPanel({ widgets, onAddWidget, onEditWidget, onDeleteWidget 
       </div>
 
       <div className="bg-zinc-50 p-3 rounded border border-zinc-200 flex flex-col gap-2">
-        {widgets.length === 0 ? (
+        {widgetsVisibles.length === 0 ? (
           <p className="text-xs text-zinc-400 italic">No hay enlaces registrados.</p>
         ) : (
-          widgets.map(w => (
+          widgetsVisibles.map(w => {
+            const estilo = getWidgetEstilo(w.color);
+            const seccionLabel = WIDGET_SECCIONES[w.seccion]?.label || "Robin";
+            const etiqueta = formatearTituloWidget(w.titulo);
+            return (
             <div
               key={w.id}
-              className="flex items-center justify-between gap-2 bg-white border border-zinc-200 rounded px-3 py-2"
+              className="flex items-center justify-between gap-3 bg-white border border-zinc-200 rounded-lg px-3 py-2.5"
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <div className={`p-1 rounded shrink-0 ${w.color || "bg-zinc-100 text-zinc-700"}`}>
-                  <WidgetIcon iconName={w.icon} className="w-3.5 h-3.5" />
+              <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border shrink-0 ${estilo.button}`}>
+                  <WidgetIcon iconName={w.icon} className="w-4 h-4" />
+                  <span className="text-xs font-semibold whitespace-nowrap">{etiqueta}</span>
                 </div>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold text-zinc-800 truncate">{w.titulo}</p>
+                <div className="min-w-0 hidden sm:block">
+                  <p className="text-[10px] font-semibold text-zinc-500">{seccionLabel}</p>
                   <p className="text-[10px] text-zinc-400 truncate">{w.link}</p>
                 </div>
               </div>
@@ -107,13 +120,15 @@ function WidgetsAdminPanel({ widgets, onAddWidget, onEditWidget, onDeleteWidget 
                 </button>
               </div>
             </div>
-          ))
+            );
+          })
         )}
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/10 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
-          <div className="bg-white p-5 rounded border border-zinc-200 shadow-md w-full max-w-sm animate-zoom-in">
+        <ModalPortal>
+        <div className="fixed inset-0 bg-black/10 backdrop-blur-sm z-[250] flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white p-5 rounded border border-zinc-200 shadow-md w-full max-w-sm animate-zoom-in my-auto">
             <div className="flex items-center justify-between border-b pb-2.5 mb-3.5 border-zinc-200">
               <span className="text-xs font-bold uppercase text-zinc-500 tracking-wider">
                 {editingId ? "Editar enlace" : "Añadir enlace"}
@@ -151,6 +166,19 @@ function WidgetsAdminPanel({ widgets, onAddWidget, onEditWidget, onDeleteWidget 
                 />
               </div>
 
+              <div>
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Fila en Home</label>
+                <select
+                  value={widgetSeccion}
+                  onChange={(e) => setWidgetSeccion(e.target.value)}
+                  className="w-full bg-white border border-zinc-200 px-3 py-1.5 text-xs rounded focus:border-zinc-400 focus:outline-none font-semibold text-[#37352F] cursor-pointer hover:bg-zinc-50 transition-colors"
+                >
+                  {obtenerOpcionesSeccionWidget().map(op => (
+                    <option key={op.id} value={op.id}>{op.label}</option>
+                  ))}
+                </select>
+              </div>
+
               <div className="grid grid-cols-2 gap-3.5">
                 <div>
                   <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Icono</label>
@@ -169,19 +197,20 @@ function WidgetsAdminPanel({ widgets, onAddWidget, onEditWidget, onDeleteWidget 
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Color Estilo</label>
+                  <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Color pastel</label>
                   <select
                     value={widgetColor}
                     onChange={(e) => setWidgetColor(e.target.value)}
                     className="w-full bg-white border border-zinc-200 px-3 py-1.5 text-xs rounded focus:border-zinc-400 focus:outline-none font-semibold text-[#37352F] cursor-pointer hover:bg-zinc-50 transition-colors"
                   >
-                    <option value="bg-[#EBF5FE] text-blue-700">Azul</option>
-                    <option value="bg-[#F5EEFC] text-purple-700">Morado</option>
-                    <option value="bg-[#FEF6E0] text-amber-700">Naranja</option>
-                    <option value="bg-[#EDFBF2] text-emerald-700">Verde</option>
-                    <option value="bg-[#FDF0EE] text-red-700">Rojo</option>
-                    <option value="bg-zinc-100 text-zinc-700">Gris</option>
+                    {obtenerOpcionesColorWidget().map(op => (
+                      <option key={op.id} value={op.id}>{op.label}</option>
+                    ))}
                   </select>
+                  <div className={`mt-2 inline-flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold ${getWidgetEstilo(widgetColor).button}`}>
+                    <WidgetIcon iconName={widgetIcon} className="w-4 h-4" />
+                    <span>Vista previa</span>
+                  </div>
                 </div>
               </div>
 
@@ -203,6 +232,7 @@ function WidgetsAdminPanel({ widgets, onAddWidget, onEditWidget, onDeleteWidget 
             </form>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   );

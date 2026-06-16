@@ -25,8 +25,24 @@ function cleanPrioridad(val) {
     .trim();
 }
 
+function normalizarPrioridad(val) {
+  const clean = cleanPrioridad(val);
+  if (!clean) return "Media";
+  if (clean === "alta" || clean === "urgente" || clean === "high") return "Alta";
+  if (clean === "baja" || clean === "low") return "Baja";
+  if (clean === "media" || clean === "medium" || clean === "normal") return "Media";
+  if (/\balta\b/.test(clean)) return "Alta";
+  if (/\bbaja\b/.test(clean)) return "Baja";
+  if (/\bmedia\b/.test(clean)) return "Media";
+  return "Media";
+}
+
+function esPrioridadAlta(val) {
+  return normalizarPrioridad(val) === "Alta";
+}
+
 function getPriorityWeight(priText) {
-  const clean = cleanPrioridad(priText);
+  const clean = cleanPrioridad(normalizarPrioridad(priText));
   if (clean === "alta") return 3;
   if (clean === "baja") return 1;
   return 2;

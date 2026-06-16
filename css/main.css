@@ -27,11 +27,717 @@ body {
       -ms-overflow-style: none;
       scrollbar-width: none;
     }
+    /* Barra superior alineada (sidebar + main) */
+    .app-header-bar {
+      height: 4rem;
+      min-height: 4rem;
+      display: flex;
+      align-items: center;
+      flex-shrink: 0;
+      border-bottom: 1px solid #e4e4e7;
+    }
+    .app-header-bar--sidebar {
+      padding-left: 1.5rem;
+      padding-right: 1.25rem;
+    }
+    /* Tipografía unificada */
+    .text-section {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #a1a1aa;
+    }
+    .text-ui {
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .text-ui-sm {
+      font-size: 11px;
+      line-height: 1.4;
+    }
+    /* Scroll suave en columnas del calendario semanal */
+    .cal-week-scroll {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(55, 53, 47, 0.15) transparent;
+    }
+    .cal-week-scroll::-webkit-scrollbar {
+      width: 4px;
+    }
     /* Animaciones sutiles */
     .animate-fade-in {
       animation: fadeIn 0.15s ease-out forwards;
     }
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(2px); }
-      to { opacity: 1; transform: translateY(0); }
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* ── PWA / Móvil (solo < md; desktop sin cambios) ── */
+    @media (max-width: 767px) {
+      :root {
+        --mobile-header-h: 3rem;
+        --mobile-nav-h: 4rem;
+      }
+
+      .robin-mobile-main {
+        padding-top: calc(var(--mobile-header-h) + env(safe-area-inset-top, 0px) + 0.75rem);
+        padding-bottom: calc(var(--mobile-nav-h) + env(safe-area-inset-bottom, 0px) + 1rem);
+        padding-left: 1rem;
+        padding-right: 1rem;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+      }
+
+      .mobile-top-bar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 50;
+        height: calc(var(--mobile-header-h) + env(safe-area-inset-top, 0px));
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-left: 1rem;
+        padding-right: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        background: #ffffff;
+        border-bottom: 1px solid #e4e4e7;
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03);
+      }
+
+      .mobile-top-brand {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+      }
+
+      .mobile-top-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-shrink: 0;
+      }
+
+      .mobile-top-btn {
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: 0.5rem;
+        border: 1px solid #e4e4e7;
+        background: #fafafa;
+        color: #71717a;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8rem;
+      }
+
+      .mobile-top-btn.is-ok { color: #10b981; border-color: #bbf7d0; background: #f0fdf4; }
+      .mobile-top-btn.is-syncing { color: #3b82f6; border-color: #bfdbfe; background: #eff6ff; }
+      .mobile-top-btn.is-error { color: #ef4444; border-color: #fecaca; background: #fef2f2; }
+
+      .mobile-nav-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 50;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        background: #ffffff;
+        border-top: 1px solid #e4e4e7;
+        box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.05);
+      }
+
+      .mobile-nav-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        height: var(--mobile-nav-h);
+        padding: 0 0.25rem;
+      }
+
+      .mobile-nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.2rem;
+        padding: 0.35rem 0.15rem;
+        border: none;
+        background: transparent;
+        color: #a1a1aa;
+        min-width: 0;
+      }
+
+      .mobile-nav-icon {
+        width: 1.75rem;
+        height: 1.75rem;
+        border-radius: 0.5rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        transition: background 0.15s, color 0.15s;
+      }
+
+      .mobile-nav-label {
+        font-size: 9px;
+        font-weight: 600;
+        line-height: 1.1;
+        text-align: center;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .mobile-nav-item.is-active {
+        color: #37352F;
+      }
+
+      .mobile-nav-item.is-active .mobile-nav-icon {
+        background: #f4f4f5;
+        color: #37352F;
+      }
+
+      .mobile-nav-item.is-highlight .mobile-nav-icon {
+        background: #37352F;
+        color: #ffffff;
+        box-shadow: 0 2px 8px rgba(55, 53, 47, 0.25);
+      }
+
+      .mobile-nav-item.is-highlight.is-active .mobile-nav-icon {
+        background: #2c2a26;
+      }
+
+      .mobile-nav-item.is-highlight .mobile-nav-label {
+        color: #37352F;
+        font-weight: 700;
+      }
+
+      /* Widgets: grid simétrico 2 columnas en móvil */
+      .mobile-widget-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.5rem;
+      }
+
+      .mobile-widget-tile {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        min-height: 4.75rem;
+        padding: 0.625rem 0.5rem;
+        border-radius: 0.625rem;
+        border: 1px solid #e4e4e7;
+        text-align: center;
+        transition: transform 0.12s, box-shadow 0.12s;
+      }
+
+      .mobile-widget-tile:active {
+        transform: scale(0.98);
+      }
+
+      .mobile-widget-tile-icon {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 0.5rem;
+        background: rgba(255, 255, 255, 0.65);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .mobile-widget-tile-label {
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1.2;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        width: 100%;
+      }
+
+      /* Tarjetas de tabla en móvil — compactas */
+      .mobile-task-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.625rem;
+      }
+
+      .mobile-task-card {
+        padding: 0.5rem 0.625rem;
+        display: block;
+      }
+
+      .mobile-task-row-main {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
+      }
+
+      .mobile-task-check {
+        margin-top: 0.15rem;
+        width: 0.875rem;
+        height: 0.875rem;
+        border-radius: 0.25rem;
+        border-color: #d4d4d8;
+        flex-shrink: 0;
+      }
+
+      .mobile-task-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: #37352F;
+        line-height: 1.3;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      .mobile-task-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.25rem 0.5rem;
+        margin-top: 0.35rem;
+      }
+
+      .mobile-task-detail,
+      .mobile-task-priority {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        font-size: 9px;
+        color: #71717a;
+        min-width: 0;
+      }
+
+      .mobile-task-priority-select {
+        appearance: none;
+        border: 0;
+        background: transparent;
+        font-size: 9px;
+        font-weight: 600;
+        padding: 0;
+        margin: 0;
+        max-width: 3.5rem;
+        cursor: pointer;
+        color: inherit;
+      }
+
+      .mobile-task-priority-select:focus {
+        outline: none;
+      }
+
+      .mobile-task-dot {
+        width: 5px;
+        height: 5px;
+        border-radius: 999px;
+        flex-shrink: 0;
+      }
+
+      .mobile-task-card:active {
+        background: #fafafa;
+      }
+
+      .mobile-presence-card {
+        background: #fff;
+        border: 1px solid #e4e4e7;
+        border-radius: 0.625rem;
+        padding: 0.875rem 1rem;
+      }
+
+      .mobile-brand-group {
+        border-radius: 0.625rem;
+        overflow: hidden;
+        border: 1px solid #e4e4e7;
+        background: #fff;
+      }
+
+      .mobile-brand-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 0.5rem 0.625rem;
+      }
+
+      .mobile-brand-body {
+        border-top: 1px solid rgba(0, 0, 0, 0.06);
+      }
+
+      .mobile-brand-body .mobile-task-card {
+        border: none;
+        border-radius: 0;
+        border-bottom: 1px solid #f4f4f5;
+      }
+
+      .mobile-brand-body .mobile-task-card:last-child {
+        border-bottom: none;
+      }
+
+      .mobile-task-card.is-selected {
+        background: #eff6ff;
+      }
+
+      .mobile-section-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: #71717a;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .mobile-stat-cell {
+        text-align: center;
+        padding: 0.35rem 0.15rem;
+      }
+
+      .mobile-stat-label {
+        font-size: 9px;
+        font-weight: 600;
+        color: #a1a1aa;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        display: block;
+      }
+
+      .mobile-stat-value {
+        font-size: 1.125rem;
+        font-weight: 800;
+        margin-top: 0.15rem;
+        display: block;
+      }
+
+      .cal-mobile-toolbar {
+        padding: 0.625rem 0.75rem 0.5rem;
+        border-bottom: 1px solid #f4f4f5;
+        background: #fff;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .cal-mobile-toolbar-nav {
+        display: flex;
+        align-items: center;
+        gap: 0.375rem;
+      }
+
+      .cal-mobile-nav-btn {
+        width: 2rem;
+        height: 2rem;
+        border-radius: 0.5rem;
+        border: none;
+        background: #f4f4f5;
+        color: #52525b;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .cal-mobile-nav-btn:active {
+        background: #e4e4e7;
+      }
+
+      .cal-mobile-toolbar-title {
+        flex: 1;
+        min-width: 0;
+        text-align: center;
+        font-size: 13px;
+        font-weight: 700;
+        color: #37352F;
+        background: none;
+        border: none;
+        padding: 0.35rem 0.25rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .cal-mobile-toolbar-tabs {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.25rem;
+        background: #f4f4f5;
+        padding: 0.2rem;
+        border-radius: 0.5rem;
+      }
+
+      .cal-mobile-tab {
+        padding: 0.4rem 0.5rem;
+        font-size: 11px;
+        font-weight: 600;
+        border: none;
+        border-radius: 0.375rem;
+        color: #71717a;
+        background: transparent;
+        text-align: center;
+      }
+
+      .cal-mobile-tab.is-active {
+        background: #fff;
+        color: #37352F;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      }
+
+      .cal-mobile-day-block {
+        border: 1px solid #e4e4e7;
+        border-radius: 0.625rem;
+        overflow: hidden;
+        background: #fff;
+      }
+
+      .cal-mobile-day-block.is-today {
+        border-color: #37352F;
+        box-shadow: 0 0 0 1px rgba(55, 53, 47, 0.08);
+      }
+
+      .cal-mobile-day-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 0.625rem 0.75rem;
+        background: #fafafa;
+        border-bottom: 1px solid #f4f4f5;
+      }
+
+      .cal-mobile-day-block.is-today .cal-mobile-day-head {
+        background: #37352F;
+        border-bottom-color: #2c2a26;
+      }
+
+      .cal-mobile-day-date {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+      }
+
+      .cal-mobile-day-name {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #71717a;
+      }
+
+      .cal-mobile-day-block.is-today .cal-mobile-day-name {
+        color: #d4d4d8;
+      }
+
+      .cal-mobile-day-num {
+        font-size: 18px;
+        font-weight: 800;
+        color: #37352F;
+        line-height: 1;
+      }
+
+      .cal-mobile-day-block.is-today .cal-mobile-day-num {
+        color: #fff;
+      }
+
+      .cal-mobile-today-pill {
+        font-size: 9px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 0.2rem 0.45rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.15);
+        color: #e4e4e7;
+      }
+
+      .cal-mobile-day-count {
+        font-size: 11px;
+        font-weight: 700;
+        color: #71717a;
+        background: #fff;
+        border: 1px solid #e4e4e7;
+        border-radius: 999px;
+        padding: 0.1rem 0.45rem;
+      }
+
+      .cal-mobile-day-block.is-today .cal-mobile-day-count {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 255, 255, 0.2);
+        color: #fff;
+      }
+
+      .cal-mobile-day-tasks {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .cal-mobile-day-empty {
+        padding: 0.75rem;
+        text-align: center;
+        font-size: 11px;
+        color: #d4d4d8;
+      }
+
+      .cal-mobile-task-row {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem;
+        background: #fff;
+        border: none;
+        border-bottom: 1px solid #f4f4f5;
+        text-align: left;
+      }
+
+      .cal-mobile-task-row:last-child {
+        border-bottom: none;
+      }
+
+      .cal-mobile-task-row:active {
+        background: #fafafa;
+      }
+
+      .cal-mobile-day-more {
+        width: 100%;
+        padding: 0.625rem;
+        font-size: 11px;
+        font-weight: 700;
+        color: #71717a;
+        background: #fafafa;
+        border: none;
+        border-top: 1px solid #f4f4f5;
+        text-align: center;
+      }
+
+      .cal-mobile-week-scroll {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(55, 53, 47, 0.15) transparent;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .cal-mobile-week-scroll::-webkit-scrollbar {
+        height: 4px;
+      }
+
+      .mobile-subpage-bar {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding-bottom: 0.25rem;
+      }
+
+      .mobile-subpage-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 12px;
+        font-weight: 600;
+        color: #71717a;
+        background: #f4f4f5;
+        border: 1px solid #e4e4e7;
+        border-radius: 0.5rem;
+        padding: 0.4rem 0.65rem;
+        flex-shrink: 0;
+      }
+
+      .mobile-subpage-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: #37352F;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .mobile-dash-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+      }
+
+      .mobile-icon-btn {
+        width: 2.25rem;
+        height: 2.25rem;
+        border-radius: 0.5rem;
+        border: 1px solid #e4e4e7;
+        background: #fff;
+        color: #71717a;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        position: relative;
+      }
+
+      .mobile-icon-btn.is-active {
+        background: #37352F;
+        color: #fff;
+        border-color: #37352F;
+      }
+
+      .mobile-icon-btn.has-badge::after {
+        content: "";
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: #3b82f6;
+        border: 1px solid #fff;
+      }
+
+      .mobile-menu-btn {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.875rem 1rem;
+        background: #fff;
+        border: 1px solid #e4e4e7;
+        border-radius: 0.625rem;
+        font-size: 13px;
+        font-weight: 600;
+        color: #37352F;
+        text-align: left;
+      }
+
+      .mobile-menu-btn span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.625rem;
+      }
+
+      .mobile-menu-btn i.fa-solid:first-child {
+        width: 1rem;
+        text-align: center;
+        color: #a1a1aa;
+      }
+
+      .mobile-menu-btn.is-danger {
+        color: #dc2626;
+        border-color: #fecaca;
+        background: #fef2f2;
+        justify-content: flex-start;
+      }
+
+      .mobile-menu-btn.is-danger i {
+        color: #dc2626;
+      }
+
+      .robin-pwa-standalone .mobile-top-bar,
+      .robin-pwa-standalone .mobile-nav-bar {
+        background: #ffffff;
+      }
     }

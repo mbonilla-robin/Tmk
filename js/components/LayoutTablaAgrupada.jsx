@@ -1,5 +1,14 @@
-function LayoutTablaAgrupada({ tareas, onUpdateField, onSelectTask, onDeleteTask, getMarcaStyle, currentTheme }) {
-  
+function LayoutTablaAgrupada({
+  tareas,
+  onUpdateField,
+  onSelectTask,
+  onDeleteTask,
+  getMarcaStyle,
+  currentTheme,
+  tareasSeleccionadas = new Set(),
+  onToggleSeleccion = () => {},
+  onToggleSeleccionGrupo = () => {}
+}) {
   const tareasAgrupadasPorMarca = useMemo(() => {
     const agrupamiento = {};
     tareas.forEach(t => {
@@ -26,26 +35,132 @@ function LayoutTablaAgrupada({ tareas, onUpdateField, onSelectTask, onDeleteTask
     return agrupamiento;
   }, [tareas]);
 
+  const grupoCompletamenteSeleccionado = (lista) =>
+    lista.length > 0 && lista.every(t => tareasSeleccionadas.has(getTaskSelectionKey(t)));
+
+  const grupoParcialmenteSeleccionado = (lista) =>
+    lista.some(t => tareasSeleccionadas.has(getTaskSelectionKey(t))) && !grupoCompletamenteSeleccionado(lista);
+
   return (
-    <div className={`border ${currentTheme.border} rounded-md overflow-hidden ${currentTheme.cardBg} w-full`}>
+    <>
+      <div className="md:hidden mobile-task-list">
+        {tareas.length === 0 ? (
+          <div className="py-10 text-center text-zinc-400 text-ui border border-zinc-200 rounded-md bg-white">
+            No hay entregables registrados en esta pestaña.
+          </div>
+        ) : (
+          Object.keys(tareasAgrupadasPorMarca).map(marca => {
+            const tareasDeMarca = tareasAgrupadasPorMarca[marca];
+            const badgeStyle = getMarcaStyle(marca);
+
+            return (
+              <div key={marca} className="mobile-brand-group">
+                <div className={`mobile-brand-header ${badgeStyle.bg} ${badgeStyle.text} border ${badgeStyle.border}`}>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={grupoCompletamenteSeleccionado(tareasDeMarca)}
+                      ref={el => { if (el) el.indeterminate = grupoParcialmenteSeleccionado(tareasDeMarca); }}
+                      onChange={() => onToggleSeleccionGrupo(tareasDeMarca, !grupoCompletamenteSeleccionado(tareasDeMarca))}
+                      onClick={(e) => e.stopPropagation()}
+                      className="rounded border-zinc-300 text-zinc-800 shrink-0"
+                      title="Seleccionar grupo"
+                    />
+                    <div className="min-w-0">
+                      <span className="font-bold text-sm truncate block">{formatearMarca(marca)}</span>
+                      <span className="text-[10px] opacity-75">{tareasDeMarca.length} entregable{tareasDeMarca.length !== 1 ? "s" : ""}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mobile-brand-body">
+                {tareasDeMarca.map(t => {
+                  const cEstado = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(t.estado)) || { dot: "bg-zinc-400" };
+                  const cPrioridad = PRIORIDADES_MAPA.find(p => cleanPrioridad(p.id) === cleanPrioridad(t.prioridad)) || PRIORIDADES_MAPA[1];
+                  const selKey = getTaskSelectionKey(t);
+                  const estaSeleccionada = tareasSeleccionadas.has(selKey);
+                  const personasCorta = t.personas
+                    ? t.personas.split(/[\s,]+/).filter(Boolean).slice(0, 2).join(", ")
+                    : "—";
+
+                  return (
+                    <div
+                      key={selKey}
+                      onClick={() => onSelectTask(t)}
+                      className={`mobile-task-card cursor-pointer ${estaSeleccionada ? "is-selected" : ""}`}
+                    >
+                      <div className="mobile-task-row-main">
+                        <input
+                          type="checkbox"
+                          checked={estaSeleccionada}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={() => onToggleSeleccion(t)}
+                          className="mobile-task-check"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="mobile-task-title">{t.info}</p>
+                          <div className="mobile-task-details">
+                            <span className="mobile-task-detail" title="Estado">
+                              <span className={`mobile-task-dot ${cEstado.dot}`}></span>
+                              <span className="truncate">{t.estado || "—"}</span>
+                            </span>
+                            <span className="mobile-task-detail" title="Fecha">
+                              <SVGIcon.Calendar className="w-2.5 h-2.5 text-zinc-400 shrink-0" />
+                              <span className="truncate">{t.deadline ? formatearFecha(t.deadline) : "—"}</span>
+                            </span>
+                            <span className="mobile-task-detail" title="Asignados">
+                              <SVGIcon.Users className="w-2.5 h-2.5 text-zinc-400 shrink-0" />
+                              <span className="truncate">{personasCorta}</span>
+                            </span>
+                            <span className={`mobile-task-priority ${cPrioridad.color}`} title="Prioridad" onClick={(e) => e.stopPropagation()}>
+                              <SVGIcon.Flag className="w-2.5 h-2.5 shrink-0" />
+                              <select
+                                value={normalizarPrioridad(t.prioridad)}
+                                onChange={(e) => onUpdateField(t, "prioridad", e.target.value)}
+                                className={`mobile-task-priority-select ${cPrioridad.color}`}
+                                aria-label="Cambiar prioridad"
+                              >
+                                {PRIORIDADES_MAPA.map(p => (
+                                  <option key={p.id} value={p.id}>{p.label}</option>
+                                ))}
+                              </select>
+                            </span>
+                          </div>
+                        </div>
+                        <SVGIcon.ChevronRight className="w-3 h-3 text-zinc-300 shrink-0" />
+                      </div>
+                    </div>
+                  );
+                })}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      <div className={`hidden md:block border ${currentTheme.border} rounded-md overflow-hidden ${currentTheme.cardBg} w-full`}>
       <div className="overflow-x-auto w-full">
-        <table className="w-full text-left border-collapse text-xs">
+        <table className="w-full text-left border-collapse text-ui">
           <thead>
-            <tr className="bg-[#FAF9F6]/80 border-b border-zinc-200 text-zinc-500 font-medium">
-              <th className="py-2.5 px-4 text-center w-24">ID</th>
-              <th className="py-2.5 px-4 w-24 text-center">Prioridad</th>
-              <th className="py-2.5 px-4 w-28">Categoría</th>
-              <th className="py-2.5 px-4">Entregable</th>
-              <th className="py-2.5 px-4 w-32 text-center">Estado</th>
-              <th className="py-2.5 px-4 w-28 text-center">Fecha Límite</th>
-              <th className="py-2.5 px-4 w-32">Asignado</th>
-              <th className="py-2.5 px-4 text-center w-16">Acciones</th>
+            <tr className="bg-[#FAF9F6]/80 border-b border-zinc-200 text-zinc-500">
+              <th className="py-2 px-3 w-10 text-center">
+                <span className="sr-only">Seleccionar</span>
+              </th>
+              <th className="py-2 px-3 text-ui-sm font-medium w-20">ID</th>
+              <th className="py-2 px-3 w-24 text-center text-ui-sm font-medium">Prioridad</th>
+              <th className="py-2 px-3 w-24 text-ui-sm font-medium">Categoría</th>
+              <th className="py-2 px-3 text-ui-sm font-medium">Entregable</th>
+              <th className="py-2 px-3 w-28 text-center text-ui-sm font-medium">Estado</th>
+              <th className="py-2 px-3 w-28 text-center text-ui-sm font-medium">Fecha</th>
+              <th className="py-2 px-3 w-28 text-ui-sm font-medium">Asignado</th>
+              <th className="py-2 px-3 text-center w-12 text-ui-sm font-medium"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {tareas.length === 0 ? (
               <tr>
-                <td colSpan="8" className="py-12 text-center text-zinc-400 font-normal">
+                <td colSpan="9" className="py-12 text-center text-zinc-400">
                   No hay entregables registrados en esta pestaña.
                 </td>
               </tr>
@@ -53,17 +168,29 @@ function LayoutTablaAgrupada({ tareas, onUpdateField, onSelectTask, onDeleteTask
               Object.keys(tareasAgrupadasPorMarca).map(marca => {
                 const tareasDeMarca = tareasAgrupadasPorMarca[marca];
                 const badgeStyle = getMarcaStyle(marca);
+                const todoGrupo = grupoCompletamenteSeleccionado(tareasDeMarca);
+                const parcialGrupo = grupoParcialmenteSeleccionado(tareasDeMarca);
 
                 return (
                   <React.Fragment key={marca}>
-                    <tr className="bg-[#FAF9F6]/40 border-y border-zinc-200/50">
-                      <td colSpan="8" className="py-1.5 px-4">
+                    <tr className="bg-[#FAF9F6]/60 border-y border-zinc-200/50">
+                      <td className="py-1.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={todoGrupo}
+                          ref={el => { if (el) el.indeterminate = parcialGrupo; }}
+                          onChange={() => onToggleSeleccionGrupo(tareasDeMarca, !todoGrupo)}
+                          className="rounded border-zinc-300 text-zinc-800 focus:ring-zinc-400 cursor-pointer"
+                          title="Seleccionar grupo"
+                        />
+                      </td>
+                      <td colSpan="8" className="py-1.5 px-2">
                         <div className="flex items-center gap-2">
-                          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border ${badgeStyle.bg} ${badgeStyle.text} ${badgeStyle.border}`}>
+                          <span className={`text-ui-sm font-semibold px-2 py-0.5 rounded border ${badgeStyle.bg} ${badgeStyle.text} ${badgeStyle.border}`}>
                             {formatearMarca(marca)}
                           </span>
-                          <span className="text-[11px] text-zinc-400 font-medium">
-                            ({tareasDeMarca.length})
+                          <span className="text-ui-sm text-zinc-400">
+                            {tareasDeMarca.length}
                           </span>
                         </div>
                       </td>
@@ -73,22 +200,35 @@ function LayoutTablaAgrupada({ tareas, onUpdateField, onSelectTask, onDeleteTask
                       const cEstado = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(t.estado)) || { color: "text-zinc-600", dot: "bg-[#7c7c7c]", bg: "bg-zinc-50" };
                       const cPrioridad = PRIORIDADES_MAPA.find(p => cleanPrioridad(p.id) === cleanPrioridad(t.prioridad)) || PRIORIDADES_MAPA[1];
                       const displayId = cleanIdTarea(t.idTarea);
-                      
+                      const selKey = getTaskSelectionKey(t);
+                      const estaSeleccionada = tareasSeleccionadas.has(selKey);
+
                       return (
-                        <tr 
-                          key={t.idTarea + t.info} 
+                        <tr
+                          key={selKey}
                           onClick={() => onSelectTask(t)}
-                          className="hover:bg-zinc-50/60 transition-colors cursor-pointer"
+                          className={`transition-colors cursor-pointer ${
+                            estaSeleccionada ? "bg-blue-50/50 hover:bg-blue-50/70" : "hover:bg-zinc-50/60"
+                          }`}
                         >
-                          <td className="py-2.5 px-4 font-mono text-[11px] text-zinc-400 text-center font-medium">
-                            {displayId || "---"}
+                          <td className="py-2 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={estaSeleccionada}
+                              onChange={() => onToggleSeleccion(t)}
+                              className="rounded border-zinc-300 text-zinc-800 focus:ring-zinc-400 cursor-pointer"
+                            />
                           </td>
 
-                          <td className="py-2.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                          <td className="py-2 px-3 font-mono text-ui-sm text-zinc-400">
+                            {displayId || "—"}
+                          </td>
+
+                          <td className="py-2 px-3 text-center" onClick={(e) => e.stopPropagation()}>
                             <select
-                              value={t.prioridad || "Media"}
+                              value={normalizarPrioridad(t.prioridad)}
                               onChange={(e) => onUpdateField(t, "prioridad", e.target.value)}
-                              className={`text-[11px] font-medium px-2 py-0.5 rounded border focus:outline-none focus:ring-0 ${cPrioridad.color} cursor-pointer`}
+                              className={`text-ui-sm font-medium px-2 py-0.5 rounded border focus:outline-none focus:ring-0 ${cPrioridad.color} cursor-pointer bg-transparent`}
                             >
                               {PRIORIDADES_MAPA.map(p => (
                                 <option key={p.id} value={p.id} className="bg-white text-[#37352F]">
@@ -97,42 +237,35 @@ function LayoutTablaAgrupada({ tareas, onUpdateField, onSelectTask, onDeleteTask
                               ))}
                             </select>
                           </td>
-                          
-                          <td className="py-2.5 px-4 text-zinc-500 font-normal truncate max-w-[120px]">
-                            {t.categoria || "---"}
+
+                          <td className="py-2 px-3 text-zinc-500 truncate max-w-[100px]">
+                            {t.categoria || "—"}
                           </td>
 
-                          <td className="py-2.5 px-4 font-medium text-[#37352F]">
-                            <div className="max-w-md">
-                              <p className="truncate leading-relaxed">{t.info}</p>
-                              {t.detalles && (
-                                <p className="text-[10px] text-zinc-400 font-normal truncate mt-0.5">
-                                  {t.detalles.split('\n')[0]}
-                                </p>
-                              )}
+                          <td className="py-2 px-3">
+                            <p className="font-medium text-[#37352F] leading-snug line-clamp-2 max-w-lg">
+                              {t.info}
+                            </p>
+                          </td>
+
+                          <td className="py-2 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                            <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded border border-zinc-150 ${cEstado.bg}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cEstado.dot}`}></span>
+                              <select
+                                value={t.estado}
+                                onChange={(e) => onUpdateField(t, "estado", e.target.value)}
+                                className="text-ui-sm font-medium bg-transparent border-0 cursor-pointer focus:outline-none focus:ring-0 text-zinc-700 max-w-[110px]"
+                              >
+                                {LISTA_ESTADOS_VALIDOS.map(opt => (
+                                  <option key={opt} value={opt} className="bg-white text-zinc-800">
+                                    {opt}
+                                  </option>
+                                ))}
+                              </select>
                             </div>
                           </td>
 
-                          <td className="py-2.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
-                            <div className="inline-flex items-center justify-center">
-                              <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded border border-zinc-150 ${cEstado.bg}`}>
-                                <span className={`w-1.5 h-1.5 rounded-full ${cEstado.dot}`}></span>
-                                <select
-                                  value={t.estado}
-                                  onChange={(e) => onUpdateField(t, "estado", e.target.value)}
-                                  className="text-[10px] font-medium bg-transparent border-0 cursor-pointer focus:outline-none focus:ring-0 text-zinc-700"
-                                >
-                                  {LISTA_ESTADOS_VALIDOS.map(opt => (
-                                    <option key={opt} value={opt} className="bg-white text-zinc-800">
-                                      {opt}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
-                            </div>
-                          </td>
-
-                          <td className="py-2.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                          <td className="py-2 px-3 text-center" onClick={(e) => e.stopPropagation()}>
                             <input
                               type="date"
                               value={convertirFechaAInput(t.deadline)}
@@ -142,23 +275,23 @@ function LayoutTablaAgrupada({ tareas, onUpdateField, onSelectTask, onDeleteTask
                                   onUpdateField(t, "deadline", val);
                                 }
                               }}
-                              className="bg-transparent border-0 py-0.5 px-1 text-zinc-500 font-medium focus:outline-none w-28 text-center"
+                              className="bg-transparent border-0 py-0.5 text-ui-sm text-zinc-500 focus:outline-none w-28 text-center"
                             />
                           </td>
 
-                          <td className="py-2.5 px-4 text-zinc-500 font-medium truncate max-w-[100px]">
+                          <td className="py-2 px-3 text-zinc-500 truncate max-w-[100px]">
                             {t.personas || "Sin asignar"}
                           </td>
 
-                          <td className="py-2.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                          <td className="py-2 px-3 text-center" onClick={(e) => e.stopPropagation()}>
                             <button
                               onClick={() => onDeleteTask(t)}
                               className="p-1 text-zinc-400 hover:text-red-500 rounded transition-colors"
+                              title="Eliminar"
                             >
-                              <i className="fa-regular fa-trash-can"></i>
+                              <i className="fa-regular fa-trash-can text-ui-sm"></i>
                             </button>
                           </td>
-
                         </tr>
                       );
                     })}
@@ -169,10 +302,7 @@ function LayoutTablaAgrupada({ tareas, onUpdateField, onSelectTask, onDeleteTask
           </tbody>
         </table>
       </div>
-    </div>
+      </div>
+    </>
   );
 }
-
-// =========================================================================
-// 🗂️ COMPONENTE: LAYOUT KANBAN (BOARD KANBAN ESTILO NOTION)
-// =========================================================================

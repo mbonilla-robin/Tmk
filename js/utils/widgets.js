@@ -1,0 +1,121 @@
+const WIDGET_SECCIONES = {
+  robin: { id: "robin", label: "Robin" },
+  clientes: { id: "clientes", label: "Clientes" }
+};
+
+function formatearTituloWidget(titulo) {
+  let t = String(titulo || "").trim();
+  t = t.replace(/\s*[-–—]\s*(robin|cliente|clientes)\s*$/i, "");
+  t = t.replace(/\s{2,}/g, " ").trim();
+  return t || String(titulo || "").trim();
+}
+
+function normalizarSeccionWidget(seccion) {
+  const key = String(seccion || "").trim().toLowerCase();
+  if (key === "clientes" || key === "cliente") return "clientes";
+  return "robin";
+}
+
+function empaquetarWidgetCategoria(seccion, icon) {
+  return `${normalizarSeccionWidget(seccion)}:${String(icon || "link").trim()}`;
+}
+
+function desempaquetarWidgetCategoria(categoria) {
+  const raw = String(categoria || "").trim();
+  if (raw.includes(":")) {
+    const sep = raw.indexOf(":");
+    return {
+      seccion: normalizarSeccionWidget(raw.slice(0, sep)),
+      icon: raw.slice(sep + 1) || "link"
+    };
+  }
+  return { seccion: "robin", icon: raw || "link" };
+}
+
+function normalizarWidgetDesdeApi(widget) {
+  if (!widget) return null;
+  const empaquetado = desempaquetarWidgetCategoria(widget.icon || widget.categoria);
+  return {
+    id: widget.id,
+    titulo: widget.titulo || "",
+    link: widget.link || "",
+    icon: empaquetado.icon,
+    color: widget.color || "sky",
+    seccion: normalizarSeccionWidget(widget.seccion || empaquetado.seccion)
+  };
+}
+
+function agruparWidgetsPorSeccion(widgets) {
+  const visibles = filtrarWidgetsReales(widgets || [])
+    .map(normalizarWidgetDesdeApi)
+    .filter(Boolean);
+
+  return {
+    robin: visibles.filter(w => w.seccion === "robin"),
+    clientes: visibles.filter(w => w.seccion === "clientes")
+  };
+}
+
+function obtenerOpcionesSeccionWidget() {
+  return Object.values(WIDGET_SECCIONES);
+}
+
+const WIDGET_COLORES_PASTEL = {
+  mint: {
+    label: "Menta",
+    button: "bg-[#D4EDDA] text-[#1B5E3B] border-[#B8DFC6] hover:bg-[#C8E6D0]"
+  },
+  lavender: {
+    label: "Lavanda",
+    button: "bg-[#E8DEFF] text-[#4A3B7A] border-[#D4C4F5] hover:bg-[#DDD0F8]"
+  },
+  peach: {
+    label: "Durazno",
+    button: "bg-[#FFE8D6] text-[#8B4D2E] border-[#FFD4B8] hover:bg-[#FFDCC4]"
+  },
+  sky: {
+    label: "Cielo",
+    button: "bg-[#D6EAF8] text-[#1A5276] border-[#B8D4EC] hover:bg-[#C5E0F5]"
+  },
+  rose: {
+    label: "Rosa",
+    button: "bg-[#FADBD8] text-[#922B21] border-[#F5B7B1] hover:bg-[#F5CFCB]"
+  },
+  lemon: {
+    label: "Limón",
+    button: "bg-[#FCF3CF] text-[#7D6608] border-[#F9E79F] hover:bg-[#F9EBB8]"
+  },
+  lilac: {
+    label: "Lila",
+    button: "bg-[#E8DAEF] text-[#6C3483] border-[#D7BDE2] hover:bg-[#DECFE8]"
+  }
+};
+
+function resolverClaveColorWidget(colorRaw) {
+  const color = String(colorRaw || "").trim().toLowerCase();
+  if (!color) return "sky";
+  if (WIDGET_COLORES_PASTEL[color]) return color;
+
+  if (color.includes("emerald") || color.includes("edfb") || color.includes("green")) return "mint";
+  if (color.includes("indigo") || color.includes("purple") || color.includes("eefc") || color.includes("lavender")) return "lavender";
+  if (color.includes("amber") || color.includes("orange") || color.includes("fef6") || color.includes("peach")) return "peach";
+  if (color.includes("blue") || color.includes("ebf5") || color.includes("sky")) return "sky";
+  if (color.includes("red") || color.includes("fdf0") || color.includes("rose")) return "rose";
+  if (color.includes("yellow") || color.includes("lemon")) return "lemon";
+  if (color.includes("lilac")) return "lilac";
+
+  return "sky";
+}
+
+function getWidgetEstilo(colorRaw) {
+  const clave = resolverClaveColorWidget(colorRaw);
+  return WIDGET_COLORES_PASTEL[clave] || WIDGET_COLORES_PASTEL.sky;
+}
+
+function obtenerOpcionesColorWidget() {
+  return Object.entries(WIDGET_COLORES_PASTEL).map(([id, cfg]) => ({
+    id,
+    label: cfg.label,
+    button: cfg.button
+  }));
+}

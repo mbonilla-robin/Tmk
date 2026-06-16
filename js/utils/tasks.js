@@ -23,3 +23,9 @@ function generarIdDeterminista(t) {
   const prefix = String(t.marca || "TSK").substring(0, 3).toUpperCase().replace(/[^A-Z]/g, "X");
   return `STB-${prefix}-${Math.abs(hash) % 100000}`;
 }
+
+function getTaskSelectionKey(t) {
+  const id = cleanIdTarea(t.idTarea);
+  if (id && isValidIdTarea(id)) return id;
+  return `${t.marca || ""}|${t.info || ""}|${t.deadline || ""}`.toLowerCase().trim();
+}

@@ -2,8 +2,17 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>ROBIN - Trade & Shopper Marketing</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#37352F">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="ROBIN">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -29,6 +38,7 @@
   <script src="js/react/setup.js"></script>
   <script src="js/config/api.js"></script>
   <script src="js/utils/storage.js"></script>
+  <script src="js/utils/preferences.js"></script>
   <script src="js/utils/api.js"></script>
   <script src="js/utils/user.js"></script>
   <script src="js/utils/tasks.js"></script>
@@ -37,8 +47,10 @@
   <script src="js/utils/detalles.js"></script>
   <script src="js/utils/validation.js"></script>
   <script src="js/utils/presence.js"></script>
+  <script src="js/utils/widgets.js"></script>
   <script src="js/constants/index.js"></script>
   <script src="js/utils/marcas.js"></script>
+  <script src="js/pwa.js"></script>
 
   <!-- Componentes React (JSX) -->
   <script type="text/babel" data-presets="react" src="js/components/RobinLogo.jsx"></script>
@@ -48,10 +60,15 @@
   <script type="text/babel" data-presets="react" src="js/components/LayoutTablaAgrupada.jsx"></script>
   <script type="text/babel" data-presets="react" src="js/components/LayoutKanban.jsx"></script>
   <script type="text/babel" data-presets="react" src="js/components/SelectorPersonasChips.jsx"></script>
+  <script type="text/babel" data-presets="react" src="js/components/WidgetBarFila.jsx"></script>
+  <script type="text/babel" data-presets="react" src="js/components/MobileWidgetsGrid.jsx"></script>
   <script type="text/babel" data-presets="react" src="js/components/LayoutHome.jsx"></script>
+  <script type="text/babel" data-presets="react" src="js/components/ModalPortal.jsx"></script>
   <script type="text/babel" data-presets="react" src="js/components/LayoutClientes.jsx"></script>
   <script type="text/babel" data-presets="react" src="js/components/ModalEdicionTarea.jsx"></script>
   <script type="text/babel" data-presets="react" src="js/components/WidgetsAdminPanel.jsx"></script>
+  <script type="text/babel" data-presets="react" src="js/components/MobileSubpageBar.jsx"></script>
+  <script type="text/babel" data-presets="react" src="js/components/MobileNavBar.jsx"></script>
   <script type="text/babel" data-presets="react" src="js/App.jsx"></script>
   <script type="text/babel" data-presets="react" src="js/bootstrap.jsx"></script>
 </body>

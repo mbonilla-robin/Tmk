@@ -3,7 +3,7 @@ const MARCAS_CANONICAS = {
   "DIAGEO": "Diageo",
   "GAMA": "Gama",
   "ROBIN": "Robin",
-  "TMK": "TMK"
+  "TMK": "Trade & Shopper Marketing"
 };
 
 function normalizarMarcaKey(marca) {

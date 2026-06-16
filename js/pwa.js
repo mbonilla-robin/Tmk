@@ -33,6 +33,9 @@ function applyPwaIconVariant(variant) {
   const appleLink = document.querySelector('link[rel="apple-touch-icon"]');
   if (appleLink) appleLink.href = cfg.apple;
 
+  const faviconLink = document.querySelector('link[rel="icon"]');
+  if (faviconLink) faviconLink.href = cfg.icon192;
+
   const themeMeta = document.querySelector('meta[name="theme-color"]');
   if (themeMeta) themeMeta.content = PWA_THEME_COLOR;
 

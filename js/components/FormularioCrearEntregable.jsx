@@ -22,29 +22,10 @@ function FormularioCrearEntregable({
   syncing
 }) {
   const [subtareas, setSubtareas] = useState([]);
-  const [nuevoSubtareaText, setNuevoSubtareaText] = useState("");
 
   const estadoVisual = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(nuevaTarea.estado)) || ESTADOS_MAPA[0];
   const inputPropClass = "w-full bg-transparent border-0 text-ui-sm text-[#37352F] focus:outline-none cursor-pointer font-medium";
   const inputPropTextClass = "w-full bg-transparent border-0 text-ui-sm text-[#37352F] focus:outline-none font-medium placeholder-zinc-400";
-
-  const subtareasCompletadas = useMemo(() => subtareas.filter(s => s.completed).length, [subtareas]);
-  const subtareasProgreso = subtareas.length > 0 ? (subtareasCompletadas / subtareas.length) * 100 : 0;
-
-  const handleAddSubtarea = (e) => {
-    e.preventDefault();
-    if (!nuevoSubtareaText.trim()) return;
-    setSubtareas(prev => [...prev, { text: nuevoSubtareaText.trim(), completed: false }]);
-    setNuevoSubtareaText("");
-  };
-
-  const handleToggleSubtarea = (index) => {
-    setSubtareas(prev => prev.map((s, i) => i === index ? { ...s, completed: !s.completed } : s));
-  };
-
-  const handleDeleteSubtarea = (index) => {
-    setSubtareas(prev => prev.filter((_, i) => i !== index));
-  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -150,75 +131,7 @@ function FormularioCrearEntregable({
             />
           </div>
 
-          <div className="py-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2 text-ui-sm text-zinc-500">
-                <i className="fa-regular fa-square-check text-zinc-400 text-[11px]" />
-                <span>Subtareas</span>
-              </div>
-              {subtareas.length > 0 && (
-                <span className="text-[11px] text-zinc-400 tabular-nums">
-                  {subtareasCompletadas}/{subtareas.length}
-                </span>
-              )}
-            </div>
-
-            {subtareas.length > 0 && (
-              <div className="h-0.5 bg-zinc-100 rounded-full mb-3 overflow-hidden">
-                <div
-                  className="h-full bg-emerald-400 rounded-full transition-all duration-300"
-                  style={{ width: `${subtareasProgreso}%` }}
-                />
-              </div>
-            )}
-
-            <div className="flex flex-col">
-              {subtareas.map((s, idx) => (
-                <div
-                  key={idx}
-                  className="group flex items-start gap-2.5 py-1 px-1 -mx-1 rounded hover:bg-zinc-50/80 transition-colors"
-                >
-                  <button
-                    type="button"
-                    onClick={() => handleToggleSubtarea(idx)}
-                    className={`mt-0.5 w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors ${
-                      s.completed
-                        ? "bg-emerald-500 border-emerald-500 text-white"
-                        : "border-zinc-300 hover:border-zinc-500 bg-white"
-                    }`}
-                    aria-label={s.completed ? "Marcar pendiente" : "Marcar completada"}
-                  >
-                    {s.completed && <i className="fa-solid fa-check text-[8px]" />}
-                  </button>
-                  <span className={`task-subtask-text flex-1 text-ui-sm leading-relaxed pt-px ${
-                    s.completed ? "line-through text-zinc-400" : "text-[#37352F]"
-                  }`}>
-                    {s.text}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteSubtarea(idx)}
-                    className="opacity-0 group-hover:opacity-100 mt-0.5 w-5 h-5 flex items-center justify-center rounded text-zinc-300 hover:text-red-400 hover:bg-red-50 transition-all shrink-0"
-                    aria-label="Eliminar subtarea"
-                  >
-                    <i className="fa-solid fa-xmark text-[10px]" />
-                  </button>
-                </div>
-              ))}
-
-              <div className="flex items-center gap-2.5 py-1 px-1 -mx-1 mt-0.5">
-                <div className="w-4 h-4 shrink-0 rounded border border-dashed border-zinc-300" />
-                <input
-                  type="text"
-                  placeholder="Añadir subtarea..."
-                  value={nuevoSubtareaText}
-                  onChange={(e) => setNuevoSubtareaText(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleAddSubtarea(e); }}
-                  className="task-subtask-input flex-1 bg-transparent border-0 text-ui-sm text-[#37352F] placeholder-zinc-400 focus:outline-none"
-                />
-              </div>
-            </div>
-          </div>
+          <ListaSubtareas subtareas={subtareas} onChange={setSubtareas} />
         </div>
 
         <div className="task-form-actions sticky bottom-[var(--mobile-chrome-bottom,4rem)] md:bottom-0 bg-white/95 backdrop-blur-sm border-t border-zinc-100 px-5 md:px-12 lg:px-10 py-3 flex justify-end gap-2">

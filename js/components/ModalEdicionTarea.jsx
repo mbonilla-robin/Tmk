@@ -1,11 +1,11 @@
 function PropertyRow({ icon, label, children }) {
   return (
-    <div className="group flex items-center min-h-[34px] py-0.5 px-1 -mx-1 rounded hover:bg-zinc-50/80 transition-colors">
-      <div className="flex items-center gap-2 w-[128px] shrink-0 text-ui-sm text-zinc-500">
+    <div className="task-prop-row group flex items-center min-h-[34px] py-0.5 px-1 -mx-1 rounded hover:bg-zinc-50/80 transition-colors">
+      <div className="task-prop-label flex items-center gap-2 w-[128px] shrink-0 text-ui-sm text-zinc-500">
         <i className={`${icon} w-3.5 text-center text-zinc-400 text-[11px]`} />
         <span>{label}</span>
       </div>
-      <div className="flex-1 min-w-0">{children}</div>
+      <div className="task-prop-value flex-1 min-w-0">{children}</div>
     </div>
   );
 }
@@ -85,7 +85,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
       />
 
       <div className="task-sheet-panel flex-1 min-h-0 bg-white rounded-t-2xl shadow-[0_-8px_40px_rgba(0,0,0,0.12)] overflow-y-auto animate-task-sheet-in">
-        <form onSubmit={handleSubmit} className="min-h-full flex flex-col">
+        <form onSubmit={handleSubmit} className="min-h-full flex flex-col task-form-page">
           <div className="sticky top-0 z-10 relative bg-white/95 backdrop-blur-sm pt-3 pb-1 px-6 md:px-10">
             <div className="task-sheet-handle w-9 h-1 bg-zinc-300 rounded-full mx-auto mb-4" aria-hidden="true" />
             <button
@@ -106,7 +106,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
               value={info}
               onChange={(e) => setInfo(e.target.value)}
               placeholder="Sin título"
-              className="w-full pr-8 text-2xl md:text-[1.75rem] font-bold text-[#37352F] bg-transparent border-0 focus:outline-none placeholder-zinc-300 leading-snug"
+              className="task-form-title w-full pr-8 text-2xl md:text-[1.75rem] font-bold text-[#37352F] bg-transparent border-0 focus:outline-none placeholder-zinc-300 leading-snug"
             />
             {cleanIdTarea(tarea.idTarea) && (
               <span className="inline-block mt-1.5 text-[11px] font-mono text-zinc-400">
@@ -178,16 +178,13 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
 
           {/* Notas */}
           <div className="py-4 border-b border-zinc-100">
-            <div className="flex items-center gap-2 mb-2 text-ui-sm text-zinc-500">
+            <div className="task-section-label flex items-center gap-2 mb-2 text-ui-sm text-zinc-500">
               <i className="fa-regular fa-note-sticky text-zinc-400 text-[11px]" />
               <span>Notas</span>
             </div>
-            <textarea
-              rows="3"
+            <EditorNotasRich
               value={notes}
-              onChange={(e) => handleNotasChange(e.target.value)}
-              className="w-full bg-transparent border-0 p-0 text-ui-sm leading-relaxed text-[#37352F] focus:outline-none placeholder-zinc-400 resize-none"
-              placeholder="Escribe notas o contexto adicional..."
+              onChange={handleNotasChange}
             />
           </div>
 
@@ -232,7 +229,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
                   >
                     {s.completed && <i className="fa-solid fa-check text-[8px]" />}
                   </button>
-                  <span className={`flex-1 text-ui-sm leading-relaxed pt-px ${
+                  <span className={`task-subtask-text flex-1 text-ui-sm leading-relaxed pt-px ${
                     s.completed ? "line-through text-zinc-400" : "text-[#37352F]"
                   }`}>
                     {s.text}
@@ -256,7 +253,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
                   value={nuevoSubtareaText}
                   onChange={(e) => setNuevoSubtareaText(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") handleAddSubtarea(e); }}
-                  className="flex-1 bg-transparent border-0 text-ui-sm text-[#37352F] placeholder-zinc-400 focus:outline-none"
+                  className="task-subtask-input flex-1 bg-transparent border-0 text-ui-sm text-[#37352F] placeholder-zinc-400 focus:outline-none"
                 />
               </div>
             </div>
@@ -280,7 +277,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
 
           </div>
 
-          <div className="sticky bottom-0 bg-white/95 backdrop-blur-sm border-t border-zinc-100 px-6 md:px-10 py-3 flex justify-end gap-2 max-w-3xl mx-auto w-full">
+          <div className="task-form-actions sticky bottom-0 bg-white/95 backdrop-blur-sm border-t border-zinc-100 px-6 md:px-10 py-3 flex justify-end gap-2 max-w-3xl mx-auto w-full">
             <button
               type="button"
               onClick={onClose}

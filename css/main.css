@@ -129,6 +129,205 @@ body {
       font-size: 11px;
       line-height: 1.4;
     }
+
+    /* Formulario / detalle de entregable — desktop más legible */
+    @media (min-width: 1024px) {
+      .task-form-page {
+        max-width: 52rem;
+        margin-left: auto;
+        margin-right: auto;
+        width: 100%;
+      }
+
+      .task-form-page .task-form-eyebrow {
+        font-size: 13px;
+      }
+
+      .task-form-page .task-form-title {
+        font-size: 2rem;
+        line-height: 1.25;
+      }
+
+      .task-form-page .task-prop-row {
+        min-height: 40px;
+      }
+
+      .task-form-page .task-prop-label {
+        width: 10.5rem;
+        font-size: 14px;
+      }
+
+      .task-form-page .task-prop-label i {
+        font-size: 13px;
+      }
+
+      .task-form-page .task-prop-value,
+      .task-form-page .task-prop-value select,
+      .task-form-page .task-prop-value input {
+        font-size: 14px;
+      }
+
+      .task-form-page .task-section-label {
+        font-size: 14px;
+      }
+
+      .task-form-page .task-section-label i {
+        font-size: 13px;
+      }
+
+      .task-form-page .task-form-actions button {
+        font-size: 14px;
+        padding: 0.5rem 1rem;
+      }
+
+      .task-form-page .rich-notes-content {
+        font-size: 15px;
+        line-height: 1.65;
+        min-height: 8rem;
+      }
+
+      .task-form-page .task-subtask-text {
+        font-size: 14px;
+      }
+
+      .task-form-page .task-subtask-input {
+        font-size: 14px;
+      }
+
+      .task-form-page .rich-notes-toolbar {
+        padding: 0.375rem 0.5rem;
+      }
+
+      .task-form-page .rich-notes-btn {
+        width: 2rem;
+        height: 2rem;
+        font-size: 13px;
+      }
+
+      .task-sheet-panel .task-form-page {
+        max-width: 56rem;
+      }
+
+      .task-sheet-panel .task-form-title {
+        font-size: 2rem;
+      }
+    }
+
+    /* Editor de notas con formato */
+    .rich-notes-editor {
+      border: 1px solid #ececea;
+      border-radius: 0.5rem;
+      background: #fafaf9;
+      overflow: hidden;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .rich-notes-editor:focus-within {
+      border-color: #d4d4d8;
+      box-shadow: 0 0 0 2px rgba(55, 53, 47, 0.06);
+      background: #fff;
+    }
+
+    .rich-notes-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 0.125rem;
+      padding: 0.25rem 0.375rem;
+      border-bottom: 1px solid #ececea;
+      background: #fff;
+    }
+
+    .rich-notes-toolbar-sep {
+      width: 1px;
+      height: 1.125rem;
+      background: #e4e4e7;
+      margin: 0 0.25rem;
+    }
+
+    .rich-notes-btn {
+      width: 1.75rem;
+      height: 1.75rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      border-radius: 0.25rem;
+      background: transparent;
+      color: #71717a;
+      font-size: 11px;
+      cursor: pointer;
+      transition: background 0.12s, color 0.12s;
+    }
+
+    .rich-notes-btn:hover {
+      background: #f4f4f5;
+      color: #37352F;
+    }
+
+    .rich-notes-btn.is-active {
+      background: #37352F;
+      color: #fff;
+    }
+
+    .rich-notes-content {
+      min-height: 6rem;
+      padding: 0.625rem 0.75rem;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #37352F;
+      outline: none;
+      overflow-y: auto;
+    }
+
+    .rich-notes-content.is-empty:before {
+      content: attr(data-placeholder);
+      color: #a1a1aa;
+      pointer-events: none;
+    }
+
+    .rich-notes-content p {
+      margin: 0 0 0.5em;
+    }
+
+    .rich-notes-content p:last-child {
+      margin-bottom: 0;
+    }
+
+    .rich-notes-content div {
+      margin: 0 0 0.5em;
+    }
+
+    .rich-notes-content ul,
+    .rich-notes-content ol {
+      margin: 0.35em 0 0.65em !important;
+      padding-left: 1.5rem !important;
+    }
+
+    .rich-notes-content ul {
+      list-style: disc outside !important;
+    }
+
+    .rich-notes-content ol {
+      list-style: decimal outside !important;
+    }
+
+    .rich-notes-content li {
+      display: list-item !important;
+      margin: 0.2em 0;
+    }
+
+    .rich-notes-content ul ul {
+      list-style-type: circle !important;
+    }
+
+    .rich-notes-content ol ol {
+      list-style-type: lower-alpha !important;
+    }
+
+    .rich-notes-content strong,
+    .rich-notes-content b {
+      font-weight: 700;
+    }
     .presence-user-name {
       min-width: 0;
       overflow: visible;

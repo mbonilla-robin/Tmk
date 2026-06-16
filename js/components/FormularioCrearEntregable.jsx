@@ -1,11 +1,11 @@
 function PropertyRow({ icon, label, children }) {
   return (
-    <div className="group flex items-center min-h-[34px] py-0.5 px-1 -mx-1 rounded hover:bg-zinc-50/80 transition-colors">
-      <div className="flex items-center gap-2 w-[128px] shrink-0 text-ui-sm text-zinc-500">
+    <div className="task-prop-row group flex items-center min-h-[34px] py-0.5 px-1 -mx-1 rounded hover:bg-zinc-50/80 transition-colors">
+      <div className="task-prop-label flex items-center gap-2 w-[128px] shrink-0 text-ui-sm text-zinc-500">
         <i className={`${icon} w-3.5 text-center text-zinc-400 text-[11px]`} />
         <span>{label}</span>
       </div>
-      <div className="flex-1 min-w-0">{children}</div>
+      <div className="task-prop-value flex-1 min-w-0">{children}</div>
     </div>
   );
 }
@@ -26,10 +26,10 @@ function FormularioCrearEntregable({
   const inputPropTextClass = "w-full bg-transparent border-0 text-ui-sm text-[#37352F] focus:outline-none font-medium placeholder-zinc-400";
 
   return (
-    <div className="w-full min-h-full flex flex-col animate-fade-in bg-white">
+    <div className="task-form-page w-full min-h-full flex flex-col animate-fade-in bg-white">
       <form onSubmit={onSubmit} className="min-h-full flex flex-col flex-1">
-        <div className="px-5 md:px-12 lg:px-16 pt-1 pb-5 md:pt-4 md:pb-6">
-          <span className="text-ui-sm text-zinc-400">Nuevo entregable</span>
+        <div className="px-5 md:px-12 lg:px-10 pt-1 pb-5 md:pt-6 md:pb-6">
+          <span className="task-form-eyebrow text-ui-sm text-zinc-400">Nuevo entregable</span>
           <input
             type="text"
             required
@@ -37,11 +37,11 @@ function FormularioCrearEntregable({
             value={nuevaTarea.info}
             onChange={(e) => setNuevaTarea({ ...nuevaTarea, info: e.target.value })}
             placeholder="Sin título"
-            className="w-full mt-2 text-2xl md:text-[1.75rem] font-bold text-[#37352F] bg-transparent border-0 focus:outline-none placeholder-zinc-300 leading-snug"
+            className="task-form-title w-full mt-2 text-2xl md:text-[1.75rem] font-bold text-[#37352F] bg-transparent border-0 focus:outline-none placeholder-zinc-300 leading-snug"
           />
         </div>
 
-        <div className="flex-1 px-5 md:px-12 lg:px-16 pb-28">
+        <div className="flex-1 px-5 md:px-12 lg:px-10 pb-28">
           <div className="pb-2 flex flex-col gap-0.5 border-b border-zinc-100">
             <PropertyRow icon="fa-regular fa-building" label="Cliente">
               <select
@@ -114,21 +114,18 @@ function FormularioCrearEntregable({
           </div>
 
           <div className="py-4">
-            <div className="flex items-center gap-2 mb-2 text-ui-sm text-zinc-500">
+            <div className="task-section-label flex items-center gap-2 mb-2 text-ui-sm text-zinc-500">
               <i className="fa-regular fa-note-sticky text-zinc-400 text-[11px]" />
               <span>Notas</span>
             </div>
-            <textarea
-              rows="4"
-              placeholder="Escribe notas o contexto adicional..."
+            <EditorNotasRich
               value={nuevaTarea.detalles}
-              onChange={(e) => setNuevaTarea({ ...nuevaTarea, detalles: e.target.value })}
-              className="w-full bg-transparent border-0 p-0 text-ui-sm leading-relaxed text-[#37352F] focus:outline-none placeholder-zinc-400 resize-none"
+              onChange={(html) => setNuevaTarea({ ...nuevaTarea, detalles: html })}
             />
           </div>
         </div>
 
-        <div className="sticky bottom-[var(--mobile-chrome-bottom,4rem)] md:bottom-0 bg-white/95 backdrop-blur-sm border-t border-zinc-100 px-5 md:px-12 lg:px-16 py-3 flex justify-end gap-2">
+        <div className="task-form-actions sticky bottom-[var(--mobile-chrome-bottom,4rem)] md:bottom-0 bg-white/95 backdrop-blur-sm border-t border-zinc-100 px-5 md:px-12 lg:px-10 py-3 flex justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}

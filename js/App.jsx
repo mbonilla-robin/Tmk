@@ -1476,8 +1476,8 @@ function App() {
         </header>
 
         <div className={`flex-1 overflow-y-auto overflow-x-hidden w-full min-h-0 ${
-          paginaActiva === "agregar" ? "" : "max-w-6xl mx-auto"
-        } ${paginaActiva === "agregar" ? "robin-mobile-main !px-0" : "robin-mobile-main"}`}>
+          paginaActiva === "agregar" ? "lg:px-8" : "max-w-6xl mx-auto"
+        } ${paginaActiva === "agregar" ? "robin-mobile-main !px-0 lg:!px-8" : "robin-mobile-main"}`}>
           
           {!isConfigOnlyAdmin && paginaActiva === "home" && (
             <LayoutHome 

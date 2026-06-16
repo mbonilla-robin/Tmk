@@ -99,9 +99,10 @@ function LayoutHome({
                 <span
                   key={u.uid || `user-${index}`}
                   className="inline-flex items-center gap-1 text-[10px] font-medium text-zinc-600 bg-zinc-50 border border-zinc-200 rounded-full px-2 py-0.5"
+                  title={formatearNombrePresencia(u)}
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                  {u.nombre || (u.username ? `@${String(u.username).replace(/^@/, "")}` : "Usuario")}
+                  {formatearNombrePresencia(u)}
                 </span>
               ))}
             </div>

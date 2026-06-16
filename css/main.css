@@ -129,6 +129,11 @@ body {
       font-size: 11px;
       line-height: 1.4;
     }
+    .presence-user-name {
+      min-width: 0;
+      overflow: visible;
+      white-space: nowrap;
+    }
     /* Scroll suave en columnas del calendario semanal */
     .cal-week-scroll {
       scrollbar-width: thin;

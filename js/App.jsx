@@ -1312,20 +1312,20 @@ function App() {
 
                 <div className="flex flex-col gap-1.5">
                   {/* Usuario actual — siempre primero */}
-                  <div className="flex items-center gap-1.5 overflow-hidden">
+                  <div className="flex items-center gap-1.5 min-w-0">
                     <span className="relative flex h-1.5 w-1.5 shrink-0">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
                     </span>
-                    <span className="text-ui font-semibold truncate text-[#37352F]">@{usuario}</span>
+                    <span className="text-ui font-semibold presence-user-name text-[#37352F]">@{usuario}</span>
                   </div>
 
                   {/* Otros usuarios conectados — debajo del tuyo */}
                   {presenceEstado === "ready" && otrosUsuariosEnLinea.map((u, index) => (
-                    <div key={u.uid || `user-${index}`} className="flex items-center gap-1.5 pl-0.5 overflow-hidden">
+                    <div key={u.uid || `user-${index}`} className="flex items-center gap-1.5 pl-0.5 min-w-0">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
-                      <span className="text-ui-sm text-zinc-600 truncate font-medium">
-                        {u.nombre || (u.username ? `@${String(u.username).replace(/^@/, "")}` : "Usuario")}
+                      <span className="text-ui-sm text-zinc-600 presence-user-name font-medium" title={formatearNombrePresencia(u)}>
+                        {formatearNombrePresencia(u)}
                       </span>
                     </div>
                   ))}

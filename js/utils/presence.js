@@ -139,6 +139,16 @@ function obtenerUsuariosEnLinea(data, widgets, extra) {
   );
 }
 
+function formatearNombrePresencia(user) {
+  if (!user) return "Usuario";
+  const nombre = String(user.nombre || "").trim();
+  const username = String(user.username || "").replace(/^@/, "").trim();
+  if (nombre && !/^@[\w.]+$/i.test(nombre)) {
+    return nombre;
+  }
+  return username ? `@${username}` : "Usuario";
+}
+
 function obtenerNombrePerfilDesdePresencia(data, username) {
   if (!username || !Array.isArray(data)) return null;
 

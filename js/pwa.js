@@ -1,6 +1,6 @@
 const PWA_THEME_COLOR = "#FFFFFF";
 const PWA_BACKGROUND_COLOR = "#FFFFFF";
-const ROBIN_FAVICON = "logo robin negro.png";
+const ROBIN_FAVICON = "icons/pwa-negro-192.png";
 
 const PWA_ICON_VARIANTS = {
   blanco: {

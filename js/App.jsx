@@ -1022,7 +1022,7 @@ function App() {
   // UI DE ACCESO EXCLUSIVO
   if (!usuario) {
     return (
-      <div className="h-screen w-screen bg-[#FAFAFA] flex items-center justify-center p-4 select-none animate-fade-in">
+      <div className="h-screen w-screen bg-white flex items-center justify-center p-4 select-none animate-fade-in">
         <div className="bg-white border border-zinc-200 shadow-sm rounded-md p-6 md:p-8 w-full max-w-sm flex flex-col gap-6">
           
           <div className="flex flex-col items-center gap-1.5">

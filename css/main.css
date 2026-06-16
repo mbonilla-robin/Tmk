@@ -5,6 +5,16 @@ body {
       background-color: #FFFFFF;
     }
 
+    html {
+      background-color: #FFFFFF;
+    }
+
+    html.robin-app,
+    html.robin-app body,
+    html.robin-app #root {
+      background-color: #FFFFFF;
+    }
+
     /* Sin zoom en móvil / PWA */
     html.robin-app {
       touch-action: manipulation;
@@ -16,8 +26,49 @@ body {
     }
     html.robin-pwa-standalone,
     html.robin-pwa-standalone body {
-      touch-action: pan-x pan-y;
+      touch-action: manipulation;
       overscroll-behavior: none;
+    }
+
+    @media (max-width: 767px) {
+      html.robin-app,
+      html.robin-app body {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        overscroll-behavior: none;
+        background-color: #FFFFFF;
+      }
+
+      html.robin-app #root {
+        position: fixed;
+        inset: 0;
+        overflow: hidden;
+        background-color: #FFFFFF;
+      }
+
+      html.robin-app #root > div {
+        background-color: #FFFFFF;
+      }
+
+      html.robin-app main {
+        background-color: #FFFFFF;
+      }
+
+      html.robin-app,
+      html.robin-app * {
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+      }
+
+      html.robin-app *::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
+        background: transparent;
+      }
     }
     /* Estilo barra de desplazamiento tipo Notion */
     ::-webkit-scrollbar {
@@ -101,10 +152,21 @@ body {
         padding-left: 1rem;
         padding-right: 1rem;
         overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
         -webkit-overflow-scrolling: touch;
         display: flex;
         flex-direction: column;
         gap: 1.25rem;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+        background-color: #FFFFFF;
+      }
+
+      .robin-mobile-main::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
       }
 
       .mobile-top-bar {
@@ -144,7 +206,7 @@ body {
         height: 2.25rem;
         border-radius: 0.5rem;
         border: 1px solid #e4e4e7;
-        background: #fafafa;
+        background: #ffffff;
         color: #71717a;
         display: inline-flex;
         align-items: center;
@@ -361,7 +423,7 @@ body {
       }
 
       .mobile-task-card:active {
-        background: #fafafa;
+        background: #ffffff;
       }
 
       .mobile-presence-card {
@@ -524,7 +586,7 @@ body {
         justify-content: space-between;
         gap: 0.5rem;
         padding: 0.625rem 0.75rem;
-        background: #fafafa;
+        background: #ffffff;
         border-bottom: 1px solid #f4f4f5;
       }
 
@@ -618,7 +680,7 @@ body {
       }
 
       .cal-mobile-task-row:active {
-        background: #fafafa;
+        background: #ffffff;
       }
 
       .cal-mobile-day-more {
@@ -627,7 +689,7 @@ body {
         font-size: 11px;
         font-weight: 700;
         color: #71717a;
-        background: #fafafa;
+        background: #ffffff;
         border: none;
         border-top: 1px solid #f4f4f5;
         text-align: center;

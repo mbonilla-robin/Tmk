@@ -5,6 +5,32 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>ROBIN - Trade & Shopper Marketing</title>
 
+  <!-- Bloqueo de zoom: debe ejecutarse antes que el resto -->
+  <script>
+    (function () {
+      var opts = { passive: false };
+      var stop = function (e) { e.preventDefault(); };
+      document.addEventListener("gesturestart", stop, opts);
+      document.addEventListener("gesturechange", stop, opts);
+      document.addEventListener("gestureend", stop, opts);
+      document.addEventListener("touchstart", function (e) {
+        if (e.touches.length > 1) stop(e);
+      }, opts);
+      document.addEventListener("touchmove", function (e) {
+        if (e.touches.length > 1) stop(e);
+      }, opts);
+      var lockViewport = "width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover";
+      var applyViewport = function () {
+        var meta = document.querySelector('meta[name="viewport"]');
+        if (meta) meta.setAttribute("content", lockViewport);
+      };
+      applyViewport();
+      window.addEventListener("orientationchange", function () {
+        setTimeout(applyViewport, 200);
+      });
+    })();
+  </script>
+
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#37352F">

@@ -29,6 +29,10 @@
   window.addEventListener("load", () => {
     navigator.serviceWorker
       .register("./sw.js", { scope: "./" })
+      .then((reg) => {
+        reg.update();
+        if (reg.waiting) reg.waiting.postMessage({ type: "SKIP_WAITING" });
+      })
       .catch((err) => console.warn("ROBIN PWA: service worker no registrado", err));
   });
 })();

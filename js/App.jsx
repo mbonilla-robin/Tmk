@@ -1,5 +1,14 @@
 function App() {
   const [usuario, setUsuario] = useState(() => getInicialUsuario());
+  const [initialPrefs] = useState(() => {
+    try {
+      return getInitialUserPrefs(getInicialUsuario());
+    } catch (e) {
+      console.error("ROBIN: error cargando preferencias", e);
+      return {};
+    }
+  });
+
   const [claveInput, setClaveInput] = useState("");
   const [loginError, setLoginError] = useState("");
 
@@ -23,7 +32,7 @@ function App() {
     }
   });
 
-  const [theme, setTheme] = useState(() => getLocalStorageItemSafe("robin_theme", "notion"));
+  const [theme, setTheme] = useState(() => initialPrefs.theme || "notion");
   const currentTheme = useMemo(() => TEMAS[theme] || TEMAS.notion, [theme]);
 
   const [tareas, setTareas] = useState([]);
@@ -33,17 +42,16 @@ function App() {
   const [apiError, setApiError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const [filtroTiempo, setFiltroTiempo] = useState("TODAS"); 
-  const [filtroMarca, setFiltroMarca] = useState("TODAS");
-  const [filtroEstado, setFiltroEstado] = useState("TODOS");
-  const [filtroPrioridad, setFiltroPrioridad] = useState("TODAS"); 
-  const [searchQuery, setSearchQuery] = useState("");
+  const [filtroTiempo, setFiltroTiempo] = useState(() => initialPrefs.filtroTiempo || "TODAS"); 
+  const [filtroMarca, setFiltroMarca] = useState(() => initialPrefs.filtroMarca || "TODAS");
+  const [filtroEstado, setFiltroEstado] = useState(() => initialPrefs.filtroEstado || "TODOS");
+  const [filtroPrioridad, setFiltroPrioridad] = useState(() => initialPrefs.filtroPrioridad || "TODAS"); 
+  const [searchQuery, setSearchQuery] = useState(() => initialPrefs.searchQuery || "");
   
-  const [paginaActiva, setPaginaActiva] = useState(() => {
-    const u = getInicialUsuario();
-    return u === "admin" ? "configuracion" : "home";
-  }); 
-  const [vistaModo, setVistaModo] = useState(() => getUserPreference("vistaModo", "TABLE")); 
+  const [paginaActiva, setPaginaActiva] = useState(() =>
+    resolvePaginaActivaForUser(getInicialUsuario(), initialPrefs)
+  ); 
+  const [vistaModo, setVistaModo] = useState(() => initialPrefs.vistaModo || "TABLE"); 
 
   const [activeTask, setActiveTask] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -55,9 +63,7 @@ function App() {
   const [bulkPrioridad, setBulkPrioridad] = useState("");
   const [bulkDeadline, setBulkDeadline] = useState("");
 
-  const [nombreCompleto, setNombreCompleto] = useState(() => {
-    return getLocalStorageItemSafe("robin_nombre_completo", "");
-  });
+  const [nombreCompleto, setNombreCompleto] = useState(() => initialPrefs.nombreCompleto || "");
 
   const [marcasMetadata, setMarcasMetadata] = useState({});
   const [widgets, setWidgets] = useState([]);
@@ -66,8 +72,9 @@ function App() {
   const [presenceEstado, setPresenceEstado] = useState("idle");
 
   const [syncDetalleVisible, setSyncDetalleVisible] = useState(false);
-  const [dashboardMobileVista, setDashboardMobileVista] = useState("lista");
+  const [dashboardMobileVista, setDashboardMobileVista] = useState(() => initialPrefs.dashboardMobileVista || "lista");
   const [configMobileSeccion, setConfigMobileSeccion] = useState(null);
+  const [prefsReady, setPrefsReady] = useState(() => !getInicialUsuario());
 
   const [listaPersonas, setListaPersonas] = useState(() => {
     try {
@@ -214,12 +221,107 @@ function App() {
       removeLocalStorageItemSafe("robin_usuario_actual");
       setUsuario(null);
     }
-    const n = getLocalStorageItemSafe("robin_nombre_completo", null);
-    if (!n) {
-      removeLocalStorageItemSafe("robin_nombre_completo");
-      setNombreCompleto("");
-    }
   }, []);
+
+  const aplicarPreferenciasUsuario = async (userClean) => {
+    const prefs = await mergeAndSyncUserPrefs(userClean);
+    applyPrefsToReactState(prefs, {
+      setNombreCompleto,
+      setTheme,
+      setVistaModo,
+      setFiltroTiempo,
+      setFiltroMarca,
+      setFiltroEstado,
+      setFiltroPrioridad,
+      setSearchQuery,
+      setDashboardMobileVista,
+      setPaginaActiva
+    }, userClean);
+  };
+
+  useEffect(() => {
+    if (!usuario) {
+      setPrefsReady(true);
+      return;
+    }
+
+    let cancelled = false;
+    setPrefsReady(false);
+
+    mergeAndSyncUserPrefs(usuario).then(prefs => {
+      if (cancelled) return;
+      applyPrefsToReactState(prefs, {
+        setNombreCompleto,
+        setTheme,
+        setVistaModo,
+        setFiltroTiempo,
+        setFiltroMarca,
+        setFiltroEstado,
+        setFiltroPrioridad,
+        setSearchQuery,
+        setDashboardMobileVista,
+        setPaginaActiva
+      }, usuario);
+      setPrefsReady(true);
+    }).catch((e) => {
+      console.warn("ROBIN: fallo al sincronizar preferencias al iniciar", e);
+      if (!cancelled) setPrefsReady(true);
+    });
+
+    const resyncAlVolver = () => {
+      if (document.visibilityState !== "visible" || cancelled) return;
+      mergeAndSyncUserPrefs(usuario).then(prefs => {
+        if (cancelled) return;
+        applyPrefsToReactState(prefs, {
+          setNombreCompleto,
+          setTheme,
+          setVistaModo,
+          setFiltroTiempo,
+          setFiltroMarca,
+          setFiltroEstado,
+          setFiltroPrioridad,
+          setSearchQuery,
+          setDashboardMobileVista,
+          setPaginaActiva
+        }, usuario);
+      });
+    };
+    document.addEventListener("visibilitychange", resyncAlVolver);
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", resyncAlVolver);
+    };
+  }, [usuario]);
+
+  useEffect(() => {
+    if (!usuario || !prefsReady) return;
+    saveUserData(usuario, {
+      nombreCompleto,
+      theme,
+      paginaActiva,
+      vistaModo,
+      filtroTiempo,
+      filtroMarca,
+      filtroEstado,
+      filtroPrioridad,
+      searchQuery,
+      dashboardMobileVista
+    });
+  }, [
+    usuario,
+    prefsReady,
+    nombreCompleto,
+    theme,
+    paginaActiva,
+    vistaModo,
+    filtroTiempo,
+    filtroMarca,
+    filtroEstado,
+    filtroPrioridad,
+    searchQuery,
+    dashboardMobileVista
+  ]);
 
   useEffect(() => {
     if (usuario) {
@@ -403,7 +505,9 @@ function App() {
 
   const handleSaveNombreCompleto = (e) => {
     e.preventDefault();
-    setLocalStorageItemSafe("robin_nombre_completo", nombreCompleto);
+    if (usuario) {
+      saveUserData(usuario, { nombreCompleto });
+    }
     showToast("Nombre guardado", "success");
   };
 
@@ -631,11 +735,10 @@ function App() {
 
   const handleThemeChange = (newTheme) => {
     setTheme(newTheme);
-    setLocalStorageItemSafe("robin_theme", newTheme);
     showToast(`Tema cambiado`, "success");
   };
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     const userClean = e.target.username.value.trim().toLowerCase();
     if (!listaUsuarios.includes(userClean)) {
@@ -649,24 +752,32 @@ function App() {
     setUsuario(userClean);
     setLocalStorageItemSafe("robin_usuario_actual", userClean);
     setLoginError("");
-    if (userClean === "admin") {
-      setPaginaActiva("configuracion");
-    } else {
-      setPaginaActiva("home");
-    }
+    await aplicarPreferenciasUsuario(userClean);
     showToast(`Sesión iniciada: @${userClean}`, "success");
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (usuario) {
+      saveUserDataLocal(usuario, {
+        nombreCompleto,
+        theme,
+        paginaActiva,
+        vistaModo,
+        filtroTiempo,
+        filtroMarca,
+        filtroEstado,
+        filtroPrioridad,
+        searchQuery,
+        dashboardMobileVista
+      });
+      await flushRemoteUserSettings(usuario);
+    }
     try {
       removeLocalStorageItemSafe("robin_usuario_actual");
-      removeLocalStorageItemSafe("robin_nombre_completo");
-      clearLocalStorageSafe(); 
     } catch (e) {
-      console.error("Error al limpiar sesión local:", e);
+      console.error("Error al cerrar sesión:", e);
     }
     setUsuario(null);
-    setNombreCompleto("");
     setClaveInput("");
     setPaginaActiva("home");
     showToast("Sesión cerrada", "info");
@@ -726,6 +837,13 @@ function App() {
 
           setUsuariosConectados(obtenerUsuariosEnLinea(json.data, json.widgets, json.presencia));
           setPresenceEstado("ready");
+
+          if (usuario) {
+            const nombreRemoto = obtenerNombrePerfilDesdePresencia(json.data, usuario);
+            if (nombreRemoto) {
+              setNombreCompleto(prev => (prev.trim() ? prev : nombreRemoto));
+            }
+          }
 
           const tareasValidas = json.data.filter(t => {
             if (!t.info || t.info.toString().trim() === "") return false;

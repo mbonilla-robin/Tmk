@@ -1,4 +1,4 @@
-const CACHE_NAME = "robin-pwa-v9";
+const CACHE_NAME = "robin-pwa-v15";
 
 const STATIC_ASSETS = [
   "./",
@@ -11,10 +11,11 @@ const STATIC_ASSETS = [
   "./icons/apple-touch-icon.png",
   "./js/react/setup.js",
   "./js/config/api.js",
+  "./js/config/supabase.js",
   "./js/utils/storage.js",
+  "./js/utils/user.js",
   "./js/utils/preferences.js",
   "./js/utils/api.js",
-  "./js/utils/user.js",
   "./js/utils/tasks.js",
   "./js/utils/strings.js",
   "./js/utils/dates.js",
@@ -47,7 +48,9 @@ const STATIC_ASSETS = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)).then(() => self.skipWaiting())
+    caches.open(CACHE_NAME)
+      .then((cache) => cache.addAll(STATIC_ASSETS).catch(() => Promise.resolve()))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -59,13 +62,32 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+function isAppScript(pathname) {
+  return pathname.endsWith(".js") || pathname.endsWith(".jsx");
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;
 
   const url = new URL(request.url);
-
   if (url.origin !== self.location.origin) return;
+
+  if (isAppScript(url.pathname)) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+            return response;
+          }
+          return caches.match(request);
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
 
   event.respondWith(
     fetch(request)

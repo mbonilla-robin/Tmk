@@ -192,6 +192,7 @@ function LayoutHome({
           tareas={tareas} 
           onSelectTask={onSelectTask} 
           getMarcaStyle={getMarcaStyle}
+          username={username}
         />
       </div>
 

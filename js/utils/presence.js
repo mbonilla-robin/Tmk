@@ -140,3 +140,19 @@ function obtenerUsuariosEnLinea(data, widgets, extra) {
     Array.isArray(extra) ? extra : []
   );
 }
+
+function obtenerNombrePerfilDesdePresencia(data, username) {
+  if (!username || !Array.isArray(data)) return null;
+
+  const idBuscado = presenceIdForUser(username).toUpperCase();
+  const row = data.find(t => String(t.idTarea || "").trim().toUpperCase() === idBuscado);
+  if (!row) return null;
+
+  const info = String(row.info || "").trim();
+  const userClean = String(username).replace(/^@/, "").toLowerCase();
+  if (!info) return null;
+  if (info.toLowerCase() === `@${userClean}`) return null;
+  if (/^@[\w.]+$/i.test(info)) return null;
+
+  return info;
+}

@@ -1,4 +1,4 @@
-function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle }) {
+function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
   const MAX_TASKS_MONTH_DESKTOP = 3;
   const MAX_TASKS_MONTH_MOBILE = 2;
 
@@ -11,7 +11,7 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle }) {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  const [vista, setVista] = useState(() => getUserPreference("calendarioVista", "mes"));
+  const [vista, setVista] = useState(() => getUserPreference("calendarioVista", "mes", username));
   const [weekAnchor, setWeekAnchor] = useState(() => new Date());
   const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
@@ -26,7 +26,7 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle }) {
 
   const cambiarVista = (nueva) => {
     setVista(nueva);
-    setUserPreference("calendarioVista", nueva);
+    setUserPreference("calendarioVista", nueva, username);
   };
 
   const getMonday = (date) => {

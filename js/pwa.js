@@ -1,30 +1,27 @@
+const PWA_THEME_COLOR = "#FFFFFF";
+const PWA_BACKGROUND_COLOR = "#FFFFFF";
+
 const PWA_ICON_VARIANTS = {
   blanco: {
     label: "Blanco",
     preview: "icons/logo-blanco.png",
     apple: "icons/pwa-blanco-180.png",
     icon192: "icons/pwa-blanco-192.png",
-    icon512: "icons/pwa-blanco-512.png",
-    themeColor: "#FFFFFF",
-    backgroundColor: "#FFFFFF"
+    icon512: "icons/pwa-blanco-512.png"
   },
   negro: {
     label: "Negro",
     preview: "icons/logo-negro.png",
     apple: "icons/pwa-negro-180.png",
     icon192: "icons/pwa-negro-192.png",
-    icon512: "icons/pwa-negro-512.png",
-    themeColor: "#000000",
-    backgroundColor: "#000000"
+    icon512: "icons/pwa-negro-512.png"
   },
   naranja: {
     label: "Naranja",
     preview: "icons/logo-naranja.png",
     apple: "icons/pwa-naranja-180.png",
     icon192: "icons/pwa-naranja-192.png",
-    icon512: "icons/pwa-naranja-512.png",
-    themeColor: "#F97316",
-    backgroundColor: "#F97316"
+    icon512: "icons/pwa-naranja-512.png"
   }
 };
 
@@ -37,7 +34,7 @@ function applyPwaIconVariant(variant) {
   if (appleLink) appleLink.href = cfg.apple;
 
   const themeMeta = document.querySelector('meta[name="theme-color"]');
-  if (themeMeta) themeMeta.content = cfg.themeColor;
+  if (themeMeta) themeMeta.content = PWA_THEME_COLOR;
 
   const manifestLink = document.querySelector('link[rel="manifest"]');
   if (!manifestLink) return;
@@ -55,8 +52,8 @@ function applyPwaIconVariant(variant) {
     scope: "./",
     display: "standalone",
     orientation: "portrait-primary",
-    background_color: cfg.backgroundColor,
-    theme_color: cfg.themeColor,
+    background_color: PWA_BACKGROUND_COLOR,
+    theme_color: PWA_THEME_COLOR,
     lang: "es",
     icons: [
       {

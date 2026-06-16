@@ -1,5 +1,6 @@
 const PWA_THEME_COLOR = "#FFFFFF";
 const PWA_BACKGROUND_COLOR = "#FFFFFF";
+const ROBIN_FAVICON = "logo robin negro.png";
 
 const PWA_ICON_VARIANTS = {
   blanco: {
@@ -34,7 +35,7 @@ function applyPwaIconVariant(variant) {
   if (appleLink) appleLink.href = cfg.apple;
 
   const faviconLink = document.querySelector('link[rel="icon"]');
-  if (faviconLink) faviconLink.href = cfg.icon192;
+  if (faviconLink) faviconLink.href = ROBIN_FAVICON;
 
   const themeMeta = document.querySelector('meta[name="theme-color"]');
   if (themeMeta) themeMeta.content = PWA_THEME_COLOR;

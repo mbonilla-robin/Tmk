@@ -4,6 +4,21 @@ body {
       color: #37352F;
       background-color: #FFFFFF;
     }
+
+    /* Sin zoom en móvil / PWA */
+    html.robin-app {
+      touch-action: manipulation;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+    html.robin-app body {
+      touch-action: manipulation;
+    }
+    html.robin-pwa-standalone,
+    html.robin-pwa-standalone body {
+      touch-action: pan-x pan-y;
+      overscroll-behavior: none;
+    }
     /* Estilo barra de desplazamiento tipo Notion */
     ::-webkit-scrollbar {
       width: 6px;

@@ -3,6 +3,7 @@ function NotionTaskRow({
   onSelectTask,
   onDeleteTask,
   onToggleSeleccion,
+  onSolicitarCompletar,
   estaSeleccionada
 }) {
   const cEstado = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(t.estado)) || { dot: "bg-zinc-400", bg: "bg-zinc-50" };
@@ -10,11 +11,75 @@ function NotionTaskRow({
   const personasCorta = t.personas
     ? t.personas.split(/[\s,]+/).filter(Boolean).slice(0, 2).join(", ")
     : null;
+  const esCompletada = cleanEstado(t.estado) === "completada";
 
-  return (
+  const [offsetX, setOffsetX] = useState(0);
+  const [swiping, setSwiping] = useState(false);
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const bloquearClick = useRef(false);
+  const offsetXRef = useRef(0);
+
+  const SWIPE_THRESHOLD = 56;
+  const MAX_SWIPE = 76;
+
+  const resetSwipe = () => {
+    offsetXRef.current = 0;
+    setOffsetX(0);
+    setSwiping(false);
+  };
+
+  const handleTouchStart = (e) => {
+    if (esCompletada || !onSolicitarCompletar) return;
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    setSwiping(true);
+    bloquearClick.current = false;
+  };
+
+  const handleTouchMove = (e) => {
+    if (!swiping || esCompletada) return;
+    const deltaX = e.touches[0].clientX - touchStartX.current;
+    const deltaY = e.touches[0].clientY - touchStartY.current;
+    if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 8) {
+      setSwiping(false);
+      setOffsetX(0);
+      return;
+    }
+    if (deltaX > 8) bloquearClick.current = true;
+    const next = Math.max(0, Math.min(deltaX, MAX_SWIPE));
+    offsetXRef.current = next;
+    setOffsetX(next);
+  };
+
+  const handleTouchEnd = () => {
+    if (!swiping || esCompletada) return;
+    setSwiping(false);
+    if (offsetXRef.current >= SWIPE_THRESHOLD) {
+      resetSwipe();
+      onSolicitarCompletar(t);
+      return;
+    }
+    offsetXRef.current = 0;
+    setOffsetX(0);
+  };
+
+  const handleClick = () => {
+    if (bloquearClick.current) {
+      bloquearClick.current = false;
+      return;
+    }
+    onSelectTask(t);
+  };
+
+  const rowContent = (
     <div
-      onClick={() => onSelectTask(t)}
-      className={`notion-task-row group ${estaSeleccionada ? "is-selected" : ""}`}
+      onClick={handleClick}
+      className={`notion-task-row group ${estaSeleccionada ? "is-selected" : ""} ${esCompletada ? "is-completed" : ""}`}
+      style={{
+        transform: offsetX ? `translateX(${offsetX}px)` : undefined,
+        transition: swiping ? "none" : "transform 0.2s ease"
+      }}
     >
       <input
         type="checkbox"
@@ -71,6 +136,26 @@ function NotionTaskRow({
       </button>
     </div>
   );
+
+  if (!onSolicitarCompletar || esCompletada) {
+    return rowContent;
+  }
+
+  return (
+    <div
+      className="notion-task-swipe-wrap md:contents"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={resetSwipe}
+    >
+      <div className="notion-task-swipe-action md:hidden" aria-hidden="true">
+        <i className="fa-solid fa-check" />
+        <span>Completar</span>
+      </div>
+      {rowContent}
+    </div>
+  );
 }
 
 function LayoutTablaAgrupada({
@@ -78,37 +163,18 @@ function LayoutTablaAgrupada({
   onUpdateField,
   onSelectTask,
   onDeleteTask,
+  onSolicitarCompletar,
   getMarcaStyle,
   currentTheme,
+  modoAgrupacion = "estado",
   tareasSeleccionadas = new Set(),
   onToggleSeleccion = () => {},
   onToggleSeleccionGrupo = () => {}
 }) {
-  const tareasAgrupadasPorMarca = useMemo(() => {
-    const agrupamiento = {};
-    tareas.forEach(t => {
-      const marcaKey = formatearMarca(t.marca) || "Otros";
-      if (!agrupamiento[marcaKey]) agrupamiento[marcaKey] = [];
-      agrupamiento[marcaKey].push(t);
-    });
-
-    const PRIORIDADES_ESTADOS = {
-      "pendiente": 1, "en progreso": 2, "seguimiento": 3, "en revision": 4, "en pausa": 5, "completada": 99
-    };
-
-    Object.keys(agrupamiento).forEach(marca => {
-      agrupamiento[marca].sort((a, b) => {
-        const pesoA = getPriorityWeight(a.prioridad);
-        const pesoB = getPriorityWeight(b.prioridad);
-        if (pesoA !== pesoB) return pesoB - pesoA;
-        const estA = cleanEstado(a.estado);
-        const estB = cleanEstado(b.estado);
-        return (PRIORIDADES_ESTADOS[estA] || 50) - (PRIORIDADES_ESTADOS[estB] || 50);
-      });
-    });
-
-    return agrupamiento;
-  }, [tareas]);
+  const tareasAgrupadasPorMarca = useMemo(
+    () => agruparTareasPorMarcaOrdenadas(tareas, modoAgrupacion),
+    [tareas, modoAgrupacion]
+  );
 
   const grupoCompletamenteSeleccionado = (lista) =>
     lista.length > 0 && lista.every(t => tareasSeleccionadas.has(getTaskSelectionKey(t)));
@@ -165,6 +231,7 @@ function LayoutTablaAgrupada({
                     t={t}
                     onSelectTask={onSelectTask}
                     onDeleteTask={onDeleteTask}
+                    onSolicitarCompletar={onSolicitarCompletar}
                     onToggleSeleccion={onToggleSeleccion}
                     estaSeleccionada={tareasSeleccionadas.has(selKey)}
                   />

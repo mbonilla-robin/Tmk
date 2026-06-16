@@ -20,10 +20,8 @@ function enviarHeartbeatPresencia(apiUrl, usuario, nombreCompleto) {
     campo: "todo"
   };
 
-  return fetch(apiUrl, {
+  return fetchRobinApi(apiUrl, {
     method: "POST",
-    mode: "cors",
-    redirect: "follow",
     headers: { "Content-Type": "text/plain; charset=utf-8" },
     body: JSON.stringify(payload)
   }).catch(() => {});

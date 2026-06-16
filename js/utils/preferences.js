@@ -12,6 +12,7 @@ const LEGACY_KEYS = {
 const DEFAULT_USER_PREFS = {
   nombreCompleto: "",
   theme: "notion",
+  pwaIconVariant: "naranja",
   paginaActiva: "home",
   vistaModo: "TABLE",
   calendarioVista: "mes",
@@ -20,7 +21,8 @@ const DEFAULT_USER_PREFS = {
   filtroEstado: "TODOS",
   filtroPrioridad: "TODAS",
   searchQuery: "",
-  dashboardMobileVista: "lista"
+  dashboardMobileVista: "lista",
+  listaAgrupacion: "estado"
 };
 
 function normalizeUsername(username) {
@@ -311,6 +313,9 @@ function resolvePaginaActivaForUser(username, prefs) {
 function applyPrefsToReactState(prefs, setters, username) {
   setters.setNombreCompleto(prefs.nombreCompleto || "");
   setters.setTheme(prefs.theme || "notion");
+  if (setters.setPwaIconVariant) {
+    setters.setPwaIconVariant(prefs.pwaIconVariant || prefs.logoVariant || "naranja");
+  }
   setters.setVistaModo(prefs.vistaModo || "TABLE");
   setters.setFiltroTiempo(prefs.filtroTiempo || "TODAS");
   setters.setFiltroMarca(prefs.filtroMarca || "TODAS");
@@ -318,5 +323,6 @@ function applyPrefsToReactState(prefs, setters, username) {
   setters.setFiltroPrioridad(prefs.filtroPrioridad || "TODAS");
   setters.setSearchQuery(prefs.searchQuery || "");
   setters.setDashboardMobileVista(prefs.dashboardMobileVista || "lista");
+  if (setters.setListaAgrupacion) setters.setListaAgrupacion(prefs.listaAgrupacion || "estado");
   setters.setPaginaActiva(resolvePaginaActivaForUser(username, prefs));
 }

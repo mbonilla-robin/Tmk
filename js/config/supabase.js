@@ -10,10 +10,11 @@ function isSupabaseConfigured() {
   );
 }
 
-function getSupabaseRestHeaders(prefer) {
+function getSupabaseRestHeaders(prefer, accessToken) {
+  const token = accessToken || SUPABASE_ANON_KEY;
   const headers = {
     apikey: SUPABASE_ANON_KEY,
-    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    Authorization: `Bearer ${token}`,
     "Content-Type": "application/json"
   };
   if (prefer) headers.Prefer = prefer;

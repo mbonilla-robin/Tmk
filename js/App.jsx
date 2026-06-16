@@ -9,30 +9,28 @@ function App() {
     }
   });
 
-  const [claveInput, setClaveInput] = useState("");
   const [loginError, setLoginError] = useState("");
+  const [claveInput, setClaveInput] = useState("");
 
-  const isAdmin = useMemo(() => {
-    return usuario === "admin" || usuario === "fcolmenares";
-  }, [usuario]);
-
-  const canEditFichas = useMemo(() => usuario === "admin", [usuario]);
-
-  // Comprobación de si es un usuario administrador restrictivo (Solo configuración)
-  const isConfigOnlyAdmin = useMemo(() => {
-    return usuario === "admin";
-  }, [usuario]);
+  const isAdmin = useMemo(() => isRobinAdmin(usuario), [usuario]);
+  const canEditFichas = useMemo(() => isRobinConfigOnlyAdmin(usuario), [usuario]);
+  const isConfigOnlyAdmin = useMemo(() => isRobinConfigOnlyAdmin(usuario), [usuario]);
 
   const [listaUsuarios, setListaUsuarios] = useState(() => {
     try {
       const guardados = getLocalStorageItemSafe("robin_lista_usuarios", null);
-      return guardados ? JSON.parse(guardados) : ["fcolmenares", "ralvarez", "dsalavarria", "mbonilla", "gnebrus", "sgiucastro", "admin"];
-    } catch(e) {
-      return ["fcolmenares", "ralvarez", "dsalavarria", "mbonilla", "gnebrus", "sgiucastro", "admin"];
+      return guardados ? JSON.parse(guardados) : getDefaultAllowedUsers();
+    } catch (e) {
+      return getDefaultAllowedUsers();
     }
   });
 
+  const [nuevoUsuarioInput, setNuevoUsuarioInput] = useState("");
+
   const [theme, setTheme] = useState(() => initialPrefs.theme || "notion");
+  const [pwaIconVariant, setPwaIconVariant] = useState(() =>
+    initialPrefs.pwaIconVariant || initialPrefs.logoVariant || "naranja"
+  );
   const currentTheme = useMemo(() => TEMAS[theme] || TEMAS.notion, [theme]);
 
   const [tareas, setTareas] = useState([]);
@@ -52,11 +50,12 @@ function App() {
     resolvePaginaActivaForUser(getInicialUsuario(), initialPrefs)
   ); 
   const [vistaModo, setVistaModo] = useState(() => initialPrefs.vistaModo || "TABLE"); 
+  const [listaAgrupacion, setListaAgrupacion] = useState(() => initialPrefs.listaAgrupacion || "estado");
 
   const [activeTask, setActiveTask] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
-  const [nuevoUsuarioInput, setNuevoUsuarioInput] = useState("");
+  const [taskToComplete, setTaskToComplete] = useState(null);
   const [clientesReset, setClientesReset] = useState(0);
   const [tareasSeleccionadas, setTareasSeleccionadas] = useState(() => new Set());
   const [bulkEstado, setBulkEstado] = useState("");
@@ -215,17 +214,20 @@ function App() {
     };
   }, [usuario, nombreCompleto]);
 
-  // Redireccionar al admin restrictivo a configuracion
   useEffect(() => {
-    if (usuario === "admin" && paginaActiva !== "configuracion") {
+    if (isConfigOnlyAdmin && paginaActiva !== "configuracion") {
       setPaginaActiva("configuracion");
     }
-  }, [usuario, paginaActiva]);
+  }, [usuario, paginaActiva, isConfigOnlyAdmin]);
 
   useEffect(() => {
-    const u = getLocalStorageItemSafe("robin_usuario_actual", null);
-    if (!u) {
-      removeLocalStorageItemSafe("robin_usuario_actual");
+    const stored = getInicialUsuario();
+    if (stored && hasRobinApiSession()) {
+      setUsuario(stored);
+      return;
+    }
+    if (stored && !hasRobinApiSession()) {
+      clearRobinApiSession();
       setUsuario(null);
     }
   }, []);
@@ -235,6 +237,7 @@ function App() {
     applyPrefsToReactState(prefs, {
       setNombreCompleto,
       setTheme,
+      setPwaIconVariant,
       setVistaModo,
       setFiltroTiempo,
       setFiltroMarca,
@@ -260,6 +263,7 @@ function App() {
       applyPrefsToReactState(prefs, {
         setNombreCompleto,
         setTheme,
+        setPwaIconVariant,
         setVistaModo,
         setFiltroTiempo,
         setFiltroMarca,
@@ -267,6 +271,7 @@ function App() {
         setFiltroPrioridad,
         setSearchQuery,
         setDashboardMobileVista,
+        setListaAgrupacion,
         setPaginaActiva
       }, usuario);
       setPrefsReady(true);
@@ -282,6 +287,7 @@ function App() {
         applyPrefsToReactState(prefs, {
           setNombreCompleto,
           setTheme,
+          setPwaIconVariant,
           setVistaModo,
           setFiltroTiempo,
           setFiltroMarca,
@@ -302,12 +308,20 @@ function App() {
   }, [usuario]);
 
   useEffect(() => {
+    if (typeof applyPwaIconVariant === "function") {
+      applyPwaIconVariant(pwaIconVariant);
+    }
+  }, [pwaIconVariant]);
+
+  useEffect(() => {
     if (!usuario || !prefsReady) return;
     saveUserData(usuario, {
       nombreCompleto,
       theme,
+      pwaIconVariant,
       paginaActiva,
       vistaModo,
+      listaAgrupacion,
       filtroTiempo,
       filtroMarca,
       filtroEstado,
@@ -320,8 +334,10 @@ function App() {
     prefsReady,
     nombreCompleto,
     theme,
+    pwaIconVariant,
     paginaActiva,
     vistaModo,
+    listaAgrupacion,
     filtroTiempo,
     filtroMarca,
     filtroEstado,
@@ -386,7 +402,6 @@ function App() {
   };
 
   const navegarA = (pagina, extraFn = null) => {
-    // Impedir navegación si es un admin puramente de configuración
     if (isConfigOnlyAdmin && pagina !== "configuracion") {
       setPaginaActiva("configuracion");
       showToast("Función restringida para el administrador de ajustes", "info");
@@ -403,7 +418,7 @@ function App() {
   };
 
   const handleAddWidget = async (nuevoWidget) => {
-    if (usuario !== "admin") {
+    if (!isConfigOnlyAdmin) {
       showToast("Solo el administrador puede gestionar enlaces", "error");
       return;
     }
@@ -418,8 +433,8 @@ function App() {
 
     setSyncing(true);
     try {
-      await fetch(effectiveUrl, {
-        method: "POST", mode: "cors", redirect: "follow",
+      await fetchRobinApi(effectiveUrl, {
+        method: "POST",
         headers: { "Content-Type": "text/plain; charset=utf-8" },
         body: JSON.stringify({
           marca: "Config_Marcas",
@@ -441,7 +456,7 @@ function App() {
   };
 
   const handleDeleteWidget = async (id, titulo) => {
-    if (usuario !== "admin") {
+    if (!isConfigOnlyAdmin) {
       showToast("Solo el administrador puede gestionar enlaces", "error");
       return;
     }
@@ -456,7 +471,7 @@ function App() {
 
     setSyncing(true);
     try {
-      await fetch(effectiveUrl, {
+      await fetchRobinApi(effectiveUrl, {
         method: "POST", mode: "cors", redirect: "follow",
         headers: { "Content-Type": "text/plain; charset=utf-8" },
         body: JSON.stringify({
@@ -473,7 +488,7 @@ function App() {
   };
 
   const handleEditWidget = async (widgetActualizado) => {
-    if (usuario !== "admin") {
+    if (!isConfigOnlyAdmin) {
       showToast("Solo el administrador puede gestionar enlaces", "error");
       return;
     }
@@ -488,7 +503,7 @@ function App() {
 
     setSyncing(true);
     try {
-      await fetch(effectiveUrl, {
+      await fetchRobinApi(effectiveUrl, {
         method: "POST", mode: "cors", redirect: "follow",
         headers: { "Content-Type": "text/plain; charset=utf-8" },
         body: JSON.stringify({
@@ -535,6 +550,11 @@ function App() {
     setBulkDeadline("");
   };
 
+  const cambiarListaAgrupacion = (modo) => {
+    setListaAgrupacion(modo);
+    setUserPreference("listaAgrupacion", modo);
+  };
+
   const handleBulkUpdate = async (campo, nuevoValor) => {
     if (!nuevoValor && campo !== "deadline") return;
     const keys = tareasSeleccionadas;
@@ -572,7 +592,7 @@ function App() {
       for (const tarea of objetivos) {
         const actualizada = actualizadas.find(t => getTaskSelectionKey(t) === getTaskSelectionKey(tarea));
         const taskTargetId = actualizada.idTarea;
-        await fetch(effectiveUrl, {
+        await fetchRobinApi(effectiveUrl, {
           method: "POST", mode: "cors", redirect: "follow",
           headers: { "Content-Type": "text/plain; charset=utf-8" },
           body: JSON.stringify({
@@ -613,7 +633,7 @@ function App() {
     const payloadApi = serializarMetadataParaApi(newMeta);
     setSyncing(true);
     try {
-      await fetch(effectiveUrl, {
+      await fetchRobinApi(effectiveUrl, {
         method: "POST", mode: "cors", redirect: "follow",
         headers: { "Content-Type": "text/plain; charset=utf-8" },
         body: JSON.stringify({
@@ -671,7 +691,7 @@ function App() {
 
     setSyncing(true);
     try {
-      const res = await fetch(effectiveUrl, {
+      const res = await fetchRobinApi(effectiveUrl, {
         method: "POST", mode: "cors", redirect: "follow",
         headers: { "Content-Type": "text/plain; charset=utf-8" },
         body: JSON.stringify({
@@ -719,7 +739,7 @@ function App() {
     const payloadApi = serializarMetadataParaApi(metaInicial);
     setSyncing(true);
     try {
-      const res = await fetch(effectiveUrl, {
+      const res = await fetchRobinApi(effectiveUrl, {
         method: "POST", mode: "cors", redirect: "follow",
         headers: { "Content-Type": "text/plain; charset=utf-8" },
         body: JSON.stringify({
@@ -745,22 +765,26 @@ function App() {
     showToast(`Tema cambiado`, "success");
   };
 
+  const handlePwaIconVariantChange = (newVariant) => {
+    setPwaIconVariant(newVariant);
+    if (typeof applyPwaIconVariant === "function") applyPwaIconVariant(newVariant);
+    showToast("Icono del teléfono actualizado", "success");
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     const userClean = e.target.username.value.trim().toLowerCase();
-    if (!listaUsuarios.includes(userClean)) {
-      setLoginError("Usuario no autorizado.");
+    const validation = validateLocalLogin(userClean, claveInput, listaUsuarios);
+    if (!validation.ok) {
+      setLoginError(validation.error);
       return;
     }
-    if (claveInput.toLowerCase() !== "tmk2026") {
-      setLoginError("Contraseña incorrecta.");
-      return;
-    }
-    setUsuario(userClean);
-    setLocalStorageItemSafe("robin_usuario_actual", userClean);
+    setRobinApiSession(validation.username, claveInput);
+    setUsuario(validation.username);
     setLoginError("");
-    await aplicarPreferenciasUsuario(userClean);
-    showToast(`Sesión iniciada: @${userClean}`, "success");
+    setClaveInput("");
+    await aplicarPreferenciasUsuario(validation.username);
+    showToast(`Sesión iniciada: @${validation.username}`, "success");
   };
 
   const handleLogout = async () => {
@@ -768,6 +792,7 @@ function App() {
       saveUserDataLocal(usuario, {
         nombreCompleto,
         theme,
+        pwaIconVariant,
         paginaActiva,
         vistaModo,
         filtroTiempo,
@@ -780,7 +805,7 @@ function App() {
       await flushRemoteUserSettings(usuario);
     }
     try {
-      removeLocalStorageItemSafe("robin_usuario_actual");
+      clearRobinApiSession();
     } catch (e) {
       console.error("Error al cerrar sesión:", e);
     }
@@ -804,6 +829,14 @@ function App() {
     registrarNuevaPersonaGlobal("@" + nuevo);
     setNuevoUsuarioInput("");
     showToast("Usuario autorizado", "success");
+  };
+
+  const handleRemoveUser = (usernameToRemove) => {
+    if (normalizeRobinUsername(usernameToRemove) === "admin") return;
+    const filtered = listaUsuarios.filter((item) => item !== usernameToRemove);
+    setListaUsuarios(filtered);
+    setLocalStorageItemSafe("robin_lista_usuarios", JSON.stringify(filtered));
+    showToast("Usuario desautorizado", "info");
   };
 
   const registrarNuevaPersonaGlobal = (nombreCompleto) => {
@@ -835,8 +868,18 @@ function App() {
 
     for (let intento = 1; intento <= maxIntentos; intento++) {
       try {
-        const res = await fetch(effectiveUrl, { method: "GET", mode: "cors", redirect: "follow", cache: "no-store" });
-        const json = await res.json();
+        const res = await fetchRobinApi(effectiveUrl, { method: "GET", mode: "cors", redirect: "follow", cache: "no-store" });
+        const rawText = await res.text();
+        let json;
+        try {
+          json = JSON.parse(rawText);
+        } catch (parseErr) {
+          throw new Error(
+            rawText && rawText.indexOf("Sign in") >= 0
+              ? "El Web App del Sheet exige login de Google en cada petición. Cambia el despliegue a «Cualquiera» (la seguridad la da el token ROBIN)."
+              : "Respuesta inválida del servidor Sheets."
+          );
+        }
 
         if (json.success && json.data) {
           const widgetsLimpios = filtrarWidgetsReales(json.widgets || []).map(normalizarWidgetDesdeApi).filter(Boolean);
@@ -909,7 +952,11 @@ function App() {
     console.error("Sheets sync error", ultimoError);
     setApiError("Error de Conexión.");
     setTareas([]);
-    if (!isBackground) showToast("Error de conexión", "error");
+    if (!isBackground && ultimoError && ultimoError.message) {
+      showToast(ultimoError.message, "error");
+    } else if (!isBackground) {
+      showToast("Error de conexión", "error");
+    }
     setLoading(false);
     setSyncing(false);
   };
@@ -951,7 +998,7 @@ function App() {
 
     setSyncing(true);
     try {
-      await fetch(effectiveUrl, {
+      await fetchRobinApi(effectiveUrl, {
         method: "POST", mode: "cors", redirect: "follow",
         headers: { "Content-Type": "text/plain; charset=utf-8" },
         body: JSON.stringify({
@@ -968,6 +1015,37 @@ function App() {
       showToast("Error al sincronizar cambio", "error");
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const handleConfirmComplete = async () => {
+    if (!taskToComplete || isSubmitting || syncing) return;
+    const tarea = taskToComplete;
+    setTaskToComplete(null);
+    await handleUpdateField(tarea, "estado", "Completada");
+  };
+
+  const layoutTablaProps = {
+    tareas: tareasFiltradas,
+    onUpdateField: handleUpdateField,
+    onSelectTask: (t) => { setActiveTask(t); setIsEditing(true); },
+    onDeleteTask: (t) => setTaskToDelete(t),
+    onSolicitarCompletar: (t) => setTaskToComplete(t),
+    getMarcaStyle,
+    currentTheme,
+    modoAgrupacion: listaAgrupacion,
+    tareasSeleccionadas,
+    onToggleSeleccion: toggleSeleccionTarea,
+    onToggleSeleccionGrupo: (lista, seleccionar) => {
+      setTareasSeleccionadas(prev => {
+        const next = new Set(prev);
+        lista.forEach(t => {
+          const key = getTaskSelectionKey(t);
+          if (seleccionar) next.add(key);
+          else next.delete(key);
+        });
+        return next;
+      });
     }
   };
 
@@ -1015,7 +1093,7 @@ function App() {
 
     setSyncing(true);
     try {
-      await fetch(effectiveUrl, {
+      await fetchRobinApi(effectiveUrl, {
         method: "POST", mode: "cors", redirect: "follow",
         headers: { "Content-Type": "text/plain; charset=utf-8" },
         body: JSON.stringify({
@@ -1054,7 +1132,7 @@ function App() {
 
     setSyncing(true);
     try {
-      const res = await fetch(effectiveUrl, {
+      const res = await fetchRobinApi(effectiveUrl, {
         method: "POST", mode: "cors", redirect: "follow",
         headers: { "Content-Type": "text/plain; charset=utf-8" },
         body: JSON.stringify({
@@ -1122,7 +1200,7 @@ function App() {
 
     setSyncing(true);
     try {
-      const res = await fetch(effectiveUrl, {
+      const res = await fetchRobinApi(effectiveUrl, {
         method: "POST", mode: "cors", redirect: "follow",
         headers: { "Content-Type": "text/plain; charset=utf-8" },
         body: JSON.stringify({
@@ -1144,7 +1222,6 @@ function App() {
     }
   };
 
-  // UI DE ACCESO EXCLUSIVO
   if (!usuario) {
     return (
       <div className="h-screen w-screen bg-white flex items-center justify-center p-4 select-none animate-fade-in">
@@ -1165,10 +1242,10 @@ function App() {
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
             <div>
               <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Colaborador (Usuario)</label>
-              <input 
-                type="text" 
-                name="username" 
-                required 
+              <input
+                type="text"
+                name="username"
+                required
                 placeholder="Tu usuario..."
                 className="w-full bg-zinc-50 border border-zinc-200 p-2.5 text-xs font-semibold rounded focus:outline-none text-[#37352F] placeholder-zinc-400"
               />
@@ -1176,17 +1253,17 @@ function App() {
 
             <div>
               <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Contraseña</label>
-              <input 
-                type="password" 
-                required 
-                placeholder="••••••••" 
+              <input
+                type="password"
+                required
+                placeholder="••••••••"
                 value={claveInput}
                 onChange={(e) => setClaveInput(e.target.value)}
                 className="w-full bg-zinc-50 border border-zinc-200 p-2.5 text-xs rounded focus:outline-none text-[#37352F]"
               />
             </div>
 
-            <button 
+            <button
               type="submit"
               className="w-full bg-[#37352F] hover:bg-[#2c2a26] text-white font-semibold py-2.5 px-4 rounded text-xs uppercase tracking-wider shadow-sm transition-colors mt-1"
             >
@@ -1209,7 +1286,7 @@ function App() {
     <div className={`flex h-screen w-screen overflow-hidden ${currentTheme.bg} ${currentTheme.text} select-none transition-all`}>
       
       {toast && (
-        <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] right-4 md:bottom-6 md:right-6 z-[40] px-4 py-2.5 rounded shadow text-xs font-semibold flex items-center gap-2 border bg-zinc-900 text-white border-zinc-800 animate-zoom-in">
+        <div className="fixed bottom-[calc(var(--mobile-chrome-bottom,4rem)+0.5rem)] right-4 md:bottom-6 md:right-6 z-[40] px-4 py-2.5 rounded shadow text-xs font-semibold flex items-center gap-2 border bg-zinc-900 text-white border-zinc-800 animate-zoom-in">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
           <span>{toast.msg}</span>
         </div>
@@ -1217,7 +1294,7 @@ function App() {
 
       {/* MENÚ LATERAL ESTILO NOTION - SOLO DESKTOP (md+); móvil usa MobileNavBar */}
       {!isConfigOnlyAdmin && (
-        <aside className={`
+      <aside className={`
           hidden md:flex
           relative inset-y-0 left-0 z-50 w-52 ${currentTheme.sidebarBg} border-r border-zinc-200 flex-col justify-between shrink-0
         `}>
@@ -1351,7 +1428,7 @@ function App() {
 
       {/* CONTENEDOR PRINCIPAL */}
       <main className="flex-1 flex flex-col overflow-hidden bg-white">
-        <header className={`app-header-bar bg-white px-6 justify-between ${!isConfigOnlyAdmin ? "hidden md:flex" : "flex"}`}>
+        <header className="app-header-bar bg-white px-6 justify-between robin-desktop-only">
           <div className="flex items-center gap-3">
             <h1 className="text-ui font-semibold text-zinc-500">
               Trade & Shopper Marketing{isConfigOnlyAdmin ? " · Admin" : ""}
@@ -1387,40 +1464,22 @@ function App() {
               )}
             </button>
 
-            {/* BOTÓN CERRAR SESIÓN EXCLUSIVO PARA ROL ADMIN GLOBAL (HEADER) */}
-            {isConfigOnlyAdmin && (
-              <button
-                onClick={handleLogout}
-                className="px-3.5 py-1.5 text-xs font-semibold text-red-655 bg-red-50 hover:bg-red-100 rounded border border-red-200 transition-colors"
-              >
-                Cerrar Sesión
-              </button>
-            )}
-
-            {!isConfigOnlyAdmin && (
-              <button 
-                onClick={() => fetchData(false)}
-                disabled={loading}
-                className="p-1.5 text-zinc-400 hover:text-zinc-800 border rounded bg-white hover:bg-zinc-50 transition-colors"
-                title="Actualizar base de datos"
-              >
-                <i className="fa-solid fa-arrows-rotate text-xs"></i>
-              </button>
-            )}
+            <button 
+              onClick={() => fetchData(false)}
+              disabled={loading}
+              className="p-1.5 text-zinc-400 hover:text-zinc-800 border rounded bg-white hover:bg-zinc-50 transition-colors"
+              title="Actualizar base de datos"
+            >
+              <i className="fa-solid fa-arrows-rotate text-xs"></i>
+            </button>
           </div>
         </header>
 
         <div className={`flex-1 overflow-y-auto overflow-x-hidden w-full min-h-0 ${
           paginaActiva === "agregar" ? "" : "max-w-6xl mx-auto"
-        } ${
-          !isConfigOnlyAdmin
-            ? paginaActiva === "agregar"
-              ? "robin-mobile-main md:p-0 !px-0"
-              : "robin-mobile-main md:p-6"
-            : "p-4 md:p-6"
-        }`}>
+        } ${paginaActiva === "agregar" ? "robin-mobile-main !px-0" : "robin-mobile-main"}`}>
           
-          {paginaActiva === "home" && !isConfigOnlyAdmin && (
+          {!isConfigOnlyAdmin && paginaActiva === "home" && (
             <LayoutHome 
               tareas={tareas} 
               nombreUsuario={nombreCompleto} 
@@ -1435,7 +1494,7 @@ function App() {
             />
           )}
 
-          {paginaActiva === "agregar" && !isConfigOnlyAdmin && (
+          {!isConfigOnlyAdmin && paginaActiva === "agregar" && (
             <FormularioCrearEntregable
               nuevaTarea={nuevaTarea}
               setNuevaTarea={setNuevaTarea}
@@ -1449,10 +1508,10 @@ function App() {
             />
           )}
 
-          {paginaActiva === "dashboard" && !isConfigOnlyAdmin && (
+          {!isConfigOnlyAdmin && paginaActiva === "dashboard" && (
             <>
               {/* ── Móvil: lista o subpágina de filtros ── */}
-              <div className="md:hidden flex flex-col gap-3 animate-fade-in">
+              <div className="robin-mobile-only flex-col gap-3 animate-fade-in">
                 {dashboardMobileVista === "filtros" ? (
                   <div className="flex flex-col gap-3">
                     <MobileSubpageBar title="Filtros" onBack={() => setDashboardMobileVista("lista")} backLabel="Lista" />
@@ -1520,6 +1579,26 @@ function App() {
                       <input type="text" placeholder="Buscar..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                     </div>
 
+                    {vistaModo === "TABLE" && (
+                      <div className="lista-agrupacion-pills">
+                        <span className="lista-agrupacion-label">Organizar por</span>
+                        <button
+                          type="button"
+                          onClick={() => cambiarListaAgrupacion("estado")}
+                          className={`lista-agrupacion-pill ${listaAgrupacion === "estado" ? "is-active" : ""}`}
+                        >
+                          Estado
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => cambiarListaAgrupacion("fecha")}
+                          className={`lista-agrupacion-pill ${listaAgrupacion === "fecha" ? "is-active" : ""}`}
+                        >
+                          Fecha
+                        </button>
+                      </div>
+                    )}
+
                     {tareasSeleccionadas.size > 0 && (
                       <div className="border border-zinc-200 rounded-md p-2.5 bg-[#FAF9F6] flex flex-col gap-2">
                         <span className="text-ui-sm font-semibold text-zinc-700">{tareasSeleccionadas.size} seleccionado{tareasSeleccionadas.size !== 1 ? "s" : ""}</span>
@@ -1532,13 +1611,20 @@ function App() {
                             <option value="">Prioridad...</option>
                             {PRIORIDADES_MAPA.map(p => (<option key={p.id} value={p.id}>{p.label}</option>))}
                           </select>
+                          <input
+                            type="date"
+                            value={bulkDeadline}
+                            onChange={(e) => { const val = e.target.value; setBulkDeadline(val); if (val) handleBulkUpdate("deadline", val); }}
+                            className="col-span-2 text-ui-sm border border-zinc-200 rounded px-2 py-1.5 bg-white w-full"
+                            title="Cambiar fecha límite"
+                          />
                         </div>
                         <button type="button" onClick={limpiarSeleccionTareas} className="text-ui-sm text-zinc-500 text-left">Limpiar selección</button>
                       </div>
                     )}
 
                     {vistaModo === "TABLE" ? (
-                      <LayoutTablaAgrupada tareas={tareasFiltradas} onUpdateField={handleUpdateField} onSelectTask={(t) => { setActiveTask(t); setIsEditing(true); }} onDeleteTask={(t) => setTaskToDelete(t)} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} tareasSeleccionadas={tareasSeleccionadas} onToggleSeleccion={toggleSeleccionTarea} onToggleSeleccionGrupo={(lista, seleccionar) => { setTareasSeleccionadas(prev => { const next = new Set(prev); lista.forEach(t => { const key = getTaskSelectionKey(t); if (seleccionar) next.add(key); else next.delete(key); }); return next; }); }} />
+                      <LayoutTablaAgrupada {...layoutTablaProps} />
                     ) : (
                       <LayoutKanban tareas={tareasFiltradas} onUpdateField={handleUpdateField} onSelectTask={(t) => { setActiveTask(t); setIsEditing(true); }} onDeleteTask={(t) => setTaskToDelete(t)} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
                     )}
@@ -1547,7 +1633,7 @@ function App() {
               </div>
 
               {/* ── Desktop: sin cambios ── */}
-              <div className="hidden md:flex flex-col gap-5 animate-fade-in">
+              <div className="robin-desktop-only flex-col gap-5 animate-fade-in">
               <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-semibold text-[#37352F] tracking-tight">
@@ -1600,6 +1686,26 @@ function App() {
                 </div>
               </div>
 
+              {vistaModo === "TABLE" && (
+                <div className="lista-agrupacion-pills lista-agrupacion-pills--desktop">
+                  <span className="lista-agrupacion-label">Organizar por</span>
+                  <button
+                    type="button"
+                    onClick={() => cambiarListaAgrupacion("estado")}
+                    className={`lista-agrupacion-pill ${listaAgrupacion === "estado" ? "is-active" : ""}`}
+                  >
+                    Estado
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => cambiarListaAgrupacion("fecha")}
+                    className={`lista-agrupacion-pill ${listaAgrupacion === "fecha" ? "is-active" : ""}`}
+                  >
+                    Fecha
+                  </button>
+                </div>
+              )}
+
               {tareasSeleccionadas.size > 0 && (
                 <div className="flex flex-wrap items-center gap-2 py-2 px-1 border-b border-zinc-100">
                   <span className="text-ui font-semibold text-zinc-700">{tareasSeleccionadas.size} seleccionado{tareasSeleccionadas.size !== 1 ? "s" : ""}</span>
@@ -1617,7 +1723,7 @@ function App() {
               )}
 
               {vistaModo === "TABLE" ? (
-                <LayoutTablaAgrupada tareas={tareasFiltradas} onUpdateField={handleUpdateField} onSelectTask={(t) => { setActiveTask(t); setIsEditing(true); }} onDeleteTask={(t) => setTaskToDelete(t)} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} tareasSeleccionadas={tareasSeleccionadas} onToggleSeleccion={toggleSeleccionTarea} onToggleSeleccionGrupo={(lista, seleccionar) => { setTareasSeleccionadas(prev => { const next = new Set(prev); lista.forEach(t => { const key = getTaskSelectionKey(t); if (seleccionar) next.add(key); else next.delete(key); }); return next; }); }} />
+                <LayoutTablaAgrupada {...layoutTablaProps} />
               ) : (
                 <LayoutKanban tareas={tareasFiltradas} onUpdateField={handleUpdateField} onSelectTask={(t) => { setActiveTask(t); setIsEditing(true); }} onDeleteTask={(t) => setTaskToDelete(t)} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
               )}
@@ -1625,7 +1731,7 @@ function App() {
             </>
           )}
 
-          {paginaActiva === "clientes" && !isConfigOnlyAdmin && (
+          {!isConfigOnlyAdmin && paginaActiva === "clientes" && (
             <LayoutClientes
               key={clientesReset}
               marcas={marcasDisponibles}
@@ -1640,13 +1746,14 @@ function App() {
           {paginaActiva === "configuracion" && (
             <>
               {/* Móvil: menú + subpáginas */}
-              <div className="md:hidden flex flex-col gap-3 animate-fade-in">
+              <div className="robin-mobile-only flex-col gap-3 animate-fade-in">
                 {configMobileSeccion ? (
                   <div className="flex flex-col gap-3">
                     <MobileSubpageBar
                       title={
                         configMobileSeccion === "perfil" ? "Perfil" :
                         configMobileSeccion === "tema" ? "Tema" :
+                        configMobileSeccion === "logo" ? "Icono del teléfono" :
                         configMobileSeccion === "api" ? "Base de datos" :
                         configMobileSeccion === "usuarios" ? "Usuarios" :
                         configMobileSeccion === "widgets" ? "Enlaces" :
@@ -1655,7 +1762,7 @@ function App() {
                       onBack={() => setConfigMobileSeccion(null)}
                     />
 
-                    {configMobileSeccion === "perfil" && !isConfigOnlyAdmin && (
+                    {configMobileSeccion === "perfil" && (
                       <form onSubmit={handleSaveNombreCompleto} className="bg-white border border-zinc-200 p-3 rounded-md flex flex-col gap-3">
                         <input type="text" placeholder="Tu nombre" value={nombreCompleto} onChange={(e) => setNombreCompleto(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 px-3 py-2 text-sm rounded font-semibold text-[#37352F]" />
                         <button type="submit" className="w-full py-2.5 bg-[#37352F] text-white text-ui font-semibold rounded-md">Guardar</button>
@@ -1669,12 +1776,33 @@ function App() {
                       </div>
                     )}
 
+                    {configMobileSeccion === "logo" && (
+                      <div className="flex flex-col gap-2">
+                        <p className="text-[11px] text-zinc-500">Color del icono al instalar la app en el teléfono. El logo del encabezado no cambia.</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {Object.entries(PWA_ICON_VARIANTS).map(([key, { preview, label }]) => (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => handlePwaIconVariantChange(key)}
+                              className={`p-2 rounded-md border flex flex-col items-center gap-1.5 transition-all ${
+                                pwaIconVariant === key ? "border-[#37352F] ring-2 ring-[#37352F]/20" : "border-zinc-200"
+                              }`}
+                            >
+                              <img src={preview} alt={label} className="w-full aspect-square object-contain rounded" />
+                              <span className="text-[10px] font-semibold text-zinc-600">{label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     {configMobileSeccion === "api" && (
                       <div className="bg-[#FAF9F6] p-3 rounded-md border border-zinc-200 text-xs text-zinc-600 flex items-start gap-2">
                         <i className="fa-solid fa-circle-check text-emerald-500 mt-0.5"></i>
                         <div className="min-w-0">
                           <p className="font-bold text-[#37352F]">Sheets conectado</p>
-                          <p className="text-[11px] text-zinc-400 mt-1 break-all">{AUTO_API_URL}</p>
+                          <p className="text-[11px] text-zinc-400 mt-1">Conexión verificada con Google Sheets (workspace corporativo).</p>
                         </div>
                       </div>
                     )}
@@ -1683,7 +1811,7 @@ function App() {
                       isAdmin ? (
                         <div className="bg-white border border-zinc-200 p-3 rounded-md flex flex-col gap-3">
                           <form onSubmit={handleAddUser} className="flex gap-2">
-                            <input type="text" placeholder="Usuario" value={nuevoUsuarioInput} onChange={(e) => setNuevoUsuarioInput(e.target.value)} className="flex-1 bg-zinc-50 border border-zinc-200 px-3 py-2 text-sm rounded font-semibold" />
+                            <input type="text" placeholder="Usuario (ej: ralvarez)" value={nuevoUsuarioInput} onChange={(e) => setNuevoUsuarioInput(e.target.value)} className="flex-1 bg-zinc-50 border border-zinc-200 px-3 py-2 text-sm rounded font-semibold" />
                             <button type="submit" className="px-3 py-2 bg-[#37352F] text-white text-ui font-semibold rounded-md">+</button>
                           </form>
                           <div className="flex flex-wrap gap-1.5">
@@ -1691,7 +1819,7 @@ function App() {
                               <span key={u} className="inline-flex items-center gap-1 bg-zinc-50 border border-zinc-200 text-zinc-800 text-[11px] font-semibold px-2 py-1 rounded-full">
                                 @{u}
                                 {u !== "admin" && (
-                                  <button type="button" onClick={() => { const filtered = listaUsuarios.filter(item => item !== u); setListaUsuarios(filtered); setLocalStorageItemSafe("robin_lista_usuarios", JSON.stringify(filtered)); showToast("Usuario desautorizado", "info"); }} className="text-zinc-400 font-bold">&times;</button>
+                                  <button type="button" onClick={() => handleRemoveUser(u)} className="text-zinc-400 font-bold">&times;</button>
                                 )}
                               </span>
                             ))}
@@ -1715,13 +1843,17 @@ function App() {
                     <h2 className="text-base font-bold text-[#37352F] mb-1">Ajustes</h2>
 
                     {!isConfigOnlyAdmin && (
-                      <button type="button" onClick={() => setConfigMobileSeccion("perfil")} className="mobile-menu-btn">
-                        <span><i className="fa-solid fa-user"></i> Perfil</span>
-                        <i className="fa-solid fa-chevron-right text-[10px] text-zinc-300"></i>
-                      </button>
+                    <button type="button" onClick={() => setConfigMobileSeccion("perfil")} className="mobile-menu-btn">
+                      <span><i className="fa-solid fa-user"></i> Perfil</span>
+                      <i className="fa-solid fa-chevron-right text-[10px] text-zinc-300"></i>
+                    </button>
                     )}
                     <button type="button" onClick={() => setConfigMobileSeccion("tema")} className="mobile-menu-btn">
                       <span><i className="fa-solid fa-palette"></i> Tema</span>
+                      <i className="fa-solid fa-chevron-right text-[10px] text-zinc-300"></i>
+                    </button>
+                    <button type="button" onClick={() => setConfigMobileSeccion("logo")} className="mobile-menu-btn">
+                      <span><i className="fa-solid fa-mobile-screen"></i> Icono del teléfono</span>
                       <i className="fa-solid fa-chevron-right text-[10px] text-zinc-300"></i>
                     </button>
                     <button type="button" onClick={() => setConfigMobileSeccion("api")} className="mobile-menu-btn">
@@ -1755,10 +1887,10 @@ function App() {
               </div>
 
               {/* Desktop: sin cambios */}
-              <div className={`hidden md:flex ${isConfigOnlyAdmin ? "max-w-6xl" : "max-w-xl"} mx-auto border border-zinc-200 p-6 rounded-md bg-white animate-fade-in flex-col gap-6`}>
+              <div className={`robin-desktop-only ${isConfigOnlyAdmin ? "max-w-6xl" : "max-w-xl"} mx-auto border border-zinc-200 p-6 rounded-md bg-white animate-fade-in flex-col gap-6`}>
               <div>
                 <h2 className="text-sm font-bold uppercase tracking-wider border-b pb-2 text-zinc-500">Ajustes del Sistema</h2>
-                <p className="text-xs text-zinc-400 mt-1">Configuración técnica de origen de datos y autorización de personal.</p>
+                <p className="text-xs text-zinc-400 mt-1">Configuración técnica de origen de datos y del sistema.</p>
               </div>
 
               {/* Integración Google Sheets Informada */}
@@ -1768,8 +1900,8 @@ function App() {
                   <i className="fa-solid fa-circle-check text-emerald-500 mt-0.5"></i>
                   <div className="overflow-hidden">
                     <p className="text-[#37352F] font-bold">API de Google Sheets configurada</p>
-                    <p className="text-zinc-455 font-normal mt-0.5 text-[11px] truncate max-w-full">
-                      Enlace activo: {AUTO_API_URL}
+                    <p className="text-zinc-455 font-normal mt-0.5 text-[11px]">
+                      Conexión verificada con Google Sheets (workspace corporativo).
                     </p>
                   </div>
                 </div>
@@ -1777,7 +1909,7 @@ function App() {
 
               {/* Ocultar sección de datos personales para administrador global */}
               {!isConfigOnlyAdmin && (
-                <div className="flex flex-col gap-2 animate-fade-in">
+              <div className="flex flex-col gap-2 animate-fade-in">
                   <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Colaborador</span>
                   <form onSubmit={handleSaveNombreCompleto} className="bg-zinc-50 p-3 rounded border border-zinc-200 flex flex-col sm:flex-row gap-2 items-end">
                     <div className="flex-1 w-full">
@@ -1823,6 +1955,26 @@ function App() {
                 </div>
               </div>
 
+              <div className="flex flex-col gap-2">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Icono del teléfono</span>
+                <p className="text-[11px] text-zinc-400">Color del icono al instalar la PWA. El logo del encabezado siempre se mantiene igual.</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {Object.entries(PWA_ICON_VARIANTS).map(([key, { preview, label }]) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => handlePwaIconVariantChange(key)}
+                      className={`p-2 rounded border flex flex-col items-center gap-1.5 transition-all ${
+                        pwaIconVariant === key ? "border-[#37352F] ring-2 ring-[#37352F]/20" : "border-zinc-200 hover:border-zinc-300"
+                      }`}
+                    >
+                      <img src={preview} alt={label} className="w-full max-w-[72px] aspect-square object-contain rounded" />
+                      <span className="text-[10px] font-semibold text-zinc-550">{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {isConfigOnlyAdmin && (
                 <WidgetsAdminPanel
                   widgets={widgets}
@@ -1850,23 +2002,19 @@ function App() {
                 </div>
               )}
 
-              {/* Control de Usuarios - Solo accesible para el rol de administrador */}
               <div className="flex flex-col gap-2">
                 <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Usuarios autorizados</span>
                 {isAdmin ? (
                   <div className="bg-zinc-50 p-3 rounded border border-zinc-200 flex flex-col gap-3">
                     <form onSubmit={handleAddUser} className="flex gap-2">
-                      <input 
-                        type="text" 
-                        placeholder="Usuario (Ej: ralvarez)"
+                      <input
+                        type="text"
+                        placeholder="Usuario (ej: ralvarez)"
                         value={nuevoUsuarioInput}
                         onChange={(e) => setNuevoUsuarioInput(e.target.value)}
                         className="w-full bg-white border border-zinc-200 px-3 py-1.5 text-xs rounded focus:outline-none font-bold text-[#37352F]"
                       />
-                      <button 
-                        type="submit"
-                        className="bg-[#37352F] hover:bg-[#2c2a26] text-white text-xs font-semibold px-4 py-2 rounded transition-colors whitespace-nowrap"
-                      >
+                      <button type="submit" className="bg-[#37352F] hover:bg-[#2c2a26] text-white text-xs font-semibold px-4 py-2 rounded transition-colors whitespace-nowrap">
                         Autorizar
                       </button>
                     </form>
@@ -1875,18 +2023,7 @@ function App() {
                         <span key={u} className="inline-flex items-center gap-1 bg-white border border-zinc-200 text-zinc-800 text-[11px] font-semibold px-2 py-0.5 rounded">
                           @{u}
                           {u !== "admin" && (
-                            <button 
-                              type="button"
-                              onClick={() => {
-                                const filtered = listaUsuarios.filter(item => item !== u);
-                                setListaUsuarios(filtered);
-                                setLocalStorageItemSafe("robin_lista_usuarios", JSON.stringify(filtered));
-                                showToast("Usuario desautorizado", "info");
-                              }}
-                              className="text-zinc-400 hover:text-red-500 font-bold ml-1"
-                            >
-                              &times;
-                            </button>
+                            <button type="button" onClick={() => handleRemoveUser(u)} className="text-zinc-400 hover:text-red-500 font-bold ml-1">&times;</button>
                           )}
                         </span>
                       ))}
@@ -1908,26 +2045,26 @@ function App() {
       </main>
 
       {!isConfigOnlyAdmin && (
-        <MobileNavBar
-          paginaActiva={paginaActiva}
-          navegarA={navegarA}
-          filtroMarca={filtroMarca}
-          setFiltroMarca={setFiltroMarca}
-          setFiltroTiempo={setFiltroTiempo}
-          setFiltroEstado={setFiltroEstado}
-          setFiltroPrioridad={setFiltroPrioridad}
-          usuario={usuario}
-          syncing={syncing}
-          apiError={apiError}
-          palabraEstadoSync={palabraEstadoSync}
-          onSyncClick={handleSyncClick}
-          onRefresh={() => fetchData(false)}
-          loading={loading}
-        />
+      <MobileNavBar
+        paginaActiva={paginaActiva}
+        navegarA={navegarA}
+        filtroMarca={filtroMarca}
+        setFiltroMarca={setFiltroMarca}
+        setFiltroTiempo={setFiltroTiempo}
+        setFiltroEstado={setFiltroEstado}
+        setFiltroPrioridad={setFiltroPrioridad}
+        usuario={usuario}
+        syncing={syncing}
+        apiError={apiError}
+        palabraEstadoSync={palabraEstadoSync}
+        onSyncClick={handleSyncClick}
+        onRefresh={() => fetchData(false)}
+        loading={loading}
+      />
       )}
 
       {/* MODALES ADICIONALES */}
-      {isEditing && activeTask && !isConfigOnlyAdmin && (
+      {!isConfigOnlyAdmin && isEditing && activeTask && (
         <ModalPortal>
           <ModalEdicionTarea 
             tarea={activeTask}
@@ -1941,7 +2078,38 @@ function App() {
         </ModalPortal>
       )}
 
-      {taskToDelete && !isConfigOnlyAdmin && (
+      {!isConfigOnlyAdmin && taskToComplete && (
+        <div className="fixed inset-0 bg-black/10 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+          <div className="bg-white p-5 rounded-md border border-zinc-300 shadow-md w-full max-w-sm animate-zoom-in flex flex-col gap-4">
+            <h4 className="text-xs font-bold uppercase text-zinc-500 tracking-wider border-b pb-2">Marcar como completado</h4>
+            <p className="text-xs text-zinc-500 leading-relaxed font-semibold">
+              ¿Confirmas que este entregable está completado?
+            </p>
+            <div className="p-2 bg-zinc-50 border rounded text-[11px] font-mono text-zinc-500 truncate">
+              {taskToComplete.info}
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setTaskToComplete(null)}
+                className="px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-800"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmComplete}
+                disabled={isSubmitting || syncing}
+                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded disabled:opacity-50"
+              >
+                Completar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!isConfigOnlyAdmin && taskToDelete && (
         <div className="fixed inset-0 bg-black/10 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
           <div className="bg-white p-5 rounded-md border border-zinc-300 shadow-md w-full max-w-sm animate-zoom-in flex flex-col gap-4">
             <h4 className="text-xs font-bold uppercase text-zinc-500 tracking-wider border-b pb-2">Confirmar Eliminación</h4>

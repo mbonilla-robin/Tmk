@@ -1,0 +1,102 @@
+================================================================================
+  ROBIN — Checklist para que el Sheet vuelva a cargar datos
+================================================================================
+
+PROBLEMA MÁS COMÚN
+------------------
+Si el despliegue del Web App está en «Solo personas de robin-agency.com»,
+la PWA NO puede leer datos (recibe página de login de Google en vez de JSON).
+
+SOLUCIÓN DEL DESPLIEGUE (importante)
+------------------------------------
+1. Apps Script → Implementar → Administrar implementaciones
+2. Edita la implementación activa (o crea una nueva)
+3. Configura EXACTAMENTE:
+   - Ejecutar como: Yo (tu cuenta)
+   - Quién tiene acceso: Cualquiera          ← NO «solo robin-agency.com»
+4. Guarda y copia la NUEVA URL si cambió
+5. Pega esa URL en js/config/api.js → AUTO_API_URL
+
+La seguridad NO depende de «solo robin». La da el token ROBIN_API_SECRET.
+El Sheet en sí sí puede quedar compartido solo con @robin-agency.com.
+
+
+PASO 1 — Archivo ApiAuth.gs
+---------------------------
+En el editor del Sheet (Extensiones → Apps Script):
+
+1. Crea archivo «ApiAuth» (si no existe)
+2. Pega TODO el contenido de: google-apps-script/ApiAuth.gs
+3. NO dejes código viejo que mencione SUPABASE_URL ni verificarJwtConSupabase
+
+
+PASO 2 — doGet y doPost
+-----------------------
+En tu archivo principal (Code.gs), doGet y doPost deben empezar así:
+
+  function doGet(e) {
+    try {
+      var session = robinValidarSesionRobin_(e, null);
+      ...
+
+  function doPost(e) {
+    try {
+      ...
+      var session = robinValidarSesionRobin_(e, payload);
+      payload = robinLimpiarPayload_(payload);
+      robinExigirOperacionAdmin_(session, payload);
+      ...
+
+Copia la sección 15 completa de: google-apps-script/script-original.txt
+
+
+PASO 3 — Propiedades del script (OBLIGATORIO)
+---------------------------------------------
+⚙ Configuración del proyecto → Propiedades del script → Añadir:
+
+  Nombre              | Valor
+  --------------------|--------------------------------------------------
+  ROBIN_API_SECRET    | tmk2026
+  ROBIN_ALLOWED_USERS | fcolmenares,ralvarez,dsalavarria,mbonilla,gnebrus,sgiucastro,admin
+  ROBIN_ADMIN_USERS   | admin
+
+Sin ROBIN_API_SECRET la API responde error y la app queda vacía.
+
+
+PASO 4 — Probar en el editor
+----------------------------
+1. Guarda todos los archivos (Ctrl+S)
+2. Ejecuta la función: robinProbarConfiguracion
+3. Ver → Registros de ejecución
+   - Debe decir: «Prueba OK. Usuario: mbonilla»
+   - Si dice FALLÓ, revisa las propiedades del paso 3
+
+
+PASO 5 — Redesplegar
+--------------------
+1. Implementar → Nueva implementación
+2. Tipo: Aplicación web
+3. Ejecutar como: Yo
+4. Acceso: Cualquiera
+5. Implementar → copiar URL
+6. Actualizar AUTO_API_URL en la PWA si la URL cambió
+
+
+PASO 6 — Probar la PWA
+----------------------
+1. Cierra sesión en ROBIN y vuelve a entrar (usuario + tmk2026)
+   (La contraseña se guarda en sessionStorage; sin login no hay token)
+2. Recarga la página (o borra caché PWA)
+3. Deben aparecer las tareas
+
+
+RESUMEN DE SEGURIDAD
+--------------------
+| Capa              | Qué protege                          |
+|-------------------|--------------------------------------|
+| Sheet compartido  | Solo cuentas @robin-agency.com       |
+| ROBIN_API_SECRET  | Solo la app con contraseña correcta  |
+| ROBIN_ALLOWED_USERS | Solo usuarios autorizados en lista |
+| ROBIN_ADMIN_USERS | Solo admin crea/elimina marcas       |
+
+================================================================================

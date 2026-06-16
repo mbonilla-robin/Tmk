@@ -815,11 +815,14 @@ function sincronizarDesdeMarca(e) {
 }
 
 // ==========================================
-// 15. ENDPOINTS DE API PARA APLICACIÓN WEB EXTERNA (CONSOLIDADO)
+// 15. ENDPOINTS DE API PARA APLICACIÓN WEB EXTERNA (CONSOLIDADO + SEGURIDAD)
 // ==========================================
+// Requiere ApiAuth.gs en el mismo proyecto (ver google-apps-script/ApiAuth.gs)
 
 function doGet(e) {
   try {
+    var session = robinValidarSesionRobin_(e, null);
+
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var sheets = ss.getSheets();
     
@@ -904,12 +907,10 @@ function doGet(e) {
       estadosConfig: COLORES_ESTADOS
     };
 
-    return ContentService.createTextOutput(JSON.stringify(response))
-      .setMimeType(ContentService.MimeType.JSON);
+    return robinJsonResponse_(response);
 
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return robinErrorResponse_(err.message || err.toString());
   }
 }
 
@@ -918,9 +919,13 @@ function doPost(e) {
     if (!e || !e.postData || !e.postData.contents) {
       throw new Error("No se recibieron datos de postDataContents.");
     }
-    
+
     var rawData = e.postData.contents;
     var payload = JSON.parse(rawData);
+    var session = robinValidarSesionRobin_(e, payload);
+    payload = robinLimpiarPayload_(payload);
+    robinExigirOperacionAdmin_(session, payload);
+
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var campo = payload.campo ? String(payload.campo).trim() : null;
 
@@ -1124,11 +1129,9 @@ function doPost(e) {
     
     actualizarHojaHoy();
 
-    return ContentService.createTextOutput(JSON.stringify({ success: true, message: "Sincronización completada con éxito." }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return robinJsonResponse_({ success: true, message: "Sincronización completada con éxito." });
 
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return robinErrorResponse_(err.message || err.toString());
   }
 }

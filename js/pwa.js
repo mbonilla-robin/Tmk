@@ -1,10 +1,98 @@
+const PWA_ICON_VARIANTS = {
+  blanco: {
+    label: "Blanco",
+    preview: "icons/logo-blanco.png",
+    apple: "icons/pwa-blanco-180.png",
+    icon192: "icons/pwa-blanco-192.png",
+    icon512: "icons/pwa-blanco-512.png",
+    themeColor: "#FFFFFF",
+    backgroundColor: "#FFFFFF"
+  },
+  negro: {
+    label: "Negro",
+    preview: "icons/logo-negro.png",
+    apple: "icons/pwa-negro-180.png",
+    icon192: "icons/pwa-negro-192.png",
+    icon512: "icons/pwa-negro-512.png",
+    themeColor: "#000000",
+    backgroundColor: "#000000"
+  },
+  naranja: {
+    label: "Naranja",
+    preview: "icons/logo-naranja.png",
+    apple: "icons/pwa-naranja-180.png",
+    icon192: "icons/pwa-naranja-192.png",
+    icon512: "icons/pwa-naranja-512.png",
+    themeColor: "#F97316",
+    backgroundColor: "#F97316"
+  }
+};
+
+let pwaManifestBlobUrl = null;
+
+function applyPwaIconVariant(variant) {
+  const cfg = PWA_ICON_VARIANTS[variant] || PWA_ICON_VARIANTS.naranja;
+
+  const appleLink = document.querySelector('link[rel="apple-touch-icon"]');
+  if (appleLink) appleLink.href = cfg.apple;
+
+  const themeMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeMeta) themeMeta.content = cfg.themeColor;
+
+  const manifestLink = document.querySelector('link[rel="manifest"]');
+  if (!manifestLink) return;
+
+  if (pwaManifestBlobUrl) {
+    URL.revokeObjectURL(pwaManifestBlobUrl);
+    pwaManifestBlobUrl = null;
+  }
+
+  const manifest = {
+    name: "ROBIN - Trade & Shopper Marketing",
+    short_name: "ROBIN",
+    description: "Workspace de Trade & Shopper Marketing",
+    start_url: "./index.html",
+    scope: "./",
+    display: "standalone",
+    orientation: "portrait-primary",
+    background_color: cfg.backgroundColor,
+    theme_color: cfg.themeColor,
+    lang: "es",
+    icons: [
+      {
+        src: cfg.icon192,
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any"
+      },
+      {
+        src: cfg.icon512,
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any"
+      },
+      {
+        src: cfg.icon512,
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable"
+      }
+    ]
+  };
+
+  pwaManifestBlobUrl = URL.createObjectURL(
+    new Blob([JSON.stringify(manifest)], { type: "application/manifest+json" })
+  );
+  manifestLink.href = pwaManifestBlobUrl;
+}
+
 (function registerRobinPwa() {
   document.documentElement.classList.add("robin-app");
 
   const isStandalone =
     window.matchMedia("(display-mode: standalone)").matches ||
     window.navigator.standalone === true;
-  const isMobile = window.matchMedia("(max-width: 767px)").matches;
+  const isMobile = window.matchMedia("(max-width: 1023px)").matches;
 
   if (isStandalone) {
     document.documentElement.classList.add("robin-pwa-standalone");

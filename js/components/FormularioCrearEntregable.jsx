@@ -128,7 +128,7 @@ function FormularioCrearEntregable({
           </div>
         </div>
 
-        <div className="sticky bottom-[calc(var(--mobile-nav-h,4rem)+env(safe-area-inset-bottom,0px))] md:bottom-0 bg-white/95 backdrop-blur-sm border-t border-zinc-100 px-5 md:px-12 lg:px-16 py-3 flex justify-end gap-2">
+        <div className="sticky bottom-[var(--mobile-chrome-bottom,4rem)] md:bottom-0 bg-white/95 backdrop-blur-sm border-t border-zinc-100 px-5 md:px-12 lg:px-16 py-3 flex justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}

@@ -56,6 +56,66 @@ function agruparWidgetsPorSeccion(widgets) {
   };
 }
 
+function widgetsRecientesStorageKey(username) {
+  const user = typeof normalizeUsername === "function"
+    ? normalizeUsername(username)
+    : String(username || "").replace(/^@/, "").trim().toLowerCase();
+  return `robin_widgets_recientes_${user || "anon"}`;
+}
+
+function obtenerIdsWidgetsRecientes(username) {
+  try {
+    const raw = getLocalStorageItemSafe(widgetsRecientesStorageKey(username), "[]");
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.map(String).filter(Boolean) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function registrarUsoWidget(username, widgetId) {
+  if (!widgetId) return;
+  const id = String(widgetId);
+  let ids = obtenerIdsWidgetsRecientes(username).filter(x => x !== id);
+  ids.unshift(id);
+  ids = ids.slice(0, 50);
+  setLocalStorageItemSafe(widgetsRecientesStorageKey(username), JSON.stringify(ids));
+}
+
+function seleccionarWidgetsDestacados(widgets, username, limite = 5) {
+  const lista = (widgets || []).filter(Boolean);
+  if (lista.length === 0) return [];
+
+  const porId = new Map(lista.map(w => [String(w.id), w]));
+  const recientesIds = obtenerIdsWidgetsRecientes(username);
+  const destacados = [];
+  const usados = new Set();
+
+  for (const id of recientesIds) {
+    if (destacados.length >= limite) break;
+    const w = porId.get(String(id));
+    if (w) {
+      destacados.push(w);
+      usados.add(String(w.id));
+    }
+  }
+
+  for (const w of lista) {
+    if (destacados.length >= limite) break;
+    if (!usados.has(String(w.id))) {
+      destacados.push(w);
+      usados.add(String(w.id));
+    }
+  }
+
+  return destacados;
+}
+
+function listarTodosWidgetsAplanados(widgetsAgrupados) {
+  if (!widgetsAgrupados) return [];
+  return [...(widgetsAgrupados.robin || []), ...(widgetsAgrupados.clientes || [])];
+}
+
 function obtenerOpcionesSeccionWidget() {
   return Object.values(WIDGET_SECCIONES);
 }

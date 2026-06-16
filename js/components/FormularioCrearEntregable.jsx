@@ -1,0 +1,150 @@
+function PropertyRow({ icon, label, children }) {
+  return (
+    <div className="group flex items-center min-h-[34px] py-0.5 px-1 -mx-1 rounded hover:bg-zinc-50/80 transition-colors">
+      <div className="flex items-center gap-2 w-[128px] shrink-0 text-ui-sm text-zinc-500">
+        <i className={`${icon} w-3.5 text-center text-zinc-400 text-[11px]`} />
+        <span>{label}</span>
+      </div>
+      <div className="flex-1 min-w-0">{children}</div>
+    </div>
+  );
+}
+
+function FormularioCrearEntregable({
+  nuevaTarea,
+  setNuevaTarea,
+  onSubmit,
+  onCancel,
+  marcasDisponibles,
+  listaPersonas,
+  registrarNuevaPersona,
+  isSubmitting,
+  syncing
+}) {
+  const estadoVisual = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(nuevaTarea.estado)) || ESTADOS_MAPA[0];
+  const inputPropClass = "w-full bg-transparent border-0 text-ui-sm text-[#37352F] focus:outline-none cursor-pointer font-medium";
+  const inputPropTextClass = "w-full bg-transparent border-0 text-ui-sm text-[#37352F] focus:outline-none font-medium placeholder-zinc-400";
+
+  return (
+    <div className="w-full min-h-full flex flex-col animate-fade-in bg-white">
+      <form onSubmit={onSubmit} className="min-h-full flex flex-col flex-1">
+        <div className="px-5 md:px-12 lg:px-16 pt-1 pb-5 md:pt-4 md:pb-6">
+          <span className="text-ui-sm text-zinc-400">Nuevo entregable</span>
+          <input
+            type="text"
+            required
+            autoFocus
+            value={nuevaTarea.info}
+            onChange={(e) => setNuevaTarea({ ...nuevaTarea, info: e.target.value })}
+            placeholder="Sin título"
+            className="w-full mt-2 text-2xl md:text-[1.75rem] font-bold text-[#37352F] bg-transparent border-0 focus:outline-none placeholder-zinc-300 leading-snug"
+          />
+        </div>
+
+        <div className="flex-1 px-5 md:px-12 lg:px-16 pb-28">
+          <div className="pb-2 flex flex-col gap-0.5 border-b border-zinc-100">
+            <PropertyRow icon="fa-regular fa-building" label="Cliente">
+              <select
+                value={nuevaTarea.marca}
+                onChange={(e) => setNuevaTarea({ ...nuevaTarea, marca: e.target.value })}
+                className={inputPropClass}
+              >
+                {marcasDisponibles.map(m => (
+                  <option key={m} value={m}>{formatearMarca(m)}</option>
+                ))}
+              </select>
+            </PropertyRow>
+
+            <PropertyRow icon="fa-regular fa-circle-dot" label="Estado">
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${estadoVisual.dot}`} />
+                <select
+                  value={nuevaTarea.estado}
+                  onChange={(e) => setNuevaTarea({ ...nuevaTarea, estado: e.target.value })}
+                  className={inputPropClass}
+                >
+                  {LISTA_ESTADOS_VALIDOS.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+            </PropertyRow>
+
+            <PropertyRow icon="fa-solid fa-signal" label="Prioridad">
+              <select
+                value={nuevaTarea.prioridad}
+                onChange={(e) => setNuevaTarea({ ...nuevaTarea, prioridad: e.target.value })}
+                className={inputPropClass}
+              >
+                {PRIORIDADES_MAPA.map(p => (
+                  <option key={p.id} value={p.id}>{p.label}</option>
+                ))}
+              </select>
+            </PropertyRow>
+
+            <PropertyRow icon="fa-regular fa-folder" label="Categoría">
+              <input
+                type="text"
+                value={nuevaTarea.categoria}
+                onChange={(e) => setNuevaTarea({ ...nuevaTarea, categoria: e.target.value })}
+                placeholder="Sin categoría"
+                className={inputPropTextClass}
+              />
+            </PropertyRow>
+
+            <PropertyRow icon="fa-regular fa-calendar" label="Entrega">
+              <input
+                type="date"
+                required
+                value={convertirFechaAInput(nuevaTarea.deadline)}
+                onChange={(e) => setNuevaTarea({ ...nuevaTarea, deadline: e.target.value })}
+                className={inputPropClass}
+              />
+            </PropertyRow>
+
+            <PropertyRow icon="fa-regular fa-user" label="Asignados">
+              <SelectorPersonasChips
+                personasSeleccionadas={nuevaTarea.personas}
+                onChange={(val) => setNuevaTarea({ ...nuevaTarea, personas: val })}
+                listaGlobal={listaPersonas}
+                registrarNuevaPersona={registrarNuevaPersona}
+                variant="minimal"
+              />
+            </PropertyRow>
+          </div>
+
+          <div className="py-4">
+            <div className="flex items-center gap-2 mb-2 text-ui-sm text-zinc-500">
+              <i className="fa-regular fa-note-sticky text-zinc-400 text-[11px]" />
+              <span>Notas</span>
+            </div>
+            <textarea
+              rows="4"
+              placeholder="Escribe notas o contexto adicional..."
+              value={nuevaTarea.detalles}
+              onChange={(e) => setNuevaTarea({ ...nuevaTarea, detalles: e.target.value })}
+              className="w-full bg-transparent border-0 p-0 text-ui-sm leading-relaxed text-[#37352F] focus:outline-none placeholder-zinc-400 resize-none"
+            />
+          </div>
+        </div>
+
+        <div className="sticky bottom-[calc(var(--mobile-nav-h,4rem)+env(safe-area-inset-bottom,0px))] md:bottom-0 bg-white/95 backdrop-blur-sm border-t border-zinc-100 px-5 md:px-12 lg:px-16 py-3 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-3 py-1.5 text-ui-sm font-medium text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 rounded transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={isSubmitting || syncing}
+            className="px-4 py-1.5 bg-[#37352F] text-white text-ui-sm font-medium rounded hover:bg-[#2c2a26] disabled:opacity-50 transition-colors"
+          >
+            Crear entregable
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}

@@ -1,4 +1,4 @@
-function SelectorPersonasChips({ personasSeleccionadas, onChange, listaGlobal, registrarNuevaPersona }) {
+function SelectorPersonasChips({ personasSeleccionadas, onChange, listaGlobal, registrarNuevaPersona, variant = "default" }) {
   const [buscar, setBuscar] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const containerRef = useRef(null);
@@ -39,14 +39,18 @@ function SelectorPersonasChips({ personasSeleccionadas, onChange, listaGlobal, r
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const triggerClass = variant === "minimal"
+    ? "min-h-[28px] w-full bg-transparent border-0 rounded p-0 flex flex-wrap gap-1 items-center cursor-pointer"
+    : "min-h-[36px] w-full bg-white border border-zinc-200 rounded p-1.5 flex flex-wrap gap-1 items-center cursor-pointer hover:border-zinc-300 transition-colors";
+
   return (
     <div ref={containerRef} className="relative w-full">
       <div 
         onClick={() => setDropdownOpen(true)}
-        className="min-h-[36px] w-full bg-white border border-zinc-200 rounded p-1.5 flex flex-wrap gap-1 items-center cursor-pointer hover:border-zinc-300 transition-colors"
+        className={triggerClass}
       >
         {seleccionadasArray.length === 0 ? (
-          <span className="text-xs text-zinc-400 font-normal px-1">Seleccionar miembros...</span>
+          <span className="text-ui-sm text-zinc-400 font-normal">Vacío</span>
         ) : (
           seleccionadasArray.map(p => (
             <span key={p} className="inline-flex items-center gap-1 bg-zinc-100 text-[#37352F] text-[11px] font-medium px-2 py-0.5 rounded border border-zinc-200">

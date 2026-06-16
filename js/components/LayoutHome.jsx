@@ -12,6 +12,11 @@ function LayoutHome({
 }) {
 
   const widgetsVisibles = useMemo(() => agruparWidgetsPorSeccion(widgets), [widgets]);
+  const todosLosWidgets = useMemo(
+    () => listarTodosWidgetsAplanados(widgetsVisibles),
+    [widgetsVisibles]
+  );
+  const [widgetsMobileVista, setWidgetsMobileVista] = useState("inicio");
 
   const stats = useMemo(() => {
     const total = tareas.length;
@@ -49,6 +54,22 @@ function LayoutHome({
         <h2 className="text-xl font-extrabold text-[#37352F] tracking-tight">Home</h2>
       </div>
 
+      {widgetsMobileVista === "todos" && (
+        <div className="md:hidden flex flex-col gap-3">
+          <MobileSubpageBar
+            title="Accesos rápidos"
+            onBack={() => setWidgetsMobileVista("inicio")}
+            backLabel="Home"
+          />
+          <MobileWidgetsGrid
+            variant="full"
+            widgetsAgrupados={widgetsVisibles}
+            username={username}
+          />
+        </div>
+      )}
+
+      <div className={`flex flex-col gap-4 md:gap-5 ${widgetsMobileVista === "todos" ? "hidden md:flex" : ""}`}>
       <div className="md:hidden">
         <h2 className="text-lg font-bold text-[#37352F]">Hola, {saludo}</h2>
         <p className="text-[11px] text-zinc-400 mt-0.5">Resumen de tu área</p>
@@ -95,7 +116,12 @@ function LayoutHome({
       {(widgetsVisibles.robin.length > 0 || widgetsVisibles.clientes.length > 0) && (
         <div className="flex flex-col gap-2">
           <span className="mobile-section-label md:hidden">Accesos rápidos</span>
-          <MobileWidgetsGrid widgets={[...widgetsVisibles.robin, ...widgetsVisibles.clientes]} />
+          <MobileWidgetsGrid
+            widgets={todosLosWidgets}
+            variant="preview"
+            username={username}
+            onVerMas={() => setWidgetsMobileVista("todos")}
+          />
           <div className="hidden md:flex flex-col gap-2">
             <WidgetBarFila titulo="Robin" widgets={widgetsVisibles.robin} />
             <WidgetBarFila titulo="Clientes" widgets={widgetsVisibles.clientes} />
@@ -194,6 +220,7 @@ function LayoutHome({
           getMarcaStyle={getMarcaStyle}
           username={username}
         />
+      </div>
       </div>
 
     </div>

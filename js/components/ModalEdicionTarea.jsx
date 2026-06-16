@@ -1,3 +1,15 @@
+function PropertyRow({ icon, label, children }) {
+  return (
+    <div className="group flex items-center min-h-[34px] py-0.5 px-1 -mx-1 rounded hover:bg-zinc-50/80 transition-colors">
+      <div className="flex items-center gap-2 w-[128px] shrink-0 text-ui-sm text-zinc-500">
+        <i className={`${icon} w-3.5 text-center text-zinc-400 text-[11px]`} />
+        <span>{label}</span>
+      </div>
+      <div className="flex-1 min-w-0">{children}</div>
+    </div>
+  );
+}
+
 function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNuevaPersona, marcasDisponibles, isSubmitting }) {
   const [info, setInfo] = useState(tarea.info || "");
   const [categoria, setCategoria] = useState(tarea.categoria || "");
@@ -13,6 +25,13 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   const [notes, setNotes] = useState(parsed.notes || parsed.notas);
   const [subtareas, setSubtareas] = useState(parsed.subtareas);
   const [nuevoSubtareaText, setNuevoSubtareaText] = useState("");
+
+  const estadoVisual = useMemo(() => {
+    return ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(estado)) || ESTADOS_MAPA[0];
+  }, [estado]);
+
+  const subtareasCompletadas = useMemo(() => subtareas.filter(s => s.completed).length, [subtareas]);
+  const subtareasProgreso = subtareas.length > 0 ? (subtareasCompletadas / subtareas.length) * 100 : 0;
 
   const handleAddSubtarea = (e) => {
     e.preventDefault();
@@ -53,177 +72,205 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     });
   };
 
+  const inputPropClass = "w-full bg-transparent border-0 text-ui-sm text-[#37352F] focus:outline-none cursor-pointer font-medium";
+  const inputPropTextClass = "w-full bg-transparent border-0 text-ui-sm text-[#37352F] focus:outline-none font-medium placeholder-zinc-400";
+
   return (
-    <div className="fixed inset-0 bg-black/10 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
-      <div className="bg-white p-6 rounded-md border border-zinc-300 shadow-lg w-full max-w-xl max-h-[90vh] overflow-y-auto animate-zoom-in">
-        <div className="flex items-center justify-between border-b pb-2.5 mb-4">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-mono text-zinc-400 bg-zinc-100 px-2 py-0.5 rounded border">
-              {cleanIdTarea(tarea.idTarea) || "ID AUTOMÁTICO"}
-            </span>
-            <span className="text-xs font-bold uppercase text-zinc-500 tracking-wider">Entregable</span>
-          </div>
-          <button 
-            onClick={onClose}
-            className="text-zinc-400 hover:text-zinc-800 text-lg font-bold"
-          >
-            &times;
-          </button>
-        </div>
+    <div className="task-sheet-overlay fixed inset-0 z-[150] flex flex-col">
+      <button
+        type="button"
+        onClick={onClose}
+        className="task-sheet-backdrop flex-shrink-0 h-12 md:h-14 w-full bg-black/25 backdrop-blur-[1px] cursor-pointer transition-colors hover:bg-black/30"
+        aria-label="Cerrar entregable"
+      />
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            <div>
-              <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Título del entregable</label>
-              <input 
-                type="text" 
-                required
-                value={info}
-                onChange={(e) => setInfo(e.target.value)}
-                className="w-full bg-zinc-50 border border-zinc-200 px-2.5 py-1.5 text-xs rounded focus:outline-none font-semibold text-[#37352F]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Categoría</label>
-              <input 
-                type="text" 
-                value={categoria}
-                onChange={(e) => setCategoria(e.target.value)}
-                className="w-full bg-zinc-50 border border-zinc-200 px-2.5 py-1.5 text-xs rounded focus:outline-none font-semibold text-[#37352F]"
-              />
-            </div>
+      <div className="task-sheet-panel flex-1 min-h-0 bg-white rounded-t-2xl shadow-[0_-8px_40px_rgba(0,0,0,0.12)] overflow-y-auto animate-task-sheet-in">
+        <form onSubmit={handleSubmit} className="min-h-full flex flex-col">
+          <div className="sticky top-0 z-10 relative bg-white/95 backdrop-blur-sm pt-3 pb-1 px-6 md:px-10">
+            <div className="task-sheet-handle w-9 h-1 bg-zinc-300 rounded-full mx-auto mb-4" aria-hidden="true" />
+            <button
+              type="button"
+              onClick={onClose}
+              className="absolute top-4 right-4 md:right-8 w-7 h-7 flex items-center justify-center rounded text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors"
+              aria-label="Cerrar"
+            >
+              <i className="fa-solid fa-xmark text-sm" />
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-            <div>
-              <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Cliente</label>
-              <select 
-                value={marca}
-                onChange={(e) => setMarca(e.target.value)}
-                className="w-full bg-zinc-50 border border-zinc-200 px-2.5 py-1.5 text-xs rounded focus:outline-none font-semibold text-[#37352F] bg-white"
-              >
+          {/* Encabezado estilo Notion */}
+          <div className="relative px-6 md:px-10 pb-4 max-w-3xl mx-auto w-full">
+            <input
+              type="text"
+              required
+              value={info}
+              onChange={(e) => setInfo(e.target.value)}
+              placeholder="Sin título"
+              className="w-full pr-8 text-2xl md:text-[1.75rem] font-bold text-[#37352F] bg-transparent border-0 focus:outline-none placeholder-zinc-300 leading-snug"
+            />
+            {cleanIdTarea(tarea.idTarea) && (
+              <span className="inline-block mt-1.5 text-[11px] font-mono text-zinc-400">
+                {cleanIdTarea(tarea.idTarea)}
+              </span>
+            )}
+          </div>
+
+          <div className="flex-1 max-w-3xl mx-auto w-full px-6 md:px-10 pb-24">
+          {/* Propiedades lineales */}
+          <div className="pb-2 flex flex-col gap-0.5 border-b border-zinc-100">
+            <PropertyRow icon="fa-regular fa-building" label="Cliente">
+              <select value={marca} onChange={(e) => setMarca(e.target.value)} className={inputPropClass}>
                 {marcasDisponibles.map(m => (
-                  <option key={m} value={m}>{m}</option>
+                  <option key={m} value={m}>{formatearMarca(m)}</option>
                 ))}
               </select>
-            </div>
+            </PropertyRow>
 
-            <div>
-              <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Prioridad</label>
-              <select 
-                value={prioridad}
-                onChange={(e) => setPrioridad(e.target.value)}
-                className="w-full bg-zinc-50 border border-zinc-200 px-2.5 py-1.5 text-xs rounded focus:outline-none font-semibold text-[#37352F] bg-white"
-              >
+            <PropertyRow icon="fa-regular fa-circle-dot" label="Estado">
+              <div className="flex items-center gap-2">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${estadoVisual.dot}`} />
+                <select value={estado} onChange={(e) => setEstado(e.target.value)} className={inputPropClass}>
+                  {LISTA_ESTADOS_VALIDOS.map(opt => (
+                    <option key={opt} value={opt}>{opt}</option>
+                  ))}
+                </select>
+              </div>
+            </PropertyRow>
+
+            <PropertyRow icon="fa-solid fa-signal" label="Prioridad">
+              <select value={prioridad} onChange={(e) => setPrioridad(e.target.value)} className={inputPropClass}>
                 {PRIORIDADES_MAPA.map(p => (
                   <option key={p.id} value={p.id}>{p.label}</option>
                 ))}
               </select>
-            </div>
+            </PropertyRow>
 
-            <div>
-              <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Estado</label>
-              <select 
-                value={estado}
-                onChange={(e) => setEstado(e.target.value)}
-                className="w-full bg-zinc-50 border border-zinc-200 px-2.5 py-1.5 text-xs rounded focus:outline-none font-semibold text-[#37352F] bg-white"
-              >
-                {LISTA_ESTADOS_VALIDOS.map(opt => (
-                  <option key={opt} value={opt}>{opt}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+            <PropertyRow icon="fa-regular fa-folder" label="Categoría">
+              <input
+                type="text"
+                value={categoria}
+                onChange={(e) => setCategoria(e.target.value)}
+                placeholder="Sin categoría"
+                className={inputPropTextClass}
+              />
+            </PropertyRow>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            <div>
-              <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Fecha de Entrega</label>
-              <input 
-                type="date" 
+            <PropertyRow icon="fa-regular fa-calendar" label="Entrega">
+              <input
+                type="date"
                 required
                 value={convertirFechaAInput(deadline)}
                 onChange={(e) => setDeadline(e.target.value)}
-                className="w-full bg-zinc-50 border border-zinc-200 px-2.5 py-1.5 text-xs rounded focus:outline-none font-semibold text-[#37352F]"
+                className={inputPropClass}
               />
-            </div>
+            </PropertyRow>
 
-            <div>
-              <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Miembros Asignados</label>
-              <SelectorPersonasChips 
+            <PropertyRow icon="fa-regular fa-user" label="Asignados">
+              <SelectorPersonasChips
                 personasSeleccionadas={personas}
                 onChange={setPersonas}
                 listaGlobal={listaPersonas}
                 registrarNuevaPersona={registrarNuevaPersona}
+                variant="minimal"
               />
-            </div>
+            </PropertyRow>
           </div>
 
-          <div className="border-t pt-3">
-            <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Notas generales</label>
-            <textarea 
+          {/* Notas */}
+          <div className="py-4 border-b border-zinc-100">
+            <div className="flex items-center gap-2 mb-2 text-ui-sm text-zinc-500">
+              <i className="fa-regular fa-note-sticky text-zinc-400 text-[11px]" />
+              <span>Notas</span>
+            </div>
+            <textarea
               rows="3"
               value={notes}
               onChange={(e) => handleNotasChange(e.target.value)}
-              className="w-full bg-zinc-50 border border-zinc-200 p-2.5 text-xs rounded focus:outline-none font-medium text-[#37352F]"
-              placeholder="Especificaciones o comentarios de apoyo..."
+              className="w-full bg-transparent border-0 p-0 text-ui-sm leading-relaxed text-[#37352F] focus:outline-none placeholder-zinc-400 resize-none"
+              placeholder="Escribe notas o contexto adicional..."
             />
           </div>
 
-          {/* Checklist de Subtareas */}
-          <div className="border-t pt-3 flex flex-col gap-2">
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Subtareas / Checklist</span>
-            <div className="flex flex-col gap-1.5 max-h-36 overflow-y-auto pr-1">
-              {subtareas.length === 0 ? (
-                <span className="text-xs text-zinc-400 italic">Ninguna subtarea registrada</span>
-              ) : (
-                subtareas.map((s, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-1.5 rounded bg-[#FAF9F6]/40 border border-zinc-150">
-                    <label className="flex items-center gap-2 text-xs font-semibold text-zinc-700 cursor-pointer flex-1">
-                      <input 
-                        type="checkbox" 
-                        checked={s.completed} 
-                        onChange={() => handleToggleSubtarea(idx)}
-                        className="rounded border-zinc-300 text-zinc-900 focus:ring-0"
-                      />
-                      <span className={s.completed ? "line-through text-zinc-400 font-normal" : "font-semibold text-zinc-700"}>{s.text}</span>
-                    </label>
-                    <button 
-                      type="button"
-                      onClick={() => handleDeleteSubtarea(idx)}
-                      className="text-zinc-400 hover:text-red-500 transition-colors px-1"
-                    >
-                      <i className="fa-regular fa-trash-can text-[11px]"></i>
-                    </button>
-                  </div>
-                ))
+          {/* Subtareas estilo Notion */}
+          <div className="py-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2 text-ui-sm text-zinc-500">
+                <i className="fa-regular fa-square-check text-zinc-400 text-[11px]" />
+                <span>Subtareas</span>
+              </div>
+              {subtareas.length > 0 && (
+                <span className="text-[11px] text-zinc-400 tabular-nums">
+                  {subtareasCompletadas}/{subtareas.length}
+                </span>
               )}
             </div>
-            <div className="flex gap-2">
-              <input 
-                type="text" 
-                placeholder="Nueva subtarea..."
-                value={nuevoSubtareaText}
-                onChange={(e) => setNuevoSubtareaText(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleAddSubtarea(e); }}
-                className="flex-1 bg-zinc-50 border border-zinc-200 px-3 py-1.5 text-xs rounded focus:outline-none font-medium text-[#37352F]"
-              />
-              <button 
-                type="button"
-                onClick={handleAddSubtarea}
-                className="bg-[#37352F] hover:bg-[#2c2a26] text-white text-xs font-semibold px-4 py-1.5 rounded transition-colors"
-              >
-                Añadir
-              </button>
+
+            {subtareas.length > 0 && (
+              <div className="h-0.5 bg-zinc-100 rounded-full mb-3 overflow-hidden">
+                <div
+                  className="h-full bg-emerald-400 rounded-full transition-all duration-300"
+                  style={{ width: `${subtareasProgreso}%` }}
+                />
+              </div>
+            )}
+
+            <div className="flex flex-col">
+              {subtareas.map((s, idx) => (
+                <div
+                  key={idx}
+                  className="group flex items-start gap-2.5 py-1 px-1 -mx-1 rounded hover:bg-zinc-50/80 transition-colors"
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleToggleSubtarea(idx)}
+                    className={`mt-0.5 w-4 h-4 shrink-0 rounded border flex items-center justify-center transition-colors ${
+                      s.completed
+                        ? "bg-emerald-500 border-emerald-500 text-white"
+                        : "border-zinc-300 hover:border-zinc-500 bg-white"
+                    }`}
+                    aria-label={s.completed ? "Marcar pendiente" : "Marcar completada"}
+                  >
+                    {s.completed && <i className="fa-solid fa-check text-[8px]" />}
+                  </button>
+                  <span className={`flex-1 text-ui-sm leading-relaxed pt-px ${
+                    s.completed ? "line-through text-zinc-400" : "text-[#37352F]"
+                  }`}>
+                    {s.text}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteSubtarea(idx)}
+                    className="opacity-0 group-hover:opacity-100 mt-0.5 w-5 h-5 flex items-center justify-center rounded text-zinc-300 hover:text-red-400 hover:bg-red-50 transition-all shrink-0"
+                    aria-label="Eliminar subtarea"
+                  >
+                    <i className="fa-solid fa-xmark text-[10px]" />
+                  </button>
+                </div>
+              ))}
+
+              <div className="flex items-center gap-2.5 py-1 px-1 -mx-1 mt-0.5">
+                <div className="w-4 h-4 shrink-0 rounded border border-dashed border-zinc-300" />
+                <input
+                  type="text"
+                  placeholder="Añadir subtarea..."
+                  value={nuevoSubtareaText}
+                  onChange={(e) => setNuevoSubtareaText(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleAddSubtarea(e); }}
+                  className="flex-1 bg-transparent border-0 text-ui-sm text-[#37352F] placeholder-zinc-400 focus:outline-none"
+                />
+              </div>
             </div>
           </div>
 
           {parsed.historial && parsed.historial.length > 0 && (
-            <div className="border-t pt-3">
-              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block mb-1.5">Bitácora de Cambios</span>
-              <div className="bg-zinc-50 p-2 rounded border border-zinc-200 max-h-24 overflow-y-auto flex flex-col gap-1">
+            <div className="pb-4">
+              <div className="flex items-center gap-2 mb-2 text-ui-sm text-zinc-500">
+                <i className="fa-regular fa-clock text-zinc-400 text-[11px]" />
+                <span>Historial</span>
+              </div>
+              <div className="flex flex-col gap-1 pl-5 border-l-2 border-zinc-100">
                 {parsed.historial.map((line, idx) => (
-                  <p key={idx} className="text-[10px] text-zinc-500 font-medium leading-relaxed">
+                  <p key={idx} className="text-[11px] text-zinc-400 leading-relaxed">
                     {line}
                   </p>
                 ))}
@@ -231,18 +278,20 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
             </div>
           )}
 
-          <div className="flex justify-end gap-2 pt-3 border-t mt-1">
-            <button 
-              type="button" 
+          </div>
+
+          <div className="sticky bottom-0 bg-white/95 backdrop-blur-sm border-t border-zinc-100 px-6 md:px-10 py-3 flex justify-end gap-2 max-w-3xl mx-auto w-full">
+            <button
+              type="button"
               onClick={onClose}
-              className="px-3 py-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-800"
+              className="px-3 py-1.5 text-ui-sm font-medium text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 rounded transition-colors"
             >
               Cancelar
             </button>
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={isSubmitting}
-              className="px-4 py-1.5 bg-[#37352F] text-white text-xs font-semibold rounded hover:bg-[#2c2a26] disabled:opacity-50"
+              className="px-4 py-1.5 bg-[#37352F] text-white text-ui-sm font-medium rounded hover:bg-[#2c2a26] disabled:opacity-50 transition-colors"
             >
               Guardar
             </button>
@@ -252,7 +301,3 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     </div>
   );
 }
-
-// =========================================================================
-// COMPONENTE PRINCIPAL: APP
-// =========================================================================

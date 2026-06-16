@@ -33,10 +33,10 @@
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#37352F">
+  <meta name="theme-color" content="#FFFFFF">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="ROBIN">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 
@@ -53,6 +53,14 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <!-- Babel CDN for JSX -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script>
+    (function configureRobinBabel() {
+      if (typeof Babel === "undefined" || !Babel.registerPreset) return;
+      Babel.registerPreset("react", {
+        presets: [[Babel.availablePresets.react, { runtime: "classic" }]],
+      });
+    })();
+  </script>
 
   <link rel="stylesheet" href="css/main.css">
 </head>
@@ -121,6 +129,7 @@
   <script type="text/babel" data-presets="react" src="js/components/LayoutTablaAgrupada.jsx"></script>
   <script type="text/babel" data-presets="react" src="js/components/LayoutKanban.jsx"></script>
   <script type="text/babel" data-presets="react" src="js/components/SelectorPersonasChips.jsx"></script>
+  <script type="text/babel" data-presets="react" src="js/components/FormularioCrearEntregable.jsx"></script>
   <script type="text/babel" data-presets="react" src="js/components/WidgetBarFila.jsx"></script>
   <script type="text/babel" data-presets="react" src="js/components/MobileWidgetsGrid.jsx"></script>
   <script type="text/babel" data-presets="react" src="js/components/LayoutHome.jsx"></script>

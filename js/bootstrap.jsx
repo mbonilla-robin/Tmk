@@ -80,7 +80,7 @@
   }
 
   let attempts = 0;
-  const MAX_BOOT_ATTEMPTS = 100;
+  const MAX_BOOT_ATTEMPTS = 240;
 
   function scheduleBoot() {
     if (typeof App === "function") {
@@ -92,7 +92,7 @@
       bootRobinApp();
       return;
     }
-    setTimeout(scheduleBoot, 50);
+    setTimeout(scheduleBoot, 100);
   }
 
   if (document.readyState === "complete") {

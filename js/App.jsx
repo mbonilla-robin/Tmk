@@ -115,22 +115,25 @@ function App() {
     ]);
   }, [tareas, marcasMetadata]);
 
+  const tareasActivasCount = useMemo(() => {
+    return tareas.filter(t => cleanEstado(t.estado) !== "completada").length;
+  }, [tareas]);
+
   const tareasFiltradas = useMemo(() => {
     const hoy = new Date();
     const tHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
     
     return tareas.filter(t => {
       const tDeadline = obtenerTiempoFecha(t.deadline);
+      const esCompletada = cleanEstado(t.estado) === "completada";
       
       if (filtroTiempo === "HOY") {
         const tieneFechaReal = tDeadline !== Infinity;
         const esHoy = tieneFechaReal && tDeadline === tHoy;
-        const esCompletada = cleanEstado(t.estado) === "completada";
         if (!esHoy || esCompletada) return false;
       } else if (filtroTiempo === "ATRASADAS") {
         const tieneFechaReal = tDeadline !== Infinity;
         const esAtrasada = tieneFechaReal && tDeadline < tHoy;
-        const esCompletada = cleanEstado(t.estado) === "completada";
         if (!esAtrasada || esCompletada) return false;
       } else if (filtroTiempo === "FUTURAS") {
         const esFutura = tDeadline !== Infinity && tDeadline > tHoy;
@@ -138,7 +141,11 @@ function App() {
       }
 
       if (filtroMarca !== "TODAS" && !marcasCoinciden(t.marca, filtroMarca)) return false;
-      if (filtroEstado !== "TODOS" && cleanEstado(t.estado) !== cleanEstado(filtroEstado)) return false;
+      if (filtroEstado !== "TODOS") {
+        if (cleanEstado(t.estado) !== cleanEstado(filtroEstado)) return false;
+      } else if (esCompletada) {
+        return false;
+      }
       if (filtroPrioridad !== "TODAS" && normalizarPrioridad(t.prioridad) !== normalizarPrioridad(filtroPrioridad)) return false;
 
       if (searchQuery.trim() !== "") {
@@ -1403,7 +1410,15 @@ function App() {
           </div>
         </header>
 
-        <div className={`flex-1 overflow-y-auto overflow-x-hidden max-w-6xl mx-auto w-full min-h-0 ${!isConfigOnlyAdmin ? "robin-mobile-main md:p-6" : "p-4 md:p-6"}`}>
+        <div className={`flex-1 overflow-y-auto overflow-x-hidden w-full min-h-0 ${
+          paginaActiva === "agregar" ? "" : "max-w-6xl mx-auto"
+        } ${
+          !isConfigOnlyAdmin
+            ? paginaActiva === "agregar"
+              ? "robin-mobile-main md:p-0 !px-0"
+              : "robin-mobile-main md:p-6"
+            : "p-4 md:p-6"
+        }`}>
           
           {paginaActiva === "home" && !isConfigOnlyAdmin && (
             <LayoutHome 
@@ -1421,128 +1436,17 @@ function App() {
           )}
 
           {paginaActiva === "agregar" && !isConfigOnlyAdmin && (
-            <div className="max-w-xl mx-auto border border-zinc-200 p-6 rounded-md bg-white animate-fade-in">
-              <h2 className="text-sm font-bold uppercase tracking-wider border-b pb-2 text-zinc-500">Crear Entregable</h2>
-              
-              <form onSubmit={handleCreateTask} className="flex flex-col gap-4 mt-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Cliente / Marca</label>
-                    <select 
-                      value={nuevaTarea.marca} 
-                      onChange={(e) => setNuevaTarea({...nuevaTarea, marca: e.target.value})}
-                      className="w-full bg-zinc-50 border border-zinc-200 p-2 text-xs rounded focus:outline-none bg-white font-semibold text-[#37352F]"
-                    >
-                      {marcasDisponibles.map(m => (
-                        <option key={m} value={m}>{formatearMarca(m)}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Categoría</label>
-                    <input 
-                      type="text" 
-                      placeholder="Ej: Material POP, Diseño, Digital..." 
-                      value={nuevaTarea.categoria} 
-                      onChange={(e) => setNuevaTarea({...nuevaTarea, categoria: e.target.value})}
-                      className="w-full bg-zinc-50 border border-zinc-200 px-3 py-1.5 text-xs rounded focus:outline-none font-semibold text-[#37352F]" 
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Título del entregable</label>
-                    <input 
-                      type="text" 
-                      required 
-                      placeholder="Título del entregable..." 
-                      value={nuevaTarea.info} 
-                      onChange={(e) => setNuevaTarea({...nuevaTarea, info: e.target.value})}
-                      className="w-full bg-zinc-50 border border-zinc-200 px-3 py-1.5 text-xs rounded focus:outline-none font-semibold text-[#37352F]" 
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Prioridad</label>
-                    <select 
-                      value={nuevaTarea.prioridad} 
-                      onChange={(e) => setNuevaTarea({...nuevaTarea, prioridad: e.target.value})}
-                      className="w-full bg-zinc-50 border border-zinc-200 p-2 text-xs rounded focus:outline-none bg-white font-semibold text-[#37352F]"
-                    >
-                      {PRIORIDADES_MAPA.map(p => (
-                        <option key={p.id} value={p.id}>{p.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Asignados</label>
-                  <SelectorPersonasChips 
-                    personasSeleccionadas={nuevaTarea.personas}
-                    onChange={(val) => setNuevaTarea({...nuevaTarea, personas: val})}
-                    listaGlobal={listaPersonas}
-                    registrarNuevaPersona={registrarNuevaPersonaGlobal}
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Estado</label>
-                    <select 
-                      value={nuevaTarea.estado} 
-                      onChange={(e) => setNuevaTarea({...nuevaTarea, estado: e.target.value})}
-                      className="w-full bg-zinc-50 border border-zinc-200 p-2 text-xs rounded focus:outline-none bg-white font-semibold text-[#37352F]"
-                    >
-                      {LISTA_ESTADOS_VALIDOS.map(opt => (
-                        <option key={opt} value={opt}>{opt}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Fecha de Entrega (Deadline)</label>
-                    <input 
-                      type="date" 
-                      required
-                      value={convertirFechaAInput(nuevaTarea.deadline)} 
-                      onChange={(e) => setNuevaTarea({...nuevaTarea, deadline: e.target.value})}
-                      className="w-full bg-zinc-50 border border-zinc-200 px-3 py-1.5 text-xs rounded focus:outline-none font-semibold text-[#37352F]"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Descripción / Notas</label>
-                  <textarea 
-                    rows="4"
-                    placeholder="Ingresa notas o listas de subtareas (Ej: - [ ] Tarea)..."
-                    value={nuevaTarea.detalles}
-                    onChange={(e) => setNuevaTarea({...nuevaTarea, detalles: e.target.value})}
-                    className="w-full bg-zinc-50 border border-zinc-200 p-2.5 text-xs rounded focus:outline-none font-medium text-[#37352F]"
-                  />
-                </div>
-
-                <div className="flex justify-end gap-2 pt-4 border-t">
-                  <button 
-                    type="button" 
-                    onClick={() => setPaginaActiva("home")}
-                    className="px-3 py-1.5 text-xs font-semibold text-zinc-500 hover:text-zinc-800"
-                  >
-                    Cancelar
-                  </button>
-                  <button 
-                    type="submit" 
-                    disabled={isSubmitting || syncing}
-                    className="px-4 py-1.5 bg-[#37352F] text-white text-xs font-semibold rounded hover:bg-[#2c2a26] disabled:opacity-50"
-                  >
-                    Crear Entregable
-                  </button>
-                </div>
-              </form>
-            </div>
+            <FormularioCrearEntregable
+              nuevaTarea={nuevaTarea}
+              setNuevaTarea={setNuevaTarea}
+              onSubmit={handleCreateTask}
+              onCancel={() => setPaginaActiva("home")}
+              marcasDisponibles={marcasDisponibles}
+              listaPersonas={listaPersonas}
+              registrarNuevaPersona={registrarNuevaPersonaGlobal}
+              isSubmitting={isSubmitting}
+              syncing={syncing}
+            />
           )}
 
           {paginaActiva === "dashboard" && !isConfigOnlyAdmin && (
@@ -1611,11 +1515,9 @@ function App() {
                       </div>
                     </div>
 
-                    <div className="relative">
-                      <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-zinc-400">
-                        <i className="fa-solid fa-magnifying-glass text-[10px]"></i>
-                      </span>
-                      <input type="text" placeholder="Buscar..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-white border border-zinc-200 pl-8 pr-3 py-2 text-ui rounded-md focus:outline-none text-[#37352F]" />
+                    <div className="notion-dash-search">
+                      <i className="fa-solid fa-magnifying-glass notion-dash-search-icon" />
+                      <input type="text" placeholder="Buscar..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                     </div>
 
                     {tareasSeleccionadas.size > 0 && (
@@ -1646,62 +1548,60 @@ function App() {
 
               {/* ── Desktop: sin cambios ── */}
               <div className="hidden md:flex flex-col gap-5 animate-fade-in">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
                 <div>
-                  <h2 className="text-ui font-semibold text-[#37352F]">
-                    {filtroMarca === "TODAS" ? "Entregables del área" : `Entregables: ${formatearMarca(filtroMarca)}`}
+                  <h2 className="text-lg font-semibold text-[#37352F] tracking-tight">
+                    {filtroMarca === "TODAS" ? "Entregables" : formatearMarca(filtroMarca)}
                   </h2>
                   <p className="text-ui-sm text-zinc-400 mt-0.5">
-                    Mostrando {tareasFiltradas.length} de {tareas.length} entregables activos
+                    {tareasFiltradas.length} activo{tareasFiltradas.length !== 1 ? "s" : ""}
+                    {tareasFiltradas.length !== tareasActivasCount ? ` · ${tareasActivasCount} en total` : ""}
                   </p>
                 </div>
 
-                <div className="flex items-center gap-1 bg-[#FAF9F6] p-1 rounded border border-zinc-200">
-                  <button onClick={() => { setVistaModo("TABLE"); setUserPreference("vistaModo", "TABLE"); }} className={`px-3 py-1 text-ui font-medium rounded transition-colors flex items-center gap-1.5 ${vistaModo === "TABLE" ? "bg-white text-zinc-800 border" : "text-zinc-450 hover:text-zinc-700"}`}>
-                    <i className="fa-solid fa-list"></i> Lista
+                <div className="flex items-center gap-0.5">
+                  <button onClick={() => { setVistaModo("TABLE"); setUserPreference("vistaModo", "TABLE"); }} className={`px-2.5 py-1 text-ui-sm font-medium rounded transition-colors ${vistaModo === "TABLE" ? "bg-zinc-100 text-zinc-800" : "text-zinc-450 hover:text-zinc-700 hover:bg-zinc-50"}`}>
+                    Lista
                   </button>
-                  <button onClick={() => { setVistaModo("KANBAN"); setUserPreference("vistaModo", "KANBAN"); }} className={`px-3 py-1 text-ui font-medium rounded transition-colors flex items-center gap-1.5 ${vistaModo === "KANBAN" ? "bg-white text-zinc-800 border" : "text-zinc-450 hover:text-zinc-700"}`}>
-                    <i className="fa-solid fa-chart-simple"></i> Tablero
+                  <button onClick={() => { setVistaModo("KANBAN"); setUserPreference("vistaModo", "KANBAN"); }} className={`px-2.5 py-1 text-ui-sm font-medium rounded transition-colors ${vistaModo === "KANBAN" ? "bg-zinc-100 text-zinc-800" : "text-zinc-450 hover:text-zinc-700 hover:bg-zinc-50"}`}>
+                    Tablero
                   </button>
                 </div>
               </div>
 
-              <div className="border border-zinc-200 p-3.5 rounded-md flex flex-col gap-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="relative">
-                    <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-zinc-400">
-                      <i className="fa-solid fa-magnifying-glass text-[10px]"></i>
-                    </span>
-                    <input type="text" placeholder="Buscar..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full bg-[#FAF9F6]/50 border border-zinc-200 pl-8 pr-3 py-1.5 text-ui rounded focus:outline-none text-[#37352F]" />
+              <div className="notion-dash-toolbar">
+                <div className="notion-dash-filters">
+                  <div className="notion-dash-search">
+                    <i className="fa-solid fa-magnifying-glass notion-dash-search-icon" />
+                    <input
+                      type="text"
+                      placeholder="Buscar entregables..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
                   </div>
-                  <div>
-                    <select value={filtroMarca} onChange={(e) => setFiltroMarca(e.target.value)} className="w-full bg-white border border-zinc-200 p-1.5 text-ui rounded focus:outline-none text-zinc-600">
-                      <option value="TODAS">Clientes: Todos</option>
-                      {marcasDisponibles.map(m => (<option key={m} value={m}>{formatearMarca(m)}</option>))}
-                    </select>
-                  </div>
-                  <div>
-                    <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} className="w-full bg-white border border-zinc-200 p-1.5 text-ui rounded focus:outline-none text-zinc-600">
-                      <option value="TODOS">Estados: Todos</option>
-                      {LISTA_ESTADOS_VALIDOS.map(opt => (<option key={opt} value={opt}>{opt}</option>))}
-                    </select>
-                  </div>
-                  <div>
-                    <select value={filtroPrioridad} onChange={(e) => setFiltroPrioridad(e.target.value)} className="w-full bg-white border border-zinc-200 p-1.5 text-ui rounded focus:outline-none text-zinc-600">
-                      <option value="TODAS">Prioridades: Todas</option>
-                      {PRIORIDADES_MAPA.map(p => (<option key={p.id} value={p.id}>{p.label}</option>))}
-                    </select>
-                  </div>
+                  <select value={filtroMarca} onChange={(e) => setFiltroMarca(e.target.value)} className="notion-filter-select">
+                    <option value="TODAS">Cliente</option>
+                    {marcasDisponibles.map(m => (<option key={m} value={m}>{formatearMarca(m)}</option>))}
+                  </select>
+                  <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} className="notion-filter-select">
+                    <option value="TODOS">Estado</option>
+                    {LISTA_ESTADOS_VALIDOS.map(opt => (<option key={opt} value={opt}>{opt}</option>))}
+                  </select>
+                  <select value={filtroPrioridad} onChange={(e) => setFiltroPrioridad(e.target.value)} className="notion-filter-select">
+                    <option value="TODAS">Prioridad</option>
+                    {PRIORIDADES_MAPA.map(p => (<option key={p.id} value={p.id}>{p.label}</option>))}
+                  </select>
                 </div>
-                <div className="flex flex-wrap gap-1.5 pt-2 border-t border-zinc-150">
-                  <button onClick={() => setFiltroTiempo("TODAS")} className={`px-2.5 py-1 rounded text-ui-sm font-medium transition-all border ${filtroTiempo === "TODAS" ? "bg-[#37352F] text-white border-zinc-900" : "bg-white border-zinc-200 text-zinc-550 hover:bg-zinc-50"}`}>Todo el tiempo</button>
-                  <button onClick={() => setFiltroTiempo("HOY")} className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all border flex items-center gap-1 ${filtroTiempo === "HOY" ? "bg-blue-600 text-white border-blue-700" : "bg-white border-zinc-200 text-zinc-550 hover:bg-zinc-50"}`}>Entrega hoy {metricaCounters.activasHoy > 0 ? `(${metricaCounters.activasHoy})` : ""}</button>
-                  <button onClick={() => setFiltroTiempo("ATRASADAS")} className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-all border flex items-center gap-1 ${filtroTiempo === "ATRASADAS" ? "bg-red-600 text-white border-red-700" : "bg-white border-zinc-200 text-zinc-550 hover:bg-zinc-50"}`}>Atrasados {metricaCounters.atrasadas > 0 ? `(${metricaCounters.atrasadas})` : ""}</button>
+                <div className="notion-time-pills">
+                  <button type="button" onClick={() => setFiltroTiempo("TODAS")} className={`notion-time-pill ${filtroTiempo === "TODAS" ? "is-active" : ""}`}>Todo</button>
+                  <button type="button" onClick={() => setFiltroTiempo("HOY")} className={`notion-time-pill ${filtroTiempo === "HOY" ? "is-active-blue" : ""}`}>Hoy{metricaCounters.activasHoy > 0 ? ` (${metricaCounters.activasHoy})` : ""}</button>
+                  <button type="button" onClick={() => setFiltroTiempo("ATRASADAS")} className={`notion-time-pill ${filtroTiempo === "ATRASADAS" ? "is-active-red" : ""}`}>Atrasados{metricaCounters.atrasadas > 0 ? ` (${metricaCounters.atrasadas})` : ""}</button>
                 </div>
               </div>
 
               {tareasSeleccionadas.size > 0 && (
-                <div className="border border-zinc-200 rounded-md p-3 bg-[#FAF9F6] flex flex-wrap items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2 py-2 px-1 border-b border-zinc-100">
                   <span className="text-ui font-semibold text-zinc-700">{tareasSeleccionadas.size} seleccionado{tareasSeleccionadas.size !== 1 ? "s" : ""}</span>
                   <select value={bulkEstado} onChange={(e) => { const val = e.target.value; setBulkEstado(val); if (val) handleBulkUpdate("estado", val); }} className="text-ui-sm border border-zinc-200 rounded px-2 py-1 bg-white">
                     <option value="">Cambiar estado...</option>

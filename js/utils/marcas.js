@@ -21,6 +21,10 @@ function formatearMarca(marca) {
   return MARCAS_CANONICAS[key] || String(marca).trim();
 }
 
+function normalizarMarca(marca) {
+  return formatearMarca(marca);
+}
+
 function marcasCoinciden(a, b) {
   return normalizarMarcaKey(a) === normalizarMarcaKey(b);
 }

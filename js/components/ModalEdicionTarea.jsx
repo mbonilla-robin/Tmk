@@ -13,7 +13,7 @@ function PropertyRow({ icon, label, children }) {
 function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNuevaPersona, marcasDisponibles, isSubmitting }) {
   const [info, setInfo] = useState(tarea.info || "");
   const [categoria, setCategoria] = useState(tarea.categoria || "");
-  const [marca, setMarca] = useState(tarea.marca || "");
+  const [marca, setMarca] = useState(normalizarMarca(tarea.marca));
   const [prioridad, setPrioridad] = useState(normalizarPrioridad(tarea.prioridad));
   const [estado, setEstado] = useState(normalizarEstado(tarea.estado));
   const [deadline, setDeadline] = useState(deadlineParaEdicion(tarea.deadline));
@@ -32,7 +32,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     const parsedDetalles = parseDetalles(detalles);
     setInfo(tarea.info || "");
     setCategoria(tarea.categoria || "");
-    setMarca(tarea.marca || "");
+    setMarca(normalizarMarca(tarea.marca));
     setPrioridad(normalizarPrioridad(tarea.prioridad));
     setEstado(normalizarEstado(tarea.estado));
     setDeadline(deadlineParaEdicion(tarea.deadline));
@@ -57,6 +57,15 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   const estadoVisual = useMemo(() => {
     return ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(estado)) || ESTADOS_MAPA[0];
   }, [estado]);
+
+  const opcionesMarca = useMemo(() => {
+    const base = [...marcasDisponibles];
+    const actual = normalizarMarca(marca);
+    if (actual && !base.some(opt => marcasCoinciden(opt, actual))) {
+      base.unshift(actual);
+    }
+    return base;
+  }, [marcasDisponibles, marca]);
 
   const subtareasCompletadas = useMemo(() => subtareas.filter(s => s.completed).length, [subtareas]);
   const subtareasProgreso = subtareas.length > 0 ? (subtareasCompletadas / subtareas.length) * 100 : 0;
@@ -101,7 +110,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
       ...tarea,
       info: info.trim(),
       categoria: categoria.trim(),
-      marca,
+      marca: normalizarMarca(marca),
       prioridad: normalizarPrioridad(prioridad),
       estado: normalizarEstado(estado),
       deadline: fechaNorm,
@@ -158,7 +167,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
           <div className="pb-2 flex flex-col gap-0.5 border-b border-zinc-100">
             <PropertyRow icon="fa-regular fa-building" label="Cliente">
               <select value={marca} onChange={(e) => setMarca(e.target.value)} className={inputPropClass}>
-                {marcasDisponibles.map(m => (
+                {opcionesMarca.map(m => (
                   <option key={m} value={m}>{formatearMarca(m)}</option>
                 ))}
               </select>

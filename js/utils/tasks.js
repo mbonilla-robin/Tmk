@@ -32,18 +32,25 @@ function getTaskSelectionKey(t) {
 
 function resolverTareaActual(tareas, tareaRef) {
   if (!tareaRef) return null;
+  const lista = tareas || [];
+
+  const idRef = cleanIdTarea(tareaRef.idTarea);
+  if (idRef) {
+    const porId = lista.find(t => cleanIdTarea(t.idTarea) === idRef);
+    if (porId) return porId;
+  }
+
   const key = getTaskSelectionKey(tareaRef);
-  const found = (tareas || []).find(t => getTaskSelectionKey(t) === key);
+  const found = lista.find(t => getTaskSelectionKey(t) === key);
   if (found) return found;
-  const porId = tareaRef.idTarea
-    ? (tareas || []).find(t => t.idTarea && t.idTarea === tareaRef.idTarea)
-    : null;
-  return porId || tareaRef;
+
+  return tareaRef;
 }
 
 function normalizarTareaCampos(t) {
   return {
     ...t,
+    marca: normalizarMarca(t.marca),
     estado: normalizarEstado(t.estado),
     prioridad: normalizarPrioridad(t.prioridad || t.Prioridad),
     deadline: normalizarDeadline(t.deadline)

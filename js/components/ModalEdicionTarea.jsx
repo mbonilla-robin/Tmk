@@ -76,18 +76,18 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   const inputPropTextClass = "w-full bg-transparent border-0 text-ui-sm text-[#37352F] focus:outline-none font-medium placeholder-zinc-400";
 
   return (
-    <div className="task-sheet-overlay fixed inset-0 z-[150] flex flex-col">
+    <div className="task-sheet-overlay">
       <button
         type="button"
         onClick={onClose}
-        className="task-sheet-backdrop flex-shrink-0 h-12 md:h-14 w-full bg-black/25 backdrop-blur-[1px] cursor-pointer transition-colors hover:bg-black/30"
+        className="task-sheet-backdrop"
         aria-label="Cerrar entregable"
       />
 
-      <div className="task-sheet-panel flex-1 min-h-0 bg-white rounded-t-2xl shadow-[0_-8px_40px_rgba(0,0,0,0.12)] overflow-y-auto animate-task-sheet-in">
+      <div className="task-sheet-panel">
         <form onSubmit={handleSubmit} className="min-h-full flex flex-col task-form-page">
-          <div className="sticky top-0 z-10 relative bg-white/95 backdrop-blur-sm pt-3 pb-1 px-6 md:px-10">
-            <div className="task-sheet-handle w-9 h-1 bg-zinc-300 rounded-full mx-auto mb-4" aria-hidden="true" />
+          <div className="sticky top-0 z-10 relative bg-white/95 backdrop-blur-sm pt-3 pb-1 px-6 md:px-10 lg:pt-4">
+            <div className="task-sheet-handle" aria-hidden="true" />
             <button
               type="button"
               onClick={onClose}
@@ -115,7 +115,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
             )}
           </div>
 
-          <div className="flex-1 max-w-3xl mx-auto w-full px-6 md:px-10 pb-24">
+          <div className="flex-1 max-w-3xl mx-auto w-full px-6 md:px-10 pb-24 lg:pb-6">
           {/* Propiedades lineales */}
           <div className="pb-2 flex flex-col gap-0.5 border-b border-zinc-100">
             <PropertyRow icon="fa-regular fa-building" label="Cliente">

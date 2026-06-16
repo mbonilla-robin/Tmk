@@ -357,6 +357,91 @@ body {
       animation: taskSheetIn 0.22s ease-out forwards;
     }
 
+    /* Modal edición entregable — móvil: bottom sheet; desktop: cuadro centrado */
+    .task-sheet-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 150;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .task-sheet-backdrop {
+      flex-shrink: 0;
+      height: 3rem;
+      width: 100%;
+      background: rgba(0, 0, 0, 0.25);
+      backdrop-filter: blur(1px);
+      cursor: pointer;
+      border: none;
+      padding: 0;
+      transition: background-color 0.15s;
+    }
+
+    @media (min-width: 768px) {
+      .task-sheet-backdrop {
+        height: 3.5rem;
+      }
+    }
+
+    .task-sheet-backdrop:hover {
+      background: rgba(0, 0, 0, 0.3);
+    }
+
+    .task-sheet-panel {
+      position: relative;
+      z-index: 10;
+      flex: 1 1 0%;
+      min-height: 0;
+      background: #fff;
+      border-radius: 1rem 1rem 0 0;
+      box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.12);
+      overflow-y: auto;
+      animation: taskSheetIn 0.22s ease-out forwards;
+    }
+
+    .task-sheet-handle {
+      width: 2.25rem;
+      height: 0.25rem;
+      background: #d4d4d8;
+      border-radius: 9999px;
+      margin: 0 auto 1rem;
+    }
+
+    @media (min-width: 1024px) {
+      .task-sheet-overlay {
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+      }
+
+      .task-sheet-backdrop {
+        position: absolute;
+        inset: 0;
+        height: 100%;
+        width: 100%;
+      }
+
+      .task-sheet-panel {
+        flex: none;
+        width: 100%;
+        max-width: 48rem;
+        max-height: 88vh;
+        border-radius: 1rem;
+        border: 1px solid #e4e4e7;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        animation: fadeIn 0.15s ease-out forwards;
+      }
+
+      .task-sheet-handle {
+        display: none;
+      }
+
+      .task-sheet-panel .task-form-page {
+        min-height: auto;
+      }
+    }
+
     /* Lista de entregables estilo Notion */
     .notion-task-list {
       display: flex;

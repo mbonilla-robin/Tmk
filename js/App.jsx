@@ -77,6 +77,7 @@ function App() {
   const [prefsReady, setPrefsReady] = useState(() => !getInicialUsuario());
 
   const [listaPersonas, setListaPersonas] = useState(() => cargarListaPersonas());
+  const [listaCategorias, setListaCategorias] = useState(() => cargarListaCategorias());
 
   const palabraEstadoSync = useMemo(() => {
     if (!isApiConfigured()) return "Sin API";
@@ -820,6 +821,27 @@ function App() {
     setListaPersonas((prev) => registrarPersonasEnLista(prev, [entrada]));
   };
 
+  const registrarNuevaCategoriaGlobal = (nombre) => {
+    if (!esNombreCategoriaNuevaValido(nombre)) return;
+    const normalizado = resolverCategoriaCanonica(nombre) || normalizarNombreCategoria(nombre);
+    if (!normalizado) return;
+    const color = asignarColorCategoria(normalizado, listaCategorias);
+    setListaCategorias((prev) => registrarCategoriasEnLista(prev, [{ nombre: normalizado, color }]));
+    insertarCategoriaRemota(normalizado, color);
+  };
+
+  useEffect(() => {
+    if (!usuario) return;
+    let cancelled = false;
+
+    cargarCategoriasRemotas().then((remotas) => {
+      if (cancelled || !remotas || !remotas.length) return;
+      setListaCategorias(guardarListaCategorias(remotas));
+    });
+
+    return () => { cancelled = true; };
+  }, [usuario]);
+
   const fetchData = async (isBackground = false) => {
     if (!isBackground) setLoading(true);
     setSyncing(true);
@@ -1023,7 +1045,8 @@ function App() {
         });
         return next;
       });
-    }
+    },
+    listaCategorias
   };
 
   const handleSaveTaskModal = async (editedTask) => {
@@ -1054,10 +1077,15 @@ function App() {
       detallesAudoria += `\n• [${timestamp}] Editado (${cambios.join(", ")}) por @${usuario}`;
     }
 
-    const taskConHistorial = normalizarTareaCampos({ ...editedTask, prioridad: prioridadNormalizada, detalles: detallesAudoria });
+    const taskConHistorial = normalizarTareaCampos(prepararTareaConCategoria({ ...editedTask, prioridad: prioridadNormalizada, detalles: detallesAudoria }));
     const copiaTareas = [...tareas];
     copiaTareas[index] = taskConHistorial;
     setTareas(copiaTareas);
+    setListaCategorias((prev) => {
+      const parsed = parseCategoriasTarea(taskConHistorial.categoria);
+      if (!parsed.principal) return prev;
+      return registrarCategoriasEnLista(prev, [{ nombre: parsed.principal, color: asignarColorCategoria(parsed.principal, prev) }]);
+    });
     setIsEditing(false);
     setActiveTask(null);
 
@@ -1134,34 +1162,42 @@ function App() {
     }
   };
 
-  const handleCreateTask = async (e, detallesSerializados) => {
+  const handleCreateTask = async (e, detallesSerializados, tareaPreparada) => {
     e.preventDefault();
-    if (isSubmitting || syncing) return; 
+    if (isSubmitting || syncing) return;
+
+    const base = tareaPreparada || nuevaTarea;
     
-    if (!nuevaTarea.info.trim()) {
+    if (!base.info.trim()) {
       showToast("Ingresa el título del entregable", "error");
       return;
     }
-    if (!normalizarDeadline(nuevaTarea.deadline)) {
+    if (!normalizarDeadline(base.deadline)) {
       showToast("Ingresa una fecha válida (ej: 16/06/2026)", "error");
       return;
     }
 
     setIsSubmitting(true);
-    const autoId = generateBrandId(nuevaTarea.marca);
+    const autoId = generateBrandId(base.marca);
     const hoy = new Date();
     const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
     const historialInicial = `• [${timestamp}] Creado por @${usuario}`;
-    const detallesBase = detallesSerializados ?? nuevaTarea.detalles;
+    const detallesBase = detallesSerializados ?? base.detalles;
     const detallesConCreador = detallesBase
       ? `${detallesBase.trim()}\n\n${historialInicial}`
       : historialInicial;
 
-    const nuevaConId = normalizarTareaCampos({
-      ...nuevaTarea,
+    const nuevaConId = normalizarTareaCampos(prepararTareaConCategoria({
+      ...base,
       idTarea: autoId,
       detalles: detallesConCreador,
       fecha: new Date().toISOString().split('T')[0]
+    }));
+
+    setListaCategorias((prev) => {
+      const parsed = parseCategoriasTarea(nuevaConId.categoria);
+      if (!parsed.principal) return prev;
+      return registrarCategoriasEnLista(prev, [{ nombre: parsed.principal, color: asignarColorCategoria(parsed.principal, prev) }]);
     });
 
     setTareas([nuevaConId, ...tareas]);
@@ -1489,6 +1525,8 @@ function App() {
               marcasDisponibles={marcasDisponibles}
               listaPersonas={listaPersonas}
               registrarNuevaPersona={registrarNuevaPersonaGlobal}
+              listaCategorias={listaCategorias}
+              registrarNuevaCategoria={registrarNuevaCategoriaGlobal}
               isSubmitting={isSubmitting}
               syncing={syncing}
             />
@@ -2071,6 +2109,8 @@ function App() {
             onSave={handleSaveTaskModal}
             listaPersonas={listaPersonas}
             registrarNuevaPersona={registrarNuevaPersonaGlobal}
+            listaCategorias={listaCategorias}
+            registrarNuevaCategoria={registrarNuevaCategoriaGlobal}
             marcasDisponibles={marcasDisponibles}
             isSubmitting={isSubmitting}
           />

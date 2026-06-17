@@ -18,6 +18,8 @@ function FormularioCrearEntregable({
   marcasDisponibles,
   listaPersonas,
   registrarNuevaPersona,
+  listaCategorias,
+  registrarNuevaCategoria,
   isSubmitting,
   syncing
 }) {
@@ -30,7 +32,8 @@ function FormularioCrearEntregable({
   const handleSubmit = (e) => {
     e.preventDefault();
     const detallesFinal = serializeDetalles(nuevaTarea.detalles, subtareas, []);
-    onSubmit(e, detallesFinal);
+    const tareaPreparada = prepararTareaConCategoria(nuevaTarea);
+    onSubmit(e, detallesFinal, tareaPreparada);
   };
 
   return (
@@ -91,12 +94,12 @@ function FormularioCrearEntregable({
             </PropertyRow>
 
             <PropertyRow icon="fa-regular fa-folder" label="Categoría">
-              <input
-                type="text"
-                value={nuevaTarea.categoria}
-                onChange={(e) => setNuevaTarea({ ...nuevaTarea, categoria: e.target.value })}
-                placeholder="Sin categoría"
-                className={inputPropTextClass}
+              <SelectorCategoriasChips
+                categoriasSeleccionadas={nuevaTarea.categoria}
+                onChange={(val) => setNuevaTarea({ ...nuevaTarea, categoria: val })}
+                listaGlobal={listaCategorias}
+                registrarNuevaCategoria={registrarNuevaCategoria}
+                variant="minimal"
               />
             </PropertyRow>
 

@@ -4,7 +4,8 @@ function NotionTaskRow({
   onDeleteTask,
   onToggleSeleccion,
   onSolicitarCompletar,
-  estaSeleccionada
+  estaSeleccionada,
+  listaCategorias = []
 }) {
   const cEstado = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(t.estado)) || { dot: "bg-zinc-400", bg: "bg-zinc-50" };
   const cPrioridad = PRIORIDADES_MAPA.find(p => cleanPrioridad(p.id) === cleanPrioridad(t.prioridad)) || PRIORIDADES_MAPA[1];
@@ -12,6 +13,7 @@ function NotionTaskRow({
     ? t.personas.split(/[\s,]+/).filter(Boolean).slice(0, 2).join(", ")
     : null;
   const esCompletada = cleanEstado(t.estado) === "completada";
+  const cats = parseCategoriasTarea(t.categoria);
 
   const [offsetX, setOffsetX] = useState(0);
   const [swiping, setSwiping] = useState(false);
@@ -113,11 +115,23 @@ function NotionTaskRow({
             </span>
           )}
 
-          {t.categoria && (
-            <span className="notion-task-meta-chip notion-task-meta-cat">
-              {t.categoria}
-            </span>
-          )}
+          {cats.principal && (() => {
+            const estilo = obtenerEstiloCategoriaPorNombre(cats.principal, listaCategorias);
+            return (
+              <span className={`notion-task-meta-chip border ${estilo.bg} ${estilo.text} ${estilo.border}`}>
+                {cats.principal}
+              </span>
+            );
+          })()}
+
+          {cats.subcategorias.map((sub) => {
+            const estilo = obtenerEstiloCategoriaPorNombre(sub, listaCategorias);
+            return (
+              <span key={sub} className={`notion-task-meta-chip border opacity-80 ${estilo.bg} ${estilo.text} ${estilo.border}`}>
+                {sub}
+              </span>
+            );
+          })}
 
           <span className={`notion-task-prio-tag ${cPrioridad.color}`}>
             {normalizarPrioridad(t.prioridad)}
@@ -169,7 +183,8 @@ function LayoutTablaAgrupada({
   modoAgrupacion = "estado",
   tareasSeleccionadas = new Set(),
   onToggleSeleccion = () => {},
-  onToggleSeleccionGrupo = () => {}
+  onToggleSeleccionGrupo = () => {},
+  listaCategorias = []
 }) {
   const tareasAgrupadasPorMarca = useMemo(
     () => agruparTareasPorMarcaOrdenadas(tareas, modoAgrupacion),
@@ -234,6 +249,7 @@ function LayoutTablaAgrupada({
                     onSolicitarCompletar={onSolicitarCompletar}
                     onToggleSeleccion={onToggleSeleccion}
                     estaSeleccionada={tareasSeleccionadas.has(selKey)}
+                    listaCategorias={listaCategorias}
                   />
                 );
               })}

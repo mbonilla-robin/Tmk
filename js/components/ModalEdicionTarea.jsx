@@ -10,9 +10,26 @@ function PropertyRow({ icon, label, children }) {
   );
 }
 
-function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNuevaPersona, marcasDisponibles, isSubmitting }) {
-  const [info, setInfo] = useState(tarea.info || "");
-  const [categoria, setCategoria] = useState(tarea.categoria || "");
+function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNuevaPersona, listaCategorias, registrarNuevaCategoria, marcasDisponibles, isSubmitting }) {
+  const resolverEstadoInicial = () => {
+    let categoriaInicial = tarea.categoria || "";
+    let infoInicial = extraerTituloLimpio(tarea.info, tarea.categoria);
+    if (!parseCategoriasTarea(categoriaInicial).principal) {
+      const match = String(tarea.info || "").match(/^([^|]+)\s*\|\s*(.+)$/);
+      if (match) {
+        const inferida = resolverCategoriaCanonica(match[1]);
+        if (inferida) {
+          categoriaInicial = serializarCategoriasTarea(inferida, parseCategoriasTarea(categoriaInicial).subcategorias);
+          infoInicial = match[2].trim();
+        }
+      }
+    }
+    return { infoInicial, categoriaInicial };
+  };
+
+  const inicial = resolverEstadoInicial();
+  const [info, setInfo] = useState(inicial.infoInicial);
+  const [categoria, setCategoria] = useState(inicial.categoriaInicial);
   const [marca, setMarca] = useState(normalizarMarca(tarea.marca));
   const [prioridad, setPrioridad] = useState(normalizarPrioridad(tarea.prioridad));
   const [estado, setEstado] = useState(normalizarEstado(tarea.estado));
@@ -29,8 +46,22 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   useEffect(() => {
     const detalles = tarea.detalles || "";
     const parsedDetalles = parseDetalles(detalles);
-    setInfo(tarea.info || "");
-    setCategoria(tarea.categoria || "");
+    let categoriaInicial = tarea.categoria || "";
+    let infoInicial = extraerTituloLimpio(tarea.info, tarea.categoria);
+
+    if (!parseCategoriasTarea(categoriaInicial).principal) {
+      const match = String(tarea.info || "").match(/^([^|]+)\s*\|\s*(.+)$/);
+      if (match) {
+        const inferida = resolverCategoriaCanonica(match[1]);
+        if (inferida) {
+          categoriaInicial = serializarCategoriasTarea(inferida, parseCategoriasTarea(categoriaInicial).subcategorias);
+          infoInicial = match[2].trim();
+        }
+      }
+    }
+
+    setInfo(infoInicial);
+    setCategoria(categoriaInicial);
     setMarca(normalizarMarca(tarea.marca));
     setPrioridad(normalizarPrioridad(tarea.prioridad));
     setEstado(normalizarEstado(tarea.estado));
@@ -84,10 +115,10 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     }
     setDeadlineError("");
     const tFinal = serializeDetalles(notes, subtareas, parsed.historial);
-    onSave({
+    const tareaPreparada = prepararTareaConCategoria({
       ...tarea,
       info: info.trim(),
-      categoria: categoria.trim(),
+      categoria,
       marca: normalizarMarca(marca),
       prioridad: normalizarPrioridad(prioridad),
       estado: normalizarEstado(estado),
@@ -95,6 +126,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
       personas,
       detalles: tFinal
     });
+    onSave(tareaPreparada);
   };
 
   const inputPropClass = "w-full bg-transparent border-0 text-ui-sm text-[#37352F] focus:outline-none cursor-pointer font-medium";
@@ -171,12 +203,12 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
             </PropertyRow>
 
             <PropertyRow icon="fa-regular fa-folder" label="Categoría">
-              <input
-                type="text"
-                value={categoria}
-                onChange={(e) => setCategoria(e.target.value)}
-                placeholder="Sin categoría"
-                className={inputPropTextClass}
+              <SelectorCategoriasChips
+                categoriasSeleccionadas={categoria}
+                onChange={setCategoria}
+                listaGlobal={listaCategorias}
+                registrarNuevaCategoria={registrarNuevaCategoria}
+                variant="minimal"
               />
             </PropertyRow>
 

@@ -24,10 +24,18 @@ function generarIdDeterminista(t) {
   return `STB-${prefix}-${Math.abs(hash) % 100000}`;
 }
 
+function idTareaParaApi(tarea) {
+  const raw = String(tarea?.idTarea || "").trim();
+  if (!raw || raw.startsWith("STB-")) return "";
+  if (!isValidIdTarea(raw)) return "";
+  return raw;
+}
+
 function getTaskSelectionKey(t) {
   const id = cleanIdTarea(t.idTarea);
   if (id && isValidIdTarea(id)) return id;
-  return `${t.marca || ""}|${t.info || ""}|${t.deadline || ""}`.toLowerCase().trim();
+  const deadlineNorm = normalizarDeadline(t.deadline) || String(t.deadline || "").trim();
+  return `${t.marca || ""}|${t.info || ""}|${deadlineNorm}`.toLowerCase().trim();
 }
 
 function resolverTareaActual(tareas, tareaRef) {

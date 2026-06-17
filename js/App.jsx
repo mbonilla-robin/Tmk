@@ -954,12 +954,16 @@ function App() {
     }
 
     console.error("Sheets sync error", ultimoError);
-    setApiError("Error de Conexión.");
-    setTareas([]);
-    if (!isBackground && ultimoError && ultimoError.message) {
-      showToast(ultimoError.message, "error");
-    } else if (!isBackground) {
-      showToast("Error de conexión", "error");
+    if (isBackground) {
+      console.warn("Sync en segundo plano falló; se conservan los datos locales.", ultimoError);
+    } else {
+      setApiError("Error de Conexión.");
+      setTareas([]);
+      if (ultimoError && ultimoError.message) {
+        showToast(ultimoError.message, "error");
+      } else {
+        showToast("Error de conexión", "error");
+      }
     }
     setLoading(false);
     setSyncing(false);
@@ -1064,8 +1068,12 @@ function App() {
     if (isSubmitting || syncing) return;
     setIsSubmitting(true);
 
-    const index = tareas.findIndex(t => (t.idTarea === editedTask.idTarea && t.idTarea) || t.info === editedTask.info);
+    const original = resolverTareaActual(tareas, editedTask);
+    const index = original
+      ? tareas.findIndex(t => getTaskSelectionKey(t) === getTaskSelectionKey(original))
+      : -1;
     if (index === -1) {
+      showToast("No se encontró el entregable para guardar", "error");
       setIsSubmitting(false);
       return;
     }
@@ -1073,8 +1081,6 @@ function App() {
     const hoy = new Date();
     const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
     let detallesAudoria = editedTask.detalles || "";
-    
-    const original = tareas[index];
     const cambios = [];
     if (original.info !== editedTask.info) cambios.push("título");
     if (original.categoria !== editedTask.categoria) cambios.push("categoría");
@@ -1088,7 +1094,12 @@ function App() {
       detallesAudoria += `\n• [${timestamp}] Editado (${cambios.join(", ")}) por @${usuario}`;
     }
 
-    const taskConHistorial = normalizarTareaCampos(prepararTareaConCategoria({ ...editedTask, prioridad: prioridadNormalizada, detalles: detallesAudoria }));
+    const taskConHistorial = normalizarTareaCampos(prepararTareaConCategoria({
+      ...editedTask,
+      idTarea: original.idTarea,
+      prioridad: prioridadNormalizada,
+      detalles: detallesAudoria
+    }));
     const copiaTareas = [...tareas];
     copiaTareas[index] = taskConHistorial;
     setTareas(copiaTareas);
@@ -1113,10 +1124,17 @@ function App() {
         method: "POST", mode: "cors", redirect: "follow",
         headers: { "Content-Type": "text/plain; charset=utf-8" },
         body: JSON.stringify({
-          marca: taskConHistorial.marca, idTarea: taskConHistorial.idTarea, info: taskConHistorial.info,
-          originalInfo: original.info, categoria: taskConHistorial.categoria, personas: taskConHistorial.personas, 
-          detalles: taskConHistorial.detalles, estado: taskConHistorial.estado, deadline: taskConHistorial.deadline, 
-          prioridad: normalizarPrioridad(taskConHistorial.prioridad), campo: "todo"
+          marca: taskConHistorial.marca,
+          idTarea: idTareaParaApi(original),
+          info: taskConHistorial.info,
+          originalInfo: original.info,
+          categoria: taskConHistorial.categoria,
+          personas: taskConHistorial.personas,
+          detalles: taskConHistorial.detalles,
+          estado: taskConHistorial.estado,
+          deadline: taskConHistorial.deadline,
+          prioridad: normalizarPrioridad(taskConHistorial.prioridad),
+          campo: "todo"
         })
       });
       showToast("Sincronizado", "success");

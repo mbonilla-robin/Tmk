@@ -1036,16 +1036,29 @@ function doPost(e) {
       }
     }
 
-    if (targetRow === -1 && payload.info && lastRow >= 3 && marca !== "Config_Marcas") {
+    if (targetRow === -1 && (payload.info || payload.originalInfo) && lastRow >= 3 && marca !== "Config_Marcas") {
       var brandData = targetSheet.getRange(3, 1, lastRow - 2, 9).getValues();
       var valCat = String(payload.categoria || "").trim().toLowerCase();
       var valInfo = String(payload.info || "").trim().toLowerCase();
+      var valInfoOriginal = String(payload.originalInfo || "").trim().toLowerCase();
 
       for (var j = 0; j < brandData.length; j++) {
-        if (String(brandData[j][1]).trim().toLowerCase() === valCat &&
-            String(brandData[j][3]).trim().toLowerCase() === valInfo) {
+        var filaCat = String(brandData[j][1]).trim().toLowerCase();
+        var filaInfo = String(brandData[j][3]).trim().toLowerCase();
+        var catCoincide = filaCat === valCat;
+        var infoCoincide = filaInfo === valInfo || (valInfoOriginal !== "" && filaInfo === valInfoOriginal);
+        if (catCoincide && infoCoincide) {
           targetRow = j + 3;
           break;
+        }
+      }
+
+      if (targetRow === -1 && valInfoOriginal !== "") {
+        for (var k = 0; k < brandData.length; k++) {
+          if (String(brandData[k][3]).trim().toLowerCase() === valInfoOriginal) {
+            targetRow = k + 3;
+            break;
+          }
         }
       }
     }

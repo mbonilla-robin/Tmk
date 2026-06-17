@@ -1644,21 +1644,6 @@ function App() {
                       </div>
                     )}
 
-                    {vistaModo === "KANBAN" && filtroTiempo === "HOY" && (
-                      <div className="lista-agrupacion-pills">
-                        <span className="lista-agrupacion-label">Orden</span>
-                        <button
-                          type="button"
-                          onClick={alternarKanbanOrdenPrioridad}
-                          className="lista-agrupacion-pill is-active"
-                          title={kanbanOrdenPrioridad === "desc" ? "Alta arriba — clic para invertir" : "Baja arriba — clic para invertir"}
-                        >
-                          <i className={`fa-solid ${kanbanOrdenPrioridad === "desc" ? "fa-arrow-up" : "fa-arrow-down"} mr-1`}></i>
-                          {kanbanOrdenPrioridad === "desc" ? "Alta → Baja" : "Baja → Alta"}
-                        </button>
-                      </div>
-                    )}
-
                     {tareasSeleccionadas.size > 0 && (
                       <div className="border border-zinc-200 rounded-md p-2.5 bg-[#FAF9F6] flex flex-col gap-2">
                         <span className="text-ui-sm font-semibold text-zinc-700">{tareasSeleccionadas.size} seleccionado{tareasSeleccionadas.size !== 1 ? "s" : ""}</span>
@@ -1775,21 +1760,6 @@ function App() {
                     className={`lista-agrupacion-pill ${listaAgrupacion === "fecha" ? "is-active" : ""}`}
                   >
                     Fecha
-                  </button>
-                </div>
-              )}
-
-              {vistaModo === "KANBAN" && filtroTiempo === "HOY" && (
-                <div className="lista-agrupacion-pills lista-agrupacion-pills--desktop">
-                  <span className="lista-agrupacion-label">Orden por prioridad</span>
-                  <button
-                    type="button"
-                    onClick={alternarKanbanOrdenPrioridad}
-                    className="lista-agrupacion-pill is-active"
-                    title={kanbanOrdenPrioridad === "desc" ? "Alta arriba — clic para invertir" : "Baja arriba — clic para invertir"}
-                  >
-                    <i className={`fa-solid ${kanbanOrdenPrioridad === "desc" ? "fa-arrow-up" : "fa-arrow-down"} mr-1`}></i>
-                    {kanbanOrdenPrioridad === "desc" ? "Alta → Baja" : "Baja → Alta"}
                   </button>
                 </div>
               )}

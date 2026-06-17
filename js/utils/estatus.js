@@ -87,33 +87,11 @@ function ordenarTareasEstatus(tareas, estadosOrden, ordenarPor) {
   });
 }
 
-const SANGRIA_SUBTAREA = "      ";
-const ANCHO_LINEA_SUBTAREA = 38;
-
-function formatearLineasSubtareaEstatus(texto) {
-  const palabras = String(texto || "").trim().split(/\s+/).filter(Boolean);
-  if (palabras.length === 0) return [];
-
-  const lineasEnvueltas = [];
-  let lineaActual = "";
-
-  palabras.forEach(palabra => {
-    const candidata = lineaActual ? `${lineaActual} ${palabra}` : palabra;
-    if (candidata.length <= ANCHO_LINEA_SUBTAREA) {
-      lineaActual = candidata;
-    } else {
-      if (lineaActual) lineasEnvueltas.push(lineaActual);
-      lineaActual = palabra;
-    }
-  });
-  if (lineaActual) lineasEnvueltas.push(lineaActual);
-
-  const sangriaContinuacion = " ".repeat(SANGRIA_SUBTAREA.length + 2);
-
-  return lineasEnvueltas.map((linea, index) => {
-    if (index === 0) return `${SANGRIA_SUBTAREA}- ${linea}`;
-    return `${sangriaContinuacion}${linea}`;
-  });
+function formatearLineaSubtareaEstatus(texto, completed) {
+  const textoLimpio = String(texto || "").trim();
+  if (!textoLimpio) return null;
+  const sufijo = completed ? " (✓)" : "";
+  return `> ${textoLimpio}${sufijo}`;
 }
 
 function formatearLineaTareaEstatus(tarea) {
@@ -122,12 +100,16 @@ function formatearLineaTareaEstatus(tarea) {
   const deadline = formatearFechaEstatus(tarea.deadline);
   const personas = (tarea.personas || "Sin asignar").trim();
 
-  const lineas = [`- _${estado}_ | *${titulo}* | ${deadline} | ${personas}`];
+  const lineas = [`• _${estado}_ | *${titulo}* | ${deadline} | ${personas}`];
 
   const { subtareas } = parseDetalles(tarea.detalles);
-  subtareas.forEach(sub => {
-    lineas.push(...formatearLineasSubtareaEstatus(sub.text));
-  });
+  const lineasSubtareas = subtareas
+    .map(sub => formatearLineaSubtareaEstatus(sub.text, sub.completed))
+    .filter(Boolean);
+
+  if (lineasSubtareas.length > 0) {
+    lineas.push(lineasSubtareas.join("\n\n"));
+  }
 
   return lineas.join("\n");
 }

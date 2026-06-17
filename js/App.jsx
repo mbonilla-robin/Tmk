@@ -51,6 +51,7 @@ function App() {
   ); 
   const [vistaModo, setVistaModo] = useState(() => initialPrefs.vistaModo || "TABLE"); 
   const [listaAgrupacion, setListaAgrupacion] = useState(() => initialPrefs.listaAgrupacion || "estado");
+  const [kanbanOrdenPrioridad, setKanbanOrdenPrioridad] = useState(() => initialPrefs.kanbanOrdenPrioridad || "desc");
 
   const [activeTask, setActiveTask] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -318,6 +319,7 @@ function App() {
       paginaActiva,
       vistaModo,
       listaAgrupacion,
+      kanbanOrdenPrioridad,
       filtroTiempo,
       filtroMarca,
       filtroEstado,
@@ -334,6 +336,7 @@ function App() {
     paginaActiva,
     vistaModo,
     listaAgrupacion,
+    kanbanOrdenPrioridad,
     filtroTiempo,
     filtroMarca,
     filtroEstado,
@@ -527,6 +530,14 @@ function App() {
     setListaAgrupacion(modo);
     setUserPreference("listaAgrupacion", modo);
   };
+
+  const alternarKanbanOrdenPrioridad = () => {
+    const siguiente = kanbanOrdenPrioridad === "desc" ? "asc" : "desc";
+    setKanbanOrdenPrioridad(siguiente);
+    setUserPreference("kanbanOrdenPrioridad", siguiente);
+  };
+
+  const kanbanOrdenPrioridadActivo = vistaModo === "KANBAN" && filtroTiempo === "HOY" ? kanbanOrdenPrioridad : null;
 
   const handleBulkUpdate = async (campo, nuevoValor) => {
     if (!nuevoValor && campo !== "deadline") return;
@@ -1595,6 +1606,16 @@ function App() {
                         <button type="button" onClick={() => { setVistaModo("KANBAN"); setUserPreference("vistaModo", "KANBAN"); }} className={`mobile-icon-btn ${vistaModo === "KANBAN" ? "is-active" : ""}`} title="Tablero">
                           <i className="fa-solid fa-chart-simple"></i>
                         </button>
+                        {vistaModo === "KANBAN" && filtroTiempo === "HOY" && (
+                          <button
+                            type="button"
+                            onClick={alternarKanbanOrdenPrioridad}
+                            className="mobile-icon-btn is-active"
+                            title={kanbanOrdenPrioridad === "desc" ? "Prioridad: alta → media → baja" : "Prioridad: baja → media → alta"}
+                          >
+                            <i className={`fa-solid ${kanbanOrdenPrioridad === "desc" ? "fa-arrow-up" : "fa-arrow-down"}`}></i>
+                          </button>
+                        )}
                       </div>
                     </div>
 
@@ -1619,6 +1640,21 @@ function App() {
                           className={`lista-agrupacion-pill ${listaAgrupacion === "fecha" ? "is-active" : ""}`}
                         >
                           Fecha
+                        </button>
+                      </div>
+                    )}
+
+                    {vistaModo === "KANBAN" && filtroTiempo === "HOY" && (
+                      <div className="lista-agrupacion-pills">
+                        <span className="lista-agrupacion-label">Orden</span>
+                        <button
+                          type="button"
+                          onClick={alternarKanbanOrdenPrioridad}
+                          className="lista-agrupacion-pill is-active"
+                          title={kanbanOrdenPrioridad === "desc" ? "Alta arriba — clic para invertir" : "Baja arriba — clic para invertir"}
+                        >
+                          <i className={`fa-solid ${kanbanOrdenPrioridad === "desc" ? "fa-arrow-up" : "fa-arrow-down"} mr-1`}></i>
+                          {kanbanOrdenPrioridad === "desc" ? "Alta → Baja" : "Baja → Alta"}
                         </button>
                       </div>
                     )}
@@ -1653,7 +1689,7 @@ function App() {
                     {vistaModo === "TABLE" ? (
                       <LayoutTablaAgrupada {...layoutTablaProps} />
                     ) : (
-                      <LayoutKanban tareas={tareasFiltradas} onUpdateField={handleUpdateField} onSelectTask={abrirEdicionTarea} onDeleteTask={(t) => setTaskToDelete(t)} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
+                      <LayoutKanban tareas={tareasFiltradas} ordenPrioridad={kanbanOrdenPrioridadActivo} onUpdateField={handleUpdateField} onSelectTask={abrirEdicionTarea} onDeleteTask={(t) => setTaskToDelete(t)} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
                     )}
                   </>
                 )}
@@ -1710,6 +1746,16 @@ function App() {
                   <button type="button" onClick={() => setFiltroTiempo("TODAS")} className={`notion-time-pill ${filtroTiempo === "TODAS" ? "is-active" : ""}`}>Todo</button>
                   <button type="button" onClick={() => setFiltroTiempo("HOY")} className={`notion-time-pill ${filtroTiempo === "HOY" ? "is-active-blue" : ""}`}>Hoy{metricaCounters.activasHoy > 0 ? ` (${metricaCounters.activasHoy})` : ""}</button>
                   <button type="button" onClick={() => setFiltroTiempo("ATRASADAS")} className={`notion-time-pill ${filtroTiempo === "ATRASADAS" ? "is-active-red" : ""}`}>Atrasados{metricaCounters.atrasadas > 0 ? ` (${metricaCounters.atrasadas})` : ""}</button>
+                  {vistaModo === "KANBAN" && filtroTiempo === "HOY" && (
+                    <button
+                      type="button"
+                      onClick={alternarKanbanOrdenPrioridad}
+                      className="notion-time-pill is-active-blue"
+                      title={kanbanOrdenPrioridad === "desc" ? "Prioridad: alta → media → baja" : "Prioridad: baja → media → alta"}
+                    >
+                      <i className={`fa-solid ${kanbanOrdenPrioridad === "desc" ? "fa-arrow-up" : "fa-arrow-down"}`}></i>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1729,6 +1775,21 @@ function App() {
                     className={`lista-agrupacion-pill ${listaAgrupacion === "fecha" ? "is-active" : ""}`}
                   >
                     Fecha
+                  </button>
+                </div>
+              )}
+
+              {vistaModo === "KANBAN" && filtroTiempo === "HOY" && (
+                <div className="lista-agrupacion-pills lista-agrupacion-pills--desktop">
+                  <span className="lista-agrupacion-label">Orden por prioridad</span>
+                  <button
+                    type="button"
+                    onClick={alternarKanbanOrdenPrioridad}
+                    className="lista-agrupacion-pill is-active"
+                    title={kanbanOrdenPrioridad === "desc" ? "Alta arriba — clic para invertir" : "Baja arriba — clic para invertir"}
+                  >
+                    <i className={`fa-solid ${kanbanOrdenPrioridad === "desc" ? "fa-arrow-up" : "fa-arrow-down"} mr-1`}></i>
+                    {kanbanOrdenPrioridad === "desc" ? "Alta → Baja" : "Baja → Alta"}
                   </button>
                 </div>
               )}
@@ -1761,7 +1822,7 @@ function App() {
               {vistaModo === "TABLE" ? (
                 <LayoutTablaAgrupada {...layoutTablaProps} />
               ) : (
-                <LayoutKanban tareas={tareasFiltradas} onUpdateField={handleUpdateField} onSelectTask={abrirEdicionTarea} onDeleteTask={(t) => setTaskToDelete(t)} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
+                <LayoutKanban tareas={tareasFiltradas} ordenPrioridad={kanbanOrdenPrioridadActivo} onUpdateField={handleUpdateField} onSelectTask={abrirEdicionTarea} onDeleteTask={(t) => setTaskToDelete(t)} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
               )}
               </div>
             </>

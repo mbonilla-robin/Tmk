@@ -1,4 +1,4 @@
-function LayoutKanban({ tareas, onUpdateField, onSelectTask, onDeleteTask, getMarcaStyle, currentTheme }) {
+function LayoutKanban({ tareas, onUpdateField, onSelectTask, onDeleteTask, getMarcaStyle, currentTheme, ordenPrioridad = null }) {
   const [dragOverCol, setDragOverColumn] = useState(null);
 
   const handleDragStart = (e, task) => {
@@ -22,7 +22,16 @@ function LayoutKanban({ tareas, onUpdateField, onSelectTask, onDeleteTask, getMa
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 items-start h-full animate-fade-in">
       {ESTADOS_MAPA.map(col => {
-        const tareasColumna = tareas.filter(t => cleanEstado(t.estado) === cleanEstado(col.id));
+        let tareasColumna = tareas.filter(t => cleanEstado(t.estado) === cleanEstado(col.id));
+        if (ordenPrioridad) {
+          tareasColumna = [...tareasColumna].sort((a, b) => {
+            const pesoA = getPriorityWeight(a.prioridad);
+            const pesoB = getPriorityWeight(b.prioridad);
+            const diff = ordenPrioridad === "desc" ? pesoB - pesoA : pesoA - pesoB;
+            if (diff !== 0) return diff;
+            return (a.info || "").localeCompare(b.info || "", "es");
+          });
+        }
         const isOverThis = dragOverCol === col.id;
         
         return (

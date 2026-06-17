@@ -29,7 +29,8 @@ function MobileWidgetsGrid({
   widgetsAgrupados,
   variant = "preview",
   username,
-  onVerMas
+  onVerMas,
+  onEstatus
 }) {
   const [recentTick, setRecentTick] = useState(0);
 
@@ -45,10 +46,6 @@ function MobileWidgetsGrid({
   const widgetsDestacados = useMemo(() => {
     return seleccionarWidgetsDestacados(todosLosWidgets, username, 5);
   }, [todosLosWidgets, username, recentTick]);
-
-  if (!todosLosWidgets.length) return null;
-
-  const mostrarVerMas = variant === "preview" && todosLosWidgets.length > 5;
 
   const renderGrupo = (titulo, lista) => {
     if (!lista || lista.length === 0) return null;
@@ -66,13 +63,35 @@ function MobileWidgetsGrid({
 
   if (variant === "full") {
     const agrupados = widgetsAgrupados || agruparWidgetsPorSeccion(todosLosWidgets);
+    const estiloEstatus = getWidgetEstilo("lavender");
     return (
       <div className="flex flex-col gap-4 md:hidden">
         {renderGrupo("Robin", agrupados.robin)}
         {renderGrupo("Clientes", agrupados.clientes)}
+        {onEstatus && (
+          <div className="flex flex-col gap-2">
+            <span className="mobile-section-label">Más opciones</span>
+            <div className="mobile-widget-grid">
+              <button
+                type="button"
+                onClick={onEstatus}
+                className={`mobile-widget-tile ${estiloEstatus.button}`}
+              >
+                <span className="mobile-widget-tile-icon">
+                  <SVGIcon.FileText className="w-4 h-4" />
+                </span>
+                <span className="mobile-widget-tile-label">Estatus</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
+
+  if (!todosLosWidgets.length) return null;
+
+  const mostrarVerMas = variant === "preview" && todosLosWidgets.length > 5;
 
   return (
     <div className="mobile-widget-grid md:hidden">

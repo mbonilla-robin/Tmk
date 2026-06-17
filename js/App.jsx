@@ -1472,6 +1472,7 @@ function App() {
               onSelectTask={abrirEdicionTarea}
               onUpdateField={handleUpdateField}
               widgets={widgets}
+              onAbrirEstatus={() => setShowGeneradorEstatus(true)}
               currentTheme={currentTheme}
               getMarcaStyle={getMarcaStyle}
               otrosUsuariosEnLinea={otrosUsuariosEnLinea}

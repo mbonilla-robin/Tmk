@@ -87,6 +87,35 @@ function ordenarTareasEstatus(tareas, estadosOrden, ordenarPor) {
   });
 }
 
+const SANGRIA_SUBTAREA = "      ";
+const ANCHO_LINEA_SUBTAREA = 38;
+
+function formatearLineasSubtareaEstatus(texto) {
+  const palabras = String(texto || "").trim().split(/\s+/).filter(Boolean);
+  if (palabras.length === 0) return [];
+
+  const lineasEnvueltas = [];
+  let lineaActual = "";
+
+  palabras.forEach(palabra => {
+    const candidata = lineaActual ? `${lineaActual} ${palabra}` : palabra;
+    if (candidata.length <= ANCHO_LINEA_SUBTAREA) {
+      lineaActual = candidata;
+    } else {
+      if (lineaActual) lineasEnvueltas.push(lineaActual);
+      lineaActual = palabra;
+    }
+  });
+  if (lineaActual) lineasEnvueltas.push(lineaActual);
+
+  const sangriaContinuacion = " ".repeat(SANGRIA_SUBTAREA.length + 2);
+
+  return lineasEnvueltas.map((linea, index) => {
+    if (index === 0) return `${SANGRIA_SUBTAREA}- ${linea}`;
+    return `${sangriaContinuacion}${linea}`;
+  });
+}
+
 function formatearLineaTareaEstatus(tarea) {
   const estado = normalizarEstado(tarea.estado) || "Sin estado";
   const titulo = (tarea.info || "Sin título").trim();
@@ -97,7 +126,7 @@ function formatearLineaTareaEstatus(tarea) {
 
   const { subtareas } = parseDetalles(tarea.detalles);
   subtareas.forEach(sub => {
-    lineas.push(`        - ${sub.text}`);
+    lineas.push(...formatearLineasSubtareaEstatus(sub.text));
   });
 
   return lineas.join("\n");

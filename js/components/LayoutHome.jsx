@@ -5,6 +5,7 @@ function LayoutHome({
   onSelectTask,
   onUpdateField,
   widgets,
+  onAbrirEstatus,
   currentTheme,
   getMarcaStyle,
   otrosUsuariosEnLinea,
@@ -65,6 +66,7 @@ function LayoutHome({
             variant="full"
             widgetsAgrupados={widgetsVisibles}
             username={username}
+            onEstatus={onAbrirEstatus}
           />
         </div>
       )}

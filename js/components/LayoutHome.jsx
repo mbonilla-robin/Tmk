@@ -193,25 +193,27 @@ function LayoutHome({
       </div>
 
       <div className="border border-zinc-200 rounded-md overflow-hidden">
-        <div className="px-3 py-2 border-b border-zinc-100 bg-[#FAF9F6]/40 md:hidden">
-          <span className="mobile-section-label">Resumen del área</span>
+        <div className="px-3 py-2 md:px-4 md:py-2.5 border-b border-zinc-100 bg-[#FAF9F6]/40">
+          <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide md:normal-case">
+            Resumen del área
+          </span>
         </div>
-        <div className="grid grid-cols-4 gap-1 p-3 md:p-4 md:gap-4 bg-white">
-          <div className="mobile-stat-cell">
-            <span className="mobile-stat-label">Total</span>
-            <span className="mobile-stat-value text-[#37352F]">{stats.total}</span>
+        <div className="grid grid-cols-4 divide-x divide-zinc-100 bg-white">
+          <div className="flex flex-col items-center justify-center gap-1 py-3 px-1 md:py-4 md:gap-1.5">
+            <span className="text-[9px] md:text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">Total</span>
+            <span className="text-lg md:text-2xl font-extrabold tabular-nums leading-none text-[#37352F]">{stats.total}</span>
           </div>
-          <div className="mobile-stat-cell">
-            <span className="mobile-stat-label">Activos</span>
-            <span className="mobile-stat-value text-blue-600">{stats.enProgreso}</span>
+          <div className="flex flex-col items-center justify-center gap-1 py-3 px-1 md:py-4 md:gap-1.5">
+            <span className="text-[9px] md:text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">Activos</span>
+            <span className="text-lg md:text-2xl font-extrabold tabular-nums leading-none text-blue-600">{stats.enProgreso}</span>
           </div>
-          <div className="mobile-stat-cell">
-            <span className="mobile-stat-label">Listos</span>
-            <span className="mobile-stat-value text-emerald-600">{stats.completadas}</span>
+          <div className="flex flex-col items-center justify-center gap-1 py-3 px-1 md:py-4 md:gap-1.5">
+            <span className="text-[9px] md:text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">Listos</span>
+            <span className="text-lg md:text-2xl font-extrabold tabular-nums leading-none text-emerald-600">{stats.completadas}</span>
           </div>
-          <div className="mobile-stat-cell">
-            <span className="mobile-stat-label">Atraso</span>
-            <span className="mobile-stat-value text-red-600">{stats.atrasadas}</span>
+          <div className="flex flex-col items-center justify-center gap-1 py-3 px-1 md:py-4 md:gap-1.5">
+            <span className="text-[9px] md:text-[10px] font-semibold text-zinc-400 uppercase tracking-wide">Atraso</span>
+            <span className="text-lg md:text-2xl font-extrabold tabular-nums leading-none text-red-600">{stats.atrasadas}</span>
           </div>
         </div>
       </div>

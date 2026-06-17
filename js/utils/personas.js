@@ -1,0 +1,415 @@
+const PERSONAS_CANONICAS = [
+  "mbonilla",
+  "ralvarez",
+  "dsalavarria",
+  "fcolmenares",
+  "gnebrus",
+  "sgiucastro",
+  "admin"
+];
+
+const LISTA_PERSONAS_DEFECTO = [
+  "@fcolmenares",
+  "@ralvarez",
+  "@dsalavarria",
+  "@mbonilla",
+  "@gnebrus",
+  "@sgiucastro",
+  "@David Matheus",
+  "@Aaron Graterol",
+  "@Angel Graterol",
+  "@Cliente",
+  "@Trade"
+];
+
+const PERSONAS_STORAGE_KEY = "robin_personas_v3";
+const PERSONAS_STORAGE_KEY_LEGACY = "robin_personas_v2";
+
+const PERSONAS_EQUIPO_TRADE = [
+  "fcolmenares",
+  "ralvarez",
+  "dsalavarria",
+  "mbonilla",
+  "gnebrus",
+  "sgiucastro"
+];
+
+const PERSONAS_ALIAS_A_CANONICO = (() => {
+  const map = {};
+  const add = (alias, canonico) => {
+    map[normalizarClavePersona(alias)] = canonico;
+  };
+
+  add("miguel", "mbonilla");
+  add("migue", "mbonilla");
+  add("bonilla", "mbonilla");
+  add("miguel bonilla", "mbonilla");
+  add("mbonilla", "mbonilla");
+  add("@miguel", "mbonilla");
+  add("@migue", "mbonilla");
+  add("@mbonilla", "mbonilla");
+
+  add("ricardo", "ralvarez");
+  add("ricky", "ralvarez");
+  add("ric", "ralvarez");
+  add("alvarez", "ralvarez");
+  add("ricardo alvarez", "ralvarez");
+  add("ralvarez", "ralvarez");
+  add("@ricardo", "ralvarez");
+  add("@ricky", "ralvarez");
+  add("@ric", "ralvarez");
+  add("@ralvarez", "ralvarez");
+
+  add("daniela", "dsalavarria");
+  add("dani", "dsalavarria");
+  add("salavarria", "dsalavarria");
+  add("daniela salavarria", "dsalavarria");
+  add("dsalavarria", "dsalavarria");
+  add("@daniela", "dsalavarria");
+  add("@dani", "dsalavarria");
+  add("@dsalavarria", "dsalavarria");
+
+  add("francisco", "fcolmenares");
+  add("fran", "fcolmenares");
+  add("colmenares", "fcolmenares");
+  add("francisco colmenares", "fcolmenares");
+  add("fcolmenares", "fcolmenares");
+  add("@francisco", "fcolmenares");
+  add("@fran", "fcolmenares");
+  add("@fcolmenares", "fcolmenares");
+
+  add("genesis", "gnebrus");
+  add("gene", "gnebrus");
+  add("nebrus", "gnebrus");
+  add("genesis nebrus", "gnebrus");
+  add("gnebrus", "gnebrus");
+  add("@genesis", "gnebrus");
+  add("@gene", "gnebrus");
+  add("@gnebrus", "gnebrus");
+
+  add("sofia", "sgiucastro");
+  add("sofi", "sgiucastro");
+  add("giucastro", "sgiucastro");
+  add("sofia giucastro", "sgiucastro");
+  add("sgiucastro", "sgiucastro");
+  add("@sofia", "sgiucastro");
+  add("@sofi", "sgiucastro");
+  add("@sgiucastro", "sgiucastro");
+
+  add("admin", "admin");
+  add("@admin", "admin");
+
+  return map;
+})();
+
+const PERSONAS_ALIAS_ORDENADOS = Object.keys(PERSONAS_ALIAS_A_CANONICO)
+  .sort((a, b) => b.length - a.length);
+
+function normalizarClavePersona(valor) {
+  return String(valor || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^@/, "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+function resolverHandleCanonico(valor) {
+  const clave = normalizarClavePersona(valor);
+  if (!clave) return "";
+  return PERSONAS_ALIAS_A_CANONICO[clave] || "";
+}
+
+function esAliasEquipoTrade(valor) {
+  return normalizarClavePersona(valor) === "trade";
+}
+
+function obtenerHandlesEquipoTrade() {
+  return PERSONAS_EQUIPO_TRADE.slice();
+}
+
+function expandirTokenPersona(token) {
+  if (esAliasEquipoTrade(token)) {
+    return obtenerHandlesEquipoTrade();
+  }
+
+  const canonico = resolverHandleCanonico(token);
+  if (canonico) return [canonico];
+
+  const clave = normalizarClavePersona(token);
+  return clave ? [clave] : [];
+}
+
+function obtenerHandlesDesdeCampoPersonas(raw) {
+  const handles = new Set();
+  tokenizarCampoPersonas(raw).forEach((token) => {
+    expandirTokenPersona(token).forEach((handle) => handles.add(handle));
+  });
+  return Array.from(handles);
+}
+
+function formatearHandleCanonico(handle) {
+  const limpio = normalizarClavePersona(handle);
+  if (!limpio) return "";
+  return `@${limpio}`;
+}
+
+function tokenizarCampoPersonas(raw) {
+  const texto = String(raw || "").trim();
+  if (!texto) return [];
+
+  if (texto.includes(",")) {
+    return texto.split(",").map((t) => t.trim()).filter(Boolean);
+  }
+
+  if ((texto.match(/@/g) || []).length > 1) {
+    return texto.split(/(?=@)/).map((t) => t.trim()).filter(Boolean);
+  }
+
+  if (!texto.includes("@")) {
+    const tokens = [];
+    let restante = texto;
+
+    while (restante) {
+      const claveRestante = normalizarClavePersona(restante);
+      let aliasEncontrado = "";
+
+      for (const alias of PERSONAS_ALIAS_ORDENADOS) {
+        if (claveRestante === alias || claveRestante.startsWith(`${alias} `)) {
+          aliasEncontrado = alias;
+          break;
+        }
+      }
+
+      if (!aliasEncontrado) {
+        const partes = restante.split(/\s+/);
+        tokens.push(partes[0]);
+        restante = partes.slice(1).join(" ").trim();
+        continue;
+      }
+
+      const numPalabras = aliasEncontrado.split(" ").length;
+      const partes = restante.split(/\s+/);
+      tokens.push(partes.slice(0, numPalabras).join(" "));
+      restante = partes.slice(numPalabras).join(" ").trim();
+    }
+
+    return tokens;
+  }
+
+  return [texto];
+}
+
+function normalizarCampoPersonas(raw) {
+  const tokens = tokenizarCampoPersonas(raw);
+  if (!tokens.length) return "";
+
+  const vistos = new Set();
+  const salida = [];
+
+  const agregarCanonico = (canonico) => {
+    if (!canonico || vistos.has(canonico)) return;
+    vistos.add(canonico);
+    salida.push(formatearHandleCanonico(canonico));
+  };
+
+  tokens.forEach((token) => {
+    if (esAliasEquipoTrade(token)) {
+      obtenerHandlesEquipoTrade().forEach(agregarCanonico);
+      return;
+    }
+
+    const canonico = resolverHandleCanonico(token);
+    if (canonico) {
+      agregarCanonico(canonico);
+      return;
+    }
+
+    const permitida = obtenerEntradaListaPermitida(token);
+    if (permitida) {
+      const clave = normalizarClavePersona(permitida);
+      if (!vistos.has(clave)) {
+        vistos.add(clave);
+        salida.push(permitida);
+      }
+      return;
+    }
+
+    const limpio = String(token || "").trim();
+    if (!limpio) return;
+    const clave = normalizarClavePersona(limpio);
+    if (!vistos.has(clave)) {
+      vistos.add(clave);
+      salida.push(limpio.startsWith("@") ? limpio : `@${clave}`);
+    }
+  });
+
+  return salida.join(", ");
+}
+
+function tareaIncluyePersonaFiltro(personasRaw, filtro) {
+  const handlesTarea = obtenerHandlesDesdeCampoPersonas(personasRaw);
+  if (!handlesTarea.length) return false;
+
+  if (esAliasEquipoTrade(filtro)) {
+    const tokens = tokenizarCampoPersonas(personasRaw);
+    if (tokens.some(esAliasEquipoTrade)) return true;
+    return PERSONAS_EQUIPO_TRADE.every((handle) => handlesTarea.includes(handle));
+  }
+
+  const filtroCanonico = resolverHandleCanonico(filtro) || normalizarClavePersona(filtro);
+  return handlesTarea.includes(filtroCanonico);
+}
+
+function obtenerListaPersonasDefecto() {
+  return LISTA_PERSONAS_DEFECTO.slice();
+}
+
+function leerListaPersonasGuardada() {
+  try {
+    const raw = getLocalStorageItemSafe(PERSONAS_STORAGE_KEY, null);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function fusionarListasPersonas(...listas) {
+  const resultado = [];
+  const vistos = new Set();
+
+  listas.flat().forEach((persona) => {
+    const entrada = String(persona || "").trim();
+    if (!entrada) return;
+    const clave = normalizarClavePersona(entrada);
+    if (!clave || vistos.has(clave)) return;
+    vistos.add(clave);
+    resultado.push(entrada);
+  });
+
+  return resultado;
+}
+
+function obtenerListaPersonasActiva() {
+  return fusionarListasPersonas(
+    obtenerListaPersonasDefecto(),
+    leerListaPersonasGuardada()
+  );
+}
+
+function formatearEntradaListaPersona(nombre) {
+  const texto = String(nombre || "").trim();
+  if (!texto) return "";
+
+  if (esAliasEquipoTrade(texto)) return "@Trade";
+  if (normalizarClavePersona(texto) === "cliente") return "@Cliente";
+
+  const canonico = resolverHandleCanonico(texto);
+  if (canonico) return formatearHandleCanonico(canonico);
+
+  const enLista = obtenerListaPersonasActiva().find(
+    (persona) => normalizarClavePersona(persona) === normalizarClavePersona(texto)
+  );
+  if (enLista) return enLista;
+
+  const sinArroba = texto.replace(/^@/, "").trim();
+  return `@${sinArroba}`;
+}
+
+function extraerNombresDesdeMetadataMarca(meta) {
+  const entry = normalizarMetadataMarcaEntry(meta);
+  const nombres = [];
+
+  [...entry.ejecutivos, ...entry.disenadores, ...entry.contentEquipo].forEach((persona) => {
+    const nombre = String(persona.nombre || "").trim();
+    if (nombre) nombres.push(nombre);
+  });
+
+  return nombres;
+}
+
+function extraerNombresDesdeMarcasMetadata(marcasMetadata) {
+  if (!marcasMetadata || typeof marcasMetadata !== "object") return [];
+
+  const nombres = [];
+  Object.values(marcasMetadata).forEach((meta) => {
+    extraerNombresDesdeMetadataMarca(meta).forEach((nombre) => nombres.push(nombre));
+  });
+  return nombres;
+}
+
+function obtenerEntradaListaPermitida(valor) {
+  const clave = normalizarClavePersona(valor);
+  if (!clave) return "";
+
+  if (clave === "trade") return "@Trade";
+  if (clave === "cliente") return "@Cliente";
+
+  const canonico = resolverHandleCanonico(valor);
+  if (canonico) return formatearHandleCanonico(canonico);
+
+  const coincidencia = obtenerListaPersonasActiva().find(
+    (persona) => normalizarClavePersona(persona) === clave
+  );
+  return coincidencia || "";
+}
+
+function esPersonaPermitidaEnLista(valor) {
+  return Boolean(obtenerEntradaListaPermitida(valor));
+}
+
+function cargarListaPersonas() {
+  const lista = obtenerListaPersonasActiva();
+  try {
+    setLocalStorageItemSafe(PERSONAS_STORAGE_KEY, JSON.stringify(lista));
+    removeLocalStorageItemSafe(PERSONAS_STORAGE_KEY_LEGACY);
+  } catch (e) {}
+  return lista;
+}
+
+function guardarListaPersonas(lista) {
+  const fusionada = fusionarListasPersonas(obtenerListaPersonasDefecto(), lista || []);
+  try {
+    setLocalStorageItemSafe(PERSONAS_STORAGE_KEY, JSON.stringify(fusionada));
+  } catch (e) {}
+  return fusionada;
+}
+
+function registrarPersonasEnLista(listaActual, nombres) {
+  const nuevasEntradas = (nombres || [])
+    .map(formatearEntradaListaPersona)
+    .filter(Boolean);
+  return guardarListaPersonas(fusionarListasPersonas(listaActual, nuevasEntradas));
+}
+
+function sincronizarListaPersonasConMarcas(listaActual, marcasMetadata) {
+  return registrarPersonasEnLista(
+    listaActual,
+    extraerNombresDesdeMarcasMetadata(marcasMetadata)
+  );
+}
+
+function normalizarPersonaParaLista(valor) {
+  return obtenerEntradaListaPermitida(valor);
+}
+
+function partesCampoPersonas(raw) {
+  return normalizarCampoPersonas(raw)
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
+function personaEstaSeleccionada(persona, seleccionadas) {
+  const lista = Array.isArray(seleccionadas) ? seleccionadas : partesCampoPersonas(seleccionadas);
+  const objetivos = partesCampoPersonas(persona);
+  if (!objetivos.length) return false;
+  return objetivos.every((handle) => lista.includes(handle));
+}
+
+function personaCoincideConFiltro(valor, filtro) {
+  return tareaIncluyePersonaFiltro(valor, filtro);
+}

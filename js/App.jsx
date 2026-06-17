@@ -73,15 +73,10 @@ function App() {
   const [syncDetalleVisible, setSyncDetalleVisible] = useState(false);
   const [dashboardMobileVista, setDashboardMobileVista] = useState(() => initialPrefs.dashboardMobileVista || "lista");
   const [configMobileSeccion, setConfigMobileSeccion] = useState(null);
+  const [showGeneradorEstatus, setShowGeneradorEstatus] = useState(false);
   const [prefsReady, setPrefsReady] = useState(() => !getInicialUsuario());
 
-  const [listaPersonas, setListaPersonas] = useState(() => {
-    try {
-      const guardadas = getLocalStorageItemSafe("robin_personas_v2", null);
-      if (guardadas) return JSON.parse(guardadas);
-    } catch(e) {}
-    return ["@fcolmenares", "@ralvarez", "@dsalavarria", "@mbonilla", "@gnebrus", "@sgiucastro"];
-  });
+  const [listaPersonas, setListaPersonas] = useState(() => cargarListaPersonas());
 
   const palabraEstadoSync = useMemo(() => {
     if (!isApiConfigured()) return "Sin API";
@@ -373,29 +368,6 @@ function App() {
     return () => document.removeEventListener("visibilitychange", reconectarAlVolver);
   }, [usuario, syncing, loading, isSubmitting]);
 
-  useEffect(() => {
-    if (tareas.length > 0) {
-      const detectadas = new Set();
-      tareas.forEach(t => {
-        if (t.personas) {
-          const nombres = t.personas.split(/[\s,]+/);
-          nombres.forEach(n => {
-            const limpio = n.trim();
-            if (limpio.length > 1) {
-              const conArroba = limpio.startsWith("@") ? limpio : "@" + limpio;
-              detectadas.add(conArroba);
-            }
-          });
-        }
-      });
-      if (detectadas.size > 0) {
-        const combinadas = Array.from(new Set([...listaPersonas, ...detectadas]));
-        setLocalStorageItemSafe("robin_personas_v2", JSON.stringify(combinadas));
-        setListaPersonas(combinadas);
-      }
-    }
-  }, [tareas]);
-
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
@@ -621,8 +593,10 @@ function App() {
       showToast("Solo el usuario admin puede editar fichas de cliente", "error");
       return;
     }
-    const actualizados = { ...marcasMetadata, [formatearMarca(brand)]: normalizarMetadataMarcaEntry(newMeta) };
+    const normalizada = normalizarMetadataMarcaEntry(newMeta);
+    const actualizados = { ...marcasMetadata, [formatearMarca(brand)]: normalizada };
     setMarcasMetadata(actualizados);
+    setListaPersonas((prev) => registrarPersonasEnLista(prev, extraerNombresDesdeMetadataMarca(normalizada)));
     showToast("Actualizando ficha de cliente...", "info");
 
     const effectiveUrl = getConfiguredApiUrl();
@@ -841,13 +815,9 @@ function App() {
   };
 
   const registrarNuevaPersonaGlobal = (nombreCompleto) => {
-    const formateado = pointerString => pointerString.startsWith("@") ? pointerString.trim() : "@" + pointerString.trim();
-    const finalName = formateado(nombreCompleto);
-    if (finalName.length > 1 && !listaPersonas.includes(finalName)) {
-      const actualizadas = [...listaPersonas, finalName];
-      setListaPersonas(actualizadas);
-      setLocalStorageItemSafe("robin_personas_v2", JSON.stringify(actualizadas));
-    }
+    const entrada = obtenerEntradaListaPermitida(nombreCompleto);
+    if (!entrada) return;
+    setListaPersonas((prev) => registrarPersonasEnLista(prev, [entrada]));
   };
 
   const fetchData = async (isBackground = false) => {
@@ -932,6 +902,7 @@ function App() {
               normalizado[formatearMarca(k)] = normalizarMetadataMarcaEntry(json.marcasMetadata[k]);
             });
             setMarcasMetadata(normalizado);
+            setListaPersonas((prev) => sincronizarListaPersonasConMarcas(prev, normalizado));
           }
           if (!isBackground) showToast("Sincronizado", "success");
           setLoading(false);
@@ -1412,6 +1383,10 @@ function App() {
                 </div>
 
                 <span className="px-2 text-section mb-1 mt-2">Soporte</span>
+                <MasOpcionesMenu
+                  variant="sidebar"
+                  onEstatus={() => setShowGeneradorEstatus(true)}
+                />
                 <button
                   onClick={() => navegarA("configuracion")}
                   className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-ui font-medium transition-all ${
@@ -1490,10 +1465,10 @@ function App() {
         } ${paginaActiva === "agregar" ? "robin-mobile-main !px-0 lg:!px-8" : "robin-mobile-main"}`}>
           
           {!isConfigOnlyAdmin && paginaActiva === "home" && (
-            <LayoutHome 
-              tareas={tareas} 
-              nombreUsuario={nombreCompleto} 
-              username={usuario} 
+            <LayoutHome
+              tareas={tareas}
+              nombreUsuario={nombreCompleto}
+              username={usuario}
               onSelectTask={abrirEdicionTarea}
               onUpdateField={handleUpdateField}
               widgets={widgets}
@@ -2159,6 +2134,16 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {!isConfigOnlyAdmin && showGeneradorEstatus && (
+        <GeneradorEstatus
+          tareas={tareas}
+          marcasDisponibles={marcasDisponibles}
+          listaPersonas={listaPersonas}
+          registrarNuevaPersona={registrarNuevaPersonaGlobal}
+          onClose={() => setShowGeneradorEstatus(false)}
+        />
       )}
 
     </div>

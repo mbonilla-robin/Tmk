@@ -53,7 +53,8 @@ function normalizarTareaCampos(t) {
     marca: normalizarMarca(t.marca),
     estado: normalizarEstado(t.estado),
     prioridad: normalizarPrioridad(t.prioridad || t.Prioridad),
-    deadline: normalizarDeadline(t.deadline)
+    deadline: normalizarDeadline(t.deadline),
+    personas: normalizarCampoPersonas(t.personas)
   };
 }
 

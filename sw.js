@@ -30,6 +30,7 @@ const STATIC_ASSETS = [
   "./js/utils/preferences.js",
   "./js/utils/auth.js",
   "./js/utils/api.js",
+  "./js/utils/personas.js",
   "./js/utils/tasks.js",
   "./js/utils/strings.js",
   "./js/utils/dates.js",

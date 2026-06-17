@@ -3,16 +3,27 @@ function SelectorPersonasChips({ personasSeleccionadas, onChange, listaGlobal, r
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const containerRef = useRef(null);
 
-  const seleccionadasArray = useMemo(() => {
-    if (!personasSeleccionadas) return [];
-    return personasSeleccionadas.split(",").map(p => p.trim()).filter(Boolean);
-  }, [personasSeleccionadas]);
+  const seleccionadasArray = useMemo(() => partesCampoPersonas(personasSeleccionadas), [personasSeleccionadas]);
+
+  const aplicarCambio = (items) => {
+    onChange(normalizarCampoPersonas(items.join(", ")));
+  };
 
   const handleTogglePersona = (p) => {
-    let nuevas = seleccionadasArray.includes(p)
-      ? seleccionadasArray.filter(item => item !== p)
-      : [...seleccionadasArray, p];
-    onChange(nuevas.join(", "));
+    const objetivos = partesCampoPersonas(p);
+    const todosSeleccionados = objetivos.length > 0 && objetivos.every((handle) => seleccionadasArray.includes(handle));
+
+    let nuevas;
+    if (todosSeleccionados) {
+      const quitar = new Set(objetivos);
+      nuevas = seleccionadasArray.filter((item) => !quitar.has(item));
+    } else {
+      nuevas = [...seleccionadasArray];
+      objetivos.forEach((handle) => {
+        if (!nuevas.includes(handle)) nuevas.push(handle);
+      });
+    }
+    aplicarCambio(nuevas);
   };
 
   const handleAddCustom = (e) => {
@@ -21,10 +32,13 @@ function SelectorPersonasChips({ personasSeleccionadas, onChange, listaGlobal, r
       let val = buscar.trim();
       if (!val) return;
       if (!val.startsWith("@")) val = "@" + val;
-      registrarNuevaPersona(val);
-      if (!seleccionadasArray.includes(val)) {
-        onChange([...seleccionadasArray, val].join(", "));
+      const entrada = obtenerEntradaListaPermitida(val);
+      if (!entrada) {
+        setBuscar("");
+        return;
       }
+      registrarNuevaPersona(entrada);
+      aplicarCambio([...seleccionadasArray, entrada]);
       setBuscar("");
     }
   };
@@ -90,7 +104,7 @@ function SelectorPersonasChips({ personasSeleccionadas, onChange, listaGlobal, r
             {listaGlobal
               .filter(p => p.toLowerCase().includes(buscar.toLowerCase()))
               .map(p => {
-                const isSel = seleccionadasArray.includes(p);
+                const isSel = personaEstaSeleccionada(p, seleccionadasArray);
                 return (
                   <div 
                     key={p}

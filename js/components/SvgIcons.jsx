@@ -49,6 +49,16 @@ const SVGIcon = {
       <path d="M12.232 4.232a2.5 2.5 0 015.658 3.658l-2.25 2.25a2.5 2.5 0 01-3.536 0 .75.75 0 00-1.06 1.06 4 4 0 005.656 0l2.25-2.25a4 4 0 00-5.656-5.656l-1.1 1.1a.75.75 0 101.06 1.06l1.1-1.1z" />
       <path d="M7.768 15.768a2.5 2.5 0 01-3.658-5.658l2.25-2.25a2.5 2.5 0 013.536 0 .75.75 0 001.06-1.06 4 4 0 00-5.656 0l-2.25 2.25a4 4 0 105.656 5.656l1.1-1.1a.75.75 0 10-1.06-1.06l-1.1 1.1z" />
     </svg>
+  ),
+  MoreHorizontal: ({ className = "w-4 h-4" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
+      <path d="M3 10a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM8.5 10a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0zM14 10a1.5 1.5 0 113 0 1.5 1.5 0 01-3 0z" />
+    </svg>
+  ),
+  FileText: ({ className = "w-4 h-4" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className}>
+      <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+    </svg>
   )
 };
 

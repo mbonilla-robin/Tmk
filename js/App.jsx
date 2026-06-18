@@ -2112,6 +2112,11 @@ function App() {
         </div>
       </main>
 
+      {/* BARRA ACCESO RÁPIDO — entregables de hoy (solo desktop 1024px+) */}
+      {!isConfigOnlyAdmin && (
+        <BarraHoyAccesoRapido tareas={tareas} onSelectTask={abrirEdicionTarea} />
+      )}
+
       {!isConfigOnlyAdmin && (
       <MobileNavBar
         paginaActiva={paginaActiva}

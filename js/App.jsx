@@ -1359,181 +1359,164 @@ function App() {
 
       {/* MENÚ LATERAL ESTILO NOTION - SOLO DESKTOP (md+); móvil usa MobileNavBar */}
       {!isConfigOnlyAdmin && (
-      <aside className={`
-          hidden md:flex
-          relative inset-y-0 left-0 z-50 w-52 h-screen overflow-hidden ${currentTheme.sidebarBg} border-r border-zinc-200 flex-col shrink-0
-        `}>
-          <div className="flex flex-col h-full min-h-0 overflow-hidden">
-            <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-              <div className="app-header-bar app-header-bar--sidebar justify-between shrink-0">
-                <div className="flex items-center min-h-0 py-1">
-                  <RobinLogo className="h-10 w-auto max-w-[120px]" theme={theme} />
-                  <span className="fallback-logo text-xl font-bold text-zinc-900 tracking-tight leading-none" style={{display: 'none'}}>robin</span>
-                </div>
-              </div>
+      <aside className={`hidden md:flex robin-sidebar ${currentTheme.sidebarBg}`}>
+          <div className="robin-sidebar__header">
+            <RobinLogo className="h-8 w-auto max-w-[110px]" theme={theme} />
+          </div>
 
-              <div className="mx-2.5 my-2.5 p-2.5 rounded bg-[#FAF9F6] border border-zinc-200 flex flex-col gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setSidebarEnLineaAbierto(prev => !prev)}
-                  className="flex items-center w-full gap-1 text-left"
-                >
-                  <span className="text-section">En línea</span>
-                  <i className={`fa-solid fa-chevron-down text-[8px] text-zinc-400 ml-auto transition-transform duration-150 ${sidebarEnLineaAbierto ? "rotate-180" : ""}`}></i>
-                </button>
+          <div className="robin-sidebar__top">
+            <div className="robin-sidebar__presence">
+              <button
+                type="button"
+                onClick={() => setSidebarEnLineaAbierto(prev => !prev)}
+                className="robin-sidebar__section-toggle"
+              >
+                <span className="text-section">En línea</span>
+                <i className={`fa-solid fa-chevron-down text-[8px] text-zinc-400 ml-auto transition-transform duration-150 ${sidebarEnLineaAbierto ? "rotate-180" : ""}`}></i>
+              </button>
 
-                {sidebarEnLineaAbierto && (
-                  <div className="flex flex-col gap-1.5">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="relative flex h-1.5 w-1.5 shrink-0">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-                      </span>
-                      <span className="text-ui font-semibold presence-user-name text-[#37352F]">@{usuario}</span>
-                    </div>
-
-                    {presenceEstado === "ready" && otrosUsuariosEnLinea.map((u, index) => (
-                      <div key={u.uid || `user-${index}`} className="flex items-center gap-1.5 pl-0.5 min-w-0">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
-                        <span className="text-ui-sm text-zinc-600 presence-user-name font-medium" title={formatearNombrePresencia(u)}>
-                          {formatearNombrePresencia(u)}
-                        </span>
-                      </div>
-                    ))}
-
-                    {presenceEstado === "connecting" && (
-                      <div className="text-ui-sm text-zinc-400 italic pl-0.5">Conectando...</div>
-                    )}
-                    {presenceEstado === "error" && (
-                      <div className="text-ui-sm text-red-400 italic pl-0.5">Sin conexión</div>
-                    )}
-                    {presenceEstado === "ready" && otrosUsuariosEnLinea.length === 0 && (
-                      <div className="text-ui-sm text-zinc-400 italic pl-0.5">Solo tú</div>
-                    )}
+              {sidebarEnLineaAbierto && (
+                <div className="flex flex-col gap-1.5 mt-1">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="relative flex h-1.5 w-1.5 shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                    </span>
+                    <span className="text-ui font-semibold presence-user-name text-[#37352F] truncate">@{usuario}</span>
                   </div>
-                )}
-              </div>
 
-              <div className="px-2.5 pt-1">
-                <button 
-                  onClick={() => navegarA("agregar")}
-                  className="w-full bg-[#37352F] hover:bg-[#2c2a26] text-white font-medium py-1.5 px-3 rounded text-ui transition-colors flex items-center justify-center gap-1 shadow-sm"
-                >
-                  <SVGIcon.Plus />
-                  <span>Añadir entregable</span>
-                </button>
-              </div>
+                  {presenceEstado === "ready" && otrosUsuariosEnLinea.map((u, index) => (
+                    <div key={u.uid || `user-${index}`} className="flex items-center gap-1.5 min-w-0">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
+                      <span className="text-ui-sm text-zinc-600 presence-user-name font-medium truncate" title={formatearNombrePresencia(u)}>
+                        {formatearNombrePresencia(u)}
+                      </span>
+                    </div>
+                  ))}
 
-              <nav className="p-2.5 flex flex-col gap-1 flex-1 min-h-0 overflow-hidden">
-                <span className="px-2 text-section mb-1">Navegación</span>
-
-                <div className="grid grid-cols-2 gap-1 mb-0.5">
-                  <button
-                    onClick={() => navegarA("home")}
-                    className={`flex flex-col items-center justify-center gap-0.5 px-1 py-2 rounded text-[10px] font-medium transition-all ${
-                      paginaActiva === "home" ? "bg-white shadow-sm text-zinc-900 border border-zinc-200" : "text-zinc-600 hover:bg-zinc-100/50"
-                    }`}
-                  >
-                    <SVGIcon.Home />
-                    <span>Home</span>
-                  </button>
-
-                  <button
-                    onClick={() => navegarA("dashboard", () => { setFiltroTiempo("TODAS"); setFiltroMarca("TODAS"); setFiltroEstado("TODOS"); setFiltroPrioridad("TODAS"); setFiltroPersona("TODAS"); })}
-                    className={`flex flex-col items-center justify-center gap-0.5 px-1 py-2 rounded text-[10px] font-medium transition-all ${
-                      paginaActiva === "dashboard" && filtroTiempo === "TODAS" && filtroMarca === "TODAS" && filtroEstado === "TODOS" && filtroPrioridad === "TODAS" && filtroPersona === "TODAS"
-                        ? "bg-white shadow-sm text-zinc-900 border border-zinc-200" : "text-zinc-600 hover:bg-zinc-100/50"
-                    }`}
-                  >
-                    <SVGIcon.All />
-                    <span>Todos</span>
-                  </button>
+                  {presenceEstado === "connecting" && (
+                    <div className="text-ui-sm text-zinc-400 italic">Conectando...</div>
+                  )}
+                  {presenceEstado === "error" && (
+                    <div className="text-ui-sm text-red-400 italic">Sin conexión</div>
+                  )}
+                  {presenceEstado === "ready" && otrosUsuariosEnLinea.length === 0 && (
+                    <div className="text-ui-sm text-zinc-400 italic">Solo tú</div>
+                  )}
                 </div>
+              )}
+            </div>
 
+            <button type="button" onClick={() => navegarA("agregar")} className="robin-sidebar__cta">
+              <SVGIcon.Plus />
+              <span>Añadir entregable</span>
+            </button>
+          </div>
+
+          <nav className="robin-sidebar__body no-scrollbar" aria-label="Menú lateral">
+            <div className="robin-sidebar__section">
+              <span className="robin-sidebar__section-title">Navegación</span>
+              <div className="robin-sidebar__tile-grid">
                 <button
                   type="button"
-                  onClick={() => setSidebarMarcasAbierto(prev => !prev)}
-                  className="flex items-center w-full px-2 mt-2 mb-1 text-left"
+                  onClick={() => navegarA("home")}
+                  className={`robin-sidebar__tile ${paginaActiva === "home" ? "is-active" : ""}`}
                 >
-                  <span className="text-section">Marcas</span>
-                  {marcasDisponibles.length > 0 && (
-                    <span className="text-[9px] text-zinc-400 ml-1">({marcasDisponibles.length})</span>
-                  )}
-                  <i className={`fa-solid fa-chevron-down text-[8px] text-zinc-400 ml-auto transition-transform duration-150 ${sidebarMarcasAbierto ? "rotate-180" : ""}`}></i>
+                  <SVGIcon.Home />
+                  <span>Home</span>
                 </button>
-                {sidebarMarcasAbierto && (
+                <button
+                  type="button"
+                  onClick={() => navegarA("dashboard", () => { setFiltroTiempo("TODAS"); setFiltroMarca("TODAS"); setFiltroEstado("TODOS"); setFiltroPrioridad("TODAS"); setFiltroPersona("TODAS"); })}
+                  className={`robin-sidebar__tile ${
+                    paginaActiva === "dashboard" && filtroTiempo === "TODAS" && filtroMarca === "TODAS" && filtroEstado === "TODOS" && filtroPrioridad === "TODAS" && filtroPersona === "TODAS"
+                      ? "is-active" : ""
+                  }`}
+                >
+                  <SVGIcon.All />
+                  <span>Todos</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="robin-sidebar__section">
+              <button
+                type="button"
+                onClick={() => setSidebarMarcasAbierto(prev => !prev)}
+                className="robin-sidebar__section-toggle"
+              >
+                <span className="text-section">Marcas</span>
+                {marcasDisponibles.length > 0 && (
+                  <span className="text-[9px] text-zinc-400 ml-1">({marcasDisponibles.length})</span>
+                )}
+                <i className={`fa-solid fa-chevron-down text-[8px] text-zinc-400 ml-auto transition-transform duration-150 ${sidebarMarcasAbierto ? "rotate-180" : ""}`}></i>
+              </button>
+              {sidebarMarcasAbierto && (
                 <div className="flex flex-col gap-0.5">
                   <button
+                    type="button"
                     onClick={() => navegarA("clientes")}
-                    className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-ui font-medium text-left transition-all ${
-                      paginaActiva === "clientes" ? "bg-zinc-200/50 text-[#37352F]" : "text-zinc-600 hover:bg-zinc-100/30"
-                    }`}
+                    className={`robin-sidebar__link ${paginaActiva === "clientes" ? "is-active" : ""}`}
                   >
-                    <i className="fa-solid fa-layer-group text-[10px] text-zinc-400"></i>
-                    <span>Todos los clientes</span>
+                    <i className="fa-solid fa-layer-group robin-sidebar__link-icon"></i>
+                    <span className="robin-sidebar__link-label">Todos los clientes</span>
                   </button>
                   {marcasDisponibles.map(b => (
                     <button
                       key={b}
+                      type="button"
                       onClick={() => { setFiltroMarca(b); setFiltroTiempo("TODAS"); navegarA("dashboard"); }}
-                      className={`flex items-center gap-1.5 w-full px-2 py-1.5 rounded text-ui font-medium text-left transition-all ${
-                        marcasCoinciden(filtroMarca, b) && paginaActiva === "dashboard" ? "bg-zinc-200/50 text-[#37352F]" : "text-zinc-600 hover:bg-zinc-100/30"
-                      }`}
+                      className={`robin-sidebar__link ${marcasCoinciden(filtroMarca, b) && paginaActiva === "dashboard" ? "is-active" : ""}`}
                     >
-                      <i className="fa-solid fa-chevron-right text-[8px] text-zinc-400"></i>
-                      <span className="truncate">{formatearMarca(b)}</span>
+                      <i className="fa-solid fa-chevron-right robin-sidebar__link-icon"></i>
+                      <span className="robin-sidebar__link-label" title={formatearMarca(b)}>{formatearMarca(b)}</span>
                     </button>
                   ))}
                 </div>
-                )}
-
-                <span className="px-2 text-section mb-1 mt-2">Más opciones</span>
-                <div className="grid grid-cols-2 gap-1 mb-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setShowGeneradorEstatus(true)}
-                    className={`flex flex-col items-center justify-center gap-0.5 px-1 py-2 rounded text-[10px] font-medium transition-all ${
-                      showGeneradorEstatus ? "bg-white shadow-sm text-zinc-900 border border-zinc-200" : "text-zinc-600 hover:bg-zinc-100/50"
-                    }`}
-                  >
-                    <SVGIcon.Phone />
-                    <span>Estatus</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => navegarA("equipos")}
-                    className={`flex flex-col items-center justify-center gap-0.5 px-1 py-2 rounded text-[10px] font-medium transition-all ${
-                      paginaActiva === "equipos" ? "bg-white shadow-sm text-zinc-900 border border-zinc-200" : "text-zinc-600 hover:bg-zinc-100/50"
-                    }`}
-                  >
-                    <SVGIcon.Users className="w-3.5 h-3.5 opacity-75" />
-                    <span>Equipos</span>
-                  </button>
-                </div>
-
-                <span className="px-2 text-section mb-1 mt-2">Soporte</span>
-                <button
-                  onClick={() => navegarA("configuracion")}
-                  className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-ui font-medium transition-all ${
-                    paginaActiva === "configuracion" ? "bg-white shadow-sm text-zinc-900 border border-zinc-200" : "text-zinc-600 hover:bg-zinc-100/50"
-                  }`}
-                >
-                  <i className="fa-solid fa-sliders text-[10px] text-zinc-400"></i>
-                  Ajustes
-                </button>
-              </nav>
+              )}
             </div>
 
-            <div className="px-3 pt-3 pb-4 shrink-0">
+            <div className="robin-sidebar__section">
+              <span className="robin-sidebar__section-title">Más opciones</span>
+              <div className="robin-sidebar__tile-grid">
+                <button
+                  type="button"
+                  onClick={() => setShowGeneradorEstatus(true)}
+                  className={`robin-sidebar__tile ${showGeneradorEstatus ? "is-active" : ""}`}
+                >
+                  <SVGIcon.Phone />
+                  <span>Estatus</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navegarA("equipos")}
+                  className={`robin-sidebar__tile ${paginaActiva === "equipos" ? "is-active" : ""}`}
+                >
+                  <SVGIcon.Users className="w-3.5 h-3.5 opacity-75" />
+                  <span>Equipos</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="robin-sidebar__section">
+              <span className="robin-sidebar__section-title">Soporte</span>
               <button
-                onClick={handleLogout}
-                className="w-full text-center py-1.5 text-ui font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded border border-red-200 transition-colors"
+                type="button"
+                onClick={() => navegarA("configuracion")}
+                className={`robin-sidebar__link ${paginaActiva === "configuracion" ? "is-active" : ""}`}
               >
-                Cerrar sesión
+                <i className="fa-solid fa-sliders robin-sidebar__link-icon"></i>
+                <span className="robin-sidebar__link-label">Ajustes</span>
               </button>
             </div>
+          </nav>
+
+          <div className="robin-sidebar__footer">
+            <button type="button" onClick={handleLogout} className="robin-sidebar__logout">
+              Cerrar sesión
+            </button>
           </div>
-        </aside>
+      </aside>
       )}
 
       {/* CONTENEDOR PRINCIPAL */}
@@ -1888,7 +1871,7 @@ function App() {
           {!isConfigOnlyAdmin && paginaActiva === "equipos" && (
             <LayoutEquipos
               tareas={tareas}
-              otrosUsuariosEnLinea={otrosUsuariosEnLinea}
+              usuariosConectados={usuariosConectados}
               onVerTareasPersona={irATareasPersona}
             />
           )}

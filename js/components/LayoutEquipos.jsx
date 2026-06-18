@@ -61,7 +61,7 @@ function TarjetaPersonaEquipo({ persona, enLinea, onVerTareas, onSegmentClick })
           </p>
           <div className="w-16 h-1.5 rounded-full bg-zinc-100 mt-1 overflow-hidden">
             <div
-              className={`h-full rounded-full ${persona.nivelCarga.bar}`}
+              className={`h-full rounded-full transition-all duration-300 ${persona.nivelCarga.bar}`}
               style={{ width: `${persona.nivelCarga.pct}%` }}
             />
           </div>
@@ -99,7 +99,7 @@ function TarjetaPersonaEquipo({ persona, enLinea, onVerTareas, onSegmentClick })
   );
 }
 
-function LayoutEquipos({ tareas, otrosUsuariosEnLinea, onVerTareasPersona }) {
+function LayoutEquipos({ tareas, usuariosConectados, onVerTareasPersona }) {
   const [rango, setRango] = useState("hoy");
 
   const metricas = useMemo(
@@ -110,9 +110,9 @@ function LayoutEquipos({ tareas, otrosUsuariosEnLinea, onVerTareasPersona }) {
   const resumen = useMemo(() => {
     const activas = metricas.reduce((sum, p) => sum + p.activas, 0);
     const atrasadas = metricas.reduce((sum, p) => sum + p.atrasadas, 0);
-    const enLinea = metricas.filter((p) => estaUsuarioEnLinea(p.handle, otrosUsuariosEnLinea)).length;
+    const enLinea = metricas.filter((p) => estaUsuarioEnLinea(p.handle, usuariosConectados)).length;
     return { activas, atrasadas, enLinea, personas: metricas.length };
-  }, [metricas, otrosUsuariosEnLinea]);
+  }, [metricas, usuariosConectados]);
 
   const handleSegmentClick = (handleFiltro, estadoKey) => {
     const estadoMap = {
@@ -131,7 +131,7 @@ function LayoutEquipos({ tareas, otrosUsuariosEnLinea, onVerTareasPersona }) {
         <div>
           <h2 className="text-xl font-extrabold text-[#37352F] tracking-tight">Equipos</h2>
           <p className="text-[11px] text-zinc-400 mt-0.5">
-            Carga de trabajo del equipo Trade · {resumen.personas} personas
+            Carga de trabajo por persona · {resumen.personas} personas
           </p>
         </div>
         <div className="flex items-center gap-1.5">
@@ -183,11 +183,15 @@ function LayoutEquipos({ tareas, otrosUsuariosEnLinea, onVerTareasPersona }) {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {metricas.map((persona) => (
+        {metricas.length === 0 ? (
+          <p className="text-sm text-zinc-500 col-span-full py-8 text-center">
+            No hay personas asignadas en entregables (excluyendo @Cliente y @Trade).
+          </p>
+        ) : metricas.map((persona) => (
           <TarjetaPersonaEquipo
             key={persona.handle}
             persona={persona}
-            enLinea={estaUsuarioEnLinea(persona.handle, otrosUsuariosEnLinea)}
+            enLinea={estaUsuarioEnLinea(persona.handle, usuariosConectados)}
             onVerTareas={(handleFiltro) => onVerTareasPersona(handleFiltro, null)}
             onSegmentClick={(estadoKey) => handleSegmentClick(persona.handleFiltro, estadoKey)}
           />

@@ -3,8 +3,8 @@ const NOMBRES_DISPLAY_EQUIPO = {
   ralvarez: "Ricardo Álvarez",
   dsalavarria: "Daniela Salavarría",
   fcolmenares: "Francisco Colmenares",
-  gnebrus: "G. Nebrus",
-  sgiucastro: "S. Giucastro"
+  gnebrus: "Genesis Nebrus",
+  sgiucastro: "Sofia Giucastro"
 };
 
 const ESTADOS_BARRA_EQUIPO = [
@@ -14,6 +14,33 @@ const ESTADOS_BARRA_EQUIPO = [
   { key: "en revision", label: "En revisión", color: "bg-purple-500" },
   { key: "en pausa", label: "En pausa", color: "bg-red-400" }
 ];
+
+function esPersonaExcluidaEquipos(valor) {
+  const clave = normalizarClavePersona(valor);
+  return clave === "trade" || clave === "cliente";
+}
+
+function expandirTokenPersonaEquipos(token) {
+  if (esPersonaExcluidaEquipos(token)) return [];
+
+  const canonico = resolverHandleCanonico(token);
+  if (canonico) return [canonico];
+
+  const clave = normalizarClavePersona(token);
+  return clave ? [clave] : [];
+}
+
+function obtenerPersonasTaggeadasEnTareas(tareas) {
+  const handles = new Set();
+
+  (tareas || []).forEach((tarea) => {
+    tokenizarCampoPersonas(tarea.personas).forEach((token) => {
+      expandirTokenPersonaEquipos(token).forEach((handle) => handles.add(handle));
+    });
+  });
+
+  return Array.from(handles);
+}
 
 function obtenerNombreDisplayEquipo(handle) {
   const clave = normalizarClavePersona(handle);
@@ -57,27 +84,21 @@ function tareaCuentaParaRangoEquipos(tarea, modo, tHoy, semanaInicio, semanaFin)
   return false;
 }
 
-function contarPendientesSemana(tareasPersona, semanaInicio, semanaFin) {
-  let total = 0;
-  tareasPersona.forEach((tarea) => {
-    if (esTareaCompletada(tarea)) return;
-    if (cleanEstado(tarea.estado) !== "pendiente") return;
-    const td = obtenerTiempoFecha(tarea.deadline);
-    if (td !== Infinity && td >= semanaInicio && td <= semanaFin) total += 1;
-  });
-  return total;
+function calcularIndiceCarga(activas, atrasadas) {
+  let indice = activas;
+  if (atrasadas >= 3) indice += 3;
+  else if (atrasadas >= 1) indice += atrasadas;
+  return indice;
 }
 
-function calcularPuntajeCarga(porEstado, atrasadas, tareasPersona, semanaInicio, semanaFin) {
-  const enProgreso = porEstado["en progreso"] || 0;
-  const pendientesSemana = contarPendientesSemana(tareasPersona, semanaInicio, semanaFin);
-  return enProgreso * 2 + pendientesSemana + atrasadas * 1.5;
-}
-
-function obtenerNivelCarga(puntaje) {
-  if (puntaje <= 3) return { id: "baja", label: "Baja", color: "text-emerald-700", bar: "bg-emerald-500", pct: 25 };
-  if (puntaje <= 7) return { id: "media", label: "Media", color: "text-amber-700", bar: "bg-amber-500", pct: 55 };
-  return { id: "alta", label: "Alta", color: "text-red-700", bar: "bg-red-500", pct: 90 };
+function obtenerNivelCarga(indice) {
+  if (indice <= 4) {
+    return { id: "baja", label: "Baja", color: "text-emerald-700", bar: "bg-emerald-500" };
+  }
+  if (indice <= 9) {
+    return { id: "media", label: "Media", color: "text-amber-700", bar: "bg-amber-500" };
+  }
+  return { id: "alta", label: "Alta", color: "text-red-700", bar: "bg-red-500" };
 }
 
 function estaUsuarioEnLinea(handle, usuariosEnLinea) {
@@ -90,13 +111,14 @@ function estaUsuarioEnLinea(handle, usuariosEnLinea) {
 }
 
 function agregarMetricasPorPersona(tareas, modo) {
-  const handles = obtenerHandlesEquipoTrade();
+  const handles = obtenerPersonasTaggeadasEnTareas(tareas);
   const tHoy = obtenerTiempoHoyLocal();
   const { inicio, fin } = obtenerRangoSemana();
 
-  return handles.map((handle) => {
+  const resultado = handles.map((handle) => {
+    const filtroPersona = formatearHandleCanonico(handle);
     const tareasPersona = (tareas || []).filter((t) =>
-      tareaIncluyePersonaFiltro(t.personas || "", `@${handle}`)
+      tareaIncluyePersonaFiltro(t.personas || "", filtroPersona)
     );
 
     const enRango = tareasPersona.filter((t) =>
@@ -127,7 +149,7 @@ function agregarMetricasPorPersona(tareas, modo) {
       if (td === tHoy) vencenHoy += 1;
     });
 
-    const carga = calcularPuntajeCarga(porEstado, atrasadas, tareasPersona, inicio, fin);
+    const indiceCarga = calcularIndiceCarga(activas, atrasadas);
 
     return {
       handle,
@@ -138,9 +160,23 @@ function agregarMetricasPorPersona(tareas, modo) {
       atrasadas,
       vencenHoy,
       porEstado,
-      carga,
-      nivelCarga: obtenerNivelCarga(carga),
+      indiceCarga,
+      nivelCarga: obtenerNivelCarga(indiceCarga),
       totalEnRango: enRango.length
     };
-  }).sort((a, b) => b.carga - a.carga);
+  }).sort((a, b) =>
+    b.activas - a.activas ||
+    b.indiceCarga - a.indiceCarga ||
+    a.display.localeCompare(b.display, "es")
+  );
+
+  const maxActivas = Math.max(...resultado.map((r) => r.activas), 1);
+
+  return resultado.map((r) => ({
+    ...r,
+    nivelCarga: {
+      ...r.nivelCarga,
+      pct: r.activas === 0 ? 6 : Math.max(10, Math.round((r.activas / maxActivas) * 100))
+    }
+  }));
 }

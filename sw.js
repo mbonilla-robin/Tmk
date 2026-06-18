@@ -1,4 +1,4 @@
-const CACHE_NAME = "robin-pwa-v57";
+const CACHE_NAME = "robin-pwa-v58";
 
 const STATIC_ASSETS = [
   "./",

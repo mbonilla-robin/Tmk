@@ -10,7 +10,7 @@ function PropertyRow({ icon, label, children }) {
   );
 }
 
-function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNuevaPersona, listaCategorias, registrarNuevaCategoria, marcasDisponibles, isSubmitting }) {
+function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNuevaPersona, listaCategorias, registrarNuevaCategoria, marcasDisponibles }) {
   const resolverEstadoInicial = () => {
     let categoriaInicial = tarea.categoria || "";
     let infoInicial = extraerTituloLimpio(tarea.info, tarea.categoria);
@@ -37,6 +37,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   const [deadlineError, setDeadlineError] = useState("");
   const [personas, setPersonas] = useState(tarea.personas || "");
   const [rawDetalles, setRawDetalles] = useState(tarea.detalles || "");
+  const [guardando, setGuardando] = useState(false);
 
   const parsed = useMemo(() => parseDetalles(rawDetalles), [rawDetalles]);
   
@@ -106,7 +107,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     setRawDetalles(serializeDetalles(newNotas, subtareas, parsed.historial));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const fechaNorm = normalizarDeadline(deadline);
     if (!fechaNorm) {
@@ -126,7 +127,12 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
       personas,
       detalles: tFinal
     });
-    onSave(tareaPreparada);
+    setGuardando(true);
+    try {
+      await Promise.resolve(onSave(tareaPreparada));
+    } finally {
+      setGuardando(false);
+    }
   };
 
   const inputPropClass = "w-full bg-transparent border-0 text-ui-sm text-[#37352F] focus:outline-none cursor-pointer font-medium";
@@ -279,10 +285,10 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
             </button>
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="px-4 py-1.5 bg-[#37352F] text-white text-ui-sm font-medium rounded hover:bg-[#2c2a26] disabled:opacity-50 transition-colors"
+              disabled={guardando}
+              className="px-4 py-1.5 bg-[#37352F] text-white text-ui-sm font-medium rounded hover:bg-[#2c2a26] disabled:opacity-50 transition-colors min-w-[88px]"
             >
-              Guardar
+              {guardando ? "Guardando…" : "Guardar"}
             </button>
           </div>
         </form>

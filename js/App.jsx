@@ -33,12 +33,13 @@ function App() {
   );
   const currentTheme = useMemo(() => TEMAS[theme] || TEMAS.notion, [theme]);
 
-  const [tareas, setTareas] = useState([]);
+  const [tareas, setTareas] = useState(() => cargarTareasLocales());
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [toast, setToast] = useState(null);
   const [apiError, setApiError] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hayPendientesLocales, setHayPendientesLocales] = useState(() => hayPendientesSync());
   
   const [filtroTiempo, setFiltroTiempo] = useState(() => initialPrefs.filtroTiempo || "TODAS"); 
   const [filtroMarca, setFiltroMarca] = useState(() => initialPrefs.filtroMarca || "TODAS");
@@ -82,10 +83,11 @@ function App() {
 
   const palabraEstadoSync = useMemo(() => {
     if (!isApiConfigured()) return "Sin API";
+    if (hayPendientesLocales) return "Pendiente";
     if (loading || syncing) return "Sincronizando";
-    if (apiError) return "Error";
+    if (apiError) return "Sin conexión";
     return "Sincronizado";
-  }, [loading, syncing, apiError]);
+  }, [loading, syncing, apiError, hayPendientesLocales]);
 
   const filtrosDashboardActivos = useMemo(() => {
     return filtroMarca !== "TODAS" ||
@@ -347,7 +349,7 @@ function App() {
 
   useEffect(() => {
     if (usuario) {
-      fetchData(false);
+      fetchData(false).then(() => sincronizarPendientes(true));
     }
   }, [usuario]);
 
@@ -355,7 +357,9 @@ function App() {
     if (!usuario) return;
     const autoRefreshInterval = setInterval(() => {
       if (!syncing && !loading && !isSubmitting) {
-        fetchData(true);
+        sincronizarPendientes(true).then(() => {
+          if (!syncing && !loading) fetchData(true);
+        });
       }
     }, typeof AUTO_SYNC_INTERVAL_MS !== "undefined" ? AUTO_SYNC_INTERVAL_MS : 35000);
     return () => clearInterval(autoRefreshInterval);
@@ -365,7 +369,7 @@ function App() {
     if (!usuario) return;
     const reconectarAlVolver = () => {
       if (document.visibilityState === "visible" && !syncing && !loading && !isSubmitting) {
-        fetchData(true);
+        sincronizarPendientes(true).then(() => fetchData(true));
       }
     };
     document.addEventListener("visibilitychange", reconectarAlVolver);
@@ -375,6 +379,14 @@ function App() {
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const persistTareas = (updater) => {
+    setTareas((prev) => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      guardarTareasLocales(next);
+      return next;
+    });
   };
 
   const navegarA = (pagina, extraFn = null) => {
@@ -562,7 +574,7 @@ function App() {
         detalles: campo === "estado" ? detalles : t.detalles
       };
     });
-    setTareas(actualizadas);
+    persistTareas(actualizadas);
 
     const effectiveUrl = getConfiguredApiUrl();
     if (!effectiveUrl || apiError) {
@@ -860,8 +872,9 @@ function App() {
 
     const effectiveUrl = getConfiguredApiUrl();
     if (!isApiConfigured()) {
-      setTareas([]);
-      if (!isBackground) showToast("Base de datos no configurada", "info");
+      const backup = cargarTareasLocales();
+      if (backup.length) persistTareas(backup);
+      if (!isBackground) showToast("Base de datos no configurada — datos locales", "info");
       setLoading(false);
       setSyncing(false);
       return;
@@ -899,36 +912,12 @@ function App() {
             }
           }
 
-          const tareasValidas = json.data.filter(t => {
-            if (!t.info || t.info.toString().trim() === "") return false;
-            if (!t.marca || t.marca.toString().trim() === "") return false;
-            const cleanId = String(t.idTarea || "").trim().toUpperCase();
-            if (cleanId.startsWith("PRESENCE-")) return false;
-            const cleanM = t.marca.toString().trim().toLowerCase();
-            if (cleanM === "pendiente" || cleanM.includes("progreso") || cleanM.includes("seguimiento") || cleanM.includes("revision") || cleanM.includes("pausa") || cleanM.includes("completada") || cleanM === "config_marcas" || cleanM === "presencia") {
-              return false;
-            }
-            return true;
-          });
+          const remotas = normalizarTareasDesdeApi(json.data);
+          const locales = cargarTareasLocales();
+          const fusionadas = fusionarTareasRemotasYLocales(remotas, locales);
+          persistTareas(fusionadas);
+          setHayPendientesLocales(hayPendientesSync());
 
-          const deduplicadas = [];
-          const seenKeys = new Set();
-
-          tareasValidas.forEach(t => {
-            const cleanId = t.idTarea ? String(t.idTarea).trim() : "";
-            const hasRealId = isValidIdTarea(cleanId);
-            const realId = hasRealId ? cleanId : generarIdDeterminista(t);
-            const key = `${t.marca || ""}|${t.info || ""}|${t.deadline || ""}`.toLowerCase().replace(/\s+/g, " ").trim();
-            if (!seenKeys.has(key)) {
-              seenKeys.add(key);
-              deduplicadas.push(normalizarTareaCampos({
-                ...t,
-                idTarea: realId
-              }));
-            }
-          });
-
-          setTareas(deduplicadas);
           if (json.marcasMetadata) {
             const normalizado = {};
             Object.keys(json.marcasMetadata).forEach(k => {
@@ -954,28 +943,49 @@ function App() {
     }
 
     console.error("Sheets sync error", ultimoError);
-    if (isBackground) {
-      console.warn("Sync en segundo plano falló; se conservan los datos locales.", ultimoError);
-    } else {
-      setApiError("Error de Conexión.");
-      setTareas([]);
-      if (ultimoError && ultimoError.message) {
-        showToast(ultimoError.message, "error");
-      } else {
-        showToast("Error de conexión", "error");
+    const backup = cargarTareasLocales();
+    if (backup.length) {
+      persistTareas(backup);
+      setApiError("Sin conexión — mostrando datos guardados");
+      if (!isBackground) {
+        showToast("Sin conexión. Se muestran los datos guardados en este dispositivo.", "info");
       }
+    } else if (!isBackground) {
+      setApiError("Error de Conexión.");
+      showToast(ultimoError?.message || "Error de conexión", "error");
+    } else {
+      setApiError("Sin conexión");
     }
     setLoading(false);
     setSyncing(false);
   };
 
+  const sincronizarPendientes = async (isBackground = true) => {
+    if (!isApiConfigured()) return;
+    try {
+      const result = await procesarColaSync();
+      setHayPendientesLocales(hayPendientesSync());
+      if (result.tareasLocales) {
+        persistTareas(result.tareasLocales);
+      }
+      if (result.processed > 0) {
+        await fetchData(isBackground);
+      }
+    } catch (e) {
+      console.warn("ROBIN: error al sincronizar pendientes", e);
+    }
+  };
+
   const handleUpdateField = async (tarea, campo, nuevoValor) => {
     if (!nuevoValor && nuevoValor !== "") return;
-    if (isSubmitting || syncing) return;
+    if (isSubmitting) return;
 
-    const taskTargetId = tarea.idTarea || generateBrandId(tarea.marca);
+    const original = resolverTareaActual(tareas, tarea);
+    if (!original) return;
 
-    let detallesConHistorial = tarea.detalles || "";
+    const taskTargetId = original.idTarea || generateBrandId(original.marca);
+
+    let detallesConHistorial = original.detalles || "";
     if (campo === "estado") {
       const hoy = new Date();
       const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
@@ -984,46 +994,41 @@ function App() {
     }
 
     const valorFinal = normalizarValorCampoTarea(campo, nuevoValor);
+    const taskKey = getTaskSelectionKey(original);
 
     const temp = tareas.map(t => {
-      if ((t.idTarea === tarea.idTarea && t.idTarea) || t.info === tarea.info) {
-        return { 
-          ...t, 
-          idTarea: taskTargetId,
-          [campo]: valorFinal,
-          detalles: campo === "estado" ? detallesConHistorial : t.detalles
-        };
-      }
-      return t;
-    });
-    setTareas(temp);
-
-    const effectiveUrl = getConfiguredApiUrl();
-    if (!effectiveUrl || apiError) {
-      showToast("Cambio guardado localmente", "success");
-      return;
-    }
-
-    setSyncing(true);
-    try {
-      await fetchRobinApi(effectiveUrl, {
-        method: "POST", mode: "cors", redirect: "follow",
-        headers: { "Content-Type": "text/plain; charset=utf-8" },
-          body: JSON.stringify({
-            marca: tarea.marca, idTarea: taskTargetId, info: tarea.info, categoria: tarea.categoria,
-            campo: "todo", valor: valorFinal, personas: tarea.personas, detalles: detallesConHistorial, 
-            estado: campo === "estado" ? valorFinal : normalizarEstado(tarea.estado),
-            deadline: campo === "deadline" ? valorFinal : normalizarDeadline(tarea.deadline),
-            prioridad: campo === "prioridad" ? valorFinal : normalizarPrioridad(tarea.prioridad)
-          })
+      if (getTaskSelectionKey(t) !== taskKey) return t;
+      return marcarTareaPendiente({
+        ...t,
+        idTarea: taskTargetId,
+        [campo]: valorFinal,
+        detalles: campo === "estado" ? detallesConHistorial : t.detalles
       });
-      showToast("Cambios guardados", "success");
-      await fetchData(true);
-    } catch (e) {
-      showToast("Error al sincronizar cambio", "error");
-    } finally {
-      setSyncing(false);
-    }
+    });
+    persistTareas(temp);
+
+    const actualizada = temp.find(t => getTaskSelectionKey(t) === taskKey);
+    encolarSync({
+      type: "update",
+      taskKey,
+      payload: {
+        marca: original.marca,
+        idTarea: idTareaParaApi(original) || taskTargetId,
+        info: actualizada?.info || original.info,
+        originalInfo: original.info,
+        categoria: actualizada?.categoria || original.categoria,
+        campo: "todo",
+        valor: valorFinal,
+        personas: actualizada?.personas || original.personas,
+        detalles: actualizada?.detalles || detallesConHistorial,
+        estado: campo === "estado" ? valorFinal : normalizarEstado(actualizada?.estado || original.estado),
+        deadline: campo === "deadline" ? valorFinal : normalizarDeadline(actualizada?.deadline || original.deadline),
+        prioridad: campo === "prioridad" ? valorFinal : normalizarPrioridad(actualizada?.prioridad || original.prioridad)
+      }
+    });
+    setHayPendientesLocales(true);
+    showToast("Cambio guardado", "success");
+    sincronizarPendientes(true);
   };
 
   const handleConfirmComplete = async () => {
@@ -1065,65 +1070,51 @@ function App() {
   };
 
   const handleSaveTaskModal = async (editedTask) => {
-    if (isSubmitting || syncing) return;
+    if (isSubmitting) return;
     setIsSubmitting(true);
 
-    const original = resolverTareaActual(tareas, editedTask);
-    const index = original
-      ? tareas.findIndex(t => getTaskSelectionKey(t) === getTaskSelectionKey(original))
-      : -1;
-    if (index === -1) {
-      showToast("No se encontró el entregable para guardar", "error");
-      setIsSubmitting(false);
-      return;
-    }
-
-    const hoy = new Date();
-    const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
-    let detallesAudoria = editedTask.detalles || "";
-    const cambios = [];
-    if (original.info !== editedTask.info) cambios.push("título");
-    if (original.categoria !== editedTask.categoria) cambios.push("categoría");
-    if (original.personas !== editedTask.personas) cambios.push("asignados");
-    if (normalizarEstado(original.estado) !== normalizarEstado(editedTask.estado)) cambios.push(`estado a "${normalizarEstado(editedTask.estado)}"`);
-    if (normalizarDeadline(original.deadline) !== normalizarDeadline(editedTask.deadline)) cambios.push("fecha límite");
-    const prioridadNormalizada = normalizarPrioridad(editedTask.prioridad);
-    if (normalizarPrioridad(original.prioridad) !== prioridadNormalizada) cambios.push("prioridad");
-
-    if (cambios.length > 0) {
-      detallesAudoria += `\n• [${timestamp}] Editado (${cambios.join(", ")}) por @${usuario}`;
-    }
-
-    const taskConHistorial = normalizarTareaCampos(prepararTareaConCategoria({
-      ...editedTask,
-      idTarea: original.idTarea,
-      prioridad: prioridadNormalizada,
-      detalles: detallesAudoria
-    }));
-    const copiaTareas = [...tareas];
-    copiaTareas[index] = taskConHistorial;
-    setTareas(copiaTareas);
-    setListaCategorias((prev) => {
-      const parsed = parseCategoriasTarea(taskConHistorial.categoria);
-      if (!parsed.principal) return prev;
-      return registrarCategoriasEnLista(prev, [{ nombre: parsed.principal, color: asignarColorCategoria(parsed.principal, prev) }]);
-    });
-    setIsEditing(false);
-    setActiveTask(null);
-
-    const effectiveUrl = getConfiguredApiUrl();
-    if (!effectiveUrl || apiError) {
-      showToast("Guardado localmente", "success");
-      setIsSubmitting(false);
-      return;
-    }
-
-    setSyncing(true);
     try {
-      await fetchRobinApi(effectiveUrl, {
-        method: "POST", mode: "cors", redirect: "follow",
-        headers: { "Content-Type": "text/plain; charset=utf-8" },
-        body: JSON.stringify({
+      const original = resolverTareaActual(tareas, editedTask);
+      const index = original
+        ? tareas.findIndex(t => getTaskSelectionKey(t) === getTaskSelectionKey(original))
+        : -1;
+      if (index === -1) {
+        showToast("No se encontró el entregable para guardar", "error");
+        return;
+      }
+
+      const hoy = new Date();
+      const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
+      let detallesAudoria = editedTask.detalles || "";
+      const cambios = [];
+      if (original.info !== editedTask.info) cambios.push("título");
+      if (original.categoria !== editedTask.categoria) cambios.push("categoría");
+      if (original.personas !== editedTask.personas) cambios.push("asignados");
+      if (normalizarEstado(original.estado) !== normalizarEstado(editedTask.estado)) cambios.push(`estado a "${normalizarEstado(editedTask.estado)}"`);
+      if (normalizarDeadline(original.deadline) !== normalizarDeadline(editedTask.deadline)) cambios.push("fecha límite");
+      const prioridadNormalizada = normalizarPrioridad(editedTask.prioridad);
+      if (normalizarPrioridad(original.prioridad) !== prioridadNormalizada) cambios.push("prioridad");
+
+      if (cambios.length > 0) {
+        detallesAudoria += `\n• [${timestamp}] Editado (${cambios.join(", ")}) por @${usuario}`;
+      }
+
+      const taskConHistorial = marcarTareaPendiente(normalizarTareaCampos(prepararTareaConCategoria({
+        ...editedTask,
+        idTarea: original.idTarea,
+        prioridad: prioridadNormalizada,
+        detalles: detallesAudoria
+      })));
+
+      const taskKey = getTaskSelectionKey(original);
+      const copiaTareas = [...tareas];
+      copiaTareas[index] = taskConHistorial;
+      persistTareas(copiaTareas);
+
+      encolarSync({
+        type: "update",
+        taskKey,
+        payload: {
           marca: taskConHistorial.marca,
           idTarea: idTareaParaApi(original),
           info: taskConHistorial.info,
@@ -1135,65 +1126,59 @@ function App() {
           deadline: taskConHistorial.deadline,
           prioridad: normalizarPrioridad(taskConHistorial.prioridad),
           campo: "todo"
-        })
+        }
       });
-      showToast("Sincronizado", "success");
-      await fetchData(true);
-    } catch (e) {
-      showToast("Guardado local temporal", "error");
+      setHayPendientesLocales(true);
+
+      setListaCategorias((prev) => {
+        const parsed = parseCategoriasTarea(taskConHistorial.categoria);
+        if (!parsed.principal) return prev;
+        return registrarCategoriasEnLista(prev, [{ nombre: parsed.principal, color: asignarColorCategoria(parsed.principal, prev) }]);
+      });
+
+      setIsEditing(false);
+      setActiveTask(null);
+      showToast("Guardado", "success");
+      sincronizarPendientes(true);
     } finally {
-      setSyncing(false);
       setIsSubmitting(false);
     }
   };
 
   const handleDeleteTask = async (tarea) => {
-    if (isSubmitting || syncing) return;
+    if (isSubmitting) return;
     setIsSubmitting(true);
 
-    setTareas(prev => prev.filter(t => !(t.idTarea === tarea.idTarea && t.info === tarea.info)));
-    setTaskToDelete(null);
-    setIsEditing(false);
-    setActiveTask(null);
-    showToast("Eliminando...", "info");
-
-    const effectiveUrl = getConfiguredApiUrl();
-    if (!effectiveUrl || apiError) {
-      showToast("Eliminado localmente", "success");
-      setIsSubmitting(false);
-      return;
-    }
-
-    setSyncing(true);
     try {
-      const res = await fetchRobinApi(effectiveUrl, {
-        method: "POST", mode: "cors", redirect: "follow",
-        headers: { "Content-Type": "text/plain; charset=utf-8" },
-        body: JSON.stringify({
-          marca: tarea.marca, idTarea: tarea.idTarea.startsWith("STB-") ? "" : tarea.idTarea, 
-          info: tarea.info, categoria: tarea.categoria, campo: "eliminar"
-        })
+      const taskKey = getTaskSelectionKey(tarea);
+      persistTareas(prev => prev.filter(t => getTaskSelectionKey(t) !== taskKey));
+      setTaskToDelete(null);
+      setIsEditing(false);
+      setActiveTask(null);
+
+      encolarSync({
+        type: "delete",
+        taskKey,
+        payload: {
+          marca: tarea.marca,
+          idTarea: String(tarea.idTarea || "").startsWith("STB-") ? "" : tarea.idTarea,
+          info: tarea.info,
+          originalInfo: tarea.info,
+          categoria: tarea.categoria,
+          campo: "eliminar"
+        }
       });
-      const json = await res.json();
-      if (json.success) {
-        showToast("Eliminado", "success");
-        await fetchData(true);
-      } else {
-        showToast("Fallo al eliminar en Sheets", "error");
-        await fetchData(true);
-      }
-    } catch (e) {
-      showToast("Fallo de conexión", "error");
-      await fetchData(true);
+      setHayPendientesLocales(true);
+      showToast("Eliminado", "success");
+      sincronizarPendientes(true);
     } finally {
-      setSyncing(false);
       setIsSubmitting(false);
     }
   };
 
   const handleCreateTask = async (e, detallesSerializados, tareaPreparada) => {
     e.preventDefault();
-    if (isSubmitting || syncing) return;
+    if (isSubmitting) return;
 
     const base = tareaPreparada || nuevaTarea;
     
@@ -1207,63 +1192,57 @@ function App() {
     }
 
     setIsSubmitting(true);
-    const autoId = generateBrandId(base.marca);
-    const hoy = new Date();
-    const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
-    const historialInicial = `• [${timestamp}] Creado por @${usuario}`;
-    const detallesBase = detallesSerializados ?? base.detalles;
-    const detallesConCreador = detallesBase
-      ? `${detallesBase.trim()}\n\n${historialInicial}`
-      : historialInicial;
-
-    const nuevaConId = normalizarTareaCampos(prepararTareaConCategoria({
-      ...base,
-      idTarea: autoId,
-      detalles: detallesConCreador,
-      fecha: new Date().toISOString().split('T')[0]
-    }));
-
-    setListaCategorias((prev) => {
-      const parsed = parseCategoriasTarea(nuevaConId.categoria);
-      if (!parsed.principal) return prev;
-      return registrarCategoriasEnLista(prev, [{ nombre: parsed.principal, color: asignarColorCategoria(parsed.principal, prev) }]);
-    });
-
-    setTareas([nuevaConId, ...tareas]);
-    showToast("Creando...", "info");
-
-    setNuevaTarea({
-      marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", estado: "Pendiente", deadline: "", prioridad: "Media"
-    });
-    setPaginaActiva("dashboard");
-
-    const effectiveUrl = getConfiguredApiUrl();
-    if (!effectiveUrl || apiError) {
-      showToast("Creado localmente", "success");
-      setIsSubmitting(false);
-      return;
-    }
-
-    setSyncing(true);
     try {
-      const res = await fetchRobinApi(effectiveUrl, {
-        method: "POST", mode: "cors", redirect: "follow",
-        headers: { "Content-Type": "text/plain; charset=utf-8" },
-        body: JSON.stringify({
-          marca: nuevaConId.marca, idTarea: "", info: nuevaConId.info, categoria: nuevaConId.categoria,
-          personas: nuevaConId.personas, detalles: nuevaConId.detalles, estado: nuevaConId.estado,
-          deadline: nuevaConId.deadline, prioridad: normalizarPrioridad(nuevaConId.prioridad), campo: "todo"
-        })
+      const autoId = generateBrandId(base.marca);
+      const hoy = new Date();
+      const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
+      const historialInicial = `• [${timestamp}] Creado por @${usuario}`;
+      const detallesBase = detallesSerializados ?? base.detalles;
+      const detallesConCreador = detallesBase
+        ? `${detallesBase.trim()}\n\n${historialInicial}`
+        : historialInicial;
+
+      const nuevaConId = marcarTareaPendiente(normalizarTareaCampos(prepararTareaConCategoria({
+        ...base,
+        idTarea: autoId,
+        detalles: detallesConCreador,
+        fecha: new Date().toISOString().split('T')[0]
+      })));
+
+      setListaCategorias((prev) => {
+        const parsed = parseCategoriasTarea(nuevaConId.categoria);
+        if (!parsed.principal) return prev;
+        return registrarCategoriasEnLista(prev, [{ nombre: parsed.principal, color: asignarColorCategoria(parsed.principal, prev) }]);
       });
-      const json = await res.json();
-      if (json.success) {
-        showToast("Creado exitosamente", "success");
-        await fetchData(true);
-      }
-    } catch (e) {
-      showToast("Guardado local (Sin conexión)", "error");
+
+      persistTareas([nuevaConId, ...tareas]);
+
+      const taskKey = getTaskSelectionKey(nuevaConId);
+      encolarSync({
+        type: "create",
+        taskKey,
+        payload: {
+          marca: nuevaConId.marca,
+          idTarea: "",
+          info: nuevaConId.info,
+          categoria: nuevaConId.categoria,
+          personas: nuevaConId.personas,
+          detalles: nuevaConId.detalles,
+          estado: nuevaConId.estado,
+          deadline: nuevaConId.deadline,
+          prioridad: normalizarPrioridad(nuevaConId.prioridad),
+          campo: "todo"
+        }
+      });
+      setHayPendientesLocales(true);
+
+      setNuevaTarea({
+        marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", estado: "Pendiente", deadline: "", prioridad: "Media"
+      });
+      setPaginaActiva("dashboard");
+      showToast("Entregable creado", "success");
+      sincronizarPendientes(true);
     } finally {
-      setSyncing(false);
       setIsSubmitting(false);
     }
   };
@@ -2161,7 +2140,6 @@ function App() {
             listaCategorias={listaCategorias}
             registrarNuevaCategoria={registrarNuevaCategoriaGlobal}
             marcasDisponibles={marcasDisponibles}
-            isSubmitting={isSubmitting}
           />
         </ModalPortal>
       )}

@@ -78,6 +78,8 @@ function App() {
   const [dashboardMobileVista, setDashboardMobileVista] = useState(() => initialPrefs.dashboardMobileVista || "lista");
   const [configMobileSeccion, setConfigMobileSeccion] = useState(null);
   const [showGeneradorEstatus, setShowGeneradorEstatus] = useState(false);
+  const [sidebarMarcasAbierto, setSidebarMarcasAbierto] = useState(true);
+  const [sidebarEnLineaAbierto, setSidebarEnLineaAbierto] = useState(true);
   const [prefsReady, setPrefsReady] = useState(() => !getInicialUsuario());
 
   const [listaPersonas, setListaPersonas] = useState(() => cargarListaPersonas());
@@ -1339,51 +1341,57 @@ function App() {
       {!isConfigOnlyAdmin && (
       <aside className={`
           hidden md:flex
-          relative inset-y-0 left-0 z-50 w-52 ${currentTheme.sidebarBg} border-r border-zinc-200 flex-col justify-between shrink-0
+          relative inset-y-0 left-0 z-50 w-52 h-screen overflow-hidden ${currentTheme.sidebarBg} border-r border-zinc-200 flex-col shrink-0
         `}>
-          <div className="flex flex-col h-full justify-between pb-4 overflow-y-auto">
-            <div>
-              <div className="app-header-bar app-header-bar--sidebar justify-between">
+          <div className="flex flex-col h-full min-h-0 overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+              <div className="app-header-bar app-header-bar--sidebar justify-between shrink-0">
                 <div className="flex items-center min-h-0 py-1">
                   <RobinLogo className="h-10 w-auto max-w-[120px]" theme={theme} />
                   <span className="fallback-logo text-xl font-bold text-zinc-900 tracking-tight leading-none" style={{display: 'none'}}>robin</span>
                 </div>
               </div>
 
-              <div className="mx-2.5 my-2.5 p-2.5 rounded bg-[#FAF9F6] border border-zinc-200 flex flex-col gap-2">
-                <span className="text-section">En línea</span>
+              <div className="mx-2.5 my-2.5 p-2.5 rounded bg-[#FAF9F6] border border-zinc-200 flex flex-col gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setSidebarEnLineaAbierto(prev => !prev)}
+                  className="flex items-center w-full gap-1 text-left"
+                >
+                  <span className="text-section">En línea</span>
+                  <i className={`fa-solid fa-chevron-down text-[8px] text-zinc-400 ml-auto transition-transform duration-150 ${sidebarEnLineaAbierto ? "rotate-180" : ""}`}></i>
+                </button>
 
-                <div className="flex flex-col gap-1.5">
-                  {/* Usuario actual — siempre primero */}
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <span className="relative flex h-1.5 w-1.5 shrink-0">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-                    </span>
-                    <span className="text-ui font-semibold presence-user-name text-[#37352F]">@{usuario}</span>
-                  </div>
-
-                  {/* Otros usuarios conectados — debajo del tuyo */}
-                  {presenceEstado === "ready" && otrosUsuariosEnLinea.map((u, index) => (
-                    <div key={u.uid || `user-${index}`} className="flex items-center gap-1.5 pl-0.5 min-w-0">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
-                      <span className="text-ui-sm text-zinc-600 presence-user-name font-medium" title={formatearNombrePresencia(u)}>
-                        {formatearNombrePresencia(u)}
+                {sidebarEnLineaAbierto && (
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="relative flex h-1.5 w-1.5 shrink-0">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
                       </span>
+                      <span className="text-ui font-semibold presence-user-name text-[#37352F]">@{usuario}</span>
                     </div>
-                  ))}
 
-                  {/* Estado / mensaje inferior */}
-                  {presenceEstado === "connecting" && (
-                    <div className="text-ui-sm text-zinc-400 italic pl-0.5">Conectando...</div>
-                  )}
-                  {presenceEstado === "error" && (
-                    <div className="text-ui-sm text-red-400 italic pl-0.5">Sin conexión</div>
-                  )}
-                  {presenceEstado === "ready" && otrosUsuariosEnLinea.length === 0 && (
-                    <div className="text-ui-sm text-zinc-400 italic pl-0.5">Solo tú</div>
-                  )}
-                </div>
+                    {presenceEstado === "ready" && otrosUsuariosEnLinea.map((u, index) => (
+                      <div key={u.uid || `user-${index}`} className="flex items-center gap-1.5 pl-0.5 min-w-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
+                        <span className="text-ui-sm text-zinc-600 presence-user-name font-medium" title={formatearNombrePresencia(u)}>
+                          {formatearNombrePresencia(u)}
+                        </span>
+                      </div>
+                    ))}
+
+                    {presenceEstado === "connecting" && (
+                      <div className="text-ui-sm text-zinc-400 italic pl-0.5">Conectando...</div>
+                    )}
+                    {presenceEstado === "error" && (
+                      <div className="text-ui-sm text-red-400 italic pl-0.5">Sin conexión</div>
+                    )}
+                    {presenceEstado === "ready" && otrosUsuariosEnLinea.length === 0 && (
+                      <div className="text-ui-sm text-zinc-400 italic pl-0.5">Solo tú</div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="px-2.5 pt-1">
@@ -1418,7 +1426,18 @@ function App() {
                   <SVGIcon.All />Todos los entregables
                 </button>
 
-                <span className="px-2 text-section mb-1 mt-2">Marcas</span>
+                <button
+                  type="button"
+                  onClick={() => setSidebarMarcasAbierto(prev => !prev)}
+                  className="flex items-center w-full px-2 mt-2 mb-1 text-left"
+                >
+                  <span className="text-section">Marcas</span>
+                  {marcasDisponibles.length > 0 && (
+                    <span className="text-[9px] text-zinc-400 ml-1">({marcasDisponibles.length})</span>
+                  )}
+                  <i className={`fa-solid fa-chevron-down text-[8px] text-zinc-400 ml-auto transition-transform duration-150 ${sidebarMarcasAbierto ? "rotate-180" : ""}`}></i>
+                </button>
+                {sidebarMarcasAbierto && (
                 <div className="flex flex-col gap-0.5">
                   <button
                     onClick={() => navegarA("clientes")}
@@ -1442,6 +1461,7 @@ function App() {
                     </button>
                   ))}
                 </div>
+                )}
 
                 <span className="px-2 text-section mb-1 mt-2">Soporte</span>
                 <MasOpcionesMenu
@@ -1460,7 +1480,7 @@ function App() {
               </nav>
             </div>
 
-            <div className="px-3 pt-3">
+            <div className="px-3 pt-3 pb-4 shrink-0">
               <button
                 onClick={handleLogout}
                 className="w-full text-center py-1.5 text-ui font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded border border-red-200 transition-colors"
@@ -1521,7 +1541,7 @@ function App() {
           </div>
         </header>
 
-        <div className={`flex-1 overflow-y-auto overflow-x-hidden w-full min-h-0 ${
+        <div className={`flex-1 overflow-y-auto overflow-x-hidden w-full min-h-0 no-scrollbar ${
           paginaActiva === "agregar"
             ? "robin-mobile-main robin-main-agregar !px-0 lg:!px-8"
             : "robin-mobile-main max-w-6xl mx-auto"

@@ -24,13 +24,32 @@ body {
       --mobile-chrome-bottom: 4rem;
       --task-form-actions-h: 3.5rem;
     }
-    html.robin-app body {
-      touch-action: manipulation;
-    }
     html.robin-pwa-standalone,
     html.robin-pwa-standalone body {
       touch-action: manipulation;
       overscroll-behavior: none;
+    }
+
+    /* Barras de scroll ocultas en toda la app (scroll funcional, sin barra visible) */
+    html.robin-app,
+    html.robin-app * {
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    html.robin-app *::-webkit-scrollbar {
+      display: none;
+      width: 0;
+      height: 0;
+      background: transparent;
+    }
+
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
     }
 
     @media (max-width: 1023px) {
@@ -64,42 +83,6 @@ body {
       html.robin-app main {
         background-color: #FFFFFF;
       }
-
-      html.robin-app,
-      html.robin-app * {
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-      }
-
-      html.robin-app *::-webkit-scrollbar {
-        display: none;
-        width: 0;
-        height: 0;
-        background: transparent;
-      }
-    }
-    /* Estilo barra de desplazamiento tipo Notion */
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: rgba(55, 53, 47, 0.12);
-      border-radius: 3px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background: rgba(55, 53, 47, 0.25);
-    }
-    /* Eliminar barra de scroll en contenedores horizontales */
-    .no-scrollbar::-webkit-scrollbar {
-      display: none;
-    }
-    .no-scrollbar {
-      -ms-overflow-style: none;
-      scrollbar-width: none;
     }
     /* Barra superior alineada (sidebar + main) */
     .app-header-bar {
@@ -416,13 +399,9 @@ body {
       overflow: visible;
       white-space: nowrap;
     }
-    /* Scroll suave en columnas del calendario semanal */
+    /* Scroll en columnas del calendario semanal (barra oculta vía reglas globales) */
     .cal-week-scroll {
-      scrollbar-width: thin;
-      scrollbar-color: rgba(55, 53, 47, 0.15) transparent;
-    }
-    .cal-week-scroll::-webkit-scrollbar {
-      width: 4px;
+      -webkit-overflow-scrolling: touch;
     }
 
     /* Selector de fecha con calendario mensual */
@@ -1101,15 +1080,7 @@ body {
         display: flex;
         flex-direction: column;
         gap: 1.25rem;
-        scrollbar-width: none;
-        -ms-overflow-style: none;
         background-color: #FFFFFF;
-      }
-
-      .robin-mobile-main::-webkit-scrollbar {
-        display: none;
-        width: 0;
-        height: 0;
       }
 
       .mobile-top-bar {
@@ -1643,13 +1614,7 @@ body {
       }
 
       .cal-mobile-week-scroll {
-        scrollbar-width: thin;
-        scrollbar-color: rgba(55, 53, 47, 0.15) transparent;
         -webkit-overflow-scrolling: touch;
-      }
-
-      .cal-mobile-week-scroll::-webkit-scrollbar {
-        height: 4px;
       }
 
       .mobile-subpage-bar {

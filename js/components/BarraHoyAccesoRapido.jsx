@@ -157,7 +157,7 @@ function BarraHoyAccesoRapido({ tareas, onSelectTask, getMarcaStyle }) {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto py-3 [scrollbar-width:thin] [scrollbar-color:#d4d4d8_transparent]">
+      <div className="flex-1 min-h-0 overflow-y-auto py-3 no-scrollbar">
         <SeccionTareasHoy
           titulo="Entregas hoy"
           conteo={entregasHoy.length}

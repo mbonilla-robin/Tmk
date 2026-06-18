@@ -100,6 +100,14 @@ function FormularioCrearEntregable({
               />
             </PropertyRow>
 
+            <PropertyRow icon="fa-regular fa-calendar-check" label="Inicio">
+              <InputFechaLibre
+                value={nuevaTarea.fechaInicio || fechaHoyDisplay()}
+                onChange={(val) => setNuevaTarea({ ...nuevaTarea, fechaInicio: val })}
+                className={inputPropClass}
+              />
+            </PropertyRow>
+
             <PropertyRow icon="fa-regular fa-calendar" label="Entrega">
               <InputFechaLibre
                 value={nuevaTarea.deadline}
@@ -107,20 +115,6 @@ function FormularioCrearEntregable({
                 className={inputPropClass}
                 required
               />
-            </PropertyRow>
-
-            <PropertyRow icon="fa-regular fa-calendar-check" label="Inicio">
-              <div className="flex flex-col gap-0.5">
-                <InputFechaLibre
-                  value={nuevaTarea.fechaInicio || ""}
-                  onChange={(val) => setNuevaTarea({ ...nuevaTarea, fechaInicio: val })}
-                  className={inputPropClass}
-                  placeholder="Auto según prioridad"
-                />
-                <span className="text-[10px] text-zinc-400 leading-snug">
-                  Opcional. Alta: 5 días antes · Media: 3 · Baja: 1
-                </span>
-              </div>
             </PropertyRow>
 
             <PropertyRow icon="fa-regular fa-user" label="Asignados">

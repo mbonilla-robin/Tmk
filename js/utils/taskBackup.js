@@ -91,6 +91,10 @@ function remotaCorrespondeAPendiente(remota, op) {
   const payload = op.payload || {};
   if (!marcasCoinciden(remota.marca, payload.marca)) return false;
 
+  const remotaId = String(remota.idTarea || "").trim();
+  const payloadId = String(payload.idTarea || "").trim();
+  if (payloadId && remotaId && payloadId === remotaId) return true;
+
   const rInfo = String(remota.info || "").trim().toLowerCase();
   const infoNueva = String(payload.info || "").trim().toLowerCase();
   const infoOriginal = String(payload.originalInfo || "").trim().toLowerCase();
@@ -102,7 +106,7 @@ function remotaCorrespondeAPendiente(remota, op) {
 
 function remotaCorrespondeATareaLocal(remota, local, cola) {
   if (!remota || !local) return false;
-  if (tareasMismaEntidad(remota, local)) return true;
+  if (sonLaMismaTarea(remota, local, { estricto: false })) return true;
 
   if (!marcasCoinciden(remota.marca, local.marca)) return false;
   if (infoTareaCoincide(remota.info, local.info)) return true;
@@ -121,9 +125,51 @@ function remotaCorrespondeATareaLocal(remota, local, cola) {
   return false;
 }
 
+function deduplicarTareasFusionadas(lista) {
+  const resultado = [];
+
+  (lista || []).forEach((tarea) => {
+    const indice = resultado.findIndex((existente) => sonLaMismaTarea(existente, tarea, { estricto: false }));
+    if (indice === -1) {
+      resultado.push(tarea);
+      return;
+    }
+
+    const existente = resultado[indice];
+    const preferida = tareaEsPendienteLocal(tarea)
+      ? tarea
+      : (tareaEsPendienteLocal(existente) ? existente : tarea);
+
+    resultado[indice] = desmarcarTareaPendiente(normalizarTareaCampos({
+      ...existente,
+      ...preferida,
+      idTarea: preferida.idTarea || existente.idTarea,
+      detalles: preferida.detalles || existente.detalles
+    }));
+  });
+
+  return resultado;
+}
+
+function remotaDebeOcultarseDuranteSync(remota, cola, locales) {
+  const key = getTaskSelectionKey(remota);
+  const actualizaciones = cola.filter((op) => op.type === "update" || op.type === "create");
+
+  for (const op of actualizaciones) {
+    if (op.taskKey === key || op.taskKeyOriginal === key) return true;
+    if (remotaCorrespondeAPendiente(remota, op)) return true;
+  }
+
+  for (const local of locales || []) {
+    if (!tareaEsPendienteLocal(local)) continue;
+    if (sonLaMismaTarea(remota, local, { estricto: false })) return true;
+  }
+
+  return false;
+}
+
 function fusionarTareasRemotasYLocales(remotas, locales) {
   const cola = cargarColaSync();
-  const actualizaciones = cola.filter((op) => op.type === "update" || op.type === "create");
   const eliminaciones = new Set(
     cola
       .filter((op) => op.type === "delete")
@@ -133,12 +179,7 @@ function fusionarTareasRemotasYLocales(remotas, locales) {
   const remotoFiltrado = (remotas || []).filter((t) => {
     const key = getTaskSelectionKey(t);
     if (eliminaciones.has(key)) return false;
-
-    for (const op of actualizaciones) {
-      if (op.taskKey === key || op.taskKeyOriginal === key) return false;
-      if (remotaCorrespondeAPendiente(t, op)) return false;
-    }
-    return true;
+    return !remotaDebeOcultarseDuranteSync(t, cola, locales);
   });
 
   const mapa = new Map();
@@ -156,15 +197,17 @@ function fusionarTareasRemotasYLocales(remotas, locales) {
     const remota = (remotas || []).find((r) => remotaCorrespondeATareaLocal(r, local, cola));
     if (remota) {
       mapa.set(getTaskSelectionKey(local), desmarcarTareaPendiente(normalizarTareaCampos({
-        ...local,
         ...remota,
+        ...local,
         idTarea: remota.idTarea || local.idTarea,
+        deadline: local.deadline || remota.deadline,
+        fechaInicio: local.fechaInicio || remota.fechaInicio,
         detalles: local.detalles || remota.detalles
       })));
     }
   });
 
-  return Array.from(mapa.values());
+  return deduplicarTareasFusionadas(Array.from(mapa.values()));
 }
 
 function hayPendientesSync() {
@@ -243,20 +286,28 @@ function normalizarTareasDesdeApi(jsonData) {
   });
 
   const deduplicadas = [];
-  const seenKeys = new Set();
 
   tareasValidas.forEach((t) => {
-    const cleanId = t.idTarea ? String(t.idTarea).trim() : "";
-    const hasRealId = isValidIdTarea(cleanId);
-    const realId = hasRealId ? cleanId : generarIdDeterminista(t);
-    const key = `${t.marca || ""}|${t.info || ""}|${t.deadline || ""}`.toLowerCase().replace(/\s+/g, " ").trim();
-    if (!seenKeys.has(key)) {
-      seenKeys.add(key);
-      deduplicadas.push(normalizarTareaCampos({
-        ...t,
-        idTarea: realId
-      }));
+    const normalizada = normalizarTareaCampos({
+      ...t,
+      idTarea: (() => {
+        const cleanId = t.idTarea ? String(t.idTarea).trim() : "";
+        return isValidIdTarea(cleanId) ? cleanId : generarIdDeterminista(t);
+      })()
+    });
+
+    const indice = deduplicadas.findIndex((existente) => sonLaMismaTarea(existente, normalizada, { estricto: false }));
+    if (indice === -1) {
+      deduplicadas.push(normalizada);
+      return;
     }
+
+    const existente = deduplicadas[indice];
+    deduplicadas[indice] = normalizarTareaCampos({
+      ...existente,
+      ...normalizada,
+      idTarea: existente.idTarea || normalizada.idTarea
+    });
   });
 
   return deduplicadas;

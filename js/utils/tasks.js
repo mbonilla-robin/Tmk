@@ -44,6 +44,11 @@ function deadlineClaveTarea(t) {
 }
 
 function tareasMismaEntidad(a, b) {
+  return sonLaMismaTarea(a, b, { estricto: true });
+}
+
+function sonLaMismaTarea(a, b, opciones = {}) {
+  const estricto = opciones.estricto !== false;
   if (!a || !b) return false;
 
   const idA = String(a.idTarea || "").trim();
@@ -56,9 +61,11 @@ function tareasMismaEntidad(a, b) {
 
   if (!marcasCoinciden(a.marca, b.marca)) return false;
 
-  const deadlineA = deadlineClaveTarea(a);
-  const deadlineB = deadlineClaveTarea(b);
-  if (deadlineA && deadlineB && deadlineA !== deadlineB) return false;
+  if (estricto) {
+    const deadlineA = deadlineClaveTarea(a);
+    const deadlineB = deadlineClaveTarea(b);
+    if (deadlineA && deadlineB && deadlineA !== deadlineB) return false;
+  }
 
   const tituloA = tituloLimpioTarea(a);
   const tituloB = tituloLimpioTarea(b);
@@ -66,7 +73,52 @@ function tareasMismaEntidad(a, b) {
 
   if (infoTareaCoincide(a.info, b.info)) return true;
 
-  return getTaskSelectionKey(a) === getTaskSelectionKey(b);
+  if (estricto) {
+    return getTaskSelectionKey(a) === getTaskSelectionKey(b);
+  }
+
+  return false;
+}
+
+function extraerFechaCreacionDesdeDetalles(detalles, deadlineRef) {
+  const texto = String(detalles || "");
+  const match = texto.match(/\[(\d{1,2})\/(\d{1,2})\s+\d{1,2}:\d{2}\]\s+Creado por/i);
+  if (!match) return "";
+
+  const dia = parseInt(match[1], 10);
+  const mes = parseInt(match[2], 10);
+  let anio = new Date().getFullYear();
+  const refDeadline = parsearFechaLibre(deadlineRef);
+  if (refDeadline) anio = refDeadline.anio;
+
+  return normalizarDeadline(formatearFechaDisplay(`${dia}/${mes}/${anio}`));
+}
+
+function resolverFechaInicioTarea(t) {
+  const explicita = normalizarDeadline(t?.fechaInicio || "");
+  const candidata = explicita || extraerFechaCreacionDesdeDetalles(t?.detalles, t?.deadline);
+  if (!candidata) return "";
+
+  const tIni = obtenerTiempoFecha(candidata);
+  const tDead = obtenerTiempoFecha(t?.deadline);
+  if (tIni === Infinity) return "";
+  if (tDead !== Infinity && tIni > tDead) return candidata;
+  return candidata;
+}
+
+function crearNuevaTareaVacia() {
+  return {
+    marca: "La Santé",
+    categoria: "",
+    info: "",
+    personas: "",
+    detalles: "",
+    link: "",
+    estado: "Pendiente",
+    deadline: "",
+    fechaInicio: fechaHoyDisplay(),
+    prioridad: "Media"
+  };
 }
 
 function encontrarIndiceTarea(lista, ref) {
@@ -110,16 +162,6 @@ function obtenerDiasAnticipacionTrabajo(prioridad) {
 function obtenerTiempoHoyLocal(fechaRef) {
   const hoy = fechaRef || new Date();
   return new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
-}
-
-function resolverFechaInicioTarea(t) {
-  const raw = normalizarDeadline(t.fechaInicio || t.fecha || "");
-  if (!raw) return "";
-  const tIni = obtenerTiempoFecha(raw);
-  const tDead = obtenerTiempoFecha(t.deadline);
-  if (tIni === Infinity || tDead === Infinity || tIni > tDead) return "";
-  if (tIni < tDead - 90 * MS_POR_DIA) return "";
-  return raw;
 }
 
 function obtenerTiempoInicioTrabajo(tarea) {

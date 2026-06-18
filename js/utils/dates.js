@@ -94,3 +94,8 @@ function convertirFechaAInput(fechaStr) {
 function deadlineParaEdicion(val) {
   return formatearFechaDisplay(val);
 }
+
+function fechaHoyDisplay(fechaRef) {
+  const hoy = fechaRef || new Date();
+  return formatearFechaDisplay(`${hoy.getDate()}/${hoy.getMonth() + 1}/${hoy.getFullYear()}`);
+}

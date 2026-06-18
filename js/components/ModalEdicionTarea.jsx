@@ -34,7 +34,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   const [prioridad, setPrioridad] = useState(normalizarPrioridad(tarea.prioridad));
   const [estado, setEstado] = useState(normalizarEstado(tarea.estado));
   const [deadline, setDeadline] = useState(deadlineParaEdicion(tarea.deadline));
-  const [fechaInicio, setFechaInicio] = useState(deadlineParaEdicion(tarea.fechaInicio));
+  const [fechaInicio, setFechaInicio] = useState(() => deadlineParaEdicion(resolverFechaInicioTarea(tarea) || tarea.fechaInicio));
   const [deadlineError, setDeadlineError] = useState("");
   const [fechaInicioError, setFechaInicioError] = useState("");
   const [personas, setPersonas] = useState(tarea.personas || "");
@@ -70,7 +70,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     setPrioridad(normalizarPrioridad(tarea.prioridad));
     setEstado(normalizarEstado(tarea.estado));
     setDeadline(deadlineParaEdicion(tarea.deadline));
-    setFechaInicio(deadlineParaEdicion(tarea.fechaInicio));
+    setFechaInicio(deadlineParaEdicion(resolverFechaInicioTarea(tarea) || tarea.fechaInicio));
     setDeadlineError("");
     setFechaInicioError("");
     setPersonas(tarea.personas || "");
@@ -126,8 +126,10 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
       setDeadlineError(deadline.trim() ? "Fecha no válida. Ej: 16/06/2026" : "La fecha de entrega es obligatoria");
       return;
     }
-    const inicioNorm = fechaInicio.trim() ? normalizarDeadline(fechaInicio) : "";
-    if (fechaInicio.trim() && !inicioNorm) {
+    const inicioNorm = fechaInicio.trim()
+      ? normalizarDeadline(fechaInicio)
+      : normalizarDeadline(resolverFechaInicioTarea({ ...tarea, detalles: tFinal }) || fechaHoyDisplay());
+    if (!inicioNorm) {
       setFechaInicioError("Fecha no válida. Ej: 16/06/2026");
       return;
     }
@@ -232,14 +234,17 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
               </select>
             </PropertyRow>
 
-            <PropertyRow icon="fa-regular fa-folder" label="Categoría">
-              <SelectorCategoriasChips
-                categoriasSeleccionadas={categoria}
-                onChange={setCategoria}
-                listaGlobal={listaCategorias}
-                registrarNuevaCategoria={registrarNuevaCategoria}
-                variant="minimal"
-              />
+            <PropertyRow icon="fa-regular fa-calendar-check" label="Inicio">
+              <div className="flex flex-col gap-0.5">
+                <InputFechaLibre
+                  value={fechaInicio}
+                  onChange={(val) => { setFechaInicio(val); if (fechaInicioError) setFechaInicioError(""); }}
+                  className={inputPropClass}
+                />
+                {fechaInicioError && (
+                  <span className="text-[11px] text-red-500">{fechaInicioError}</span>
+                )}
+              </div>
             </PropertyRow>
 
             <PropertyRow icon="fa-regular fa-calendar" label="Entrega">
@@ -256,22 +261,14 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
               </div>
             </PropertyRow>
 
-            <PropertyRow icon="fa-regular fa-calendar-check" label="Inicio">
-              <div className="flex flex-col gap-0.5">
-                <InputFechaLibre
-                  value={fechaInicio}
-                  onChange={(val) => { setFechaInicio(val); if (fechaInicioError) setFechaInicioError(""); }}
-                  className={inputPropClass}
-                  placeholder="Auto según prioridad"
-                />
-                {fechaInicioError ? (
-                  <span className="text-[11px] text-red-500">{fechaInicioError}</span>
-                ) : (
-                  <span className="text-[10px] text-zinc-400 leading-snug">
-                    Opcional. Alta: 5 días antes · Media: 3 · Baja: 1
-                  </span>
-                )}
-              </div>
+            <PropertyRow icon="fa-regular fa-folder" label="Categoría">
+              <SelectorCategoriasChips
+                categoriasSeleccionadas={categoria}
+                onChange={setCategoria}
+                listaGlobal={listaCategorias}
+                registrarNuevaCategoria={registrarNuevaCategoria}
+                variant="minimal"
+              />
             </PropertyRow>
 
             <PropertyRow icon="fa-regular fa-user" label="Asignados">

@@ -1,29 +1,104 @@
 body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
       letter-spacing: -0.01em;
-      color: #37352F;
-      background-color: #FFFFFF;
+      color: var(--robin-text, #37352F);
+      background-color: var(--robin-bg, #FFFFFF);
     }
 
     html {
-      background-color: #FFFFFF;
-    }
-
-    html.robin-app,
-    html.robin-app body,
-    html.robin-app #root {
-      background-color: #FFFFFF;
+      background-color: var(--robin-bg, #FFFFFF);
     }
 
     /* Sin zoom en móvil / PWA */
     html.robin-app {
+      --robin-bg: #FFFFFF;
+      --robin-text: #37352F;
+      --robin-text-muted: #71717a;
+      --robin-sidebar: #F7F7F5;
+      --robin-card: #FFFFFF;
+      --robin-border: #e4e4e7;
+      --robin-border-muted: #ECECE9;
+      --robin-surface: #faf9f6;
+      --robin-surface-hover: rgba(0, 0, 0, 0.04);
+      --robin-tile-hover: rgba(255, 255, 255, 0.65);
+      --robin-tile-active-bg: #ffffff;
+      --robin-tile-active-text: #18181b;
+      --robin-link: #52525b;
+      --robin-link-active: #37352f;
+      --robin-link-active-bg: rgba(0, 0, 0, 0.06);
+      --robin-subpage-back-bg: #f4f4f5;
+      --robin-subpage-back-text: #52525b;
+      --robin-subpage-back-border: #e4e4e7;
+      --robin-nav-muted: #a1a1aa;
+      --robin-nav-active: #37352F;
+      --robin-nav-active-icon-bg: #f4f4f5;
+      --robin-nav-highlight-bg: #37352F;
+      --robin-nav-highlight-text: #ffffff;
+      --robin-picker-inactive-bg: #ffffff;
+      --robin-picker-inactive-text: #52525b;
+      --robin-picker-inactive-border: #e4e4e7;
+      --robin-picker-active-light-bg: #37352F;
+      --robin-picker-active-light-text: #ffffff;
+      --robin-picker-active-dark-bg: #3f3f46;
+      --robin-picker-active-dark-text: #ffffff;
+      --robin-info-bg: #FAF9F6;
+      --robin-input-bg: #ffffff;
+      --robin-input-border: #e4e4e7;
+      --robin-shadow: rgba(0, 0, 0, 0.05);
       touch-action: manipulation;
       -webkit-text-size-adjust: 100%;
       text-size-adjust: 100%;
       --mobile-chrome-top: 3rem;
       --mobile-chrome-bottom: 4rem;
       --task-form-actions-h: 3.5rem;
+      color: var(--robin-text);
+      background-color: var(--robin-bg);
     }
+
+    html.robin-app[data-theme="midnight"] {
+      --robin-bg: #09090B;
+      --robin-text: #f4f4f5;
+      --robin-text-muted: #a1a1aa;
+      --robin-sidebar: #18181B;
+      --robin-card: #18181B;
+      --robin-border: #3f3f46;
+      --robin-border-muted: #52525b;
+      --robin-surface: #27272a;
+      --robin-surface-hover: rgba(255, 255, 255, 0.06);
+      --robin-tile-hover: rgba(255, 255, 255, 0.05);
+      --robin-tile-active-bg: #27272a;
+      --robin-tile-active-text: #fafafa;
+      --robin-link: #d4d4d8;
+      --robin-link-active: #fafafa;
+      --robin-link-active-bg: rgba(255, 255, 255, 0.08);
+      --robin-subpage-back-bg: #27272a;
+      --robin-subpage-back-text: #e4e4e7;
+      --robin-subpage-back-border: #52525b;
+      --robin-nav-muted: #71717a;
+      --robin-nav-active: #fafafa;
+      --robin-nav-active-icon-bg: #27272a;
+      --robin-nav-highlight-bg: #e4e4e7;
+      --robin-nav-highlight-text: #18181b;
+      --robin-picker-inactive-bg: #27272a;
+      --robin-picker-inactive-text: #e4e4e7;
+      --robin-picker-inactive-border: #52525b;
+      --robin-picker-active-light-bg: #e4e4e7;
+      --robin-picker-active-light-text: #18181b;
+      --robin-picker-active-dark-bg: #52525b;
+      --robin-picker-active-dark-text: #ffffff;
+      --robin-info-bg: #27272a;
+      --robin-input-bg: #27272a;
+      --robin-input-border: #52525b;
+      --robin-shadow: rgba(0, 0, 0, 0.35);
+    }
+
+    html.robin-app,
+    html.robin-app body,
+    html.robin-app #root {
+      background-color: var(--robin-bg);
+      color: var(--robin-text);
+    }
+
     html.robin-pwa-standalone,
     html.robin-pwa-standalone body {
       touch-action: manipulation;
@@ -62,18 +137,18 @@ body {
         height: 100dvh;
         overflow: hidden;
         overscroll-behavior: none;
-        background-color: #FFFFFF;
+        background-color: var(--robin-bg);
       }
 
       html.robin-app #root {
         position: fixed;
         inset: 0;
         overflow: hidden;
-        background-color: #FFFFFF;
+        background-color: var(--robin-bg);
       }
 
       html.robin-app #root > div {
-        background-color: #FFFFFF;
+        background-color: var(--robin-bg);
         height: 100%;
         height: 100dvh;
         min-height: 100dvh;
@@ -81,7 +156,7 @@ body {
       }
 
       html.robin-app main {
-        background-color: #FFFFFF;
+        background-color: var(--robin-bg);
       }
     }
     /* Barra superior alineada (sidebar + main) */
@@ -91,7 +166,8 @@ body {
       display: flex;
       align-items: center;
       flex-shrink: 0;
-      border-bottom: 1px solid #e4e4e7;
+      border-bottom: 1px solid var(--robin-border);
+      background-color: var(--robin-bg);
     }
     .app-header-bar--sidebar {
       padding-left: 1rem;
@@ -106,8 +182,9 @@ body {
       height: 100%;
       min-height: 0;
       flex-shrink: 0;
-      border-right: 1px solid #e4e4e7;
-      background-color: #f7f7f5;
+      border-right: 1px solid var(--robin-border);
+      background-color: var(--robin-sidebar);
+      color: var(--robin-text);
     }
 
     .robin-sidebar__header {
@@ -116,7 +193,7 @@ body {
       display: flex;
       align-items: center;
       padding: 0 1rem;
-      border-bottom: 1px solid #ecece9;
+      border-bottom: 1px solid var(--robin-border-muted);
       flex-shrink: 0;
     }
 
@@ -131,8 +208,8 @@ body {
     .robin-sidebar__presence {
       padding: 0.625rem 0.75rem;
       border-radius: 0.5rem;
-      background: #faf9f6;
-      border: 1px solid #e4e4e7;
+      background: var(--robin-surface);
+      border: 1px solid var(--robin-border);
     }
 
     .robin-sidebar__cta {
@@ -167,9 +244,9 @@ body {
 
     .robin-sidebar__footer {
       padding: 0.75rem;
-      border-top: 1px solid #ecece9;
+      border-top: 1px solid var(--robin-border-muted);
       flex-shrink: 0;
-      background: #f7f7f5;
+      background: var(--robin-sidebar);
     }
 
     .robin-sidebar__section {
@@ -199,7 +276,7 @@ body {
     }
 
     .robin-sidebar__section-toggle:hover {
-      background: rgba(0, 0, 0, 0.03);
+      background: var(--robin-surface-hover);
     }
 
     .robin-sidebar__tile-grid {
@@ -220,19 +297,19 @@ body {
       border-radius: 0.375rem;
       font-size: 10px;
       font-weight: 600;
-      color: #52525b;
+      color: var(--robin-link);
       border: 1px solid transparent;
       transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     }
 
     .robin-sidebar__tile:hover {
-      background: rgba(255, 255, 255, 0.65);
+      background: var(--robin-tile-hover);
     }
 
     .robin-sidebar__tile.is-active {
-      color: #18181b;
-      background: #fff;
-      border-color: #e4e4e7;
+      color: var(--robin-tile-active-text);
+      background: var(--robin-tile-active-bg);
+      border-color: var(--robin-border);
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
     }
 
@@ -245,18 +322,18 @@ body {
       border-radius: 0.375rem;
       font-size: 12px;
       font-weight: 500;
-      color: #52525b;
+      color: var(--robin-link);
       text-align: left;
       transition: background-color 0.15s ease, color 0.15s ease;
     }
 
     .robin-sidebar__link:hover {
-      background: rgba(0, 0, 0, 0.04);
+      background: var(--robin-surface-hover);
     }
 
     .robin-sidebar__link.is-active {
-      color: #37352f;
-      background: rgba(0, 0, 0, 0.06);
+      color: var(--robin-link-active);
+      background: var(--robin-link-active-bg);
     }
 
     .robin-sidebar__link-label {
@@ -283,11 +360,21 @@ body {
       color: #dc2626;
       background: #fef2f2;
       border: 1px solid #fecaca;
-      transition: background-color 0.15s ease;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
     }
 
     .robin-sidebar__logout:hover {
       background: #fee2e2;
+    }
+
+    html.robin-app[data-theme="midnight"] .robin-sidebar__logout {
+      background: rgba(220, 38, 38, 0.12);
+      border-color: rgba(220, 38, 38, 0.35);
+      color: #f87171;
+    }
+
+    html.robin-app[data-theme="midnight"] .robin-sidebar__logout:hover {
+      background: rgba(220, 38, 38, 0.2);
     }
 
     /* Tipografía unificada */
@@ -296,7 +383,7 @@ body {
       font-weight: 600;
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      color: #a1a1aa;
+      color: var(--robin-text-muted, #a1a1aa);
     }
     .text-ui {
       font-size: 12px;
@@ -373,14 +460,51 @@ body {
       display: block;
       min-height: auto;
       height: auto;
+      background: var(--robin-bg);
+      color: var(--robin-text);
+    }
+
+    .task-form-page .task-form-title,
+    .task-form-page .task-prop-value,
+    .task-form-page .task-prop-value select,
+    .task-form-page .task-prop-value input {
+      color: var(--robin-text);
+    }
+
+    .task-form-page .task-form-eyebrow,
+    .task-form-page .task-prop-label,
+    .task-form-page .task-section-label {
+      color: var(--robin-text-muted);
+    }
+
+    .task-form-page .task-prop-row:hover {
+      background: var(--robin-surface-hover);
+    }
+
+    .task-form-page .border-zinc-100 {
+      border-color: var(--robin-border);
+    }
+
+    .task-form-page .task-subtask-input {
+      color: var(--robin-text);
+    }
+
+    .task-form-page .hover\:bg-zinc-50\/80:hover {
+      background: var(--robin-surface-hover) !important;
+    }
+
+    .task-form-page .placeholder-zinc-300::placeholder,
+    .task-form-page input::placeholder {
+      color: var(--robin-text-muted);
+      opacity: 0.7;
     }
 
     .task-form-actions--flow {
       position: static;
       flex-shrink: unset;
-      background: #ffffff;
+      background: var(--robin-bg);
       backdrop-filter: none;
-      border-top: 1px solid #f4f4f5;
+      border-top: 1px solid var(--robin-border);
       margin-top: 0.25rem;
     }
 
@@ -487,17 +611,16 @@ body {
 
     /* Editor de notas con formato */
     .rich-notes-editor {
-      border: 1px solid #ececea;
+      border: 1px solid var(--robin-border);
       border-radius: 0.5rem;
-      background: #fafaf9;
+      background: transparent;
       overflow: hidden;
-      transition: border-color 0.15s, box-shadow 0.15s;
+      transition: border-color 0.15s;
     }
 
     .rich-notes-editor:focus-within {
-      border-color: #d4d4d8;
-      box-shadow: 0 0 0 2px rgba(55, 53, 47, 0.06);
-      background: #fff;
+      border-color: var(--robin-border-muted);
+      background: transparent;
     }
 
     .rich-notes-toolbar {
@@ -505,14 +628,14 @@ body {
       align-items: center;
       gap: 0.125rem;
       padding: 0.25rem 0.375rem;
-      border-bottom: 1px solid #ececea;
-      background: #fff;
+      border-bottom: 1px solid var(--robin-border);
+      background: transparent;
     }
 
     .rich-notes-toolbar-sep {
       width: 1px;
       height: 1.125rem;
-      background: #e4e4e7;
+      background: var(--robin-border);
       margin: 0 0.25rem;
     }
 
@@ -525,20 +648,20 @@ body {
       border: none;
       border-radius: 0.25rem;
       background: transparent;
-      color: #71717a;
+      color: var(--robin-text-muted);
       font-size: 11px;
       cursor: pointer;
       transition: background 0.12s, color 0.12s;
     }
 
     .rich-notes-btn:hover {
-      background: #f4f4f5;
-      color: #37352F;
+      background: var(--robin-surface-hover);
+      color: var(--robin-text);
     }
 
     .rich-notes-btn.is-active {
-      background: #37352F;
-      color: #fff;
+      background: var(--robin-nav-highlight-bg);
+      color: var(--robin-nav-highlight-text);
     }
 
     .rich-notes-content {
@@ -546,7 +669,7 @@ body {
       padding: 0.625rem 0.75rem;
       font-size: 12px;
       line-height: 1.6;
-      color: #37352F;
+      color: var(--robin-text);
       outline: none;
       overflow-y: auto;
     }
@@ -666,15 +789,15 @@ body {
 
     /* Días apilados — semana estrecha (desktop angosto o móvil) */
     .cal-week-stacked .cal-mobile-day-block {
-      border: 1px solid #e4e4e7;
+      border: 1px solid var(--robin-border);
       border-radius: 0.625rem;
       overflow: hidden;
-      background: #fff;
+      background: var(--robin-card);
     }
 
     .cal-week-stacked .cal-mobile-day-block.is-today {
-      border-color: #37352F;
-      box-shadow: 0 0 0 1px rgba(55, 53, 47, 0.08);
+      border-color: var(--robin-border-muted);
+      box-shadow: 0 0 0 1px var(--robin-surface-hover);
     }
 
     .cal-week-stacked .cal-mobile-day-head {
@@ -683,13 +806,18 @@ body {
       justify-content: space-between;
       gap: 0.5rem;
       padding: 0.625rem 0.75rem;
-      background: #fff;
-      border-bottom: 1px solid #f4f4f5;
+      background: var(--robin-surface);
+      border-bottom: 1px solid var(--robin-border);
     }
 
     .cal-week-stacked .cal-mobile-day-block.is-today .cal-mobile-day-head {
       background: #37352F;
       border-bottom-color: #2c2a26;
+    }
+
+    html.robin-app[data-theme="midnight"] .cal-week-stacked .cal-mobile-day-block.is-today .cal-mobile-day-head {
+      background: #52525b;
+      border-bottom-color: #3f3f46;
     }
 
     .cal-week-stacked .cal-mobile-day-date {
@@ -703,7 +831,7 @@ body {
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      color: #71717a;
+      color: var(--robin-text-muted);
     }
 
     .cal-week-stacked .cal-mobile-day-block.is-today .cal-mobile-day-name {
@@ -713,7 +841,7 @@ body {
     .cal-week-stacked .cal-mobile-day-num {
       font-size: 18px;
       font-weight: 800;
-      color: #37352F;
+      color: var(--robin-text);
       line-height: 1;
     }
 
@@ -735,9 +863,9 @@ body {
     .cal-week-stacked .cal-mobile-day-count {
       font-size: 11px;
       font-weight: 700;
-      color: #71717a;
-      background: #fff;
-      border: 1px solid #e4e4e7;
+      color: var(--robin-text-muted);
+      background: var(--robin-bg);
+      border: 1px solid var(--robin-border);
       border-radius: 999px;
       padding: 0.1rem 0.45rem;
     }
@@ -757,7 +885,7 @@ body {
       padding: 0.75rem;
       text-align: center;
       font-size: 11px;
-      color: #d4d4d8;
+      color: var(--robin-text-muted);
     }
 
     .cal-week-stacked .cal-mobile-task-row {
@@ -766,12 +894,16 @@ body {
       align-items: center;
       gap: 0.5rem;
       padding: 0.75rem;
-      background: #fff;
+      background: var(--robin-bg);
       border: none;
-      border-bottom: 1px solid #f4f4f5;
+      border-bottom: 1px solid var(--robin-border);
       text-align: left;
       cursor: pointer;
       transition: background-color 0.12s ease;
+    }
+
+    .cal-mobile-task-row-title {
+      color: var(--robin-text);
     }
 
     .cal-week-stacked .cal-mobile-task-row:last-child {
@@ -779,7 +911,7 @@ body {
     }
 
     .cal-week-stacked .cal-mobile-task-row:hover {
-      background: #fafafa;
+      background: var(--robin-surface);
     }
 
     .cal-week-stacked .cal-mobile-day-more {
@@ -787,36 +919,36 @@ body {
       padding: 0.625rem 0.75rem;
       font-size: 11px;
       font-weight: 600;
-      color: #71717a;
-      background: #fafafa;
+      color: var(--robin-text-muted);
+      background: var(--robin-surface);
       border: none;
-      border-top: 1px solid #f4f4f5;
+      border-top: 1px solid var(--robin-border);
       text-align: left;
       cursor: pointer;
     }
 
     .cal-week-stacked .cal-mobile-day-more:hover {
-      color: #37352F;
-      background: #f4f4f5;
+      color: var(--robin-text);
+      background: var(--robin-border);
     }
 
-    /* Prioridad alta — tarjetas blancas compactas */
+    /* Prioridad alta — tarjetas compactas */
     .urgent-task-card {
       position: relative;
       overflow: hidden;
-      border: 1px solid #e4e4e7;
+      border: 1px solid var(--robin-border);
       border-left-width: 3px;
       border-radius: 0.5rem;
-      background: #fff;
+      background: var(--robin-card);
       cursor: pointer;
       transition: border-color 0.12s ease, box-shadow 0.12s ease;
     }
 
     .urgent-task-card:hover {
-      border-top-color: #d4d4d8;
-      border-right-color: #d4d4d8;
-      border-bottom-color: #d4d4d8;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+      border-top-color: var(--robin-border-muted);
+      border-right-color: var(--robin-border-muted);
+      border-bottom-color: var(--robin-border-muted);
+      box-shadow: 0 1px 4px var(--robin-shadow);
     }
 
     .urgent-task-card-body {
@@ -833,7 +965,7 @@ body {
     .urgent-task-card-title {
       font-size: 12px;
       font-weight: 600;
-      color: #37352F;
+      color: var(--robin-text);
       line-height: 1.35;
       display: -webkit-box;
       -webkit-line-clamp: 2;
@@ -850,7 +982,7 @@ body {
       gap: 0.25rem 0.375rem;
       margin-top: 0.375rem;
       font-size: 10px;
-      color: #71717a;
+      color: var(--robin-text-muted);
       line-height: 1.2;
       min-width: 0;
     }
@@ -860,6 +992,260 @@ body {
       user-select: none;
     }
 
+    /* Kanban — tablero de entregables */
+    .kanban-col {
+      padding: 0.5rem;
+      border-radius: 0.375rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      min-height: 400px;
+      transition: background-color 0.15s ease;
+      background: transparent;
+    }
+
+    .kanban-col.is-drag-over {
+      background: var(--robin-surface-hover);
+    }
+
+    .kanban-col-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 0.25rem 0.25rem;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: -0.01em;
+      color: var(--robin-text-muted);
+    }
+
+    .kanban-col-count {
+      font-weight: 400;
+      color: var(--robin-text-muted);
+      opacity: 0.8;
+    }
+
+    .kanban-col-body {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      overflow-y: auto;
+      max-height: 500px;
+      padding-right: 0.25rem;
+    }
+
+    .kanban-card {
+      padding: 0.75rem;
+      border-radius: 0.375rem;
+      border: 1px solid var(--robin-border);
+      border-left-width: 3px;
+      background: var(--robin-card);
+      box-shadow: 0 1px 2px var(--robin-shadow);
+      cursor: grab;
+      transition: box-shadow 0.12s ease, border-color 0.12s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .kanban-card:hover {
+      box-shadow: 0 2px 6px var(--robin-shadow);
+    }
+
+    .kanban-card:active {
+      cursor: grabbing;
+    }
+
+    .kanban-card-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+
+    .kanban-card-deadline {
+      font-size: 9px;
+      color: var(--robin-text-muted);
+      font-weight: 400;
+      flex-shrink: 0;
+    }
+
+    .kanban-card-title {
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.35;
+      color: var(--robin-text);
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      margin: 0;
+    }
+
+    .kanban-card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      padding-top: 0.25rem;
+      border-top: 1px solid var(--robin-border);
+      font-size: 10px;
+      color: var(--robin-text-muted);
+    }
+
+    .kanban-card-person {
+      max-width: 5rem;
+      font-weight: 500;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .kanban-card-actions {
+      display: flex;
+      gap: 0.375rem;
+      margin-top: 0.25rem;
+    }
+
+    .kanban-card-btn {
+      flex: 1;
+      appearance: none;
+      padding: 0.25rem 0;
+      text-align: center;
+      font-size: 10px;
+      font-weight: 600;
+      border-radius: 0.25rem;
+      border: 1px solid var(--robin-border);
+      background: var(--robin-surface);
+      color: var(--robin-text);
+      cursor: pointer;
+      transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+    }
+
+    .kanban-card-btn:hover {
+      background: var(--robin-border);
+      border-color: var(--robin-border-muted);
+    }
+
+    .kanban-card-delete {
+      appearance: none;
+      border: none;
+      background: transparent;
+      color: var(--robin-text-muted);
+      padding: 0.25rem;
+      border-radius: 0.25rem;
+      cursor: pointer;
+      transition: color 0.12s ease, background-color 0.12s ease;
+    }
+
+    .kanban-card-delete:hover {
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.1);
+    }
+
+    /* Calendario — contenedor y semana */
+    .cal-shell {
+      border: 1px solid var(--robin-border);
+      background: var(--robin-card);
+    }
+
+    .cal-week-day-col {
+      background: var(--robin-card);
+      border-color: var(--robin-border);
+    }
+
+    .cal-week-day-col.is-today {
+      border-color: var(--robin-border-muted);
+      box-shadow: 0 0 0 1px var(--robin-surface-hover);
+    }
+
+    .cal-week-day-col-head {
+      background: var(--robin-surface);
+      border-color: var(--robin-border);
+      color: var(--robin-text);
+    }
+
+    .cal-week-day-col-head.is-today {
+      background: #37352F;
+      border-color: #2c2a26;
+      color: #ffffff;
+    }
+
+    .cal-week-day-col-dow {
+      color: var(--robin-text-muted);
+    }
+
+    .cal-week-day-col-head.is-today .cal-week-day-col-dow {
+      color: #d4d4d8;
+    }
+
+    .cal-week-day-col-num {
+      color: var(--robin-text);
+    }
+
+    .cal-week-day-col-num.is-today {
+      color: #ffffff;
+    }
+
+    .cal-week-day-col-today-pill {
+      background: rgba(255, 255, 255, 0.15);
+      color: #e4e4e7;
+    }
+
+    .cal-week-day-col-count {
+      color: var(--robin-text-muted);
+    }
+
+    .cal-week-day-col-empty {
+      color: var(--robin-text-muted);
+      opacity: 0.7;
+      text-align: center;
+      padding: 0 0.5rem;
+    }
+
+    .cal-week-day-col-foot {
+      border-color: var(--robin-border);
+      background: var(--robin-surface);
+    }
+
+    .cal-week-day-col-more {
+      color: var(--robin-text-muted);
+    }
+
+    .cal-week-day-col-more:hover {
+      color: var(--robin-text);
+    }
+
+    .cal-week-task-card {
+      appearance: none;
+      background: var(--robin-bg);
+      border-color: var(--robin-border);
+      color: var(--robin-text);
+      transition: background-color 0.12s ease, border-color 0.12s ease;
+    }
+
+    .cal-week-task-card:hover {
+      background: var(--robin-surface);
+    }
+
+    .cal-week-task-card-title {
+      color: var(--robin-text);
+    }
+
+    html.robin-app[data-theme="midnight"] .cal-week-day-col-head.is-today {
+      background: #52525b;
+      border-color: #3f3f46;
+    }
+
+    html.robin-app[data-theme="midnight"] .cal-week-task-card {
+      background: var(--robin-surface);
+    }
+
+    html.robin-app[data-theme="midnight"] .cal-week-task-card:hover {
+      background: var(--robin-border);
+    }
+
     /* Calendario — header desktop (una fila) */
     .cal-header-desktop {
       display: flex;
@@ -867,8 +1253,8 @@ body {
       gap: 0.5rem;
       flex-wrap: nowrap;
       padding: 0.5625rem 0.875rem;
-      border-bottom: 1px solid #e4e4e7;
-      background: linear-gradient(to right, #faf9f6, #fff);
+      border-bottom: 1px solid var(--robin-border);
+      background: var(--robin-surface);
       min-width: 0;
     }
 
@@ -877,7 +1263,7 @@ body {
       font-weight: 600;
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      color: #a1a1aa;
+      color: var(--robin-text-muted);
       white-space: nowrap;
       flex-shrink: 0;
     }
@@ -888,8 +1274,8 @@ body {
       gap: 0.125rem;
       padding: 0.125rem;
       border-radius: 0.4375rem;
-      border: 1px solid #e4e4e7;
-      background: #f4f4f5;
+      border: 1px solid var(--robin-border);
+      background: var(--robin-bg);
       flex-shrink: 0;
     }
 
@@ -897,7 +1283,7 @@ body {
       appearance: none;
       border: 1px solid transparent;
       background: transparent;
-      color: #71717a;
+      color: var(--robin-text-muted);
       width: 1.625rem;
       height: 1.625rem;
       border-radius: 0.3125rem;
@@ -910,14 +1296,14 @@ body {
     }
 
     .cal-header-view-btn:hover {
-      color: #37352F;
+      color: var(--robin-text);
     }
 
     .cal-header-view-btn.is-active {
-      background: #fff;
-      color: #37352F;
-      border-color: #e4e4e7;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      background: var(--robin-card);
+      color: var(--robin-text);
+      border-color: var(--robin-border);
+      box-shadow: 0 1px 2px var(--robin-shadow);
     }
 
     .cal-header-spacer {
@@ -928,7 +1314,7 @@ body {
     .cal-header-period {
       font-size: 11px;
       font-weight: 600;
-      color: #3f3f46;
+      color: var(--robin-text-muted);
       white-space: nowrap;
       flex-shrink: 1;
       min-width: 0;
@@ -939,9 +1325,9 @@ body {
     .cal-header-today-btn {
       font-size: 10px;
       font-weight: 600;
-      color: #52525b;
-      background: #fff;
-      border: 1px solid #e4e4e7;
+      color: var(--robin-text-muted);
+      background: var(--robin-bg);
+      border: 1px solid var(--robin-border);
       border-radius: 0.375rem;
       padding: 0.25rem 0.5rem;
       cursor: pointer;
@@ -951,8 +1337,8 @@ body {
     }
 
     .cal-header-today-btn:hover {
-      color: #37352F;
-      background: #fafafa;
+      background: var(--robin-surface);
+      color: var(--robin-text);
     }
 
     .cal-header-nav {
@@ -960,9 +1346,9 @@ body {
       align-items: center;
       gap: 0.125rem;
       padding: 0.125rem;
-      border: 1px solid #e4e4e7;
+      border: 1px solid var(--robin-border);
       border-radius: 0.375rem;
-      background: #fff;
+      background: var(--robin-bg);
       flex-shrink: 0;
     }
 
@@ -970,7 +1356,7 @@ body {
       appearance: none;
       border: none;
       background: transparent;
-      color: #71717a;
+      color: var(--robin-text-muted);
       width: 1.625rem;
       height: 1.625rem;
       border-radius: 0.25rem;
@@ -982,8 +1368,8 @@ body {
     }
 
     .cal-header-nav-btn:hover {
-      background: #f4f4f5;
-      color: #37352F;
+      background: var(--robin-surface);
+      color: var(--robin-text);
     }
 
     /* Calendario — vista mes */
@@ -997,7 +1383,7 @@ body {
       text-align: center;
       font-size: 10px;
       font-weight: 700;
-      color: #a1a1aa;
+      color: var(--robin-text-muted);
       text-transform: uppercase;
       letter-spacing: 0.04em;
       padding: 0.25rem 0 0.125rem;
@@ -1011,40 +1397,41 @@ body {
       min-height: 4.25rem;
       padding: 0.375rem;
       border-radius: 0.5rem;
-      border: 1px solid #ececee;
-      background: #fff;
+      border: 1px solid var(--robin-border);
+      background: var(--robin-card);
       text-align: left;
       cursor: pointer;
       transition: border-color 0.12s ease, background-color 0.12s ease, box-shadow 0.12s ease;
     }
 
     .cal-month-day.is-other-month {
-      background: #fafafa;
-      border-color: #f4f4f5;
+      background: var(--robin-bg);
+      border-color: var(--robin-border);
+      opacity: 0.65;
     }
 
     .cal-month-day.is-other-month .cal-month-day-num {
-      color: #d4d4d8;
+      color: var(--robin-text-muted);
     }
 
     .cal-month-day.is-today {
-      border-color: #37352F;
-      box-shadow: 0 0 0 1px rgba(55, 53, 47, 0.08);
+      border-color: var(--robin-border-muted);
+      box-shadow: 0 0 0 1px var(--robin-surface-hover);
     }
 
     .cal-month-day:hover {
-      border-color: #d4d4d8;
-      background: #fafafa;
+      border-color: var(--robin-border-muted);
+      background: var(--robin-surface);
     }
 
     .cal-month-day.has-tasks:hover {
-      background: #f8f8f8;
+      background: var(--robin-surface);
     }
 
     .cal-month-day-num {
       font-size: 12px;
       font-weight: 700;
-      color: #37352F;
+      color: var(--robin-text);
       line-height: 1;
       width: 1.375rem;
       height: 1.375rem;
@@ -1057,6 +1444,11 @@ body {
     .cal-month-day-num.is-today-num {
       background: #37352F;
       color: #fff;
+    }
+
+    html.robin-app[data-theme="midnight"] .cal-month-day-num.is-today-num {
+      background: #52525b;
+      color: #fafafa;
     }
 
     .cal-month-day-marcas {
@@ -1082,9 +1474,82 @@ body {
     .cal-month-marca-more {
       font-size: 8px;
       font-weight: 700;
-      color: #71717a;
+      color: var(--robin-text-muted);
       line-height: 1.2;
       padding: 0 0.125rem;
+    }
+
+    .cal-day-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 150;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      background: rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(4px);
+    }
+
+    .cal-day-modal {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: 28rem;
+      max-height: 80vh;
+      border-radius: 0.5rem;
+      border: 1px solid var(--robin-border);
+      background: var(--robin-card);
+      box-shadow: 0 10px 40px var(--robin-shadow);
+      overflow: hidden;
+    }
+
+    .cal-day-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--robin-border);
+      flex-shrink: 0;
+    }
+
+    .cal-day-modal-date {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--robin-text);
+      margin-top: 0.125rem;
+    }
+
+    .cal-day-modal-close {
+      appearance: none;
+      border: none;
+      background: transparent;
+      color: var(--robin-text-muted);
+      font-size: 1.125rem;
+      font-weight: 700;
+      line-height: 1;
+      padding: 0 0.5rem;
+      cursor: pointer;
+    }
+
+    .cal-day-modal-close:hover {
+      color: var(--robin-text);
+    }
+
+    .cal-day-modal-body {
+      overflow-y: auto;
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .cal-day-modal-empty {
+      text-align: center;
+      font-size: 0.875rem;
+      color: var(--robin-text-muted);
+      padding: 2rem 0;
     }
 
     .cal-day-modal-task {
@@ -1092,17 +1557,18 @@ body {
       display: flex;
       align-items: stretch;
       overflow: hidden;
-      border: 1px solid #e4e4e7;
+      border: 1px solid var(--robin-border);
       border-left-width: 3px;
       border-radius: 0.5rem;
-      background: #fff;
+      background: var(--robin-bg);
       cursor: pointer;
-      transition: border-color 0.12s ease, box-shadow 0.12s ease;
+      transition: border-color 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
     }
 
     .cal-day-modal-task:hover {
-      border-color: #d4d4d8;
-      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+      border-color: var(--robin-border-muted);
+      background: var(--robin-surface);
+      box-shadow: 0 1px 4px var(--robin-shadow);
     }
 
     .cal-day-modal-task-body {
@@ -1116,7 +1582,7 @@ body {
     .cal-day-modal-task-title {
       font-size: 13px;
       font-weight: 600;
-      color: #37352F;
+      color: var(--robin-text);
       line-height: 1.3;
     }
 
@@ -1125,7 +1591,7 @@ body {
       align-items: center;
       gap: 0.375rem;
       font-size: 11px;
-      color: #71717a;
+      color: var(--robin-text-muted);
       line-height: 1.2;
     }
 
@@ -1686,17 +2152,18 @@ body {
       }
     }
 
-    /* Accesos rápidos — desktop (Home): 2 filas, cuadros simétricos, scroll oculto */
+    /* Accesos rápidos — desktop (Home): 3 visibles, tiles rectangulares */
     .desktop-widgets {
       --desktop-widget-gap: 0.5rem;
       --desktop-widget-visible: 3;
+      --desktop-widget-height: 3.25rem;
       margin-bottom: 0.125rem;
     }
 
     .desktop-widgets-heading {
       font-size: 11px;
       font-weight: 600;
-      color: #37352F;
+      color: var(--robin-text);
       margin: 0 0 0.625rem;
       line-height: 1.2;
     }
@@ -1738,15 +2205,15 @@ body {
         (100% - (var(--desktop-widget-gap) * (var(--desktop-widget-visible) - 1)))
         / var(--desktop-widget-visible)
       );
-      aspect-ratio: 1;
+      height: var(--desktop-widget-height);
       min-width: 0;
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
       align-items: center;
-      justify-content: center;
-      gap: 0.375rem;
-      padding: 0.5rem 0.375rem;
-      border-radius: 0.625rem;
+      justify-content: flex-start;
+      gap: 0.5rem;
+      padding: 0.5rem 0.625rem;
+      border-radius: 0.5rem;
       text-decoration: none;
       scroll-snap-align: start;
       transition: transform 0.12s ease, box-shadow 0.12s ease;
@@ -1762,22 +2229,57 @@ body {
     }
 
     .desktop-widget-cuadro-icon {
-      width: 2rem;
-      height: 2rem;
-      border-radius: 0.5rem;
-      background: rgba(255, 255, 255, 0.55);
+      width: 1.75rem;
+      height: 1.75rem;
+      border-radius: 0.375rem;
+      background: rgba(255, 255, 255, 0.45);
       display: inline-flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
     }
 
+    /* Widgets — tonos pastel (claro) y saturados (oscuro) */
+    .widget-tone {
+      border: 1px solid transparent;
+      transition: transform 0.12s ease, box-shadow 0.12s ease, filter 0.12s ease;
+    }
+
+    .widget-tone--mint { background: #D4EDDA; color: #1B5E3B; border-color: #B8DFC6; }
+    .widget-tone--lavender { background: #E8DEFF; color: #4A3B7A; border-color: #D4C4F5; }
+    .widget-tone--peach { background: #FFE8D6; color: #8B4D2E; border-color: #FFD4B8; }
+    .widget-tone--sky { background: #D6EAF8; color: #1A5276; border-color: #B8D4EC; }
+    .widget-tone--rose { background: #FADBD8; color: #922B21; border-color: #F5B7B1; }
+    .widget-tone--lemon { background: #FCF3CF; color: #7D6608; border-color: #F9E79F; }
+    .widget-tone--lilac { background: #E8DAEF; color: #6C3483; border-color: #D7BDE2; }
+
+    html.robin-app[data-theme="midnight"] .widget-tone--mint { background: rgba(27, 94, 59, 0.28); color: #ffffff; border-color: rgba(27, 94, 59, 0.45); }
+    html.robin-app[data-theme="midnight"] .widget-tone--lavender { background: rgba(74, 59, 122, 0.28); color: #ffffff; border-color: rgba(74, 59, 122, 0.45); }
+    html.robin-app[data-theme="midnight"] .widget-tone--peach { background: rgba(139, 77, 46, 0.28); color: #ffffff; border-color: rgba(139, 77, 46, 0.45); }
+    html.robin-app[data-theme="midnight"] .widget-tone--sky { background: rgba(26, 82, 118, 0.28); color: #ffffff; border-color: rgba(26, 82, 118, 0.45); }
+    html.robin-app[data-theme="midnight"] .widget-tone--rose { background: rgba(146, 43, 33, 0.28); color: #ffffff; border-color: rgba(146, 43, 33, 0.45); }
+    html.robin-app[data-theme="midnight"] .widget-tone--lemon { background: rgba(125, 102, 8, 0.28); color: #ffffff; border-color: rgba(125, 102, 8, 0.45); }
+    html.robin-app[data-theme="midnight"] .widget-tone--lilac { background: rgba(108, 52, 131, 0.28); color: #ffffff; border-color: rgba(108, 52, 131, 0.45); }
+
+    html.robin-app[data-theme="midnight"] .widget-tone .desktop-widget-cuadro-label,
+    html.robin-app[data-theme="midnight"] .widget-tone .mobile-widget-tile-label,
+    html.robin-app[data-theme="midnight"] .widget-tone .marca-widget-chip-label,
+    html.robin-app[data-theme="midnight"] .widget-tone svg {
+      color: #ffffff;
+    }
+
+    html.robin-app[data-theme="midnight"] .widget-tone .desktop-widget-cuadro-icon,
+    html.robin-app[data-theme="midnight"] .widget-tone .mobile-widget-tile-icon {
+      background: rgba(0, 0, 0, 0.18);
+    }
+
     .desktop-widget-cuadro-label {
       font-size: 10px;
       font-weight: 700;
       line-height: 1.2;
-      text-align: center;
-      width: 100%;
+      text-align: left;
+      flex: 1;
+      min-width: 0;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
@@ -1785,6 +2287,10 @@ body {
     }
 
     @media (min-width: 1024px) {
+      .desktop-widgets {
+        --desktop-widget-height: 3.5rem;
+      }
+
       .desktop-widgets-heading {
         font-size: 12px;
         margin-bottom: 0.75rem;
@@ -1801,22 +2307,22 @@ body {
 
     /* Resumen del área (Home) */
     .area-stat-card {
-      border: 1px solid #e4e4e7;
+      border: 1px solid var(--robin-border);
       border-radius: 0.375rem;
       overflow: hidden;
-      background: #fff;
+      background: var(--robin-card);
     }
 
     .area-stat-header {
       padding: 0.625rem 0.75rem;
-      border-bottom: 1px solid #f4f4f5;
-      background: rgba(250, 249, 246, 0.4);
+      border-bottom: 1px solid var(--robin-border);
+      background: var(--robin-surface);
     }
 
     .area-stat-header span {
       font-size: 10px;
       font-weight: 600;
-      color: #71717a;
+      color: var(--robin-text-muted);
       text-transform: uppercase;
       letter-spacing: 0.04em;
     }
@@ -1824,7 +2330,7 @@ body {
     .area-stat-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
-      background: #fff;
+      background: var(--robin-card);
     }
 
     .area-stat-item {
@@ -1838,13 +2344,13 @@ body {
     }
 
     .area-stat-item + .area-stat-item {
-      border-left: 1px solid #f4f4f5;
+      border-left: 1px solid var(--robin-border);
     }
 
     .area-stat-label {
       font-size: 9px;
       font-weight: 600;
-      color: #a1a1aa;
+      color: var(--robin-text-muted);
       text-transform: uppercase;
       letter-spacing: 0.03em;
       line-height: 1.2;
@@ -1857,10 +2363,14 @@ body {
       line-height: 1;
     }
 
-    .area-stat-value--total { color: #37352F; }
+    .area-stat-value--total { color: var(--robin-text); }
     .area-stat-value--active { color: #2563eb; }
     .area-stat-value--done { color: #059669; }
     .area-stat-value--late { color: #dc2626; }
+
+    .home-priority-panel__header {
+      background: var(--robin-surface);
+    }
 
     @media (min-width: 1024px) {
       .area-stat-header {
@@ -2283,7 +2793,7 @@ body {
         display: flex;
         flex-direction: column;
         gap: 1.25rem;
-        background-color: #FFFFFF;
+        background-color: var(--robin-bg);
       }
 
       .marca-home-main {
@@ -2310,8 +2820,8 @@ body {
         align-items: center;
         justify-content: space-between;
         gap: 0.75rem;
-        background: #ffffff;
-        border-bottom: 1px solid #e4e4e7;
+        background: var(--robin-card);
+        border-bottom: 1px solid var(--robin-border);
         box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03);
       }
 
@@ -2340,9 +2850,9 @@ body {
         width: 2.25rem;
         height: 2.25rem;
         border-radius: 0.5rem;
-        border: 1px solid #e4e4e7;
-        background: #ffffff;
-        color: #71717a;
+        border: 1px solid var(--robin-border);
+        background: var(--robin-card);
+        color: var(--robin-text-muted);
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -2360,8 +2870,8 @@ body {
         right: 0;
         z-index: 60;
         padding-bottom: var(--safe-bottom);
-        background: #ffffff;
-        border-top: 1px solid #e4e4e7;
+        background: var(--robin-card);
+        border-top: 1px solid var(--robin-border);
         box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.05);
       }
 
@@ -2381,7 +2891,7 @@ body {
         padding: 0.35rem 0.15rem;
         border: none;
         background: transparent;
-        color: #a1a1aa;
+        color: var(--robin-nav-muted);
         min-width: 0;
       }
 
@@ -2408,26 +2918,26 @@ body {
       }
 
       .mobile-nav-item.is-active {
-        color: #37352F;
+        color: var(--robin-nav-active);
       }
 
       .mobile-nav-item.is-active .mobile-nav-icon {
-        background: #f4f4f5;
-        color: #37352F;
+        background: var(--robin-nav-active-icon-bg);
+        color: var(--robin-nav-active);
       }
 
       .mobile-nav-item.is-highlight .mobile-nav-icon {
-        background: #37352F;
-        color: #ffffff;
-        box-shadow: 0 2px 8px rgba(55, 53, 47, 0.25);
+        background: var(--robin-nav-highlight-bg);
+        color: var(--robin-nav-highlight-text);
+        box-shadow: 0 2px 8px var(--robin-shadow);
       }
 
       .mobile-nav-item.is-highlight.is-active .mobile-nav-icon {
-        background: #2c2a26;
+        filter: brightness(0.92);
       }
 
       .mobile-nav-item.is-highlight .mobile-nav-label {
-        color: #37352F;
+        color: var(--robin-nav-active);
         font-weight: 700;
       }
 
@@ -2628,8 +3138,8 @@ body {
 
       .cal-mobile-toolbar {
         padding: 0.625rem 0.75rem 0.5rem;
-        border-bottom: 1px solid #f4f4f5;
-        background: #fff;
+        border-bottom: 1px solid var(--robin-border);
+        background: var(--robin-surface);
         display: flex;
         flex-direction: column;
         gap: 0.5rem;
@@ -2646,8 +3156,8 @@ body {
         height: 2rem;
         border-radius: 0.5rem;
         border: none;
-        background: #f4f4f5;
-        color: #52525b;
+        background: var(--robin-bg);
+        color: var(--robin-text-muted);
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -2655,7 +3165,7 @@ body {
       }
 
       .cal-mobile-nav-btn:active {
-        background: #e4e4e7;
+        background: var(--robin-border);
       }
 
       .cal-mobile-toolbar-title {
@@ -2664,7 +3174,7 @@ body {
         text-align: center;
         font-size: 13px;
         font-weight: 700;
-        color: #37352F;
+        color: var(--robin-text);
         background: none;
         border: none;
         padding: 0.35rem 0.25rem;
@@ -2677,9 +3187,10 @@ body {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 0.25rem;
-        background: #f4f4f5;
+        background: var(--robin-bg);
         padding: 0.2rem;
         border-radius: 0.5rem;
+        border: 1px solid var(--robin-border);
       }
 
       .cal-mobile-tab {
@@ -2688,27 +3199,27 @@ body {
         font-weight: 600;
         border: none;
         border-radius: 0.375rem;
-        color: #71717a;
+        color: var(--robin-text-muted);
         background: transparent;
         text-align: center;
       }
 
       .cal-mobile-tab.is-active {
-        background: #fff;
-        color: #37352F;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        background: var(--robin-card);
+        color: var(--robin-text);
+        box-shadow: 0 1px 2px var(--robin-shadow);
       }
 
       .cal-mobile-day-block {
-        border: 1px solid #e4e4e7;
+        border: 1px solid var(--robin-border);
         border-radius: 0.625rem;
         overflow: hidden;
-        background: #fff;
+        background: var(--robin-card);
       }
 
       .cal-mobile-day-block.is-today {
-        border-color: #37352F;
-        box-shadow: 0 0 0 1px rgba(55, 53, 47, 0.08);
+        border-color: var(--robin-border-muted);
+        box-shadow: 0 0 0 1px var(--robin-surface-hover);
       }
 
       .cal-mobile-day-head {
@@ -2717,13 +3228,18 @@ body {
         justify-content: space-between;
         gap: 0.5rem;
         padding: 0.625rem 0.75rem;
-        background: #ffffff;
-        border-bottom: 1px solid #f4f4f5;
+        background: var(--robin-surface);
+        border-bottom: 1px solid var(--robin-border);
       }
 
       .cal-mobile-day-block.is-today .cal-mobile-day-head {
         background: #37352F;
         border-bottom-color: #2c2a26;
+      }
+
+      html.robin-app[data-theme="midnight"] .cal-mobile-day-block.is-today .cal-mobile-day-head {
+        background: #52525b;
+        border-bottom-color: #3f3f46;
       }
 
       .cal-mobile-day-date {
@@ -2737,7 +3253,7 @@ body {
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.04em;
-        color: #71717a;
+        color: var(--robin-text-muted);
       }
 
       .cal-mobile-day-block.is-today .cal-mobile-day-name {
@@ -2747,7 +3263,7 @@ body {
       .cal-mobile-day-num {
         font-size: 18px;
         font-weight: 800;
-        color: #37352F;
+        color: var(--robin-text);
         line-height: 1;
       }
 
@@ -2769,9 +3285,9 @@ body {
       .cal-mobile-day-count {
         font-size: 11px;
         font-weight: 700;
-        color: #71717a;
-        background: #fff;
-        border: 1px solid #e4e4e7;
+        color: var(--robin-text-muted);
+        background: var(--robin-bg);
+        border: 1px solid var(--robin-border);
         border-radius: 999px;
         padding: 0.1rem 0.45rem;
       }
@@ -2791,7 +3307,7 @@ body {
         padding: 0.75rem;
         text-align: center;
         font-size: 11px;
-        color: #d4d4d8;
+        color: var(--robin-text-muted);
       }
 
       .cal-mobile-task-row {
@@ -2800,9 +3316,9 @@ body {
         align-items: center;
         gap: 0.5rem;
         padding: 0.75rem;
-        background: #fff;
+        background: var(--robin-bg);
         border: none;
-        border-bottom: 1px solid #f4f4f5;
+        border-bottom: 1px solid var(--robin-border);
         text-align: left;
       }
 
@@ -2811,7 +3327,7 @@ body {
       }
 
       .cal-mobile-task-row:active {
-        background: #ffffff;
+        background: var(--robin-surface);
       }
 
       .cal-mobile-day-more {
@@ -2819,10 +3335,10 @@ body {
         padding: 0.625rem;
         font-size: 11px;
         font-weight: 700;
-        color: #71717a;
-        background: #ffffff;
+        color: var(--robin-text-muted);
+        background: var(--robin-surface);
         border: none;
-        border-top: 1px solid #f4f4f5;
+        border-top: 1px solid var(--robin-border);
         text-align: center;
       }
 
@@ -2843,9 +3359,9 @@ body {
         gap: 0.35rem;
         font-size: 12px;
         font-weight: 600;
-        color: #71717a;
-        background: #f4f4f5;
-        border: 1px solid #e4e4e7;
+        color: var(--robin-subpage-back-text);
+        background: var(--robin-subpage-back-bg);
+        border: 1px solid var(--robin-subpage-back-border);
         border-radius: 0.5rem;
         padding: 0.4rem 0.65rem;
         flex-shrink: 0;
@@ -2854,7 +3370,7 @@ body {
       .mobile-subpage-title {
         font-size: 15px;
         font-weight: 700;
-        color: #37352F;
+        color: var(--robin-text);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -2871,9 +3387,9 @@ body {
         width: 2.25rem;
         height: 2.25rem;
         border-radius: 0.5rem;
-        border: 1px solid #e4e4e7;
-        background: #fff;
-        color: #71717a;
+        border: 1px solid var(--robin-border);
+        background: var(--robin-card);
+        color: var(--robin-text-muted);
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -2882,9 +3398,9 @@ body {
       }
 
       .mobile-icon-btn.is-active {
-        background: #37352F;
-        color: #fff;
-        border-color: #37352F;
+        background: var(--robin-nav-highlight-bg);
+        color: var(--robin-nav-highlight-text);
+        border-color: var(--robin-nav-highlight-bg);
       }
 
       .mobile-icon-btn.has-badge::after {
@@ -2906,12 +3422,12 @@ body {
         justify-content: space-between;
         gap: 0.75rem;
         padding: 0.875rem 1rem;
-        background: #fff;
-        border: 1px solid #e4e4e7;
+        background: var(--robin-card);
+        border: 1px solid var(--robin-border);
         border-radius: 0.625rem;
         font-size: 13px;
         font-weight: 600;
-        color: #37352F;
+        color: var(--robin-text);
         text-align: left;
       }
 
@@ -2940,8 +3456,466 @@ body {
 
       .robin-pwa-standalone .mobile-top-bar,
       .robin-pwa-standalone .mobile-nav-bar {
-        background: #ffffff;
+        background: var(--robin-card);
       }
+    }
+
+    /* Tema oscuro: tarjetas y superficies con bg-white hardcodeado en JSX */
+    .theme-picker-btn {
+      padding: 0.75rem;
+      border-radius: 0.375rem;
+      border: 1px solid var(--robin-picker-inactive-border);
+      font-size: 0.875rem;
+      font-weight: 600;
+      transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .theme-picker-btn.is-inactive {
+      background: var(--robin-picker-inactive-bg);
+      color: var(--robin-picker-inactive-text);
+      border-color: var(--robin-picker-inactive-border);
+    }
+
+    .theme-picker-btn.is-active-light {
+      background: var(--robin-picker-active-light-bg);
+      color: var(--robin-picker-active-light-text);
+      border-color: var(--robin-picker-active-light-bg);
+    }
+
+    .theme-picker-btn.is-active-dark {
+      background: var(--robin-picker-active-dark-bg);
+      color: var(--robin-picker-active-dark-text);
+      border-color: var(--robin-picker-active-dark-bg);
+      box-shadow: 0 0 0 2px var(--robin-border-muted);
+    }
+
+    .theme-picker-btn--compact {
+      padding: 0.5rem;
+      font-size: 0.75rem;
+    }
+
+    html.robin-app[data-theme="midnight"] .bg-white {
+      background-color: var(--robin-card) !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .bg-\[\#FAF9F6\],
+    html.robin-app[data-theme="midnight"] .bg-\[\#faf9f6\] {
+      background-color: var(--robin-info-bg) !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .border-zinc-200,
+    html.robin-app[data-theme="midnight"] .border-zinc-150,
+    html.robin-app[data-theme="midnight"] .border-zinc-100 {
+      border-color: var(--robin-border) !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .text-\[\#37352F\] {
+      color: var(--robin-text) !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .text-zinc-800,
+    html.robin-app[data-theme="midnight"] .text-zinc-700,
+    html.robin-app[data-theme="midnight"] .text-zinc-600,
+    html.robin-app[data-theme="midnight"] .text-zinc-500,
+    html.robin-app[data-theme="midnight"] .text-zinc-550 {
+      color: var(--robin-text-muted) !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .text-zinc-400,
+    html.robin-app[data-theme="midnight"] .text-zinc-300 {
+      color: #71717a !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .bg-zinc-50,
+    html.robin-app[data-theme="midnight"] .bg-zinc-100 {
+      background-color: var(--robin-surface) !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .hover\:bg-zinc-50:hover,
+    html.robin-app[data-theme="midnight"] .hover\:bg-zinc-100:hover {
+      background-color: var(--robin-surface-hover) !important;
+    }
+
+    html.robin-app[data-theme="midnight"] select,
+    html.robin-app[data-theme="midnight"] textarea,
+    html.robin-app[data-theme="midnight"] input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="file"]) {
+      background-color: var(--robin-input-bg) !important;
+      border-color: var(--robin-input-border) !important;
+      color: var(--robin-text) !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .mobile-menu-btn i.fa-chevron-right {
+      color: #52525b !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .notion-task-list,
+    html.robin-app[data-theme="midnight"] .task-form-page,
+    html.robin-app[data-theme="midnight"] .modal-edition-panel {
+      color: var(--robin-text);
+    }
+
+    /* Componentes principales — tema oscuro */
+    html.robin-app[data-theme="midnight"] .task-form-actions,
+    html.robin-app[data-theme="midnight"] .task-sheet-panel {
+      background: var(--robin-bg) !important;
+      border-color: var(--robin-border) !important;
+    }
+
+    /* Formulario entregable — plano, sin recuadros claros */
+    html.robin-app[data-theme="midnight"] .task-form-page,
+    html.robin-app[data-theme="midnight"] .task-form-page--standalone,
+    html.robin-app[data-theme="midnight"] .task-form-page--standalone form,
+    html.robin-app[data-theme="midnight"] .task-sheet-panel .task-form-page,
+    html.robin-app[data-theme="midnight"] .task-form-page .task-form-actions--flow {
+      background: var(--robin-bg) !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .task-form-page select,
+    html.robin-app[data-theme="midnight"] .task-form-page textarea,
+    html.robin-app[data-theme="midnight"] .task-form-page input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="file"]) {
+      background-color: transparent !important;
+      border-color: transparent !important;
+      box-shadow: none !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .task-form-page .task-prop-row:hover {
+      background: transparent !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .task-form-page .rich-notes-editor {
+      background: transparent !important;
+      border-color: var(--robin-border) !important;
+      box-shadow: none !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .task-form-page .rich-notes-editor:focus-within {
+      background: transparent !important;
+      border-color: var(--robin-border-muted) !important;
+      box-shadow: none !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .task-form-page .rich-notes-toolbar {
+      background: transparent !important;
+      border-bottom-color: var(--robin-border) !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .task-form-page .rich-notes-content {
+      background: transparent !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .task-form-page .task-form-actions--flow {
+      border-top-color: var(--robin-border) !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .task-form-page input::placeholder,
+    html.robin-app[data-theme="midnight"] .task-form-page .text-zinc-400 {
+      color: #71717a !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .task-form-page button.border-zinc-300,
+    html.robin-app[data-theme="midnight"] .task-form-page .border-dashed.border-zinc-300 {
+      background: transparent !important;
+      border-color: var(--robin-border-muted) !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .task-form-page .sticky {
+      background: rgba(9, 9, 11, 0.92) !important;
+      backdrop-filter: blur(8px);
+    }
+
+    html.robin-app[data-theme="midnight"] .rich-notes-editor {
+      background: var(--robin-input-bg);
+      border-color: var(--robin-border);
+    }
+
+    html.robin-app[data-theme="midnight"] .rich-notes-editor:focus-within {
+      border-color: #71717a;
+    }
+
+    html.robin-app[data-theme="midnight"] .rich-notes-toolbar {
+      background: var(--robin-surface);
+      border-color: var(--robin-border);
+    }
+
+    html.robin-app[data-theme="midnight"] .rich-notes-btn {
+      color: var(--robin-text-muted);
+    }
+
+    html.robin-app[data-theme="midnight"] .rich-notes-btn:hover,
+    html.robin-app[data-theme="midnight"] .rich-notes-btn.is-active {
+      background: var(--robin-surface-hover);
+      color: var(--robin-text);
+    }
+
+    html.robin-app[data-theme="midnight"] .rich-notes-content {
+      color: var(--robin-text);
+    }
+
+    html.robin-app[data-theme="midnight"] .notion-task-row {
+      background: var(--robin-card);
+      border-color: var(--robin-border);
+    }
+
+    html.robin-app[data-theme="midnight"] .notion-task-row:hover {
+      background: var(--robin-surface);
+      border-color: var(--robin-border-muted);
+    }
+
+    html.robin-app[data-theme="midnight"] .notion-task-row.is-selected {
+      background: rgba(59, 130, 246, 0.15);
+      border-color: #3b82f6;
+    }
+
+    html.robin-app[data-theme="midnight"] .notion-task-title,
+    html.robin-app[data-theme="midnight"] .notion-group-title,
+    html.robin-app[data-theme="midnight"] .desktop-widgets-heading,
+    html.robin-app[data-theme="midnight"] .mobile-task-title,
+    html.robin-app[data-theme="midnight"] .mobile-section-label,
+    html.robin-app[data-theme="midnight"] .task-form-title,
+    html.robin-app[data-theme="midnight"] .task-prop-label,
+    html.robin-app[data-theme="midnight"] .task-section-label {
+      color: var(--robin-text) !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .notion-task-meta,
+    html.robin-app[data-theme="midnight"] .notion-task-meta-chip,
+    html.robin-app[data-theme="midnight"] .notion-task-list-empty,
+    html.robin-app[data-theme="midnight"] .lista-agrupacion-label,
+    html.robin-app[data-theme="midnight"] .desktop-widgets-fila-label,
+    html.robin-app[data-theme="midnight"] .notion-dash-search-icon {
+      color: var(--robin-text-muted) !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .notion-dash-search input {
+      color: var(--robin-text);
+      border-bottom-color: var(--robin-border);
+    }
+
+    html.robin-app[data-theme="midnight"] .notion-dash-search input:focus {
+      border-bottom-color: #a1a1aa;
+    }
+
+    html.robin-app[data-theme="midnight"] .notion-filter-select,
+    html.robin-app[data-theme="midnight"] .notion-time-pill {
+      color: var(--robin-text-muted);
+    }
+
+    html.robin-app[data-theme="midnight"] .notion-filter-select:hover,
+    html.robin-app[data-theme="midnight"] .notion-time-pill:hover {
+      background: var(--robin-surface-hover);
+      color: var(--robin-text);
+    }
+
+    html.robin-app[data-theme="midnight"] .lista-agrupacion-pill {
+      background: var(--robin-card);
+      border-color: var(--robin-border);
+      color: var(--robin-text-muted);
+    }
+
+    html.robin-app[data-theme="midnight"] .area-stat-card,
+    html.robin-app[data-theme="midnight"] .mobile-presence-card,
+    html.robin-app[data-theme="midnight"] .mobile-brand-group,
+    html.robin-app[data-theme="midnight"] .mobile-widget-card {
+      background: var(--robin-card) !important;
+      border-color: var(--robin-border) !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .mobile-task-card:active {
+      background: var(--robin-surface) !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .mobile-task-card.is-selected {
+      background: rgba(59, 130, 246, 0.15) !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .mobile-brand-body .mobile-task-card {
+      border-bottom-color: var(--robin-border) !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .task-sheet-handle {
+      background: #52525b;
+    }
+
+    html.robin-app[data-theme="midnight"] .task-sheet-panel {
+      border-color: var(--robin-border);
+      box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.45);
+    }
+
+    html.robin-app[data-theme="midnight"] .notion-group-count {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--robin-text-muted);
+    }
+
+    html.robin-app[data-theme="midnight"] .notion-task-delete {
+      color: #71717a;
+    }
+
+    html.robin-app[data-theme="midnight"] .notion-task-delete:hover {
+      color: #f87171;
+      background: rgba(248, 113, 113, 0.1);
+    }
+
+    html.robin-app[data-theme="midnight"] .notion-time-pill.is-active,
+    html.robin-app[data-theme="midnight"] .lista-agrupacion-pill.is-active {
+      background: #52525b !important;
+      color: #fafafa !important;
+      border-color: #71717a !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .notion-task-estado-pill {
+      border-color: var(--robin-border) !important;
+    }
+
+    /* Marcas — superficies en oscuro */
+    html.robin-app[data-theme="midnight"] .marca-surface-la-sante {
+      background-color: rgba(47, 122, 78, 0.22) !important;
+      color: #86efac !important;
+      border-color: rgba(47, 122, 78, 0.45) !important;
+    }
+    html.robin-app[data-theme="midnight"] .marca-surface-diageo,
+    html.robin-app[data-theme="midnight"] .marca-surface-otros {
+      background-color: #3f3f46 !important;
+      color: #e4e4e7 !important;
+      border-color: #52525b !important;
+    }
+    html.robin-app[data-theme="midnight"] .marca-surface-gama {
+      background-color: rgba(220, 38, 38, 0.18) !important;
+      color: #fca5a5 !important;
+      border-color: rgba(220, 38, 38, 0.4) !important;
+    }
+    html.robin-app[data-theme="midnight"] .marca-surface-robin {
+      background-color: #3f3f46 !important;
+      color: #e4e4e7 !important;
+      border-color: #52525b !important;
+    }
+    html.robin-app[data-theme="midnight"] .marca-surface-trade {
+      background-color: rgba(234, 88, 12, 0.18) !important;
+      color: #fdba74 !important;
+      border-color: rgba(234, 88, 12, 0.4) !important;
+    }
+
+    /* Estados y categorías — pastels → tonos oscuros legibles */
+    html.robin-app[data-theme="midnight"] .bg-zinc-50,
+    html.robin-app[data-theme="midnight"] .bg-zinc-100 { background-color: rgba(255, 255, 255, 0.08) !important; }
+    html.robin-app[data-theme="midnight"] .bg-blue-50 { background-color: rgba(59, 130, 246, 0.15) !important; }
+    html.robin-app[data-theme="midnight"] .bg-amber-50 { background-color: rgba(245, 158, 11, 0.15) !important; }
+    html.robin-app[data-theme="midnight"] .bg-purple-50 { background-color: rgba(168, 85, 247, 0.15) !important; }
+    html.robin-app[data-theme="midnight"] .bg-red-50 { background-color: rgba(239, 68, 68, 0.15) !important; }
+    html.robin-app[data-theme="midnight"] .bg-emerald-50,
+    html.robin-app[data-theme="midnight"] .bg-\[\#EDFBF2\] { background-color: rgba(16, 185, 129, 0.15) !important; }
+    html.robin-app[data-theme="midnight"] .bg-violet-50 { background-color: rgba(139, 92, 246, 0.15) !important; }
+    html.robin-app[data-theme="midnight"] .bg-sky-50 { background-color: rgba(14, 165, 233, 0.15) !important; }
+    html.robin-app[data-theme="midnight"] .bg-pink-50 { background-color: rgba(236, 72, 153, 0.15) !important; }
+    html.robin-app[data-theme="midnight"] .bg-indigo-50 { background-color: rgba(99, 102, 241, 0.15) !important; }
+    html.robin-app[data-theme="midnight"] .bg-orange-50 { background-color: rgba(249, 115, 22, 0.15) !important; }
+    html.robin-app[data-theme="midnight"] .bg-teal-50 { background-color: rgba(20, 184, 166, 0.15) !important; }
+    html.robin-app[data-theme="midnight"] .bg-rose-50 { background-color: rgba(244, 63, 94, 0.15) !important; }
+    html.robin-app[data-theme="midnight"] .bg-cyan-50 { background-color: rgba(6, 182, 212, 0.15) !important; }
+    html.robin-app[data-theme="midnight"] .bg-lime-50 { background-color: rgba(132, 204, 22, 0.15) !important; }
+
+    html.robin-app[data-theme="midnight"] .text-zinc-600,
+    html.robin-app[data-theme="midnight"] .text-zinc-700 { color: #d4d4d8 !important; }
+    html.robin-app[data-theme="midnight"] .text-blue-700 { color: #93c5fd !important; }
+    html.robin-app[data-theme="midnight"] .text-amber-700 { color: #fcd34d !important; }
+    html.robin-app[data-theme="midnight"] .text-purple-700 { color: #d8b4fe !important; }
+    html.robin-app[data-theme="midnight"] .text-red-700,
+    html.robin-app[data-theme="midnight"] .text-red-805 { color: #fca5a5 !important; }
+    html.robin-app[data-theme="midnight"] .text-emerald-700 { color: #6ee7b7 !important; }
+    html.robin-app[data-theme="midnight"] .text-violet-700 { color: #c4b5fd !important; }
+    html.robin-app[data-theme="midnight"] .text-sky-700 { color: #7dd3fc !important; }
+    html.robin-app[data-theme="midnight"] .text-pink-700 { color: #f9a8d4 !important; }
+    html.robin-app[data-theme="midnight"] .text-indigo-700 { color: #a5b4fc !important; }
+    html.robin-app[data-theme="midnight"] .text-orange-700 { color: #fdba74 !important; }
+    html.robin-app[data-theme="midnight"] .text-teal-700 { color: #5eead4 !important; }
+    html.robin-app[data-theme="midnight"] .text-rose-700 { color: #fda4af !important; }
+    html.robin-app[data-theme="midnight"] .text-cyan-700 { color: #67e8f9 !important; }
+    html.robin-app[data-theme="midnight"] .text-lime-700 { color: #bef264 !important; }
+
+    html.robin-app[data-theme="midnight"] .border-zinc-100,
+    html.robin-app[data-theme="midnight"] .border-zinc-200,
+    html.robin-app[data-theme="midnight"] .border-red-100,
+    html.robin-app[data-theme="midnight"] .border-blue-150,
+    html.robin-app[data-theme="midnight"] .border-amber-150,
+    html.robin-app[data-theme="midnight"] .border-purple-150,
+    html.robin-app[data-theme="midnight"] .border-red-150,
+    html.robin-app[data-theme="midnight"] .border-emerald-150,
+    html.robin-app[data-theme="midnight"] .border-violet-200,
+    html.robin-app[data-theme="midnight"] .border-emerald-200,
+    html.robin-app[data-theme="midnight"] .border-sky-200,
+    html.robin-app[data-theme="midnight"] .border-pink-200,
+    html.robin-app[data-theme="midnight"] .border-indigo-200,
+    html.robin-app[data-theme="midnight"] .border-orange-200,
+    html.robin-app[data-theme="midnight"] .border-amber-200,
+    html.robin-app[data-theme="midnight"] .border-teal-200,
+    html.robin-app[data-theme="midnight"] .border-rose-200,
+    html.robin-app[data-theme="midnight"] .border-cyan-200,
+    html.robin-app[data-theme="midnight"] .border-lime-200 {
+      border-color: var(--robin-border) !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .notion-group-header .notion-group-title {
+      color: inherit;
+    }
+
+    html.robin-app[data-theme="midnight"] .urgent-task-card {
+      background: var(--robin-card);
+      border-color: var(--robin-border);
+    }
+
+    html.robin-app[data-theme="midnight"] .area-stat-card,
+    html.robin-app[data-theme="midnight"] .area-stat-grid {
+      background: var(--robin-card);
+    }
+
+    html.robin-app[data-theme="midnight"] .area-stat-header {
+      background: var(--robin-surface);
+      border-bottom-color: var(--robin-border);
+    }
+
+    html.robin-app[data-theme="midnight"] .mobile-widget-tile {
+      border-color: var(--robin-border);
+    }
+
+    html.robin-app[data-theme="midnight"] .mobile-widget-tile-ver-mas {
+      background: var(--robin-surface);
+      color: var(--robin-text-muted);
+      border-color: var(--robin-border);
+    }
+
+    html.robin-app[data-theme="midnight"] .mobile-widget-tile-ver-mas .mobile-widget-tile-icon {
+      background: var(--robin-border);
+      color: var(--robin-text-muted);
+    }
+
+    html.robin-app[data-theme="midnight"] .mobile-widget-tile-icon {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    html.robin-app[data-theme="midnight"] .hover\:border-zinc-300:hover {
+      border-color: #52525b !important;
+    }
+
+    html.robin-app[data-theme="midnight"] aside[aria-label="Panel de hoy"] {
+      background: var(--robin-sidebar) !important;
+      border-color: var(--robin-border) !important;
+    }
+
+    html.robin-app[data-theme="midnight"] aside[aria-label="Panel de hoy"] .border-zinc-100 {
+      border-color: var(--robin-border) !important;
+    }
+
+    html.robin-app[data-theme="midnight"] .task-form-page .task-form-actions button[type="submit"] {
+      background: #e4e4e7;
+      color: #18181b;
+    }
+
+    html.robin-app[data-theme="midnight"] .task-form-page .task-form-actions button[type="submit"]:hover {
+      background: #fafafa;
+    }
+
+    html.robin-app[data-theme="midnight"] .task-form-page .task-form-actions button[type="button"]:hover {
+      background: var(--robin-surface-hover);
+      color: var(--robin-text);
     }
 
     @media (min-width: 1024px) {

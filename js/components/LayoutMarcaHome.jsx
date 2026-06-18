@@ -354,8 +354,8 @@ function LayoutMarcaHome({
 
         <MarcaWidgetsStrip widgets={widgetsMarca} username={username} />
 
-        <div className="border border-zinc-200 rounded-md bg-white overflow-hidden">
-          <div className="px-3 py-2.5 md:p-4 md:pb-3 border-b border-zinc-100 bg-[#FAF9F6]/40 flex items-center justify-between gap-2">
+        <div className={`home-priority-panel border ${currentTheme.border} rounded-md ${currentTheme.cardBg} overflow-hidden`}>
+          <div className={`home-priority-panel__header px-3 py-2.5 md:p-4 md:pb-3 border-b ${currentTheme.border} flex items-center justify-between gap-2`}>
             <span className="mobile-section-label md:hidden">Urgentes</span>
             <span className="hidden md:block text-[10px] font-semibold text-zinc-500">Prioridad alta</span>
             {highPriorityTasks.length > 0 && (

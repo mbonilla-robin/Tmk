@@ -311,9 +311,27 @@ function resolvePaginaActivaForUser(username, prefs) {
   return pagina;
 }
 
+function getBootTheme() {
+  try {
+    const legacy = getLocalStorageItemSafe(LEGACY_KEYS.theme, null);
+    if (legacy === "midnight" || legacy === "notion") return legacy;
+    const user = getInicialUsuario();
+    if (user) {
+      const prefs = loadUserDataLocal(user);
+      if (prefs.theme) return prefs.theme;
+    }
+  } catch (e) {
+    /* ignore */
+  }
+  return "notion";
+}
+
 function applyPrefsToReactState(prefs, setters, username) {
   setters.setNombreCompleto(prefs.nombreCompleto || "");
-  setters.setTheme(prefs.theme || "notion");
+  const nextTheme = prefs.theme || "notion";
+  setters.setTheme(nextTheme);
+  if (typeof applyRobinDocumentTheme === "function") applyRobinDocumentTheme(nextTheme);
+  setLocalStorageItemSafe(LEGACY_KEYS.theme, nextTheme);
   if (setters.setPwaIconVariant) {
     setters.setPwaIconVariant(prefs.pwaIconVariant || prefs.logoVariant || "naranja");
   }

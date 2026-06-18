@@ -42,15 +42,39 @@ const TEMAS = {
     borderMuted: "border-[#ECECE9]",
     primary: "bg-[#37352F] hover:bg-[#2c2a26] text-white",
     accent: "bg-[#EAE8E4]",
+    mutedText: "text-zinc-500",
+    inputBg: "bg-white border-zinc-200 text-[#37352F]",
   },
   midnight: {
     bg: "bg-[#09090B]",
-    text: "text-zinc-150",
+    text: "text-zinc-100",
     sidebarBg: "bg-[#18181B]",
     cardBg: "bg-[#18181B]",
     border: "border-zinc-800",
     borderMuted: "border-zinc-800/60",
     primary: "bg-zinc-100 hover:bg-zinc-200 text-zinc-950",
     accent: "bg-zinc-800",
+    mutedText: "text-zinc-400",
+    inputBg: "bg-zinc-900 border-zinc-700 text-zinc-100",
   }
 };
+
+function applyRobinDocumentTheme(theme) {
+  const resolved = theme === "midnight" ? "midnight" : "notion";
+  document.documentElement.setAttribute("data-theme", resolved);
+  const color = resolved === "midnight" ? "#09090B" : "#FFFFFF";
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = color;
+}
+
+function themePickerBtnClass(activeTheme, option) {
+  const isSelected = activeTheme === option;
+  if (option === "notion") {
+    return isSelected
+      ? "theme-picker-btn is-active-light"
+      : "theme-picker-btn is-inactive";
+  }
+  return isSelected
+    ? "theme-picker-btn is-active-dark"
+    : "theme-picker-btn is-inactive";
+}

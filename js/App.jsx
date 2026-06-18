@@ -27,7 +27,13 @@ function App() {
 
   const [nuevoUsuarioInput, setNuevoUsuarioInput] = useState("");
 
-  const [theme, setTheme] = useState(() => initialPrefs.theme || "notion");
+  const [theme, setTheme] = useState(() => {
+    try {
+      return typeof getBootTheme === "function" ? getBootTheme() : (initialPrefs.theme || "notion");
+    } catch (e) {
+      return "notion";
+    }
+  });
   const [pwaIconVariant, setPwaIconVariant] = useState(() =>
     initialPrefs.pwaIconVariant || initialPrefs.logoVariant || "naranja"
   );
@@ -318,6 +324,9 @@ function App() {
 
   useEffect(() => {
     if (!usuario || !prefsReady) return;
+    try {
+      setLocalStorageItemSafe("robin_theme", theme);
+    } catch (e) { /* ignore */ }
     saveUserData(usuario, {
       nombreCompleto,
       theme,
@@ -778,8 +787,16 @@ function App() {
 
   const handleThemeChange = (newTheme) => {
     setTheme(newTheme);
+    applyRobinDocumentTheme(newTheme);
+    try {
+      setLocalStorageItemSafe("robin_theme", newTheme);
+    } catch (e) { /* ignore */ }
     showToast(`Tema cambiado`, "success");
   };
+
+  useLayoutEffect(() => {
+    applyRobinDocumentTheme(theme);
+  }, [theme]);
 
   const handlePwaIconVariantChange = (newVariant) => {
     setPwaIconVariant(newVariant);
@@ -1291,55 +1308,55 @@ function App() {
 
   if (!usuario) {
     return (
-      <div className="h-screen w-screen bg-white flex items-center justify-center p-4 select-none animate-fade-in">
-        <div className="bg-white border border-zinc-200 shadow-sm rounded-md p-6 md:p-8 w-full max-w-sm flex flex-col gap-6">
+      <div className={`h-screen w-screen ${currentTheme.bg} ${currentTheme.text} flex items-center justify-center p-4 select-none animate-fade-in`}>
+        <div className={`${currentTheme.cardBg} border ${currentTheme.border} shadow-sm rounded-md p-6 md:p-8 w-full max-w-sm flex flex-col gap-6`}>
           
           <div className="flex flex-col items-center gap-1.5">
-            <RobinLogo className="h-8 w-auto" theme="notion" />
-            <span className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest mt-1">Workspace Login</span>
+            <RobinLogo className="h-8 w-auto" theme={theme} />
+            <span className={`${currentTheme.mutedText} text-[10px] font-bold uppercase tracking-widest mt-1`}>Workspace Login</span>
           </div>
 
           {loginError && (
-            <div className="p-2.5 bg-red-50 text-red-650 border border-red-100 text-xs font-semibold rounded flex items-center gap-2">
-              <i className="fa-solid fa-circle-exclamation text-red-550"></i>
+            <div className={`p-2.5 border text-xs font-semibold rounded flex items-center gap-2 ${theme === "midnight" ? "bg-red-950/40 text-red-300 border-red-800" : "bg-red-50 text-red-650 border-red-100"}`}>
+              <i className={`fa-solid fa-circle-exclamation ${theme === "midnight" ? "text-red-400" : "text-red-550"}`}></i>
               <span>{loginError}</span>
             </div>
           )}
 
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
             <div>
-              <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Colaborador (Usuario)</label>
+              <label className={`block text-[10px] font-bold ${currentTheme.mutedText} uppercase tracking-wider mb-1`}>Colaborador (Usuario)</label>
               <input
                 type="text"
                 name="username"
                 required
                 placeholder="Tu usuario..."
-                className="w-full bg-zinc-50 border border-zinc-200 p-2.5 text-xs font-semibold rounded focus:outline-none text-[#37352F] placeholder-zinc-400"
+                className={`w-full border ${currentTheme.border} p-2.5 text-xs font-semibold rounded focus:outline-none placeholder-zinc-500 ${currentTheme.text} ${theme === "midnight" ? "bg-zinc-900" : "bg-zinc-50"}`}
               />
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Contraseña</label>
+              <label className={`block text-[10px] font-bold ${currentTheme.mutedText} uppercase tracking-wider mb-1`}>Contraseña</label>
               <input
                 type="password"
                 required
                 placeholder="••••••••"
                 value={claveInput}
                 onChange={(e) => setClaveInput(e.target.value)}
-                className="w-full bg-zinc-50 border border-zinc-200 p-2.5 text-xs rounded focus:outline-none text-[#37352F]"
+                className={`w-full border ${currentTheme.border} p-2.5 text-xs rounded focus:outline-none ${currentTheme.text} ${theme === "midnight" ? "bg-zinc-900" : "bg-zinc-50"}`}
               />
             </div>
 
             <button
               type="submit"
-              className="w-full bg-[#37352F] hover:bg-[#2c2a26] text-white font-semibold py-2.5 px-4 rounded text-xs uppercase tracking-wider shadow-sm transition-colors mt-1"
+              className={`w-full ${currentTheme.primary} font-semibold py-2.5 px-4 rounded text-xs uppercase tracking-wider shadow-sm transition-colors mt-1`}
             >
               Acceder
             </button>
           </form>
 
           <div className="text-center">
-            <p className="text-[10px] text-zinc-400 font-semibold leading-relaxed">
+            <p className={`text-[10px] ${currentTheme.mutedText} font-semibold leading-relaxed`}>
               Acceso exclusivo de Trade & Shopper Marketing.<br />
               Socio estratégico de marca ROBIN.
             </p>
@@ -1531,8 +1548,8 @@ function App() {
       )}
 
       {/* CONTENEDOR PRINCIPAL */}
-      <main className="flex-1 flex flex-col overflow-hidden bg-white">
-        <header className="app-header-bar bg-white px-6 justify-between robin-desktop-only">
+      <main className={`flex-1 flex flex-col overflow-hidden ${currentTheme.bg}`}>
+        <header className={`app-header-bar ${currentTheme.bg} px-6 justify-between robin-desktop-only`}>
           <div className="flex items-center gap-3">
             <h1 className="text-ui font-semibold text-zinc-500">
               Trade & Shopper Marketing{isConfigOnlyAdmin ? " · Admin" : ""}
@@ -1981,16 +1998,16 @@ function App() {
                     />
 
                     {configMobileSeccion === "perfil" && (
-                      <form onSubmit={handleSaveNombreCompleto} className="bg-white border border-zinc-200 p-3 rounded-md flex flex-col gap-3">
-                        <input type="text" placeholder="Tu nombre" value={nombreCompleto} onChange={(e) => setNombreCompleto(e.target.value)} className="w-full bg-zinc-50 border border-zinc-200 px-3 py-2 text-sm rounded font-semibold text-[#37352F]" />
-                        <button type="submit" className="w-full py-2.5 bg-[#37352F] text-white text-ui font-semibold rounded-md">Guardar</button>
+                      <form onSubmit={handleSaveNombreCompleto} className={`${currentTheme.cardBg} border ${currentTheme.border} p-3 rounded-md flex flex-col gap-3`}>
+                        <input type="text" placeholder="Tu nombre" value={nombreCompleto} onChange={(e) => setNombreCompleto(e.target.value)} className={`w-full border ${currentTheme.border} px-3 py-2 text-sm rounded font-semibold ${currentTheme.text} ${theme === "midnight" ? "bg-zinc-900" : "bg-zinc-50"}`} />
+                        <button type="submit" className={`w-full py-2.5 ${currentTheme.primary} text-ui font-semibold rounded-md`}>Guardar</button>
                       </form>
                     )}
 
                     {configMobileSeccion === "tema" && (
                       <div className="grid grid-cols-2 gap-2">
-                        <button onClick={() => handleThemeChange("notion")} className={`p-3 rounded-md border text-sm font-semibold ${theme === "notion" ? "bg-[#37352F] text-white" : "bg-white border-zinc-200 text-zinc-600"}`}>Claro</button>
-                        <button onClick={() => handleThemeChange("midnight")} className={`p-3 rounded-md border text-sm font-semibold ${theme === "midnight" ? "bg-zinc-800 text-white" : "bg-white border-zinc-200 text-zinc-600"}`}>Oscuro</button>
+                        <button type="button" onClick={() => handleThemeChange("notion")} className={themePickerBtnClass(theme, "notion")}>Claro</button>
+                        <button type="button" onClick={() => handleThemeChange("midnight")} className={themePickerBtnClass(theme, "midnight")}>Oscuro</button>
                       </div>
                     )}
 
@@ -2016,10 +2033,10 @@ function App() {
                     )}
 
                     {configMobileSeccion === "api" && (
-                      <div className="bg-[#FAF9F6] p-3 rounded-md border border-zinc-200 text-xs text-zinc-600 flex items-start gap-2">
+                      <div className={`${theme === "midnight" ? "bg-zinc-900" : "bg-[#FAF9F6]"} p-3 rounded-md border ${currentTheme.border} text-xs ${currentTheme.mutedText} flex items-start gap-2`}>
                         <i className="fa-solid fa-circle-check text-emerald-500 mt-0.5"></i>
                         <div className="min-w-0">
-                          <p className="font-bold text-[#37352F]">Sheets conectado</p>
+                          <p className={`font-bold ${currentTheme.text}`}>Sheets conectado</p>
                           <p className="text-[11px] text-zinc-400 mt-1">Conexión verificada con Google Sheets (workspace corporativo).</p>
                         </div>
                       </div>
@@ -2027,7 +2044,7 @@ function App() {
 
                     {configMobileSeccion === "usuarios" && (
                       isAdmin ? (
-                        <div className="bg-white border border-zinc-200 p-3 rounded-md flex flex-col gap-3">
+                        <div className={`${currentTheme.cardBg} border ${currentTheme.border} p-3 rounded-md flex flex-col gap-3`}>
                           <form onSubmit={handleAddUser} className="flex gap-2">
                             <input type="text" placeholder="Usuario (ej: ralvarez)" value={nuevoUsuarioInput} onChange={(e) => setNuevoUsuarioInput(e.target.value)} className="flex-1 bg-zinc-50 border border-zinc-200 px-3 py-2 text-sm rounded font-semibold" />
                             <button type="submit" className="px-3 py-2 bg-[#37352F] text-white text-ui font-semibold rounded-md">+</button>
@@ -2058,7 +2075,7 @@ function App() {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-2">
-                    <h2 className="text-base font-bold text-[#37352F] mb-1">Ajustes</h2>
+                    <h2 className={`text-base font-bold mb-1 ${currentTheme.text}`}>Ajustes</h2>
 
                     {!isConfigOnlyAdmin && (
                     <button type="button" onClick={() => setConfigMobileSeccion("perfil")} className="mobile-menu-btn">
@@ -2105,19 +2122,19 @@ function App() {
               </div>
 
               {/* Desktop: sin cambios */}
-              <div className={`robin-desktop-only ${isConfigOnlyAdmin ? "max-w-6xl" : "max-w-xl"} mx-auto border border-zinc-200 p-6 rounded-md bg-white animate-fade-in flex-col gap-6`}>
+              <div className={`robin-desktop-only ${isConfigOnlyAdmin ? "max-w-6xl" : "max-w-xl"} mx-auto border ${currentTheme.border} p-6 rounded-md ${currentTheme.cardBg} animate-fade-in flex-col gap-6`}>
               <div>
-                <h2 className="text-sm font-bold uppercase tracking-wider border-b pb-2 text-zinc-500">Ajustes del Sistema</h2>
-                <p className="text-xs text-zinc-400 mt-1">Configuración técnica de origen de datos y del sistema.</p>
+                <h2 className={`text-sm font-bold uppercase tracking-wider border-b pb-2 ${currentTheme.mutedText} ${currentTheme.border}`}>Ajustes del Sistema</h2>
+                <p className={`text-xs ${currentTheme.mutedText} mt-1 opacity-80`}>Configuración técnica de origen de datos y del sistema.</p>
               </div>
 
               {/* Integración Google Sheets Informada */}
               <div className="flex flex-col gap-2">
                 <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Base de Datos</span>
-                <div className="bg-[#FAF9F6] p-3 rounded border border-zinc-200 text-xs text-zinc-600 flex items-start gap-2.5 font-medium leading-normal">
+                <div className={`${theme === "midnight" ? "bg-zinc-900" : "bg-[#FAF9F6]"} p-3 rounded border ${currentTheme.border} text-xs ${currentTheme.mutedText} flex items-start gap-2.5 font-medium leading-normal`}>
                   <i className="fa-solid fa-circle-check text-emerald-500 mt-0.5"></i>
                   <div className="overflow-hidden">
-                    <p className="text-[#37352F] font-bold">API de Google Sheets configurada</p>
+                    <p className={`${currentTheme.text} font-bold`}>API de Google Sheets configurada</p>
                     <p className="text-zinc-455 font-normal mt-0.5 text-[11px]">
                       Conexión verificada con Google Sheets (workspace corporativo).
                     </p>
@@ -2129,20 +2146,20 @@ function App() {
               {!isConfigOnlyAdmin && (
               <div className="flex flex-col gap-2 animate-fade-in">
                   <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Colaborador</span>
-                  <form onSubmit={handleSaveNombreCompleto} className="bg-zinc-50 p-3 rounded border border-zinc-200 flex flex-col sm:flex-row gap-2 items-end">
+                  <form onSubmit={handleSaveNombreCompleto} className={`${theme === "midnight" ? "bg-zinc-900" : "bg-zinc-50"} p-3 rounded border ${currentTheme.border} flex flex-col sm:flex-row gap-2 items-end`}>
                     <div className="flex-1 w-full">
-                      <label className="block text-[10px] font-semibold text-zinc-400 mb-1">Nombre de perfil</label>
+                      <label className={`block text-[10px] font-semibold ${currentTheme.mutedText} mb-1`}>Nombre de perfil</label>
                       <input 
                         type="text" 
                         placeholder="Francisco Colmenares"
                         value={nombreCompleto}
                         onChange={(e) => setNombreCompleto(e.target.value)}
-                        className="w-full bg-white border border-zinc-200 px-3 py-1.5 text-xs rounded focus:outline-none font-bold text-[#37352F]"
+                        className={`w-full border ${currentTheme.border} px-3 py-1.5 text-xs rounded focus:outline-none font-bold ${currentTheme.text} ${theme === "midnight" ? "bg-zinc-900" : "bg-white"}`}
                       />
                     </div>
                     <button 
                       type="submit"
-                      className="bg-[#37352F] hover:bg-[#2c2a26] text-white text-xs font-semibold px-4 py-2 rounded transition-colors whitespace-nowrap"
+                      className={`${currentTheme.primary} text-xs font-semibold px-4 py-2 rounded transition-colors whitespace-nowrap`}
                     >
                       Guardar
                     </button>
@@ -2154,19 +2171,17 @@ function App() {
               <div className="flex flex-col gap-2">
                 <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Tema</span>
                 <div className="grid grid-cols-2 gap-2">
-                  <button 
+                  <button
+                    type="button"
                     onClick={() => handleThemeChange("notion")}
-                    className={`p-2 rounded border text-xs font-semibold transition-all ${
-                      theme === "notion" ? "bg-[#37352F] text-white border-zinc-950" : "bg-white border-zinc-200 text-zinc-550"
-                    }`}
+                    className={`${themePickerBtnClass(theme, "notion")} theme-picker-btn--compact`}
                   >
                     Notion Claro
                   </button>
-                  <button 
+                  <button
+                    type="button"
                     onClick={() => handleThemeChange("midnight")}
-                    className={`p-2 rounded border text-xs font-semibold transition-all ${
-                      theme === "midnight" ? "bg-zinc-800 text-white border-zinc-900" : "bg-white border-zinc-200 text-zinc-550"
-                    }`}
+                    className={`${themePickerBtnClass(theme, "midnight")} theme-picker-btn--compact`}
                   >
                     Oscuro
                   </button>
@@ -2285,6 +2300,7 @@ function App() {
         onSyncClick={handleSyncClick}
         onRefresh={() => fetchData(false)}
         loading={loading}
+        theme={theme}
       />
       )}
 

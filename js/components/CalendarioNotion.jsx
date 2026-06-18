@@ -230,11 +230,11 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
         key={getTaskSelectionKey(t)}
         type="button"
         onClick={() => onSelectTask(t)}
-        className={`w-full h-[52px] shrink-0 text-left rounded border border-zinc-200 border-l-[3px] bg-white hover:bg-zinc-50/80 transition-colors p-1.5 flex flex-col justify-between`}
+        className="cal-week-task-card w-full h-[52px] shrink-0 text-left rounded border border-l-[3px] p-1.5 flex flex-col justify-between"
         style={{ borderLeftColor: calStyle.accent }}
         title={`${formatearMarca(t.marca)} · ${normalizarEstado(t.estado) || "Sin estado"} · ${t.info}`}
       >
-        <p className="text-[10px] font-medium text-zinc-800 leading-[13px] h-[26px] overflow-hidden line-clamp-2">
+        <p className="cal-week-task-card-title text-[10px] font-medium leading-[13px] h-[26px] overflow-hidden line-clamp-2">
           {t.info}
         </p>
         <div className="flex items-center gap-1 h-[12px] min-w-0">
@@ -260,7 +260,7 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
         style={{ borderLeftColor: calStyle.accent }}
       >
         <div className="min-w-0 flex-1">
-          <p className="text-[12px] font-semibold text-[#37352F] leading-snug line-clamp-2 text-left">{t.info}</p>
+          <p className="cal-mobile-task-row-title text-[12px] font-semibold leading-snug line-clamp-2 text-left">{t.info}</p>
           <div className="flex items-center gap-2 mt-1">
             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cEstado.dot}`}></span>
             <span className="text-[10px] truncate" style={{ color: calStyle.accent }}>{formatearMarca(t.marca)}</span>
@@ -325,29 +325,24 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
     return (
       <div
         key={date.toISOString()}
-        className={`flex flex-col min-h-0 h-full rounded-lg border overflow-hidden bg-white ${
+        className={`cal-week-day-col flex flex-col min-h-0 h-full rounded-lg border overflow-hidden ${
           compact ? "w-[140px] shrink-0 snap-center" : ""
-        } ${esHoy ? "border-zinc-500 ring-1 ring-zinc-400/40" : "border-zinc-200"}`}
+        } ${esHoy ? "is-today" : ""}`}
       >
-        {/* Cabecera de altura fija — igual en todos los días */}
-        <div className={`shrink-0 h-[64px] flex flex-col items-center justify-center border-b px-1 ${
-          esHoy ? "bg-[#37352F] text-white border-zinc-600" : "bg-[#FAF9F6] border-zinc-200"
-        }`}>
-          <div className={`text-[10px] font-semibold uppercase tracking-wide leading-none ${
-            esHoy ? "text-zinc-400" : "text-zinc-400"
-          }`}>
+        <div className={`cal-week-day-col-head shrink-0 h-[64px] flex flex-col items-center justify-center border-b px-1 ${esHoy ? "is-today" : ""}`}>
+          <div className="cal-week-day-col-dow text-[10px] font-semibold uppercase tracking-wide leading-none">
             {dayNames[i]}
           </div>
-          <div className={`text-lg font-bold leading-none mt-1 ${esHoy ? "text-white" : "text-[#37352F]"}`}>
+          <div className={`cal-week-day-col-num text-lg font-bold leading-none mt-1 ${esHoy ? "is-today" : ""}`}>
             {date.getDate()}
           </div>
           <div className="h-[16px] flex items-center justify-center mt-1">
             {esHoy ? (
-              <span className="text-[8px] font-bold uppercase tracking-wider bg-white/15 text-zinc-200 px-1.5 py-0.5 rounded leading-none">
+              <span className="cal-week-day-col-today-pill text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded leading-none">
                 Hoy{dayTasks.length > 0 ? ` · ${dayTasks.length}` : ""}
               </span>
             ) : dayTasks.length > 0 ? (
-              <span className="text-[9px] font-medium text-zinc-400 leading-none">{dayTasks.length}</span>
+              <span className="cal-week-day-col-count text-[9px] font-medium leading-none">{dayTasks.length}</span>
             ) : (
               <span className="text-[9px] text-transparent leading-none">0</span>
             )}
@@ -357,20 +352,19 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
         <div className="flex-1 overflow-y-auto p-1.5 flex flex-col gap-1 min-h-0 cal-week-scroll">
           {dayTasks.length === 0 ? (
             <div className="flex-1 flex items-center justify-center">
-              <span className="text-[10px] text-zinc-300">—</span>
+              <span className="cal-week-day-col-empty text-[10px]">Sin entregables este día</span>
             </div>
           ) : (
             dayTasks.map(t => renderWeekColumnCard(t))
           )}
         </div>
 
-        {/* Pie de altura fija — reserva espacio en todas las columnas */}
-        <div className="shrink-0 h-[26px] border-t border-zinc-100 flex items-center justify-center bg-[#FAF9F6]/30">
+        <div className="cal-week-day-col-foot shrink-0 h-[26px] border-t flex items-center justify-center">
           {tieneMuchas ? (
             <button
               type="button"
               onClick={() => openDayDetail(date, dayTasks)}
-              className="text-[9px] font-semibold text-zinc-500 hover:text-zinc-800 transition-colors w-full h-full"
+              className="cal-week-day-col-more text-[9px] font-semibold transition-colors w-full h-full"
             >
               Ver los {dayTasks.length}
             </button>
@@ -409,7 +403,7 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
   const hoy = new Date();
 
   return (
-    <div className="rounded-lg border border-zinc-200 bg-white overflow-hidden shadow-sm w-full">
+    <div className="cal-shell rounded-lg border overflow-hidden shadow-sm w-full">
       {/* Header móvil — limpio */}
       <div className="md:hidden cal-mobile-toolbar">
         <div className="cal-mobile-toolbar-nav">
@@ -557,26 +551,26 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
       )}
 
       {selectedDayDetail && (
-        <div className="fixed inset-0 bg-black/10 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg border border-zinc-200 shadow-lg w-full max-w-md max-h-[80vh] flex flex-col animate-fade-in">
-            <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3 shrink-0">
+        <div className="cal-day-modal-overlay animate-fade-in">
+          <div className="cal-day-modal">
+            <div className="cal-day-modal-header">
               <div>
                 <span className="text-section">Entregables del día</span>
-                <p className="text-ui font-semibold text-[#37352F] mt-0.5">
+                <p className="cal-day-modal-date">
                   {selectedDayDetail.day} {monthNames[selectedDayDetail.month]} {selectedDayDetail.year}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedDayDetail(null)}
-                className="text-zinc-400 hover:text-zinc-800 font-bold text-lg leading-none px-2"
+                className="cal-day-modal-close"
               >
                 &times;
               </button>
             </div>
-            <div className="overflow-y-auto p-3 flex flex-col gap-2">
+            <div className="cal-day-modal-body">
               {selectedDayDetail.tasks.length === 0 ? (
-                <p className="text-center text-zinc-400 text-sm py-8">Sin entregables este día</p>
+                <p className="cal-day-modal-empty">Sin entregables este día</p>
               ) : (
                 selectedDayDetail.tasks.map((t, i) => renderModalTaskRow(t, i))
               )}

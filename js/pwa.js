@@ -90,6 +90,21 @@ function applyPwaIconVariant(variant) {
 (function registerRobinPwa() {
   document.documentElement.classList.add("robin-app");
 
+  try {
+    const legacyTheme = localStorage.getItem("robin_theme");
+    if (legacyTheme === "midnight") {
+      document.documentElement.setAttribute("data-theme", "midnight");
+    } else if (typeof getInicialUsuario === "function" && typeof getInitialUserPrefs === "function") {
+      const user = getInicialUsuario();
+      if (user) {
+        const prefs = getInitialUserPrefs(user);
+        if (prefs.theme === "midnight") {
+          document.documentElement.setAttribute("data-theme", "midnight");
+        }
+      }
+    }
+  } catch (e) { /* ignore */ }
+
   const isStandalone =
     window.matchMedia("(display-mode: standalone)").matches ||
     window.navigator.standalone === true;

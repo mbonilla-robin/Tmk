@@ -34,7 +34,7 @@ function FormularioCrearEntregable({
   };
 
   return (
-    <div className="task-form-page task-form-page--standalone w-full animate-fade-in bg-white">
+    <div className="task-form-page task-form-page--standalone w-full animate-fade-in">
       <form onSubmit={handleSubmit}>
         <div className="px-5 md:px-12 lg:px-10 pt-1 pb-5 md:pt-6 md:pb-6">
           <span className="task-form-eyebrow text-ui-sm text-zinc-400">Nuevo entregable</span>

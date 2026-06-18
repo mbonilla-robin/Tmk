@@ -13,7 +13,8 @@ function MobileNavBar({
   palabraEstadoSync,
   onSyncClick,
   onRefresh,
-  loading
+  loading,
+  theme = "notion"
 }) {
   const isActive = (pagina, extraCheck) => {
     if (paginaActiva !== pagina) return false;
@@ -69,7 +70,7 @@ function MobileNavBar({
     <>
       <header className="mobile-top-bar md:hidden">
         <div className="mobile-top-brand">
-          <RobinLogo className="h-8 w-auto max-w-[110px]" theme="notion" />
+          <RobinLogo className="h-8 w-auto max-w-[110px]" theme={theme} />
         </div>
 
         <div className="mobile-top-actions">

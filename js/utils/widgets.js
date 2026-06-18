@@ -148,31 +148,31 @@ function obtenerOpcionesSeccionWidget() {
 const WIDGET_COLORES_PASTEL = {
   mint: {
     label: "Menta",
-    button: "bg-[#D4EDDA] text-[#1B5E3B] border-[#B8DFC6] hover:bg-[#C8E6D0]"
+    button: "widget-tone widget-tone--mint"
   },
   lavender: {
     label: "Lavanda",
-    button: "bg-[#E8DEFF] text-[#4A3B7A] border-[#D4C4F5] hover:bg-[#DDD0F8]"
+    button: "widget-tone widget-tone--lavender"
   },
   peach: {
     label: "Durazno",
-    button: "bg-[#FFE8D6] text-[#8B4D2E] border-[#FFD4B8] hover:bg-[#FFDCC4]"
+    button: "widget-tone widget-tone--peach"
   },
   sky: {
     label: "Cielo",
-    button: "bg-[#D6EAF8] text-[#1A5276] border-[#B8D4EC] hover:bg-[#C5E0F5]"
+    button: "widget-tone widget-tone--sky"
   },
   rose: {
     label: "Rosa",
-    button: "bg-[#FADBD8] text-[#922B21] border-[#F5B7B1] hover:bg-[#F5CFCB]"
+    button: "widget-tone widget-tone--rose"
   },
   lemon: {
     label: "Limón",
-    button: "bg-[#FCF3CF] text-[#7D6608] border-[#F9E79F] hover:bg-[#F9EBB8]"
+    button: "widget-tone widget-tone--lemon"
   },
   lilac: {
     label: "Lila",
-    button: "bg-[#E8DAEF] text-[#6C3483] border-[#D7BDE2] hover:bg-[#DECFE8]"
+    button: "widget-tone widget-tone--lilac"
   }
 };
 

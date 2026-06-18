@@ -121,7 +121,7 @@ function parseCategoriasTarea(raw) {
   const partes = String(raw).split(/[,;]|\s+y\s+/i);
   const unicas = [];
   partes.forEach((p) => {
-    const canon = resolverCategoriaCanonica(p.trim());
+    const canon = resolverCategoriaCanonica(p.trim()) || normalizarNombreCategoria(p.trim());
     if (canon && !unicas.some((u) => claveCategoria(u) === claveCategoria(canon))) {
       unicas.push(canon);
     }
@@ -185,7 +185,7 @@ function limpiarTareaCategorias(tarea) {
 
   const match = infoBase.match(/^([^|]+)\s*\|\s*(.+)$/);
   if (match) {
-    const desdeTitulo = resolverCategoriaCanonica(match[1].trim());
+    const desdeTitulo = resolverCategoriaCanonica(match[1].trim()) || normalizarNombreCategoria(match[1].trim());
     infoBase = match[2].trim();
     if (desdeTitulo) {
       if (!parsed.principal) {

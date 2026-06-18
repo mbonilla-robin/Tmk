@@ -17,7 +17,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     if (!parseCategoriasTarea(categoriaInicial).principal) {
       const match = String(tarea.info || "").match(/^([^|]+)\s*\|\s*(.+)$/);
       if (match) {
-        const inferida = resolverCategoriaCanonica(match[1]);
+        const inferida = resolverCategoriaCanonica(match[1]) || normalizarNombreCategoria(match[1]);
         if (inferida) {
           categoriaInicial = serializarCategoriasTarea(inferida, parseCategoriasTarea(categoriaInicial).subcategorias);
           infoInicial = match[2].trim();
@@ -56,7 +56,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     if (!parseCategoriasTarea(categoriaInicial).principal) {
       const match = String(tarea.info || "").match(/^([^|]+)\s*\|\s*(.+)$/);
       if (match) {
-        const inferida = resolverCategoriaCanonica(match[1]);
+        const inferida = resolverCategoriaCanonica(match[1]) || normalizarNombreCategoria(match[1]);
         if (inferida) {
           categoriaInicial = serializarCategoriasTarea(inferida, parseCategoriasTarea(categoriaInicial).subcategorias);
           infoInicial = match[2].trim();

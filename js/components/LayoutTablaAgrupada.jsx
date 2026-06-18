@@ -215,26 +215,22 @@ function LayoutTablaAgrupada({
 
         return (
           <section key={marca} className="notion-group">
-            <header className={`notion-group-hero ${badgeStyle.bg} border ${badgeStyle.border}`}>
-              <div className="notion-group-hero-row">
-                <input
-                  type="checkbox"
-                  checked={todoGrupo}
-                  ref={el => { if (el) el.indeterminate = parcialGrupo; }}
-                  onChange={() => onToggleSeleccionGrupo(tareasDeMarca, !todoGrupo)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="notion-task-check notion-group-check"
-                  title="Seleccionar grupo"
-                />
-                <div className="notion-group-hero-text">
-                  <h3 className={`notion-group-title ${badgeStyle.text}`}>
-                    {formatearMarca(marca)}
-                  </h3>
-                  <p className="notion-group-subtitle">
-                    {tareasDeMarca.length} entregable{tareasDeMarca.length !== 1 ? "s" : ""} activo{tareasDeMarca.length !== 1 ? "s" : ""}
-                  </p>
-                </div>
-              </div>
+            <header className={`notion-group-header ${badgeStyle.bg} border ${badgeStyle.border}`}>
+              <input
+                type="checkbox"
+                checked={todoGrupo}
+                ref={el => { if (el) el.indeterminate = parcialGrupo; }}
+                onChange={() => onToggleSeleccionGrupo(tareasDeMarca, !todoGrupo)}
+                onClick={(e) => e.stopPropagation()}
+                className="notion-task-check notion-group-check"
+                title="Seleccionar grupo"
+              />
+              <h3 className={`notion-group-title ${badgeStyle.text}`}>
+                {formatearMarca(marca)}
+              </h3>
+              <span className={`notion-group-count ${badgeStyle.text}`}>
+                {tareasDeMarca.length}
+              </span>
             </header>
 
             <div className="notion-group-items">

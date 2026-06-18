@@ -31,27 +31,64 @@ function idTareaParaApi(tarea) {
   return raw;
 }
 
+function infoTareaCoincide(a, b) {
+  return String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+}
+
+function tituloLimpioTarea(t) {
+  return extraerTituloLimpio(t?.info, t?.categoria).toLowerCase().trim();
+}
+
+function deadlineClaveTarea(t) {
+  return normalizarDeadline(t?.deadline) || String(t?.deadline || "").trim();
+}
+
+function tareasMismaEntidad(a, b) {
+  if (!a || !b) return false;
+
+  const idA = String(a.idTarea || "").trim();
+  const idB = String(b.idTarea || "").trim();
+  if (idA && idB && idA === idB) return true;
+
+  const cleanA = cleanIdTarea(idA);
+  const cleanB = cleanIdTarea(idB);
+  if (cleanA && cleanB && cleanA === cleanB) return true;
+
+  if (!marcasCoinciden(a.marca, b.marca)) return false;
+
+  const deadlineA = deadlineClaveTarea(a);
+  const deadlineB = deadlineClaveTarea(b);
+  if (deadlineA && deadlineB && deadlineA !== deadlineB) return false;
+
+  const tituloA = tituloLimpioTarea(a);
+  const tituloB = tituloLimpioTarea(b);
+  if (tituloA && tituloB && tituloA === tituloB) return true;
+
+  if (infoTareaCoincide(a.info, b.info)) return true;
+
+  return getTaskSelectionKey(a) === getTaskSelectionKey(b);
+}
+
+function encontrarIndiceTarea(lista, ref) {
+  if (!ref || !lista || !lista.length) return -1;
+  return lista.findIndex((t) => tareasMismaEntidad(t, ref));
+}
+
 function getTaskSelectionKey(t) {
   const id = cleanIdTarea(t.idTarea);
   if (id && isValidIdTarea(id)) return id;
-  const deadlineNorm = normalizarDeadline(t.deadline) || String(t.deadline || "").trim();
-  return `${t.marca || ""}|${t.info || ""}|${deadlineNorm}`.toLowerCase().trim();
+  const rawId = String(t.idTarea || "").trim();
+  if (rawId.startsWith("STB-")) return rawId;
+  const deadlineNorm = deadlineClaveTarea(t);
+  const titulo = tituloLimpioTarea(t) || String(t.info || "").trim().toLowerCase();
+  return `${t.marca || ""}|${titulo}|${deadlineNorm}`.toLowerCase().trim();
 }
 
 function resolverTareaActual(tareas, tareaRef) {
   if (!tareaRef) return null;
   const lista = tareas || [];
-
-  const idRef = cleanIdTarea(tareaRef.idTarea);
-  if (idRef) {
-    const porId = lista.find(t => cleanIdTarea(t.idTarea) === idRef);
-    if (porId) return porId;
-  }
-
-  const key = getTaskSelectionKey(tareaRef);
-  const found = lista.find(t => getTaskSelectionKey(t) === key);
-  if (found) return found;
-
+  const indice = encontrarIndiceTarea(lista, tareaRef);
+  if (indice >= 0) return lista[indice];
   return tareaRef;
 }
 

@@ -1081,9 +1081,7 @@ function App() {
 
     try {
       const original = resolverTareaActual(tareas, editedTask);
-      const index = original
-        ? tareas.findIndex(t => getTaskSelectionKey(t) === getTaskSelectionKey(original))
-        : -1;
+      const index = encontrarIndiceTarea(tareas, original);
       if (index === -1) {
         showToast("No se encontró el entregable para guardar", "error");
         return;
@@ -1093,7 +1091,7 @@ function App() {
       const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
       let detallesAudoria = editedTask.detalles || "";
       const cambios = [];
-      if (original.info !== editedTask.info) cambios.push("título");
+      if (original.info !== editedTask.info && tituloLimpioTarea(original) !== tituloLimpioTarea(editedTask)) cambios.push("título");
       if (original.categoria !== editedTask.categoria) cambios.push("categoría");
       if (original.personas !== editedTask.personas) cambios.push("asignados");
       if (normalizarEstado(original.estado) !== normalizarEstado(editedTask.estado)) cambios.push(`estado a "${normalizarEstado(editedTask.estado)}"`);

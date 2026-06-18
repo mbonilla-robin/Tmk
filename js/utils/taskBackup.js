@@ -102,6 +102,8 @@ function remotaCorrespondeAPendiente(remota, op) {
 
 function remotaCorrespondeATareaLocal(remota, local, cola) {
   if (!remota || !local) return false;
+  if (tareasMismaEntidad(remota, local)) return true;
+
   if (!marcasCoinciden(remota.marca, local.marca)) return false;
   if (infoTareaCoincide(remota.info, local.info)) return true;
 

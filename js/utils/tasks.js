@@ -144,8 +144,6 @@ function resolverTareaActual(tareas, tareaRef) {
   return tareaRef;
 }
 
-const MS_POR_DIA = 86400000;
-
 const DIAS_ANTICIPACION_TRABAJO = {
   alta: 5,
   media: 3,
@@ -168,14 +166,16 @@ function obtenerTiempoInicioTrabajo(tarea) {
   const tDeadline = obtenerTiempoFecha(tarea.deadline);
   if (tDeadline === Infinity) return Infinity;
 
-  const fechaInicio = resolverFechaInicioTarea(tarea);
-  if (fechaInicio) {
-    const tManual = obtenerTiempoFecha(fechaInicio);
-    if (tManual !== Infinity) return tManual;
+  const diasAnt = obtenerDiasAnticipacionTrabajo(tarea.prioridad);
+  const tCalculado = restarDiasHabiles(tDeadline, diasAnt);
+
+  const fechaInicioExplicita = normalizarDeadline(tarea?.fechaInicio || "");
+  if (fechaInicioExplicita) {
+    const tManual = obtenerTiempoFecha(fechaInicioExplicita);
+    if (tManual !== Infinity && tManual > tCalculado) return tManual;
   }
 
-  const diasAnt = obtenerDiasAnticipacionTrabajo(tarea.prioridad);
-  return tDeadline - diasAnt * MS_POR_DIA;
+  return tCalculado;
 }
 
 function esTareaCompletada(tarea) {

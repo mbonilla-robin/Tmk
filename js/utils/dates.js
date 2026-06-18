@@ -99,3 +99,25 @@ function fechaHoyDisplay(fechaRef) {
   const hoy = fechaRef || new Date();
   return formatearFechaDisplay(`${hoy.getDate()}/${hoy.getMonth() + 1}/${hoy.getFullYear()}`);
 }
+
+function esDiaHabil(fecha) {
+  const dia = fecha.getDay();
+  return dia !== 0 && dia !== 6;
+}
+
+function restarDiasHabiles(timestamp, dias) {
+  if (!dias || dias <= 0) {
+    const ref = new Date(timestamp);
+    return new Date(ref.getFullYear(), ref.getMonth(), ref.getDate()).getTime();
+  }
+
+  const cursor = new Date(timestamp);
+  let restantes = dias;
+
+  while (restantes > 0) {
+    cursor.setDate(cursor.getDate() - 1);
+    if (esDiaHabil(cursor)) restantes -= 1;
+  }
+
+  return new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate()).getTime();
+}

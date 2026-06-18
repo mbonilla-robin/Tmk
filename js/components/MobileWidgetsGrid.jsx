@@ -30,7 +30,8 @@ function MobileWidgetsGrid({
   variant = "preview",
   username,
   onVerMas,
-  onEstatus
+  onEstatus,
+  onEquipos
 }) {
   const [recentTick, setRecentTick] = useState(0);
 
@@ -82,6 +83,18 @@ function MobileWidgetsGrid({
                 </span>
                 <span className="mobile-widget-tile-label">Estatus</span>
               </button>
+              {onEquipos && (
+                <button
+                  type="button"
+                  onClick={onEquipos}
+                  className={`mobile-widget-tile ${estiloEstatus.button}`}
+                >
+                  <span className="mobile-widget-tile-icon">
+                    <SVGIcon.Users className="w-4 h-4" />
+                  </span>
+                  <span className="mobile-widget-tile-label">Equipos</span>
+                </button>
+              )}
             </div>
           </div>
         )}

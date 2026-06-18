@@ -6,6 +6,7 @@ function LayoutHome({
   onUpdateField,
   widgets,
   onAbrirEstatus,
+  onAbrirEquipos,
   currentTheme,
   getMarcaStyle,
   otrosUsuariosEnLinea,
@@ -67,6 +68,7 @@ function LayoutHome({
             widgetsAgrupados={widgetsVisibles}
             username={username}
             onEstatus={onAbrirEstatus}
+            onEquipos={onAbrirEquipos}
           />
         </div>
       )}

@@ -47,6 +47,7 @@ function App() {
   const [filtroMarca, setFiltroMarca] = useState(() => initialPrefs.filtroMarca || "TODAS");
   const [filtroEstado, setFiltroEstado] = useState(() => initialPrefs.filtroEstado || "TODOS");
   const [filtroPrioridad, setFiltroPrioridad] = useState(() => initialPrefs.filtroPrioridad || "TODAS"); 
+  const [filtroPersona, setFiltroPersona] = useState(() => initialPrefs.filtroPersona || "TODAS");
   const [searchQuery, setSearchQuery] = useState(() => initialPrefs.searchQuery || "");
   
   const [paginaActiva, setPaginaActiva] = useState(() =>
@@ -97,9 +98,10 @@ function App() {
     return filtroMarca !== "TODAS" ||
       filtroEstado !== "TODOS" ||
       filtroPrioridad !== "TODAS" ||
+      filtroPersona !== "TODAS" ||
       filtroTiempo !== "TODAS" ||
       searchQuery.trim() !== "";
-  }, [filtroMarca, filtroEstado, filtroPrioridad, filtroTiempo, searchQuery]);
+  }, [filtroMarca, filtroEstado, filtroPrioridad, filtroPersona, filtroTiempo, searchQuery]);
 
   const handleSyncClick = () => {
     setSyncDetalleVisible(prev => !prev);
@@ -145,6 +147,7 @@ function App() {
         return false;
       }
       if (filtroPrioridad !== "TODAS" && normalizarPrioridad(t.prioridad) !== normalizarPrioridad(filtroPrioridad)) return false;
+      if (filtroPersona !== "TODAS" && !tareaIncluyePersonaFiltro(t.personas || "", filtroPersona)) return false;
 
       if (searchQuery.trim() !== "") {
         const q = searchQuery.toLowerCase();
@@ -158,7 +161,7 @@ function App() {
 
       return true;
     });
-  }, [tareas, filtroTiempo, filtroMarca, filtroEstado, filtroPrioridad, searchQuery]);
+  }, [tareas, filtroTiempo, filtroMarca, filtroEstado, filtroPrioridad, filtroPersona, searchQuery]);
 
   const metricaCounters = useMemo(() => {
     const tHoy = obtenerTiempoHoyLocal();
@@ -240,6 +243,7 @@ function App() {
       setFiltroMarca,
       setFiltroEstado,
       setFiltroPrioridad,
+      setFiltroPersona,
       setSearchQuery,
       setDashboardMobileVista,
       setPaginaActiva
@@ -266,6 +270,7 @@ function App() {
         setFiltroMarca,
         setFiltroEstado,
         setFiltroPrioridad,
+        setFiltroPersona,
         setSearchQuery,
         setDashboardMobileVista,
         setListaAgrupacion,
@@ -290,6 +295,7 @@ function App() {
           setFiltroMarca,
           setFiltroEstado,
           setFiltroPrioridad,
+          setFiltroPersona,
           setSearchQuery,
           setDashboardMobileVista,
           setPaginaActiva
@@ -324,6 +330,7 @@ function App() {
       filtroMarca,
       filtroEstado,
       filtroPrioridad,
+      filtroPersona,
       searchQuery,
       dashboardMobileVista
     });
@@ -341,6 +348,7 @@ function App() {
     filtroMarca,
     filtroEstado,
     filtroPrioridad,
+    filtroPersona,
     searchQuery,
     dashboardMobileVista
   ]);
@@ -397,6 +405,17 @@ function App() {
     if (pagina !== "configuracion") setConfigMobileSeccion(null);
     if (pagina === "clientes") setClientesReset(n => n + 1);
     if (extraFn) extraFn();
+  };
+
+  const irATareasPersona = (personaHandle, estado) => {
+    navegarA("dashboard", () => {
+      setFiltroTiempo("TODAS");
+      setFiltroMarca("TODAS");
+      setFiltroEstado(estado || "TODOS");
+      setFiltroPrioridad("TODAS");
+      setFiltroPersona(personaHandle);
+      setSearchQuery("");
+    });
   };
 
   const handleAddWidget = async (nuevoWidget) => {
@@ -794,6 +813,7 @@ function App() {
         filtroMarca,
         filtroEstado,
         filtroPrioridad,
+        filtroPersona,
         searchQuery,
         dashboardMobileVista
       });
@@ -1404,27 +1424,31 @@ function App() {
                 </button>
               </div>
 
-              <nav className="p-2.5 flex flex-col gap-1">
+              <nav className="p-2.5 flex flex-col gap-1 flex-1 min-h-0 overflow-hidden">
                 <span className="px-2 text-section mb-1">Navegación</span>
-                
-                <button
-                  onClick={() => navegarA("home")}
-                  className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-ui font-medium transition-all ${
-                    paginaActiva === "home" ? "bg-white shadow-sm text-zinc-900 border border-zinc-200" : "text-zinc-600 hover:bg-zinc-100/50"
-                  }`}
-                >
-                  <SVGIcon.Home />Home
-                </button>
 
-                <button
-                  onClick={() => navegarA("dashboard", () => { setFiltroTiempo("TODAS"); setFiltroMarca("TODAS"); setFiltroEstado("TODOS"); setFiltroPrioridad("TODAS"); })}
-                  className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-ui font-medium transition-all ${
-                    paginaActiva === "dashboard" && filtroTiempo === "TODAS" && filtroMarca === "TODAS" && filtroEstado === "TODOS" && filtroPrioridad === "TODAS"
-                      ? "bg-white shadow-sm text-zinc-900 border border-zinc-200" : "text-zinc-600 hover:bg-zinc-100/50"
-                  }`}
-                >
-                  <SVGIcon.All />Todos los entregables
-                </button>
+                <div className="grid grid-cols-2 gap-1 mb-0.5">
+                  <button
+                    onClick={() => navegarA("home")}
+                    className={`flex flex-col items-center justify-center gap-0.5 px-1 py-2 rounded text-[10px] font-medium transition-all ${
+                      paginaActiva === "home" ? "bg-white shadow-sm text-zinc-900 border border-zinc-200" : "text-zinc-600 hover:bg-zinc-100/50"
+                    }`}
+                  >
+                    <SVGIcon.Home />
+                    <span>Home</span>
+                  </button>
+
+                  <button
+                    onClick={() => navegarA("dashboard", () => { setFiltroTiempo("TODAS"); setFiltroMarca("TODAS"); setFiltroEstado("TODOS"); setFiltroPrioridad("TODAS"); setFiltroPersona("TODAS"); })}
+                    className={`flex flex-col items-center justify-center gap-0.5 px-1 py-2 rounded text-[10px] font-medium transition-all ${
+                      paginaActiva === "dashboard" && filtroTiempo === "TODAS" && filtroMarca === "TODAS" && filtroEstado === "TODOS" && filtroPrioridad === "TODAS" && filtroPersona === "TODAS"
+                        ? "bg-white shadow-sm text-zinc-900 border border-zinc-200" : "text-zinc-600 hover:bg-zinc-100/50"
+                    }`}
+                  >
+                    <SVGIcon.All />
+                    <span>Todos</span>
+                  </button>
+                </div>
 
                 <button
                   type="button"
@@ -1463,11 +1487,31 @@ function App() {
                 </div>
                 )}
 
+                <span className="px-2 text-section mb-1 mt-2">Más opciones</span>
+                <div className="grid grid-cols-2 gap-1 mb-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowGeneradorEstatus(true)}
+                    className={`flex flex-col items-center justify-center gap-0.5 px-1 py-2 rounded text-[10px] font-medium transition-all ${
+                      showGeneradorEstatus ? "bg-white shadow-sm text-zinc-900 border border-zinc-200" : "text-zinc-600 hover:bg-zinc-100/50"
+                    }`}
+                  >
+                    <SVGIcon.Phone />
+                    <span>Estatus</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navegarA("equipos")}
+                    className={`flex flex-col items-center justify-center gap-0.5 px-1 py-2 rounded text-[10px] font-medium transition-all ${
+                      paginaActiva === "equipos" ? "bg-white shadow-sm text-zinc-900 border border-zinc-200" : "text-zinc-600 hover:bg-zinc-100/50"
+                    }`}
+                  >
+                    <SVGIcon.Users className="w-3.5 h-3.5 opacity-75" />
+                    <span>Equipos</span>
+                  </button>
+                </div>
+
                 <span className="px-2 text-section mb-1 mt-2">Soporte</span>
-                <MasOpcionesMenu
-                  variant="sidebar"
-                  onEstatus={() => setShowGeneradorEstatus(true)}
-                />
                 <button
                   onClick={() => navegarA("configuracion")}
                   className={`flex items-center gap-2 w-full px-2 py-1.5 rounded text-ui font-medium transition-all ${
@@ -1556,6 +1600,7 @@ function App() {
               onUpdateField={handleUpdateField}
               widgets={widgets}
               onAbrirEstatus={() => setShowGeneradorEstatus(true)}
+              onAbrirEquipos={() => navegarA("equipos")}
               currentTheme={currentTheme}
               getMarcaStyle={getMarcaStyle}
               otrosUsuariosEnLinea={otrosUsuariosEnLinea}
@@ -1598,6 +1643,10 @@ function App() {
                           <option value="TODAS">Todas las prioridades</option>
                           {PRIORIDADES_MAPA.map(p => (<option key={p.id} value={p.id}>{p.label}</option>))}
                         </select>
+                        <select value={filtroPersona} onChange={(e) => setFiltroPersona(e.target.value)} className="w-full bg-white border border-zinc-200 p-2 text-ui rounded text-zinc-600">
+                          <option value="TODAS">Todas las personas</option>
+                          {listaPersonas.map(p => (<option key={p} value={p}>{p}</option>))}
+                        </select>
                       </div>
                       <div className="grid grid-cols-3 gap-1.5 pt-1">
                         <button onClick={() => setFiltroTiempo("TODAS")} className={`px-2 py-2 rounded text-[10px] font-semibold border ${filtroTiempo === "TODAS" ? "bg-[#37352F] text-white border-zinc-900" : "bg-white border-zinc-200 text-zinc-600"}`}>Todo</button>
@@ -1607,7 +1656,7 @@ function App() {
                       {filtrosDashboardActivos && (
                         <button
                           type="button"
-                          onClick={() => { setFiltroTiempo("TODAS"); setFiltroMarca("TODAS"); setFiltroEstado("TODOS"); setFiltroPrioridad("TODAS"); setSearchQuery(""); }}
+                          onClick={() => { setFiltroTiempo("TODAS"); setFiltroMarca("TODAS"); setFiltroEstado("TODOS"); setFiltroPrioridad("TODAS"); setFiltroPersona("TODAS"); setSearchQuery(""); }}
                           className="w-full py-2 text-ui-sm font-medium text-zinc-500 border border-zinc-200 rounded-md"
                         >
                           Limpiar filtros
@@ -1760,6 +1809,10 @@ function App() {
                     <option value="TODAS">Prioridad</option>
                     {PRIORIDADES_MAPA.map(p => (<option key={p.id} value={p.id}>{p.label}</option>))}
                   </select>
+                  <select value={filtroPersona} onChange={(e) => setFiltroPersona(e.target.value)} className="notion-filter-select">
+                    <option value="TODAS">Persona</option>
+                    {listaPersonas.map(p => (<option key={p} value={p}>{p}</option>))}
+                  </select>
                 </div>
                 <div className="notion-time-pills">
                   <button type="button" onClick={() => setFiltroTiempo("TODAS")} className={`notion-time-pill ${filtroTiempo === "TODAS" ? "is-active" : ""}`}>Todo</button>
@@ -1830,6 +1883,14 @@ function App() {
               )}
               </div>
             </>
+          )}
+
+          {!isConfigOnlyAdmin && paginaActiva === "equipos" && (
+            <LayoutEquipos
+              tareas={tareas}
+              otrosUsuariosEnLinea={otrosUsuariosEnLinea}
+              onVerTareasPersona={irATareasPersona}
+            />
           )}
 
           {!isConfigOnlyAdmin && paginaActiva === "clientes" && (
@@ -2145,8 +2206,8 @@ function App() {
         </div>
       </main>
 
-      {/* BARRA ACCESO RÁPIDO — entregables de hoy (solo desktop 1024px+) */}
-      {!isConfigOnlyAdmin && (
+      {/* BARRA ACCESO RÁPIDO — entregables de hoy (solo Home, desktop md+) */}
+      {!isConfigOnlyAdmin && paginaActiva === "home" && (
         <BarraHoyAccesoRapido tareas={tareas} onSelectTask={abrirEdicionTarea} getMarcaStyle={getMarcaStyle} />
       )}
 
@@ -2159,6 +2220,7 @@ function App() {
         setFiltroTiempo={setFiltroTiempo}
         setFiltroEstado={setFiltroEstado}
         setFiltroPrioridad={setFiltroPrioridad}
+        setFiltroPersona={setFiltroPersona}
         usuario={usuario}
         syncing={syncing}
         apiError={apiError}

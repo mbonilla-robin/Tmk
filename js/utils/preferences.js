@@ -20,6 +20,7 @@ const DEFAULT_USER_PREFS = {
   filtroMarca: "TODAS",
   filtroEstado: "TODOS",
   filtroPrioridad: "TODAS",
+  filtroPersona: "TODAS",
   searchQuery: "",
   dashboardMobileVista: "lista",
   listaAgrupacion: "estado"
@@ -321,6 +322,9 @@ function applyPrefsToReactState(prefs, setters, username) {
   setters.setFiltroMarca(prefs.filtroMarca || "TODAS");
   setters.setFiltroEstado(prefs.filtroEstado || "TODOS");
   setters.setFiltroPrioridad(prefs.filtroPrioridad || "TODAS");
+  if (setters.setFiltroPersona) {
+    setters.setFiltroPersona(prefs.filtroPersona || "TODAS");
+  }
   setters.setSearchQuery(prefs.searchQuery || "");
   setters.setDashboardMobileVista(prefs.dashboardMobileVista || "lista");
   if (setters.setListaAgrupacion) setters.setListaAgrupacion(prefs.listaAgrupacion || "estado");

@@ -6,6 +6,7 @@ function MobileNavBar({
   setFiltroTiempo,
   setFiltroEstado,
   setFiltroPrioridad,
+  setFiltroPersona,
   usuario,
   syncing,
   apiError,
@@ -37,6 +38,7 @@ function MobileNavBar({
         setFiltroMarca("TODAS");
         setFiltroEstado("TODOS");
         setFiltroPrioridad("TODAS");
+        setFiltroPersona("TODAS");
       })
     },
     {

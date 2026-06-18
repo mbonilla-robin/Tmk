@@ -118,24 +118,51 @@ function extraerPresenciaDesdeWidgets(widgets, ahoraMs) {
   return Array.from(porUsuario.values()).sort((a, b) => b.lastSeen - a.lastSeen);
 }
 
+function tieneNombrePresenciaReal(user) {
+  const nombre = String(user?.nombre || "").trim();
+  return Boolean(nombre && !/^@[\w.]+$/i.test(nombre));
+}
+
+function elegirEntradaPresencia(prev, next) {
+  if (!prev) return next;
+  if (!next) return prev;
+
+  const prevReal = tieneNombrePresenciaReal(prev);
+  const nextReal = tieneNombrePresenciaReal(next);
+  const lastSeen = Math.max(prev.lastSeen || 0, next.lastSeen || 0);
+
+  if (nextReal && !prevReal) return { ...next, lastSeen };
+  if (prevReal && !nextReal) return { ...prev, lastSeen };
+  if ((next.lastSeen || 0) >= (prev.lastSeen || 0)) return { ...next, lastSeen };
+  return { ...prev, lastSeen };
+}
+
 function combinarPresencia(...listas) {
   const porUsuario = new Map();
   listas.flat().forEach(u => {
     if (!u || !u.username) return;
     const key = u.username.toLowerCase();
-    const prev = porUsuario.get(key);
-    if (!prev || u.lastSeen > prev.lastSeen) {
-      porUsuario.set(key, u);
-    }
+    porUsuario.set(key, elegirEntradaPresencia(porUsuario.get(key), u));
   });
   return Array.from(porUsuario.values()).sort((a, b) => b.lastSeen - a.lastSeen);
 }
 
+function enriquecerUsuariosPresenciaDesdeDatos(usuarios, data) {
+  return (usuarios || []).map((u) => {
+    if (tieneNombrePresenciaReal(u)) return u;
+    const nombreRemoto = obtenerNombrePerfilDesdePresencia(data, u.username);
+    return nombreRemoto ? { ...u, nombre: nombreRemoto } : u;
+  });
+}
+
 function obtenerUsuariosEnLinea(data, widgets, extra) {
-  return combinarPresencia(
-    extraerPresenciaDesdeDatos(data),
-    extraerPresenciaDesdeWidgets(widgets),
-    Array.isArray(extra) ? extra : []
+  return enriquecerUsuariosPresenciaDesdeDatos(
+    combinarPresencia(
+      extraerPresenciaDesdeDatos(data),
+      extraerPresenciaDesdeWidgets(widgets),
+      Array.isArray(extra) ? extra : []
+    ),
+    data
   );
 }
 
@@ -145,6 +172,12 @@ function formatearNombrePresencia(user) {
   const username = String(user.username || "").replace(/^@/, "").trim();
   if (nombre && !/^@[\w.]+$/i.test(nombre)) {
     return nombre;
+  }
+  if (username && typeof obtenerNombreDisplayEquipo === "function") {
+    const displayEquipo = obtenerNombreDisplayEquipo(username);
+    if (displayEquipo && !/^@[\w.]+$/i.test(displayEquipo)) {
+      return displayEquipo;
+    }
   }
   return username ? `@${username}` : "Usuario";
 }

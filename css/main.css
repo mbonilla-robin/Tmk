@@ -22,6 +22,7 @@ body {
       text-size-adjust: 100%;
       --mobile-chrome-top: 3rem;
       --mobile-chrome-bottom: 4rem;
+      --task-form-actions-h: 3.5rem;
     }
     html.robin-app body {
       touch-action: manipulation;
@@ -128,6 +129,63 @@ body {
     .text-ui-sm {
       font-size: 11px;
       line-height: 1.4;
+    }
+
+    /* Formulario entregable — modal: flex con pie fijo; página crear: flujo normal */
+    .task-form-layout {
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+      width: 100%;
+    }
+
+    .task-form-scroll {
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+
+    .task-form-actions {
+      flex-shrink: 0;
+      position: relative;
+      z-index: 2;
+      background: rgba(255, 255, 255, 0.97);
+      backdrop-filter: blur(8px);
+      border-top: 1px solid #f4f4f5;
+    }
+
+    /* Crear entregable: botones al final del contenido, sin flotar */
+    .task-form-page--standalone,
+    .task-form-page--standalone form {
+      display: block;
+      min-height: auto;
+      height: auto;
+    }
+
+    .task-form-actions--flow {
+      position: static;
+      flex-shrink: unset;
+      background: #ffffff;
+      backdrop-filter: none;
+      border-top: 1px solid #f4f4f5;
+      margin-top: 0.25rem;
+    }
+
+    @media (max-width: 1023px) {
+      .task-form-page--standalone {
+        padding-bottom: calc(var(--mobile-chrome-bottom, 4rem) + 0.75rem);
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .task-form-page--standalone {
+        padding-bottom: 2rem;
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .robin-main-agregar {
+        scroll-padding-bottom: 2rem;
+      }
     }
 
     /* Formulario / detalle de entregable — desktop más legible */
@@ -453,11 +511,29 @@ body {
       z-index: 10;
       flex: 1 1 0%;
       min-height: 0;
+      display: flex;
+      flex-direction: column;
       background: #fff;
       border-radius: 1rem 1rem 0 0;
       box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.12);
-      overflow-y: auto;
+      overflow: hidden;
       animation: taskSheetIn 0.22s ease-out forwards;
+    }
+
+    .task-sheet-panel .task-form-layout {
+      flex: 1 1 auto;
+      min-height: 0;
+    }
+
+    .task-sheet-panel .task-form-scroll {
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 0.75rem;
+    }
+
+    .task-sheet-panel .task-form-actions {
+      padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
     }
 
     .task-sheet-handle {
@@ -497,8 +573,9 @@ body {
         display: none;
       }
 
-      .task-sheet-panel .task-form-page {
-        min-height: auto;
+      .task-sheet-panel .task-form-layout {
+        min-height: 0;
+        max-height: 88vh;
       }
     }
 
@@ -988,9 +1065,10 @@ body {
 
       .robin-mobile-main {
         padding-top: calc(var(--mobile-chrome-top) + 0.75rem);
-        padding-bottom: calc(var(--mobile-chrome-bottom) + 1rem);
+        padding-bottom: calc(var(--mobile-chrome-bottom) + 1.25rem);
         padding-left: 1rem;
         padding-right: 1rem;
+        scroll-padding-bottom: calc(var(--mobile-chrome-bottom) + 1.5rem);
         overflow-x: hidden;
         overflow-y: auto;
         overscroll-behavior: contain;

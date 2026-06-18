@@ -15,11 +15,7 @@ function cargarTareasLocales() {
 
 function guardarTareasLocales(tareas) {
   try {
-    const limpias = (tareas || []).map((t) => {
-      const copia = { ...t };
-      return copia;
-    });
-    setLocalStorageItemSafe(STORAGE_TAREAS_KEY, JSON.stringify(limpias));
+    setLocalStorageItemSafe(STORAGE_TAREAS_KEY, JSON.stringify(tareas || []));
   } catch (e) {
     console.warn("ROBIN: no se pudo guardar backup de tareas", e);
   }
@@ -42,12 +38,22 @@ function guardarColaSync(cola) {
 function encolarSync(operacion) {
   let cola = cargarColaSync();
   const taskKey = operacion.taskKey || "";
+  const taskKeyOriginal = operacion.taskKeyOriginal || "";
   const tipo = operacion.type || "update";
 
-  if (tipo === "delete" && taskKey) {
-    cola = cola.filter((op) => op.taskKey !== taskKey);
+  if (tipo === "delete") {
+    cola = cola.filter((op) => {
+      if (op.taskKey === taskKey) return false;
+      if (taskKeyOriginal && op.taskKey === taskKeyOriginal) return false;
+      return true;
+    });
   } else {
-    cola = cola.filter((op) => !(op.taskKey === taskKey && op.type === tipo));
+    cola = cola.filter((op) => {
+      if (op.type === tipo && (op.taskKey === taskKey || (taskKeyOriginal && op.taskKey === taskKeyOriginal))) {
+        return false;
+      }
+      return true;
+    });
   }
 
   cola.push({
@@ -76,25 +82,59 @@ function tareaEsPendienteLocal(t) {
   return id.startsWith("STB-");
 }
 
+function infoTareaCoincide(a, b) {
+  return String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+}
+
+function remotaCorrespondeAPendiente(remota, op) {
+  if (!remota || !op) return false;
+  const payload = op.payload || {};
+  if (!marcasCoinciden(remota.marca, payload.marca)) return false;
+
+  const rInfo = String(remota.info || "").trim().toLowerCase();
+  const infoNueva = String(payload.info || "").trim().toLowerCase();
+  const infoOriginal = String(payload.originalInfo || "").trim().toLowerCase();
+
+  if (infoNueva && rInfo === infoNueva) return true;
+  if (infoOriginal && rInfo === infoOriginal) return true;
+  return false;
+}
+
+function remotaCorrespondeATareaLocal(remota, local, cola) {
+  if (!remota || !local) return false;
+  if (!marcasCoinciden(remota.marca, local.marca)) return false;
+  if (infoTareaCoincide(remota.info, local.info)) return true;
+
+  const idLocal = idTareaParaApi(local);
+  const idRemota = String(remota.idTarea || "").trim();
+  if (idLocal && idRemota && idLocal === idRemota) return true;
+
+  for (const op of cola) {
+    if (remotaCorrespondeAPendiente(remota, op)) {
+      const payload = op.payload || {};
+      if (infoTareaCoincide(local.info, payload.info)) return true;
+      if (infoTareaCoincide(local.info, payload.originalInfo)) return true;
+    }
+  }
+  return false;
+}
+
 function fusionarTareasRemotasYLocales(remotas, locales) {
   const cola = cargarColaSync();
   const actualizaciones = cola.filter((op) => op.type === "update" || op.type === "create");
-  const eliminaciones = new Set(cola.filter((op) => op.type === "delete").map((op) => op.taskKey));
+  const eliminaciones = new Set(
+    cola
+      .filter((op) => op.type === "delete")
+      .flatMap((op) => [op.taskKey, op.taskKeyOriginal].filter(Boolean))
+  );
 
   const remotoFiltrado = (remotas || []).filter((t) => {
     const key = getTaskSelectionKey(t);
     if (eliminaciones.has(key)) return false;
 
     for (const op of actualizaciones) {
-      if (op.taskKey === key) return false;
-      const payload = op.payload || {};
-      if (payload.marca && marcasCoinciden(t.marca, payload.marca)) {
-        const tInfo = String(t.info || "").trim().toLowerCase();
-        const infoOriginal = String(payload.originalInfo || "").trim().toLowerCase();
-        const infoNueva = String(payload.info || "").trim().toLowerCase();
-        if (infoOriginal && tInfo === infoOriginal) return false;
-        if (infoNueva && tInfo === infoNueva && op.type === "create") return false;
-      }
+      if (op.taskKey === key || op.taskKeyOriginal === key) return false;
+      if (remotaCorrespondeAPendiente(t, op)) return false;
     }
     return true;
   });
@@ -109,27 +149,28 @@ function fusionarTareasRemotasYLocales(remotas, locales) {
     mapa.set(getTaskSelectionKey(t), normalizarTareaCampos(t));
   });
 
-  return Array.from(mapa.values());
-}
-
-function limpiarPendienteEnTareas(tareas, taskKey, payload) {
-  return (tareas || []).map((t) => {
-    const key = getTaskSelectionKey(t);
-    if (key === taskKey) return desmarcarTareaPendiente(t);
-
-    if (payload && payload.marca && marcasCoinciden(t.marca, payload.marca)) {
-      const infoLocal = String(t.info || "").trim().toLowerCase();
-      const infoPayload = String(payload.info || "").trim().toLowerCase();
-      if (infoPayload && infoLocal === infoPayload) {
-        return desmarcarTareaPendiente(t);
-      }
+  (locales || []).forEach((local) => {
+    if (!tareaEsPendienteLocal(local)) return;
+    const remota = (remotas || []).find((r) => remotaCorrespondeATareaLocal(r, local, cola));
+    if (remota) {
+      mapa.set(getTaskSelectionKey(local), desmarcarTareaPendiente(normalizarTareaCampos({
+        ...local,
+        ...remota,
+        idTarea: remota.idTarea || local.idTarea,
+        detalles: local.detalles || remota.detalles
+      })));
     }
-    return t;
   });
+
+  return Array.from(mapa.values());
 }
 
 function hayPendientesSync() {
   return cargarColaSync().length > 0;
+}
+
+function hayTareasPendientesLocales(tareas) {
+  return (tareas || []).some(tareaEsPendienteLocal);
 }
 
 async function procesarColaSync() {
@@ -143,7 +184,6 @@ async function procesarColaSync() {
 
   const restantes = [];
   let processed = 0;
-  let tareasLocales = cargarTareasLocales();
 
   for (const op of cola) {
     try {
@@ -168,9 +208,6 @@ async function procesarColaSync() {
       }
 
       processed += 1;
-      if (op.taskKey) {
-        tareasLocales = limpiarPendienteEnTareas(tareasLocales, op.taskKey, op.payload);
-      }
     } catch (e) {
       console.warn("ROBIN: fallo al enviar operación pendiente", op.type, e);
       restantes.push(op);
@@ -178,9 +215,7 @@ async function procesarColaSync() {
   }
 
   guardarColaSync(restantes);
-  guardarTareasLocales(tareasLocales);
-
-  return { ok: restantes.length === 0, processed, remaining: restantes.length, tareasLocales };
+  return { ok: restantes.length === 0, processed, remaining: restantes.length };
 }
 
 function normalizarTareasDesdeApi(jsonData) {

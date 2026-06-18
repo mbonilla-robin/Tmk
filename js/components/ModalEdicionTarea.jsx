@@ -148,7 +148,8 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
       />
 
       <div className="task-sheet-panel">
-        <form onSubmit={handleSubmit} className="min-h-full flex flex-col task-form-page">
+        <form onSubmit={handleSubmit} className="task-form-layout task-form-page min-h-0 flex-1">
+          <div className="task-form-scroll">
           <div className="sticky top-0 z-10 relative bg-white/95 backdrop-blur-sm pt-3 pb-1 px-6 md:px-10 lg:pt-4">
             <div className="task-sheet-handle" aria-hidden="true" />
             <button
@@ -178,7 +179,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
             )}
           </div>
 
-          <div className="flex-1 max-w-3xl mx-auto w-full px-6 md:px-10 pb-24 lg:pb-6">
+          <div className="max-w-3xl mx-auto w-full px-6 md:px-10 pb-4">
           {/* Propiedades lineales */}
           <div className="pb-2 flex flex-col gap-0.5 border-b border-zinc-100">
             <PropertyRow icon="fa-regular fa-building" label="Cliente">
@@ -274,8 +275,9 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
           )}
 
           </div>
+          </div>
 
-          <div className="task-form-actions sticky bottom-0 bg-white/95 backdrop-blur-sm border-t border-zinc-100 px-6 md:px-10 py-3 flex justify-end gap-2 max-w-3xl mx-auto w-full">
+          <div className="task-form-actions px-6 md:px-10 py-3 flex justify-end gap-2 max-w-3xl mx-auto w-full">
             <button
               type="button"
               onClick={onClose}

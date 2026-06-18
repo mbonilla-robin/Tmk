@@ -38,8 +38,10 @@ function App() {
   const [syncing, setSyncing] = useState(false);
   const [toast, setToast] = useState(null);
   const [apiError, setApiError] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [hayPendientesLocales, setHayPendientesLocales] = useState(() => hayPendientesSync());
+  const syncMutexRef = useRef(false);
+  const syncTimerRef = useRef(null);
+  const guardandoRef = useRef(false);
   
   const [filtroTiempo, setFiltroTiempo] = useState(() => initialPrefs.filtroTiempo || "TODAS"); 
   const [filtroMarca, setFiltroMarca] = useState(() => initialPrefs.filtroMarca || "TODAS");
@@ -202,8 +204,8 @@ function App() {
     }, 20000);
 
     const presencePollInterval = setInterval(() => {
-      fetchData(true);
-    }, 20000);
+      sincronizarEnSegundoPlano();
+    }, 60000);
 
     return () => {
       clearInterval(heartbeatInterval);
@@ -349,32 +351,28 @@ function App() {
 
   useEffect(() => {
     if (usuario) {
-      fetchData(false).then(() => sincronizarPendientes(true));
+      fetchData(false).finally(() => sincronizarEnSegundoPlano());
     }
   }, [usuario]);
 
   useEffect(() => {
     if (!usuario) return;
     const autoRefreshInterval = setInterval(() => {
-      if (!syncing && !loading && !isSubmitting) {
-        sincronizarPendientes(true).then(() => {
-          if (!syncing && !loading) fetchData(true);
-        });
-      }
+      sincronizarEnSegundoPlano();
     }, typeof AUTO_SYNC_INTERVAL_MS !== "undefined" ? AUTO_SYNC_INTERVAL_MS : 35000);
     return () => clearInterval(autoRefreshInterval);
-  }, [usuario, syncing, loading, isSubmitting]);
+  }, [usuario]);
 
   useEffect(() => {
     if (!usuario) return;
     const reconectarAlVolver = () => {
-      if (document.visibilityState === "visible" && !syncing && !loading && !isSubmitting) {
-        sincronizarPendientes(true).then(() => fetchData(true));
+      if (document.visibilityState === "visible") {
+        sincronizarEnSegundoPlano();
       }
     };
     document.addEventListener("visibilitychange", reconectarAlVolver);
     return () => document.removeEventListener("visibilitychange", reconectarAlVolver);
-  }, [usuario, syncing, loading, isSubmitting]);
+  }, [usuario]);
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
@@ -555,7 +553,7 @@ function App() {
     if (!nuevoValor && campo !== "deadline") return;
     const keys = tareasSeleccionadas;
     const objetivos = tareas.filter(t => keys.has(getTaskSelectionKey(t)));
-    if (!objetivos.length || isSubmitting || syncing) return;
+    if (!objetivos.length) return;
 
     const hoy = new Date();
     const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
@@ -867,20 +865,22 @@ function App() {
 
   const fetchData = async (isBackground = false) => {
     if (!isBackground) setLoading(true);
-    setSyncing(true);
-    setApiError(null);
+    if (!isBackground) setSyncing(true);
+    if (isBackground) setApiError(null);
 
     const effectiveUrl = getConfiguredApiUrl();
     if (!isApiConfigured()) {
       const backup = cargarTareasLocales();
-      if (backup.length) persistTareas(backup);
+      if (backup.length) {
+        setTareas((prev) => (prev.length ? prev : backup));
+      }
       if (!isBackground) showToast("Base de datos no configurada — datos locales", "info");
-      setLoading(false);
-      setSyncing(false);
+      if (!isBackground) setLoading(false);
+      if (!isBackground) setSyncing(false);
       return;
     }
 
-    const maxIntentos = 3;
+    const maxIntentos = isBackground ? 1 : 3;
     let ultimoError = null;
 
     for (let intento = 1; intento <= maxIntentos; intento++) {
@@ -913,10 +913,14 @@ function App() {
           }
 
           const remotas = normalizarTareasDesdeApi(json.data);
-          const locales = cargarTareasLocales();
-          const fusionadas = fusionarTareasRemotasYLocales(remotas, locales);
-          persistTareas(fusionadas);
-          setHayPendientesLocales(hayPendientesSync());
+          let fusionadas = [];
+          setTareas((prevTareas) => {
+            const base = prevTareas.length ? prevTareas : cargarTareasLocales();
+            fusionadas = fusionarTareasRemotasYLocales(remotas, base);
+            guardarTareasLocales(fusionadas);
+            return fusionadas;
+          });
+          setHayPendientesLocales(hayPendientesSync() || hayTareasPendientesLocales(fusionadas));
 
           if (json.marcasMetadata) {
             const normalizado = {};
@@ -927,8 +931,9 @@ function App() {
             setListaPersonas((prev) => sincronizarListaPersonasConMarcas(prev, normalizado));
           }
           if (!isBackground) showToast("Sincronizado", "success");
-          setLoading(false);
-          setSyncing(false);
+          setApiError(null);
+          if (!isBackground) setLoading(false);
+          if (!isBackground) setSyncing(false);
           return;
         }
 
@@ -943,42 +948,43 @@ function App() {
     }
 
     console.error("Sheets sync error", ultimoError);
-    const backup = cargarTareasLocales();
-    if (backup.length) {
-      persistTareas(backup);
-      setApiError("Sin conexión — mostrando datos guardados");
-      if (!isBackground) {
-        showToast("Sin conexión. Se muestran los datos guardados en este dispositivo.", "info");
-      }
-    } else if (!isBackground) {
-      setApiError("Error de Conexión.");
-      showToast(ultimoError?.message || "Error de conexión", "error");
+    if (isBackground) {
+      setApiError((prev) => prev || "Sin conexión");
     } else {
-      setApiError("Sin conexión");
+      const backup = cargarTareasLocales();
+      if (backup.length) {
+        setTareas((prev) => (prev.length ? prev : backup));
+        setApiError("Sin conexión — mostrando datos guardados");
+        showToast("Sin conexión. Se muestran los datos guardados en este dispositivo.", "info");
+      } else {
+        setApiError("Error de Conexión.");
+        showToast(ultimoError?.message || "Error de conexión", "error");
+      }
+      setLoading(false);
+      setSyncing(false);
     }
-    setLoading(false);
-    setSyncing(false);
   };
 
-  const sincronizarPendientes = async (isBackground = true) => {
-    if (!isApiConfigured()) return;
-    try {
-      const result = await procesarColaSync();
-      setHayPendientesLocales(hayPendientesSync());
-      if (result.tareasLocales) {
-        persistTareas(result.tareasLocales);
+  const sincronizarEnSegundoPlano = () => {
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = setTimeout(async () => {
+      if (syncMutexRef.current || !isApiConfigured()) return;
+      syncMutexRef.current = true;
+      try {
+        await procesarColaSync();
+        setHayPendientesLocales(hayPendientesSync() || hayTareasPendientesLocales(cargarTareasLocales()));
+        await fetchData(true);
+      } catch (e) {
+        console.warn("ROBIN: sync en segundo plano", e);
+      } finally {
+        syncMutexRef.current = false;
+        setHayPendientesLocales(hayPendientesSync() || hayTareasPendientesLocales(cargarTareasLocales()));
       }
-      if (result.processed > 0) {
-        await fetchData(isBackground);
-      }
-    } catch (e) {
-      console.warn("ROBIN: error al sincronizar pendientes", e);
-    }
+    }, 350);
   };
 
   const handleUpdateField = async (tarea, campo, nuevoValor) => {
     if (!nuevoValor && nuevoValor !== "") return;
-    if (isSubmitting) return;
 
     const original = resolverTareaActual(tareas, tarea);
     if (!original) return;
@@ -1028,11 +1034,11 @@ function App() {
     });
     setHayPendientesLocales(true);
     showToast("Cambio guardado", "success");
-    sincronizarPendientes(true);
+    sincronizarEnSegundoPlano();
   };
 
   const handleConfirmComplete = async () => {
-    if (!taskToComplete || isSubmitting || syncing) return;
+    if (!taskToComplete) return;
     const tarea = taskToComplete;
     setTaskToComplete(null);
     await handleUpdateField(tarea, "estado", "Completada");
@@ -1070,8 +1076,8 @@ function App() {
   };
 
   const handleSaveTaskModal = async (editedTask) => {
-    if (isSubmitting) return;
-    setIsSubmitting(true);
+    if (guardandoRef.current) return;
+    guardandoRef.current = true;
 
     try {
       const original = resolverTareaActual(tareas, editedTask);
@@ -1106,14 +1112,15 @@ function App() {
         detalles: detallesAudoria
       })));
 
-      const taskKey = getTaskSelectionKey(original);
+      const taskKeyOriginal = getTaskSelectionKey(original);
       const copiaTareas = [...tareas];
       copiaTareas[index] = taskConHistorial;
       persistTareas(copiaTareas);
 
       encolarSync({
         type: "update",
-        taskKey,
+        taskKey: getTaskSelectionKey(taskConHistorial),
+        taskKeyOriginal,
         payload: {
           marca: taskConHistorial.marca,
           idTarea: idTareaParaApi(original),
@@ -1139,15 +1146,15 @@ function App() {
       setIsEditing(false);
       setActiveTask(null);
       showToast("Guardado", "success");
-      sincronizarPendientes(true);
+      sincronizarEnSegundoPlano();
     } finally {
-      setIsSubmitting(false);
+      setTimeout(() => { guardandoRef.current = false; }, 250);
     }
   };
 
   const handleDeleteTask = async (tarea) => {
-    if (isSubmitting) return;
-    setIsSubmitting(true);
+    if (guardandoRef.current) return;
+    guardandoRef.current = true;
 
     try {
       const taskKey = getTaskSelectionKey(tarea);
@@ -1170,15 +1177,15 @@ function App() {
       });
       setHayPendientesLocales(true);
       showToast("Eliminado", "success");
-      sincronizarPendientes(true);
+      sincronizarEnSegundoPlano();
     } finally {
-      setIsSubmitting(false);
+      setTimeout(() => { guardandoRef.current = false; }, 250);
     }
   };
 
   const handleCreateTask = async (e, detallesSerializados, tareaPreparada) => {
     e.preventDefault();
-    if (isSubmitting) return;
+    if (guardandoRef.current) return;
 
     const base = tareaPreparada || nuevaTarea;
     
@@ -1191,7 +1198,7 @@ function App() {
       return;
     }
 
-    setIsSubmitting(true);
+    guardandoRef.current = true;
     try {
       const autoId = generateBrandId(base.marca);
       const hoy = new Date();
@@ -1215,7 +1222,7 @@ function App() {
         return registrarCategoriasEnLista(prev, [{ nombre: parsed.principal, color: asignarColorCategoria(parsed.principal, prev) }]);
       });
 
-      persistTareas([nuevaConId, ...tareas]);
+      persistTareas((prev) => [nuevaConId, ...prev]);
 
       const taskKey = getTaskSelectionKey(nuevaConId);
       encolarSync({
@@ -1241,9 +1248,9 @@ function App() {
       });
       setPaginaActiva("dashboard");
       showToast("Entregable creado", "success");
-      sincronizarPendientes(true);
+      sincronizarEnSegundoPlano();
     } finally {
-      setIsSubmitting(false);
+      setTimeout(() => { guardandoRef.current = false; }, 250);
     }
   };
 
@@ -1370,9 +1377,8 @@ function App() {
 
               <div className="px-2.5 pt-1">
                 <button 
-                  disabled={isSubmitting || syncing}
                   onClick={() => navegarA("agregar")}
-                  className="w-full bg-[#37352F] hover:bg-[#2c2a26] text-white font-medium py-1.5 px-3 rounded text-ui transition-colors flex items-center justify-center gap-1 shadow-sm disabled:opacity-50"
+                  className="w-full bg-[#37352F] hover:bg-[#2c2a26] text-white font-medium py-1.5 px-3 rounded text-ui transition-colors flex items-center justify-center gap-1 shadow-sm"
                 >
                   <SVGIcon.Plus />
                   <span>Añadir entregable</span>
@@ -1505,8 +1511,10 @@ function App() {
         </header>
 
         <div className={`flex-1 overflow-y-auto overflow-x-hidden w-full min-h-0 ${
-          paginaActiva === "agregar" ? "lg:px-8" : "max-w-6xl mx-auto"
-        } ${paginaActiva === "agregar" ? "robin-mobile-main !px-0 lg:!px-8" : "robin-mobile-main"}`}>
+          paginaActiva === "agregar"
+            ? "robin-mobile-main robin-main-agregar !px-0 lg:!px-8"
+            : "robin-mobile-main max-w-6xl mx-auto"
+        }`}>
           
           {!isConfigOnlyAdmin && paginaActiva === "home" && (
             <LayoutHome
@@ -1535,8 +1543,6 @@ function App() {
               registrarNuevaPersona={registrarNuevaPersonaGlobal}
               listaCategorias={listaCategorias}
               registrarNuevaCategoria={registrarNuevaCategoriaGlobal}
-              isSubmitting={isSubmitting}
-              syncing={syncing}
             />
           )}
 
@@ -2165,8 +2171,7 @@ function App() {
               <button
                 type="button"
                 onClick={handleConfirmComplete}
-                disabled={isSubmitting || syncing}
-                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded disabled:opacity-50"
+                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold rounded"
               >
                 Completar
               </button>
@@ -2194,7 +2199,6 @@ function App() {
               </button>
               <button 
                 onClick={() => handleDeleteTask(taskToDelete)}
-                disabled={isSubmitting}
                 className="px-4 py-1.5 bg-red-650 hover:bg-red-500 text-white text-xs font-semibold rounded"
               >
                 Eliminar

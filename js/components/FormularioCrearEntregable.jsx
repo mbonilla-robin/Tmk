@@ -19,15 +19,12 @@ function FormularioCrearEntregable({
   listaPersonas,
   registrarNuevaPersona,
   listaCategorias,
-  registrarNuevaCategoria,
-  isSubmitting,
-  syncing
+  registrarNuevaCategoria
 }) {
   const [subtareas, setSubtareas] = useState([]);
 
   const estadoVisual = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(nuevaTarea.estado)) || ESTADOS_MAPA[0];
   const inputPropClass = "w-full bg-transparent border-0 text-ui-sm text-[#37352F] focus:outline-none cursor-pointer font-medium";
-  const inputPropTextClass = "w-full bg-transparent border-0 text-ui-sm text-[#37352F] focus:outline-none font-medium placeholder-zinc-400";
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -37,8 +34,8 @@ function FormularioCrearEntregable({
   };
 
   return (
-    <div className="task-form-page w-full min-h-full flex flex-col animate-fade-in bg-white">
-      <form onSubmit={handleSubmit} className="min-h-full flex flex-col flex-1">
+    <div className="task-form-page task-form-page--standalone w-full animate-fade-in bg-white">
+      <form onSubmit={handleSubmit}>
         <div className="px-5 md:px-12 lg:px-10 pt-1 pb-5 md:pt-6 md:pb-6">
           <span className="task-form-eyebrow text-ui-sm text-zinc-400">Nuevo entregable</span>
           <input
@@ -52,7 +49,7 @@ function FormularioCrearEntregable({
           />
         </div>
 
-        <div className="flex-1 px-5 md:px-12 lg:px-10 pb-28">
+        <div className="px-5 md:px-12 lg:px-10">
           <div className="pb-2 flex flex-col gap-0.5 border-b border-zinc-100">
             <PropertyRow icon="fa-regular fa-building" label="Cliente">
               <select
@@ -135,23 +132,22 @@ function FormularioCrearEntregable({
           </div>
 
           <ListaSubtareas subtareas={subtareas} onChange={setSubtareas} />
-        </div>
 
-        <div className="task-form-actions sticky bottom-[var(--mobile-chrome-bottom,4rem)] md:bottom-0 bg-white/95 backdrop-blur-sm border-t border-zinc-100 px-5 md:px-12 lg:px-10 py-3 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-3 py-1.5 text-ui-sm font-medium text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 rounded transition-colors"
-          >
-            Cancelar
-          </button>
-          <button
-            type="submit"
-            disabled={isSubmitting || syncing}
-            className="px-4 py-1.5 bg-[#37352F] text-white text-ui-sm font-medium rounded hover:bg-[#2c2a26] disabled:opacity-50 transition-colors"
-          >
-            Crear entregable
-          </button>
+          <div className="task-form-actions task-form-actions--flow px-0 py-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="px-3 py-1.5 text-ui-sm font-medium text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 rounded transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-1.5 bg-[#37352F] text-white text-ui-sm font-medium rounded hover:bg-[#2c2a26] transition-colors"
+            >
+              Crear entregable
+            </button>
+          </div>
         </div>
       </form>
     </div>

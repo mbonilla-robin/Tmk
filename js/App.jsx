@@ -104,7 +104,7 @@ function App() {
   };
 
   const [nuevaTarea, setNuevaTarea] = useState({
-    marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", estado: "Pendiente", deadline: "", prioridad: "Media"
+    marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", link: "", estado: "Pendiente", deadline: "", prioridad: "Media"
   });
 
   // 🚨 UBICACIÓN CORRECTA DE VARIABLES COMPUTADAS Y useMemo (Evita ReferenceError y TDZ)
@@ -1242,7 +1242,7 @@ function App() {
       setHayPendientesLocales(true);
 
       setNuevaTarea({
-        marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", estado: "Pendiente", deadline: "", prioridad: "Media"
+        marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", link: "", estado: "Pendiente", deadline: "", prioridad: "Media"
       });
       setPaginaActiva("dashboard");
       showToast("Entregable creado", "success");

@@ -43,6 +43,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   
   const [notes, setNotes] = useState(parsed.notes || parsed.notas);
   const [subtareas, setSubtareas] = useState(parsed.subtareas);
+  const [link, setLink] = useState(parsed.link || "");
 
   useEffect(() => {
     const detalles = tarea.detalles || "";
@@ -72,6 +73,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     setRawDetalles(detalles);
     setNotes(parsedDetalles.notes || parsedDetalles.notas);
     setSubtareas(parsedDetalles.subtareas);
+    setLink(parsedDetalles.link || "");
   }, [
     tarea.idTarea,
     tarea.info,
@@ -99,12 +101,17 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
 
   const handleSubtareasChange = (nuevas) => {
     setSubtareas(nuevas);
-    setRawDetalles(serializeDetalles(notes, nuevas, parsed.historial));
+    setRawDetalles(serializeDetalles(notes, nuevas, parsed.historial, link));
   };
 
   const handleNotasChange = (newNotas) => {
     setNotes(newNotas);
-    setRawDetalles(serializeDetalles(newNotas, subtareas, parsed.historial));
+    setRawDetalles(serializeDetalles(newNotas, subtareas, parsed.historial, link));
+  };
+
+  const handleLinkChange = (val) => {
+    setLink(val);
+    setRawDetalles(serializeDetalles(notes, subtareas, parsed.historial, val));
   };
 
   const handleSubmit = async (e) => {
@@ -115,7 +122,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
       return;
     }
     setDeadlineError("");
-    const tFinal = serializeDetalles(notes, subtareas, parsed.historial);
+    const tFinal = serializeDetalles(notes, subtareas, parsed.historial, link);
     const tareaPreparada = prepararTareaConCategoria({
       ...tarea,
       info: info.trim(),
@@ -243,6 +250,30 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
               />
             </PropertyRow>
           </div>
+
+          <PropertyRow icon="fa-solid fa-link" label="Enlace">
+            <div className="flex items-center gap-2 min-w-0">
+              <input
+                type="url"
+                value={link}
+                onChange={(e) => handleLinkChange(e.target.value)}
+                placeholder="https://..."
+                className={inputPropTextClass}
+              />
+              {normalizarUrlEnlace(link) && (
+                <a
+                  href={normalizarUrlEnlace(link)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="task-link-open shrink-0 text-zinc-400 hover:text-blue-600 transition-colors"
+                  title="Abrir enlace"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <i className="fa-solid fa-arrow-up-right-from-square text-[11px]" />
+                </a>
+              )}
+            </div>
+          </PropertyRow>
 
           {/* Notas */}
           <div className="py-4 border-b border-zinc-100">

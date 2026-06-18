@@ -386,6 +386,31 @@ body {
     .rich-notes-content b {
       font-weight: 700;
     }
+
+    .rich-notes-content a {
+      color: #2563eb;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      word-break: break-word;
+      cursor: pointer;
+    }
+
+    .rich-notes-content a:hover {
+      color: #1d4ed8;
+    }
+
+    .task-link-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.5rem;
+      height: 1.5rem;
+      border-radius: 0.25rem;
+    }
+
+    .task-link-open:hover {
+      background: #eff6ff;
+    }
     .presence-user-name {
       min-width: 0;
       overflow: visible;

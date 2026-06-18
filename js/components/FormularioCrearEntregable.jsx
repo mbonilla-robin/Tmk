@@ -28,7 +28,7 @@ function FormularioCrearEntregable({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const detallesFinal = serializeDetalles(nuevaTarea.detalles, subtareas, []);
+    const detallesFinal = serializeDetalles(nuevaTarea.detalles, subtareas, [], nuevaTarea.link);
     const tareaPreparada = prepararTareaConCategoria(nuevaTarea);
     onSubmit(e, detallesFinal, tareaPreparada);
   };
@@ -119,6 +119,30 @@ function FormularioCrearEntregable({
               />
             </PropertyRow>
           </div>
+
+          <PropertyRow icon="fa-solid fa-link" label="Enlace">
+            <div className="flex items-center gap-2 min-w-0">
+              <input
+                type="url"
+                value={nuevaTarea.link || ""}
+                onChange={(e) => setNuevaTarea({ ...nuevaTarea, link: e.target.value })}
+                placeholder="https://..."
+                className="flex-1 min-w-0 bg-transparent border-0 text-ui-sm text-[#37352F] focus:outline-none placeholder-zinc-400"
+              />
+              {normalizarUrlEnlace(nuevaTarea.link) && (
+                <a
+                  href={normalizarUrlEnlace(nuevaTarea.link)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="task-link-open shrink-0 text-zinc-400 hover:text-blue-600 transition-colors"
+                  title="Abrir enlace"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <i className="fa-solid fa-arrow-up-right-from-square text-[11px]" />
+                </a>
+              )}
+            </div>
+          </PropertyRow>
 
           <div className="py-4 border-b border-zinc-100">
             <div className="task-section-label flex items-center gap-2 mb-2 text-ui-sm text-zinc-500">

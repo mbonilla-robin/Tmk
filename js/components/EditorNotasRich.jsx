@@ -8,10 +8,10 @@ function isHtmlNotasVacio(html) {
 
 function notasToEditorHtml(text) {
   if (!text) return "";
-  if (/<[a-z][\s\S]*>/i.test(text)) return text;
+  if (/<[a-z][\s\S]*>/i.test(text)) return linkificarHtmlNotas(text);
   return text
     .split("\n")
-    .map((line) => (line ? `<p>${line.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>` : "<p><br></p>"))
+    .map((line) => (line ? `<p>${linkificarTextoPlano(line)}</p>` : "<p><br></p>"))
     .join("");
 }
 
@@ -223,6 +223,37 @@ function EditorNotasRich({ value, onChange, placeholder = "Escribe notas o conte
     }
   };
 
+  const aplicarEnlacesEnEditor = (el) => {
+    const linked = linkificarHtmlNotas(el.innerHTML);
+    if (linked !== el.innerHTML) {
+      el.innerHTML = linked;
+      normalizeEditorBlocks(el);
+    }
+    el.querySelectorAll("a").forEach((a) => {
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+    });
+  };
+
+  const handleBlur = () => {
+    const el = editorRef.current;
+    if (!el) return;
+    aplicarEnlacesEnEditor(el);
+    emitChange();
+  };
+
+  const handleInsertLink = () => {
+    runToolbarAction((el) => {
+      ensureEditorSelection(el);
+      const url = window.prompt("URL del enlace:", "https://");
+      if (!url) return;
+      const norm = normalizarUrlEnlace(url);
+      if (!norm) return;
+      document.execCommand("createLink", false, norm);
+      aplicarEnlacesEnEditor(el);
+    });
+  };
+
   const handleKeyDown = (e) => {
     if (e.metaKey || e.ctrlKey) {
       const key = e.key.toLowerCase();
@@ -265,6 +296,10 @@ function EditorNotasRich({ value, onChange, placeholder = "Escribe notas o conte
         <button type="button" className={toolbarBtnClass("insertOrderedList")} onMouseDown={(e) => handleToolbarMouseDown(e, () => handleList(true))} title="Lista numerada">
           <i className="fa-solid fa-list-ol" />
         </button>
+        <span className="rich-notes-toolbar-sep" aria-hidden="true" />
+        <button type="button" className="rich-notes-btn" onMouseDown={(e) => handleToolbarMouseDown(e, handleInsertLink)} title="Insertar enlace">
+          <i className="fa-solid fa-link" />
+        </button>
       </div>
       <div
         ref={editorRef}
@@ -280,7 +315,7 @@ function EditorNotasRich({ value, onChange, placeholder = "Escribe notas o conte
         onMouseUp={captureSelection}
         onKeyUp={captureSelection}
         onInput={emitChange}
-        onBlur={emitChange}
+        onBlur={handleBlur}
         onKeyDown={handleKeyDown}
       />
     </div>

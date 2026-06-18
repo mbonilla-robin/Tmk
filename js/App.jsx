@@ -2193,7 +2193,7 @@ function App() {
 
       {/* BARRA ACCESO RÁPIDO — entregables de hoy (solo Home, desktop md+) */}
       {!isConfigOnlyAdmin && paginaActiva === "home" && (
-        <BarraHoyAccesoRapido tareas={tareas} onSelectTask={abrirEdicionTarea} getMarcaStyle={getMarcaStyle} />
+        <BarraHoyAccesoRapido tareas={tareas} username={usuario} onSelectTask={abrirEdicionTarea} getMarcaStyle={getMarcaStyle} />
       )}
 
       {!isConfigOnlyAdmin && (

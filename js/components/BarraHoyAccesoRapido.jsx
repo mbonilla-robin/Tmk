@@ -118,7 +118,7 @@ function SeccionTareasHoy({ titulo, conteo, vacio, tareas, onSelectTask, getMarc
   );
 }
 
-function BarraHoyAccesoRapido({ tareas, onSelectTask, getMarcaStyle }) {
+function BarraHoyAccesoRapido({ tareas, username, onSelectTask, getMarcaStyle }) {
   const [ahora, setAhora] = useState(() => new Date());
 
   useEffect(() => {
@@ -130,13 +130,15 @@ function BarraHoyAccesoRapido({ tareas, onSelectTask, getMarcaStyle }) {
 
   const { entregasHoy, trabajarHoy } = useMemo(() => {
     const tHoy = obtenerTiempoHoyLocal();
-    const lista = tareas || [];
+    const lista = (tareas || []).filter((t) =>
+      username && tareaIncluyePersonaFiltro(t.personas || "", username)
+    );
 
     const entregas = ordenarTareasParaHoy(lista.filter((t) => esEntregaHoyTarea(t, tHoy)));
     const trabajar = ordenarTareasParaHoy(lista.filter((t) => esTrabajarHoyTarea(t, tHoy)));
 
     return { entregasHoy: entregas, trabajarHoy: trabajar };
-  }, [tareas]);
+  }, [tareas, username]);
 
   return (
     <aside

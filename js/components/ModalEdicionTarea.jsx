@@ -34,7 +34,9 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   const [prioridad, setPrioridad] = useState(normalizarPrioridad(tarea.prioridad));
   const [estado, setEstado] = useState(normalizarEstado(tarea.estado));
   const [deadline, setDeadline] = useState(deadlineParaEdicion(tarea.deadline));
+  const [fechaInicio, setFechaInicio] = useState(deadlineParaEdicion(tarea.fechaInicio));
   const [deadlineError, setDeadlineError] = useState("");
+  const [fechaInicioError, setFechaInicioError] = useState("");
   const [personas, setPersonas] = useState(tarea.personas || "");
   const [rawDetalles, setRawDetalles] = useState(tarea.detalles || "");
   const [guardando, setGuardando] = useState(false);
@@ -68,7 +70,9 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     setPrioridad(normalizarPrioridad(tarea.prioridad));
     setEstado(normalizarEstado(tarea.estado));
     setDeadline(deadlineParaEdicion(tarea.deadline));
+    setFechaInicio(deadlineParaEdicion(tarea.fechaInicio));
     setDeadlineError("");
+    setFechaInicioError("");
     setPersonas(tarea.personas || "");
     setRawDetalles(detalles);
     setNotes(parsedDetalles.notes || parsedDetalles.notas);
@@ -82,6 +86,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     tarea.prioridad,
     tarea.estado,
     tarea.deadline,
+    tarea.fechaInicio,
     tarea.personas,
     tarea.detalles
   ]);
@@ -121,7 +126,17 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
       setDeadlineError(deadline.trim() ? "Fecha no válida. Ej: 16/06/2026" : "La fecha de entrega es obligatoria");
       return;
     }
+    const inicioNorm = fechaInicio.trim() ? normalizarDeadline(fechaInicio) : "";
+    if (fechaInicio.trim() && !inicioNorm) {
+      setFechaInicioError("Fecha no válida. Ej: 16/06/2026");
+      return;
+    }
+    if (inicioNorm && obtenerTiempoFecha(inicioNorm) > obtenerTiempoFecha(fechaNorm)) {
+      setFechaInicioError("El inicio no puede ser después de la entrega");
+      return;
+    }
     setDeadlineError("");
+    setFechaInicioError("");
     const tFinal = serializeDetalles(notes, subtareas, parsed.historial, link);
     const tareaPreparada = prepararTareaConCategoria({
       ...tarea,
@@ -131,6 +146,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
       prioridad: normalizarPrioridad(prioridad),
       estado: normalizarEstado(estado),
       deadline: fechaNorm,
+      fechaInicio: inicioNorm,
       personas,
       detalles: tFinal
     });
@@ -236,6 +252,24 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
                 />
                 {deadlineError && (
                   <span className="text-[11px] text-red-500">{deadlineError}</span>
+                )}
+              </div>
+            </PropertyRow>
+
+            <PropertyRow icon="fa-regular fa-calendar-check" label="Inicio">
+              <div className="flex flex-col gap-0.5">
+                <InputFechaLibre
+                  value={fechaInicio}
+                  onChange={(val) => { setFechaInicio(val); if (fechaInicioError) setFechaInicioError(""); }}
+                  className={inputPropClass}
+                  placeholder="Auto según prioridad"
+                />
+                {fechaInicioError ? (
+                  <span className="text-[11px] text-red-500">{fechaInicioError}</span>
+                ) : (
+                  <span className="text-[10px] text-zinc-400 leading-snug">
+                    Opcional. Alta: 5 días antes · Media: 3 · Baja: 1
+                  </span>
                 )}
               </div>
             </PropertyRow>

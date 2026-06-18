@@ -38,8 +38,7 @@ function filtrarTareasParaEstatus(tareas, { marcas, estados, filtroTiempo, perso
     const esCompletada = cleanEstado(t.estado) === "completada";
 
     if (filtroTiempo === "hoy") {
-      const esHoy = tDeadline !== Infinity && tDeadline === tHoy;
-      if (!esHoy || esCompletada) return false;
+      if (!esRelevanteHoyTarea(t, tHoy)) return false;
     } else if (filtroTiempo === "atrasadas") {
       const esAtrasada = tDeadline !== Infinity && tDeadline < tHoy;
       if (!esAtrasada || esCompletada) return false;

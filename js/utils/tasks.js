@@ -92,6 +92,89 @@ function resolverTareaActual(tareas, tareaRef) {
   return tareaRef;
 }
 
+const MS_POR_DIA = 86400000;
+
+const DIAS_ANTICIPACION_TRABAJO = {
+  alta: 5,
+  media: 3,
+  baja: 1
+};
+
+function obtenerDiasAnticipacionTrabajo(prioridad) {
+  const p = normalizarPrioridad(prioridad);
+  if (p === "Alta") return DIAS_ANTICIPACION_TRABAJO.alta;
+  if (p === "Baja") return DIAS_ANTICIPACION_TRABAJO.baja;
+  return DIAS_ANTICIPACION_TRABAJO.media;
+}
+
+function obtenerTiempoHoyLocal(fechaRef) {
+  const hoy = fechaRef || new Date();
+  return new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
+}
+
+function resolverFechaInicioTarea(t) {
+  const raw = normalizarDeadline(t.fechaInicio || t.fecha || "");
+  if (!raw) return "";
+  const tIni = obtenerTiempoFecha(raw);
+  const tDead = obtenerTiempoFecha(t.deadline);
+  if (tIni === Infinity || tDead === Infinity || tIni > tDead) return "";
+  if (tIni < tDead - 90 * MS_POR_DIA) return "";
+  return raw;
+}
+
+function obtenerTiempoInicioTrabajo(tarea) {
+  const tDeadline = obtenerTiempoFecha(tarea.deadline);
+  if (tDeadline === Infinity) return Infinity;
+
+  const fechaInicio = resolverFechaInicioTarea(tarea);
+  if (fechaInicio) {
+    const tManual = obtenerTiempoFecha(fechaInicio);
+    if (tManual !== Infinity) return tManual;
+  }
+
+  const diasAnt = obtenerDiasAnticipacionTrabajo(tarea.prioridad);
+  return tDeadline - diasAnt * MS_POR_DIA;
+}
+
+function esTareaCompletada(tarea) {
+  return cleanEstado(tarea?.estado) === "completada";
+}
+
+function esEntregaHoyTarea(tarea, tHoy) {
+  if (esTareaCompletada(tarea)) return false;
+  const tDeadline = obtenerTiempoFecha(tarea.deadline);
+  const hoy = tHoy ?? obtenerTiempoHoyLocal();
+  return tDeadline !== Infinity && tDeadline === hoy;
+}
+
+function esTrabajarHoyTarea(tarea, tHoy) {
+  if (esTareaCompletada(tarea)) return false;
+  const hoy = tHoy ?? obtenerTiempoHoyLocal();
+  const tDeadline = obtenerTiempoFecha(tarea.deadline);
+  if (tDeadline === Infinity || tDeadline <= hoy) return false;
+
+  const tInicio = obtenerTiempoInicioTrabajo(tarea);
+  if (tInicio === Infinity) return false;
+
+  return hoy >= tInicio && hoy < tDeadline;
+}
+
+function esRelevanteHoyTarea(tarea, tHoy) {
+  return esEntregaHoyTarea(tarea, tHoy) || esTrabajarHoyTarea(tarea, tHoy);
+}
+
+function ordenarTareasParaHoy(lista) {
+  return [...(lista || [])].sort((a, b) => {
+    const pesoA = getPriorityWeight(a.prioridad);
+    const pesoB = getPriorityWeight(b.prioridad);
+    if (pesoA !== pesoB) return pesoB - pesoA;
+    const fechaA = obtenerTiempoFecha(a.deadline);
+    const fechaB = obtenerTiempoFecha(b.deadline);
+    if (fechaA !== fechaB) return fechaA - fechaB;
+    return (a.info || "").localeCompare(b.info || "", "es");
+  });
+}
+
 function normalizarTareaCampos(t) {
   return {
     ...t,
@@ -99,6 +182,7 @@ function normalizarTareaCampos(t) {
     estado: normalizarEstado(t.estado),
     prioridad: normalizarPrioridad(t.prioridad || t.Prioridad),
     deadline: normalizarDeadline(t.deadline),
+    fechaInicio: resolverFechaInicioTarea(t),
     personas: normalizarCampoPersonas(t.personas)
   };
 }
@@ -107,6 +191,7 @@ function normalizarValorCampoTarea(campo, valor) {
   if (campo === "prioridad") return normalizarPrioridad(valor);
   if (campo === "estado") return normalizarEstado(valor);
   if (campo === "deadline") return normalizarDeadline(valor);
+  if (campo === "fechaInicio") return normalizarDeadline(valor);
   return valor;
 }
 

@@ -104,7 +104,7 @@ function App() {
   };
 
   const [nuevaTarea, setNuevaTarea] = useState({
-    marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", link: "", estado: "Pendiente", deadline: "", prioridad: "Media"
+    marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", link: "", estado: "Pendiente", deadline: "", fechaInicio: "", prioridad: "Media"
   });
 
   // 🚨 UBICACIÓN CORRECTA DE VARIABLES COMPUTADAS Y useMemo (Evita ReferenceError y TDZ)
@@ -128,9 +128,7 @@ function App() {
       const esCompletada = cleanEstado(t.estado) === "completada";
       
       if (filtroTiempo === "HOY") {
-        const tieneFechaReal = tDeadline !== Infinity;
-        const esHoy = tieneFechaReal && tDeadline === tHoy;
-        if (!esHoy || esCompletada) return false;
+        if (!esRelevanteHoyTarea(t, tHoy)) return false;
       } else if (filtroTiempo === "ATRASADAS") {
         const tieneFechaReal = tDeadline !== Infinity;
         const esAtrasada = tieneFechaReal && tDeadline < tHoy;
@@ -163,19 +161,17 @@ function App() {
   }, [tareas, filtroTiempo, filtroMarca, filtroEstado, filtroPrioridad, searchQuery]);
 
   const metricaCounters = useMemo(() => {
-    const hoy = new Date();
-    const tHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
-    const activasHoy = tareas.filter(t => {
-      const tDeadline = obtenerTiempoFecha(t.deadline);
-      return tDeadline !== Infinity && tDeadline === tHoy && cleanEstado(t.estado) !== "completada";
-    }).length;
+    const tHoy = obtenerTiempoHoyLocal();
+    const entregasHoy = tareas.filter(t => esEntregaHoyTarea(t, tHoy)).length;
+    const trabajarHoy = tareas.filter(t => esTrabajarHoyTarea(t, tHoy)).length;
+    const activasHoy = entregasHoy + trabajarHoy;
 
     const atrasadas = tareas.filter(t => {
       const tDeadline = obtenerTiempoFecha(t.deadline);
       return tDeadline !== Infinity && tDeadline < tHoy && cleanEstado(t.estado) !== "completada";
     }).length;
     
-    return { activasHoy, atrasadas };
+    return { activasHoy, entregasHoy, trabajarHoy, atrasadas };
   }, [tareas]);
 
   // getMarcaStyle definido en js/utils/marcas.js
@@ -587,6 +583,7 @@ function App() {
       for (const tarea of objetivos) {
         const actualizada = actualizadas.find(t => getTaskSelectionKey(t) === getTaskSelectionKey(tarea));
         const taskTargetId = actualizada.idTarea;
+        const inicioPayload = normalizarDeadline(actualizada?.fechaInicio || tarea.fechaInicio || "");
         await fetchRobinApi(effectiveUrl, {
           method: "POST", mode: "cors", redirect: "follow",
           headers: { "Content-Type": "text/plain; charset=utf-8" },
@@ -596,6 +593,7 @@ function App() {
             detalles: actualizada.detalles,
             estado: campo === "estado" ? valorFinal : normalizarEstado(tarea.estado),
             deadline: campo === "deadline" ? valorFinal : normalizarDeadline(tarea.deadline),
+            ...(inicioPayload ? { fechaInicio: inicioPayload } : {}),
             prioridad: campo === "prioridad" ? valorFinal : normalizarPrioridad(tarea.prioridad)
           })
         });
@@ -1014,6 +1012,7 @@ function App() {
     persistTareas(temp);
 
     const actualizada = temp.find(t => getTaskSelectionKey(t) === taskKey);
+    const inicioPayload = normalizarDeadline(actualizada?.fechaInicio || original.fechaInicio || "");
     encolarSync({
       type: "update",
       taskKey,
@@ -1029,6 +1028,7 @@ function App() {
         detalles: actualizada?.detalles || detallesConHistorial,
         estado: campo === "estado" ? valorFinal : normalizarEstado(actualizada?.estado || original.estado),
         deadline: campo === "deadline" ? valorFinal : normalizarDeadline(actualizada?.deadline || original.deadline),
+        ...(inicioPayload ? { fechaInicio: inicioPayload } : {}),
         prioridad: campo === "prioridad" ? valorFinal : normalizarPrioridad(actualizada?.prioridad || original.prioridad)
       }
     });
@@ -1096,6 +1096,7 @@ function App() {
       if (original.personas !== editedTask.personas) cambios.push("asignados");
       if (normalizarEstado(original.estado) !== normalizarEstado(editedTask.estado)) cambios.push(`estado a "${normalizarEstado(editedTask.estado)}"`);
       if (normalizarDeadline(original.deadline) !== normalizarDeadline(editedTask.deadline)) cambios.push("fecha límite");
+      if (normalizarDeadline(original.fechaInicio || "") !== normalizarDeadline(editedTask.fechaInicio || "")) cambios.push("inicio de trabajo");
       const prioridadNormalizada = normalizarPrioridad(editedTask.prioridad);
       if (normalizarPrioridad(original.prioridad) !== prioridadNormalizada) cambios.push("prioridad");
 
@@ -1129,6 +1130,7 @@ function App() {
           detalles: taskConHistorial.detalles,
           estado: taskConHistorial.estado,
           deadline: taskConHistorial.deadline,
+          fechaInicio: taskConHistorial.fechaInicio || "",
           prioridad: normalizarPrioridad(taskConHistorial.prioridad),
           campo: "todo"
         }
@@ -1195,6 +1197,15 @@ function App() {
       showToast("Ingresa una fecha válida (ej: 16/06/2026)", "error");
       return;
     }
+    const inicioNorm = base.fechaInicio?.trim() ? normalizarDeadline(base.fechaInicio) : "";
+    if (base.fechaInicio?.trim() && !inicioNorm) {
+      showToast("La fecha de inicio no es válida (ej: 16/06/2026)", "error");
+      return;
+    }
+    if (inicioNorm && obtenerTiempoFecha(inicioNorm) > obtenerTiempoFecha(base.deadline)) {
+      showToast("El inicio no puede ser después de la entrega", "error");
+      return;
+    }
 
     guardandoRef.current = true;
     try {
@@ -1210,8 +1221,7 @@ function App() {
       const nuevaConId = marcarTareaPendiente(normalizarTareaCampos(prepararTareaConCategoria({
         ...base,
         idTarea: autoId,
-        detalles: detallesConCreador,
-        fecha: new Date().toISOString().split('T')[0]
+        detalles: detallesConCreador
       })));
 
       setListaCategorias((prev) => {
@@ -1235,6 +1245,7 @@ function App() {
           detalles: nuevaConId.detalles,
           estado: nuevaConId.estado,
           deadline: nuevaConId.deadline,
+          fechaInicio: nuevaConId.fechaInicio || "",
           prioridad: normalizarPrioridad(nuevaConId.prioridad),
           campo: "todo"
         }
@@ -1242,7 +1253,7 @@ function App() {
       setHayPendientesLocales(true);
 
       setNuevaTarea({
-        marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", link: "", estado: "Pendiente", deadline: "", prioridad: "Media"
+        marca: "La Santé", categoria: "", info: "", personas: "", detalles: "", link: "", estado: "Pendiente", deadline: "", fechaInicio: "", prioridad: "Media"
       });
       setPaginaActiva("dashboard");
       showToast("Entregable creado", "success");
@@ -2114,7 +2125,7 @@ function App() {
 
       {/* BARRA ACCESO RÁPIDO — entregables de hoy (solo desktop 1024px+) */}
       {!isConfigOnlyAdmin && (
-        <BarraHoyAccesoRapido tareas={tareas} onSelectTask={abrirEdicionTarea} />
+        <BarraHoyAccesoRapido tareas={tareas} onSelectTask={abrirEdicionTarea} getMarcaStyle={getMarcaStyle} />
       )}
 
       {!isConfigOnlyAdmin && (

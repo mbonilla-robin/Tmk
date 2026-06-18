@@ -127,10 +127,7 @@ function LayoutHome({
             username={username}
             onVerMas={() => setWidgetsMobileVista("todos")}
           />
-          <div className="hidden md:flex flex-col gap-2">
-            <WidgetBarFila titulo="Robin" widgets={widgetsVisibles.robin} />
-            <WidgetBarFila titulo="Clientes" widgets={widgetsVisibles.clientes} />
-          </div>
+          <DesktopWidgetsPanel widgetsAgrupados={widgetsVisibles} username={username} />
         </div>
       )}
 
@@ -145,8 +142,8 @@ function LayoutHome({
           )}
         </div>
 
-        <div className="p-2.5 md:p-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 md:gap-3">
+        <div className="p-2 md:p-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
             {highPriorityTasks.length === 0 ? (
               <div className="col-span-full py-5 text-center text-zinc-400 text-xs">
                 Sin urgentes
@@ -157,34 +154,38 @@ function LayoutHome({
                 const cEstado = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(t.estado)) || { dot: "bg-zinc-400" };
                 const personasCorta = t.personas
                   ? t.personas.split(/[\s,]+/).filter(Boolean).slice(0, 2).join(", ")
-                  : "Sin asignar";
+                  : "";
 
                 return (
                   <div
                     key={t.idTarea}
                     onClick={() => onSelectTask(t)}
-                    className={`p-2.5 border rounded-lg active:scale-[0.99] transition-all cursor-pointer flex flex-col gap-1.5 ${cMarca.bg} ${cMarca.text} ${cMarca.border}`}
+                    className="urgent-task-card"
+                    style={{ borderLeftColor: cMarca.accent || "#71717a" }}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${cMarca.bg} ${cMarca.text} ${cMarca.border} opacity-90 shrink-0`}>
-                        {formatearMarca(t.marca)}
-                      </span>
-                      <span className="text-[8px] font-bold uppercase tracking-wide opacity-70 shrink-0">Alta</span>
-                    </div>
-                    <p className="text-[12px] font-semibold line-clamp-2 leading-snug">{t.info}</p>
-                    <div className="flex flex-col gap-1 pt-1 border-t border-current/10 text-[10px] opacity-85">
-                      <span className="inline-flex items-center gap-1.5 min-w-0">
-                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cEstado.dot}`}></span>
-                        <span className="truncate">{normalizarEstado(t.estado) || "Sin estado"}</span>
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 min-w-0">
-                        <SVGIcon.Calendar className="w-2.5 h-2.5 opacity-60 shrink-0" />
-                        <span className="truncate">{t.deadline ? formatearFecha(t.deadline) : "Sin fecha"}</span>
-                      </span>
-                      <span className="inline-flex items-center gap-1.5 min-w-0">
-                        <SVGIcon.Users className="w-2.5 h-2.5 opacity-60 shrink-0" />
-                        <span className="truncate">{personasCorta}</span>
-                      </span>
+                    <div className="urgent-task-card-body">
+                      <p className="urgent-task-card-title">{t.info}</p>
+                      <div className="urgent-task-card-meta">
+                        <span
+                          className="urgent-task-card-marca"
+                          style={{ color: cMarca.accent || "#71717a" }}
+                        >
+                          {formatearMarca(t.marca)}
+                        </span>
+                        <span className="urgent-task-card-dot" aria-hidden="true">·</span>
+                        <span className="inline-flex items-center gap-1 min-w-0">
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cEstado.dot}`} />
+                          <span className="truncate">{normalizarEstado(t.estado) || "Sin estado"}</span>
+                        </span>
+                        <span className="urgent-task-card-dot" aria-hidden="true">·</span>
+                        <span className="truncate shrink-0">{t.deadline ? formatearFecha(t.deadline) : "Sin fecha"}</span>
+                        {personasCorta && (
+                          <>
+                            <span className="urgent-task-card-dot" aria-hidden="true">·</span>
+                            <span className="truncate">{personasCorta}</span>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );

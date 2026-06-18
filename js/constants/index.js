@@ -23,12 +23,14 @@ const PRIORIDADES_MAPA = [
 ];
 
 const MARCAS_COLORES = {
-  "LA SANTE": { bg: "bg-[#EDF6EC]", text: "text-[#1C3D27]", border: "border-[#C5E0C8]" },
-  "DIAGEO": { bg: "bg-[#F1F1EF]", text: "text-[#37352F]", border: "border-zinc-200" },
-  "GAMA": { bg: "bg-[#FDEBEC]", text: "text-[#601E21]", border: "border-[#E8C4C6]" },
-  "ROBIN": { bg: "bg-[#F4EEEE]", text: "text-[#44322E]", border: "border-[#D9C4C4]" },
-  "TMK": { bg: "bg-[#FAEBDD]", text: "text-[#5C2B14]", border: "border-[#E8D0BC]" }
+  "LA SANTE": { id: "la-sante", accent: "#2F7A4E" },
+  "DIAGEO": { id: "diageo", accent: "#71717A" },
+  "GAMA": { id: "gama", accent: "#DC2626" },
+  "ROBIN": { id: "robin", accent: "#37352F" },
+  "TMK": { id: "trade", accent: "#EA580C" }
 };
+
+const MARCAS_COLORES_DEFAULT = { id: "otros", accent: "#71717A" };
 
 const TEMAS = {
   notion: {

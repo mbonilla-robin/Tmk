@@ -5,10 +5,12 @@ function NotionTaskRow({
   onToggleSeleccion,
   onSolicitarCompletar,
   estaSeleccionada,
+  getMarcaStyle,
   listaCategorias = []
 }) {
   const cEstado = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(t.estado)) || { dot: "bg-zinc-400", bg: "bg-zinc-50" };
   const cPrioridad = PRIORIDADES_MAPA.find(p => cleanPrioridad(p.id) === cleanPrioridad(t.prioridad)) || PRIORIDADES_MAPA[1];
+  const cMarca = getMarcaStyle ? getMarcaStyle(t.marca) : { surface: "marca-surface-otros", accent: "#71717A" };
   const personasCorta = t.personas
     ? t.personas.split(/[\s,]+/).filter(Boolean).slice(0, 2).join(", ")
     : null;
@@ -79,6 +81,7 @@ function NotionTaskRow({
       onClick={handleClick}
       className={`notion-task-row group ${estaSeleccionada ? "is-selected" : ""} ${esCompletada ? "is-completed" : ""}`}
       style={{
+        borderLeftColor: cMarca.accent,
         transform: offsetX ? `translateX(${offsetX}px)` : undefined,
         transition: swiping ? "none" : "transform 0.2s ease"
       }}
@@ -96,6 +99,10 @@ function NotionTaskRow({
         <p className="notion-task-title">{t.info}</p>
 
         <div className="notion-task-meta">
+          <span className={`notion-task-meta-chip border ${cMarca.surface}`}>
+            {formatearMarca(t.marca)}
+          </span>
+
           <span className={`notion-task-estado-pill ${cEstado.bg}`}>
             <span className={`notion-task-dot ${cEstado.dot}`} />
             {normalizarEstado(t.estado) || "—"}
@@ -215,7 +222,10 @@ function LayoutTablaAgrupada({
 
         return (
           <section key={marca} className="notion-group">
-            <header className={`notion-group-header ${badgeStyle.bg} border ${badgeStyle.border}`}>
+            <header
+              className={`notion-group-header ${badgeStyle.surface}`}
+              style={{ borderLeftColor: badgeStyle.accent }}
+            >
               <input
                 type="checkbox"
                 checked={todoGrupo}
@@ -225,10 +235,10 @@ function LayoutTablaAgrupada({
                 className="notion-task-check notion-group-check"
                 title="Seleccionar grupo"
               />
-              <h3 className={`notion-group-title ${badgeStyle.text}`}>
+              <h3 className="notion-group-title">
                 {formatearMarca(marca)}
               </h3>
-              <span className={`notion-group-count ${badgeStyle.text}`}>
+              <span className="notion-group-count" style={{ color: badgeStyle.accent }}>
                 {tareasDeMarca.length}
               </span>
             </header>
@@ -245,6 +255,7 @@ function LayoutTablaAgrupada({
                     onSolicitarCompletar={onSolicitarCompletar}
                     onToggleSeleccion={onToggleSeleccion}
                     estaSeleccionada={tareasSeleccionadas.has(selKey)}
+                    getMarcaStyle={getMarcaStyle}
                     listaCategorias={listaCategorias}
                   />
                 );

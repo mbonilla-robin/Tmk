@@ -25,6 +25,74 @@ function prioridadEtiquetaCorta(prioridad) {
   return "Media";
 }
 
+function HoyIconoPersonaSola({ className = "" }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <circle cx="8" cy="4.25" r="2.25" stroke="currentColor" strokeWidth="1.25" />
+      <path
+        d="M3.5 13.25c0-2.485 2.015-4.5 4.5-4.5s4.5 2.015 4.5 4.5"
+        stroke="currentColor"
+        strokeWidth="1.25"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function HoyIconoPersonasGrupo({ className = "" }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <circle cx="5.5" cy="4.5" r="2" stroke="currentColor" strokeWidth="1.2" />
+      <path
+        d="M1.75 13.25c0-2.07 1.68-3.75 3.75-3.75"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+      <circle cx="11" cy="4.75" r="1.85" stroke="currentColor" strokeWidth="1.2" />
+      <path
+        d="M7.5 13.25c0-1.9 1.55-3.45 3.45-3.45"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function HoyFiltroAlcanceToggle({ valor, onChange }) {
+  const esMio = valor === "mio";
+  const siguiente = esMio ? "equipo" : "mio";
+
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(siguiente)}
+      title={esMio ? "Ver equipo" : "Ver mis tareas"}
+      aria-label={esMio ? "Ver tareas del equipo" : "Ver mis tareas"}
+      className="absolute top-1.5 right-1.5 inline-flex items-center justify-center w-5 h-5 rounded-md bg-zinc-100/90 text-zinc-500 hover:text-[#37352F] hover:bg-zinc-100 transition-colors"
+    >
+      {esMio ? (
+        <HoyIconoPersonasGrupo className="w-3 h-3" />
+      ) : (
+        <HoyIconoPersonaSola className="w-3 h-3" />
+      )}
+    </button>
+  );
+}
+
 function HoyTagPill({ children, className = "" }) {
   return (
     <span className={`inline-flex items-center gap-0.5 text-[9px] font-semibold leading-none px-1.5 py-0.5 rounded-full border ${className}`}>
@@ -34,7 +102,7 @@ function HoyTagPill({ children, className = "" }) {
 }
 
 function TarjetaTareaHoy({ tarea, esUltimo, onSelectTask, getMarcaStyle, pieFecha }) {
-  const cMarca = getMarcaStyle ? getMarcaStyle(tarea.marca) : { bg: "bg-zinc-50", text: "text-zinc-600", border: "border-zinc-200" };
+  const cMarca = getMarcaStyle ? getMarcaStyle(tarea.marca) : { surface: "marca-surface-otros", accent: "#71717a" };
   const cEstado = ESTADOS_MAPA.find((e) => cleanEstado(e.id) === cleanEstado(tarea.estado)) || ESTADOS_MAPA[0];
   const cPrioridad = PRIORIDADES_MAPA.find((p) => cleanPrioridad(p.id) === cleanPrioridad(tarea.prioridad)) || PRIORIDADES_MAPA[1];
   const fechaInicio = resolverFechaInicioTarea(tarea);
@@ -65,7 +133,7 @@ function TarjetaTareaHoy({ tarea, esUltimo, onSelectTask, getMarcaStyle, pieFech
         </p>
 
         <div className="flex flex-wrap gap-1 mt-1.5">
-          <HoyTagPill className={`${cMarca.bg} ${cMarca.text} ${cMarca.border}`}>
+          <HoyTagPill className={cMarca.surface}>
             {formatearMarca(tarea.marca)}
           </HoyTagPill>
           <HoyTagPill className={cEstado.bg}>
@@ -88,12 +156,17 @@ function TarjetaTareaHoy({ tarea, esUltimo, onSelectTask, getMarcaStyle, pieFech
   );
 }
 
-function SeccionTareasHoy({ titulo, conteo, vacio, tareas, onSelectTask, getMarcaStyle, pieFechaFn }) {
+function SeccionTareasHoy({ titulo, subtitulo, conteo, vacio, tareas, onSelectTask, getMarcaStyle, pieFechaFn }) {
   return (
     <section className="shrink-0">
-      <div className="px-3 pb-2 flex items-center justify-between gap-2">
-        <span className="text-[10px] font-semibold text-[#37352F] leading-none">{titulo}</span>
-        <span className="text-[9px] font-semibold text-zinc-500 bg-zinc-50 border border-zinc-200 rounded-full min-w-[1.125rem] h-4 px-1.5 inline-flex items-center justify-center tabular-nums">
+      <div className="px-3 pb-2 flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <span className="text-[10px] font-semibold text-[#37352F] leading-none block">{titulo}</span>
+          {subtitulo && (
+            <span className="text-[9px] text-zinc-400 mt-0.5 block leading-snug">{subtitulo}</span>
+          )}
+        </div>
+        <span className="text-[9px] font-semibold text-zinc-500 bg-zinc-50 border border-zinc-200 rounded-full min-w-[1.125rem] h-4 px-1.5 inline-flex items-center justify-center tabular-nums shrink-0">
           {conteo}
         </span>
       </div>
@@ -120,6 +193,7 @@ function SeccionTareasHoy({ titulo, conteo, vacio, tareas, onSelectTask, getMarc
 
 function BarraHoyAccesoRapido({ tareas, username, onSelectTask, getMarcaStyle }) {
   const [ahora, setAhora] = useState(() => new Date());
+  const [filtroAlcance, setFiltroAlcance] = useState("mio");
 
   useEffect(() => {
     const tick = () => setAhora(new Date());
@@ -130,15 +204,19 @@ function BarraHoyAccesoRapido({ tareas, username, onSelectTask, getMarcaStyle })
 
   const { entregasHoy, trabajarHoy } = useMemo(() => {
     const tHoy = obtenerTiempoHoyLocal();
-    const lista = (tareas || []).filter((t) =>
-      username && tareaIncluyePersonaFiltro(t.personas || "", username)
-    );
+    const listaBase = tareas || [];
+    const lista =
+      filtroAlcance === "mio" && username
+        ? listaBase.filter((t) => tareaIncluyePersonaFiltro(t.personas || "", username))
+        : listaBase;
 
     const entregas = ordenarTareasParaHoy(lista.filter((t) => esEntregaHoyTarea(t, tHoy)));
     const trabajar = ordenarTareasParaHoy(lista.filter((t) => esTrabajarHoyTarea(t, tHoy)));
 
     return { entregasHoy: entregas, trabajarHoy: trabajar };
-  }, [tareas, username]);
+  }, [tareas, username, filtroAlcance]);
+
+  const subtituloAlcance = filtroAlcance === "mio" ? "Mis tareas" : "Trabajo en equipo";
 
   return (
     <aside
@@ -146,7 +224,8 @@ function BarraHoyAccesoRapido({ tareas, username, onSelectTask, getMarcaStyle })
       aria-label="Panel de hoy"
     >
       <div className="px-3 pt-3 pb-2 shrink-0 border-b border-zinc-100">
-        <div className="rounded-xl border border-zinc-200 bg-white px-2.5 py-2 text-center shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+        <div className="relative rounded-xl border border-zinc-200 bg-white px-2.5 py-2 text-center shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+          <HoyFiltroAlcanceToggle valor={filtroAlcance} onChange={setFiltroAlcance} />
           <time
             className="block text-base font-bold text-[#37352F] tracking-tight leading-none"
             dateTime={ahora.toISOString()}
@@ -162,6 +241,7 @@ function BarraHoyAccesoRapido({ tareas, username, onSelectTask, getMarcaStyle })
       <div className="flex-1 min-h-0 overflow-y-auto py-3 no-scrollbar">
         <SeccionTareasHoy
           titulo="Entregas hoy"
+          subtitulo={subtituloAlcance}
           conteo={entregasHoy.length}
           vacio="Sin entregas para hoy"
           tareas={entregasHoy}
@@ -174,6 +254,7 @@ function BarraHoyAccesoRapido({ tareas, username, onSelectTask, getMarcaStyle })
 
         <SeccionTareasHoy
           titulo="¿Qué trabajar hoy?"
+          subtitulo={subtituloAlcance}
           conteo={trabajarHoy.length}
           vacio="Nada pendiente de avanzar hoy"
           tareas={trabajarHoy}

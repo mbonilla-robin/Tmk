@@ -105,6 +105,11 @@ function robinExigirOperacionAdmin_(session, payload) {
       throw new Error("No autorizado: solo administradores pueden modificar configuración.");
     }
   }
+  if (payload && String(payload.marca || "").trim() === "Config_Marcas" && campo === "todo") {
+    if (!session || !session.isAdmin) {
+      throw new Error("No autorizado: solo administradores pueden gestionar enlaces.");
+    }
+  }
 }
 
 /** Ejecutar desde el editor: Probar → robinProbarConfiguracion */

@@ -1,4 +1,4 @@
-function WidgetsAdminPanel({ widgets, onAddWidget, onEditWidget, onDeleteWidget }) {
+function WidgetsAdminPanel({ widgets, onAddWidget, onEditWidget, onDeleteWidget, marcasDisponibles }) {
   const widgetsVisibles = useMemo(() => {
     return filtrarWidgetsReales(widgets).map(normalizarWidgetDesdeApi).filter(Boolean);
   }, [widgets]);
@@ -7,6 +7,7 @@ function WidgetsAdminPanel({ widgets, onAddWidget, onEditWidget, onDeleteWidget 
   const [widgetIcon, setWidgetIcon] = useState("link");
   const [widgetColor, setWidgetColor] = useState("sky");
   const [widgetSeccion, setWidgetSeccion] = useState("robin");
+  const [widgetMarca, setWidgetMarca] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
@@ -16,6 +17,7 @@ function WidgetsAdminPanel({ widgets, onAddWidget, onEditWidget, onDeleteWidget 
     setWidgetIcon("link");
     setWidgetColor("sky");
     setWidgetSeccion("robin");
+    setWidgetMarca("");
     setEditingId(null);
   };
 
@@ -31,6 +33,7 @@ function WidgetsAdminPanel({ widgets, onAddWidget, onEditWidget, onDeleteWidget 
     setWidgetIcon(w.icon || "link");
     setWidgetColor(resolverClaveColorWidget(w.color || "sky"));
     setWidgetSeccion(normalizarSeccionWidget(w.seccion || "robin"));
+    setWidgetMarca(w.marca || "");
     setShowModal(true);
   };
 
@@ -43,24 +46,20 @@ function WidgetsAdminPanel({ widgets, onAddWidget, onEditWidget, onDeleteWidget 
     e.preventDefault();
     if (!widgetTitulo.trim() || !widgetLink.trim()) return;
 
+    const payload = {
+      id: editingId || ("WID-" + Date.now()),
+      titulo: widgetTitulo.trim(),
+      link: widgetLink.trim(),
+      icon: widgetIcon,
+      color: widgetColor,
+      seccion: widgetSeccion,
+      marca: widgetMarca || ""
+    };
+
     if (editingId) {
-      onEditWidget({
-        id: editingId,
-        titulo: widgetTitulo.trim(),
-        link: widgetLink.trim(),
-        icon: widgetIcon,
-        color: widgetColor,
-        seccion: widgetSeccion
-      });
+      onEditWidget({ ...payload, id: editingId });
     } else {
-      onAddWidget({
-        id: "WID-" + Date.now(),
-        titulo: widgetTitulo.trim(),
-        link: widgetLink.trim(),
-        icon: widgetIcon,
-        color: widgetColor,
-        seccion: widgetSeccion
-      });
+      onAddWidget(payload);
     }
     closeModal();
   };
@@ -86,6 +85,7 @@ function WidgetsAdminPanel({ widgets, onAddWidget, onEditWidget, onDeleteWidget 
             const estilo = getWidgetEstilo(w.color);
             const seccionLabel = WIDGET_SECCIONES[w.seccion]?.label || "Robin";
             const etiqueta = formatearTituloWidget(w.titulo);
+            const marcaLabel = w.marca ? formatearMarca(w.marca) : null;
             return (
             <div
               key={w.id}
@@ -97,7 +97,9 @@ function WidgetsAdminPanel({ widgets, onAddWidget, onEditWidget, onDeleteWidget 
                   <span className="text-xs font-semibold whitespace-nowrap">{etiqueta}</span>
                 </div>
                 <div className="min-w-0 hidden sm:block">
-                  <p className="text-[10px] font-semibold text-zinc-500">{seccionLabel}</p>
+                  <p className="text-[10px] font-semibold text-zinc-500">
+                    {seccionLabel}{marcaLabel ? ` · ${marcaLabel}` : ""}
+                  </p>
                   <p className="text-[10px] text-zinc-400 truncate">{w.link}</p>
                 </div>
               </div>
@@ -175,6 +177,21 @@ function WidgetsAdminPanel({ widgets, onAddWidget, onEditWidget, onDeleteWidget 
                 >
                   {obtenerOpcionesSeccionWidget().map(op => (
                     <option key={op.id} value={op.id}>{op.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Marca</label>
+                <p className="text-[10px] text-zinc-400 mb-1.5">Vacío = solo Home. Con marca = aparece en la vista de esa marca.</p>
+                <select
+                  value={widgetMarca}
+                  onChange={(e) => setWidgetMarca(e.target.value)}
+                  className="w-full bg-white border border-zinc-200 px-3 py-1.5 text-xs rounded focus:border-zinc-400 focus:outline-none font-semibold text-[#37352F] cursor-pointer hover:bg-zinc-50 transition-colors"
+                >
+                  <option value="">Sin marca (solo Home)</option>
+                  {(marcasDisponibles || []).map(m => (
+                    <option key={m} value={m}>{formatearMarca(m)}</option>
                   ))}
                 </select>
               </div>

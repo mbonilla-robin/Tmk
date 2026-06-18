@@ -444,6 +444,7 @@ function App() {
           detalles: nuevoWidget.link,
           categoria: empaquetarWidgetCategoria(nuevoWidget.seccion, nuevoWidget.icon),
           personas: nuevoWidget.color,
+          widgetMarca: nuevoWidget.marca || "",
           campo: "todo"
         })
       });
@@ -514,6 +515,7 @@ function App() {
           detalles: widgetActualizado.link,
           categoria: empaquetarWidgetCategoria(widgetActualizado.seccion, widgetActualizado.icon),
           personas: widgetActualizado.color,
+          widgetMarca: widgetActualizado.marca || "",
           campo: "todo"
         })
       });
@@ -1463,17 +1465,24 @@ function App() {
                     <i className="fa-solid fa-layer-group robin-sidebar__link-icon"></i>
                     <span className="robin-sidebar__link-label">Todos los clientes</span>
                   </button>
-                  {marcasDisponibles.map(b => (
+                  {marcasDisponibles.map(b => {
+                    const marcaEstilo = getMarcaStyle(b);
+                    return (
                     <button
                       key={b}
                       type="button"
                       onClick={() => { setFiltroMarca(b); setFiltroTiempo("TODAS"); navegarA("dashboard"); }}
                       className={`robin-sidebar__link ${marcasCoinciden(filtroMarca, b) && paginaActiva === "dashboard" ? "is-active" : ""}`}
                     >
-                      <i className="fa-solid fa-chevron-right robin-sidebar__link-icon"></i>
+                      <span
+                        className="robin-sidebar__marca-dot"
+                        style={{ backgroundColor: marcaEstilo.accent }}
+                        aria-hidden="true"
+                      />
                       <span className="robin-sidebar__link-label" title={formatearMarca(b)}>{formatearMarca(b)}</span>
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1573,7 +1582,9 @@ function App() {
         <div className={`flex-1 overflow-y-auto overflow-x-hidden w-full min-h-0 no-scrollbar ${
           paginaActiva === "agregar"
             ? "robin-mobile-main robin-main-agregar !px-0 lg:!px-8"
-            : "robin-mobile-main max-w-6xl mx-auto"
+            : paginaActiva === "dashboard" && filtroMarca !== "TODAS"
+              ? "robin-mobile-main marca-home-main"
+              : "robin-mobile-main max-w-6xl mx-auto"
         }`}>
           
           {!isConfigOnlyAdmin && paginaActiva === "home" && (
@@ -1607,7 +1618,61 @@ function App() {
             />
           )}
 
-          {!isConfigOnlyAdmin && paginaActiva === "dashboard" && (
+          {!isConfigOnlyAdmin && paginaActiva === "dashboard" && filtroMarca !== "TODAS" && (
+            <LayoutMarcaHome
+              marca={filtroMarca}
+              tareas={tareas}
+              tareasFiltradas={tareasFiltradas}
+              widgets={widgets}
+              marcasMetadata={marcasMetadata}
+              username={usuario}
+              onSelectTask={abrirEdicionTarea}
+              onUpdateField={handleUpdateField}
+              onDeleteTask={(t) => setTaskToDelete(t)}
+              getMarcaStyle={getMarcaStyle}
+              currentTheme={currentTheme}
+              vistaModo={vistaModo}
+              setVistaModo={setVistaModo}
+              listaAgrupacion={listaAgrupacion}
+              cambiarListaAgrupacion={cambiarListaAgrupacion}
+              filtroEstado={filtroEstado}
+              setFiltroEstado={setFiltroEstado}
+              filtroPrioridad={filtroPrioridad}
+              setFiltroPrioridad={setFiltroPrioridad}
+              filtroPersona={filtroPersona}
+              setFiltroPersona={setFiltroPersona}
+              filtroTiempo={filtroTiempo}
+              setFiltroTiempo={setFiltroTiempo}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              listaPersonas={listaPersonas}
+              layoutTablaProps={layoutTablaProps}
+              tareasSeleccionadas={tareasSeleccionadas}
+              bulkEstado={bulkEstado}
+              setBulkEstado={setBulkEstado}
+              bulkPrioridad={bulkPrioridad}
+              setBulkPrioridad={setBulkPrioridad}
+              bulkDeadline={bulkDeadline}
+              setBulkDeadline={setBulkDeadline}
+              handleBulkUpdate={handleBulkUpdate}
+              limpiarSeleccionTareas={limpiarSeleccionTareas}
+              dashboardMobileVista={dashboardMobileVista}
+              setDashboardMobileVista={setDashboardMobileVista}
+              kanbanOrdenPrioridadActivo={kanbanOrdenPrioridadActivo}
+              alternarKanbanOrdenPrioridad={alternarKanbanOrdenPrioridad}
+              kanbanOrdenPrioridad={kanbanOrdenPrioridad}
+              onVerFichaCliente={() => navegarA("clientes")}
+              onLimpiarFiltros={() => {
+                setFiltroTiempo("TODAS");
+                setFiltroEstado("TODOS");
+                setFiltroPrioridad("TODAS");
+                setFiltroPersona("TODAS");
+                setSearchQuery("");
+              }}
+            />
+          )}
+
+          {!isConfigOnlyAdmin && paginaActiva === "dashboard" && filtroMarca === "TODAS" && (
             <>
               {/* ── Móvil: lista o subpágina de filtros ── */}
               <div className="robin-mobile-only flex-col gap-3 animate-fade-in">
@@ -1656,7 +1721,10 @@ function App() {
                   <>
                     <div className="mobile-dash-toolbar">
                       <div className="min-w-0">
-                        <h2 className="text-sm font-bold text-[#37352F] truncate">
+                        <h2
+                          className="text-sm font-bold truncate"
+                          style={filtroMarca !== "TODAS" ? { color: getMarcaStyle(filtroMarca).accent } : undefined}
+                        >
                           {filtroMarca === "TODAS" ? "Todos los entregables" : formatearMarca(filtroMarca)}
                         </h2>
                         <p className="text-[10px] text-zinc-400">
@@ -1752,7 +1820,10 @@ function App() {
               <div className="robin-desktop-only flex-col gap-5 animate-fade-in">
               <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
                 <div>
-                  <h2 className="text-lg font-semibold text-[#37352F] tracking-tight">
+                  <h2
+                    className="text-lg font-semibold tracking-tight"
+                    style={filtroMarca !== "TODAS" ? { color: getMarcaStyle(filtroMarca).accent } : { color: "#37352F" }}
+                  >
                     {filtroMarca === "TODAS" ? "Entregables" : formatearMarca(filtroMarca)}
                   </h2>
                   <p className="text-ui-sm text-zinc-400 mt-0.5">
@@ -1978,7 +2049,7 @@ function App() {
                     )}
 
                     {configMobileSeccion === "widgets" && isConfigOnlyAdmin && (
-                      <WidgetsAdminPanel widgets={widgets} onAddWidget={handleAddWidget} onEditWidget={handleEditWidget} onDeleteWidget={handleDeleteWidget} />
+                      <WidgetsAdminPanel widgets={widgets} onAddWidget={handleAddWidget} onEditWidget={handleEditWidget} onDeleteWidget={handleDeleteWidget} marcasDisponibles={marcasDisponibles} />
                     )}
 
                     {configMobileSeccion === "clientes" && isConfigOnlyAdmin && (
@@ -2128,6 +2199,7 @@ function App() {
                   onAddWidget={handleAddWidget}
                   onEditWidget={handleEditWidget}
                   onDeleteWidget={handleDeleteWidget}
+                  marcasDisponibles={marcasDisponibles}
                 />
               )}
 

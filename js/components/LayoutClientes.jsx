@@ -213,7 +213,8 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
               return (
                 <div
                   key={m}
-                  className={`relative text-left border rounded-md p-4 flex flex-col gap-3 hover:brightness-[0.98] transition-all ${estilo.bg} ${estilo.text} ${estilo.border}`}
+                  className="relative text-left border border-zinc-200 rounded-md p-4 flex flex-col gap-3 bg-white hover:bg-zinc-50/80 transition-all border-l-[3px]"
+                  style={{ borderLeftColor: estilo.accent }}
                 >
                   {canEdit && onDeleteBrand && (
                     <button
@@ -235,7 +236,9 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
                   >
                   <div className="flex items-start justify-between gap-2 pr-6">
                     <div className="min-w-0">
-                      <span className="text-sm font-bold block">{formatearMarca(m)}</span>
+                      <span className="text-sm font-bold block" style={{ color: estilo.accent }}>
+                        {formatearMarca(m)}
+                      </span>
                       <span className="text-[10px] opacity-60 font-medium">Ficha técnica</span>
                     </div>
                   </div>
@@ -346,7 +349,7 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
           ← Todos los clientes
         </button>
         <div>
-          <h3 className={`text-base font-bold ${estiloDetalle.text}`}>
+          <h3 className="text-base font-bold" style={{ color: estiloDetalle.accent }}>
             Ficha Técnica: {formatearMarca(selectedBrand)}
           </h3>
           <p className="text-xs text-zinc-400">
@@ -355,7 +358,10 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
         </div>
       </div>
 
-      <div className={`border p-6 rounded-md flex flex-col gap-6 ${estiloDetalle.bg} ${estiloDetalle.border}`}>
+      <div
+        className="border border-zinc-200 p-6 rounded-md flex flex-col gap-6 bg-white border-l-[3px]"
+        style={{ borderLeftColor: estiloDetalle.accent }}
+      >
         {canEdit ? (
           <form onSubmit={handleSave} className="flex flex-col gap-5">
             <div>

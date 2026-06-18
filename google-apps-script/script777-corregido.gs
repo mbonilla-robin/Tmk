@@ -819,6 +819,122 @@ function sincronizarDesdeMarca(e) {
 // ==========================================
 // Requiere ApiAuth.gs en el mismo proyecto (ver google-apps-script/ApiAuth.gs)
 
+function obtenerOcrearHojaConfigMarcas_(ss) {
+  var configSheet = ss.getSheetByName("Config_Marcas");
+  if (!configSheet) {
+    configSheet = ss.insertSheet("Config_Marcas");
+    configSheet.appendRow([
+      "Marca", "LogoURL", "Ejecutivo", "Disenador", "Content",
+      "Detalles", "Estado", "Deadline", "ID Tarea", "Prioridad"
+    ]);
+  }
+  return configSheet;
+}
+
+function esIdWidget_(idTarea) {
+  return String(idTarea || "").trim().indexOf("WID-") === 0;
+}
+
+function normalizarMarcaWidgetDesdePayload_(payload) {
+  var raw = String(
+    (payload && (payload.widgetMarca || payload.prioridad)) || ""
+  ).trim();
+  if (!raw) return "";
+  if (raw.indexOf("🟡") !== -1 || raw.indexOf("🔴") !== -1 || raw.indexOf("🟢") !== -1) {
+    return "";
+  }
+  return raw;
+}
+
+function esMarcaCanonicaConocida_(marca) {
+  var key = String(marca || "").trim();
+  if (!key) return false;
+  key = key.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+  var conocidas = {
+    "LA SANTE": true,
+    "DIAGEO": true,
+    "GAMA": true,
+    "ROBIN": true,
+    "TMK": true,
+    "TRADE & SHOPPER MARKETING": true
+  };
+  return !!conocidas[key];
+}
+
+function inferirMarcaWidgetDesdeTitulo_(titulo) {
+  var t = String(titulo || "").trim();
+  if (!t) return "";
+  t = t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+
+  var marcas = [
+    { key: "TRADE & SHOPPER MARKETING", label: "Trade & Shopper Marketing" },
+    { key: "LA SANTE", label: "La Santé" },
+    { key: "DIAGEO", label: "Diageo" },
+    { key: "GAMA", label: "Gama" },
+    { key: "ROBIN", label: "Robin" },
+    { key: "TMK", label: "Trade & Shopper Marketing" }
+  ];
+
+  var mejor = "";
+  var mejorLen = 0;
+  for (var i = 0; i < marcas.length; i++) {
+    var variante = marcas[i].key;
+    if (t.indexOf(variante) !== -1 && variante.length > mejorLen) {
+      mejor = marcas[i].label;
+      mejorLen = variante.length;
+    }
+  }
+  return mejor;
+}
+
+function leerMarcaWidgetDesdeFila_(row) {
+  var colA = String(row[0] || "").trim();
+  if (colA && colA !== "Config_Marcas" && esMarcaCanonicaConocida_(colA)) {
+    return colA;
+  }
+
+  var colJ = String(row[9] || "").trim();
+  if (colJ && esMarcaCanonicaConocida_(colJ)) {
+    return colJ;
+  }
+  if (colJ && colJ.indexOf("🟡") === -1 && colJ.indexOf("🔴") === -1 && colJ.indexOf("🟢") === -1) {
+    return "";
+  }
+
+  return inferirMarcaWidgetDesdeTitulo_(String(row[3] || "").trim());
+}
+
+function guardarWidgetEnConfig_(sheet, row, payload, idTarea) {
+  var widgetMarca = normalizarMarcaWidgetDesdePayload_(payload);
+  var fila = [
+    widgetMarca,
+    String(payload.categoria || "").trim(),
+    "",
+    String(payload.info || "").trim(),
+    String(payload.personas || "").trim(),
+    String(payload.detalles || "").trim(),
+    "",
+    "",
+    String(idTarea || "").trim(),
+    ""
+  ];
+  sheet.getRange(row, 1, 1, 10).setValues([fila]);
+}
+
+function buscarFilaWidgetPorId_(sheet, idTarea) {
+  var id = String(idTarea || "").trim();
+  if (!id) return -1;
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return -1;
+  var ids = sheet.getRange(2, 9, lastRow, 1).getValues();
+  for (var i = 0; i < ids.length; i++) {
+    if (String(ids[i][0]).trim() === id) {
+      return i + 2;
+    }
+  }
+  return -1;
+}
+
 function doGet(e) {
   try {
     var session = robinValidarSesionRobin_(e, null);
@@ -836,13 +952,14 @@ function doGet(e) {
         var row = metaRows[rIdx];
         var idTarea = row[8] ? String(row[8]).trim() : "";
         
-        if (idTarea.indexOf("WID-") === 0) {
+        if (esIdWidget_(idTarea)) {
           widgets.push({
             id: idTarea,
             titulo: String(row[3] || "").trim(),
             link: String(row[5] || "").trim(),
             icon: String(row[1] || "").trim(),
-            color: String(row[4] || "").trim()
+            color: String(row[4] || "").trim(),
+            marca: leerMarcaWidgetDesdeFila_(row)
           });
         } else {
           var mName = String(row[0]).trim();
@@ -1016,9 +1133,41 @@ function doPost(e) {
       throw new Error("La marca es requerida para identificar la hoja de destino.");
     }
 
+    if (marca === "Config_Marcas" && (campo === "todo" || campo === "eliminar")) {
+      if (!session || !session.isAdmin) {
+        throw new Error("No autorizado: solo administradores pueden gestionar enlaces.");
+      }
+    }
+
     var targetSheet = ss.getSheetByName(marca);
+    if (!targetSheet && marca === "Config_Marcas") {
+      targetSheet = obtenerOcrearHojaConfigMarcas_(ss);
+    }
     if (!targetSheet) {
       throw new Error("No se encontró la pestaña de la marca: " + marca);
+    }
+
+    if (marca === "Config_Marcas" && campo === "todo") {
+      var widgetId = String(payload.idTarea || "").trim();
+      var widgetRow = buscarFilaWidgetPorId_(targetSheet, widgetId);
+      if (widgetRow === -1) {
+        var nextWidgetRow = Math.max(targetSheet.getLastRow() + 1, 2);
+        if (!esIdWidget_(widgetId)) {
+          widgetId = "WID-" + Date.now();
+        }
+        guardarWidgetEnConfig_(targetSheet, nextWidgetRow, payload, widgetId);
+      } else {
+        if (!esIdWidget_(widgetId)) {
+          widgetId = String(targetSheet.getRange(widgetRow, 9).getValue() || "").trim();
+        }
+        guardarWidgetEnConfig_(targetSheet, widgetRow, payload, widgetId);
+      }
+
+      return robinJsonResponse_({
+        success: true,
+        message: "Enlace guardado correctamente.",
+        idTarea: widgetId
+      });
     }
 
     var lastRow = targetSheet.getLastRow();
@@ -1067,7 +1216,9 @@ function doPost(e) {
     if (campo === "eliminar") {
       if (targetRow !== -1) {
         targetSheet.deleteRow(targetRow);
-        actualizarHojaHoy();
+        if (marca !== "Config_Marcas") {
+          actualizarHojaHoy();
+        }
         return ContentService.createTextOutput(JSON.stringify({ success: true, message: "Tarea eliminada correctamente de Google Sheets." }))
           .setMimeType(ContentService.MimeType.JSON);
       } else {

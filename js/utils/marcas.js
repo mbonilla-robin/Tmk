@@ -29,12 +29,33 @@ function marcasCoinciden(a, b) {
   return normalizarMarcaKey(a) === normalizarMarcaKey(b);
 }
 
-function getMarcaStyle(marcaName) {
-  if (!marcaName) {
-    return { bg: "bg-zinc-100", text: "text-zinc-700", border: "border-zinc-200" };
-  }
+function resolverClaveMarca(marcaName) {
   const clean = normalizarMarcaKey(marcaName);
-  return MARCAS_COLORES[clean] || { bg: "bg-zinc-100", text: "text-zinc-700", border: "border-zinc-200" };
+  if (!clean) return "";
+
+  if (MARCAS_COLORES[clean]) return clean;
+
+  for (const [clave, display] of Object.entries(MARCAS_CANONICAS)) {
+    if (normalizarMarcaKey(display) === clean) return clave;
+  }
+
+  if (clean === "TRADE" || clean.startsWith("TRADE ")) return "TMK";
+
+  return "";
+}
+
+function getMarcaStyle(marcaName) {
+  const clave = resolverClaveMarca(marcaName);
+  const cfg = MARCAS_COLORES[clave] || MARCAS_COLORES_DEFAULT;
+
+  return {
+    clave: clave || "",
+    accent: cfg.accent,
+    bg: `marca-bg-${cfg.id}`,
+    text: `marca-text-${cfg.id}`,
+    border: `marca-border-${cfg.id}`,
+    surface: `marca-surface-${cfg.id}`
+  };
 }
 
 function obtenerMarcasUnicas(fuentes) {
@@ -166,4 +187,64 @@ function formatearPersonasLista(lista) {
 function formatearDisenadoresLista(lista) {
   if (!lista || lista.length === 0) return "Sin asignar";
   return lista.map(p => p.tipo ? `${p.nombre} · ${p.tipo}` : p.nombre).join(", ");
+}
+
+function esMarcaCanonicaConocida(marca) {
+  const key = normalizarMarcaKey(marca);
+  if (!key) return false;
+  if (MARCAS_CANONICAS[key]) return true;
+  return Boolean(resolverClaveMarca(marca));
+}
+
+function inferirMarcaDesdeTituloWidget(titulo) {
+  const t = normalizarMarcaKey(titulo);
+  if (!t) return "";
+
+  let mejorMarca = "";
+  let mejorLongitud = 0;
+
+  for (const [key, display] of Object.entries(MARCAS_CANONICAS)) {
+    const variantes = [normalizarMarcaKey(key), normalizarMarcaKey(display)];
+    for (const variante of variantes) {
+      if (!variante || variante.length < 3) continue;
+      if (t.includes(variante) && variante.length > mejorLongitud) {
+        mejorMarca = formatearMarca(display);
+        mejorLongitud = variante.length;
+      }
+    }
+  }
+
+  return mejorMarca;
+}
+
+function resolverMarcaWidget(widget) {
+  if (!widget) return "";
+  const explicita = String(widget.marca || widget.widgetMarca || "").trim();
+  if (explicita && esMarcaCanonicaConocida(explicita)) {
+    return formatearMarca(explicita);
+  }
+  return inferirMarcaDesdeTituloWidget(widget.titulo || "");
+}
+
+function ajustarColorHex(hex, amount) {
+  const raw = String(hex || "").replace("#", "").trim();
+  if (raw.length !== 6) return hex || "#2F7A4E";
+  const r = parseInt(raw.slice(0, 2), 16);
+  const g = parseInt(raw.slice(2, 4), 16);
+  const b = parseInt(raw.slice(4, 6), 16);
+  const mix = (channel) => {
+    if (amount < 0) return Math.round(channel * (1 + amount));
+    return Math.round(channel + (255 - channel) * amount);
+  };
+  const toHex = (n) => Math.max(0, Math.min(255, n)).toString(16).padStart(2, "0");
+  return `#${toHex(mix(r))}${toHex(mix(g))}${toHex(mix(b))}`;
+}
+
+function obtenerGradienteMarcaHeader(marcaName) {
+  const accent = getMarcaStyle(marcaName).accent || "#2F7A4E";
+  const deep = ajustarColorHex(accent, -0.42);
+  const mid = ajustarColorHex(accent, -0.12);
+  const bright = ajustarColorHex(accent, 0.08);
+  const glow = ajustarColorHex(accent, 0.22);
+  return `linear-gradient(128deg, ${deep} 0%, ${mid} 38%, ${bright} 68%, ${glow} 100%)`;
 }

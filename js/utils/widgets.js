@@ -35,13 +35,38 @@ function desempaquetarWidgetCategoria(categoria) {
 function normalizarWidgetDesdeApi(widget) {
   if (!widget) return null;
   const empaquetado = desempaquetarWidgetCategoria(widget.icon || widget.categoria);
+  const marcaRaw = widget.marca || widget.widgetMarca || widget.marcaCliente || "";
+  const marcaExplicita = marcaRaw ? formatearMarca(marcaRaw) : "";
+  const marca = esMarcaCanonicaConocida(marcaExplicita)
+    ? marcaExplicita
+    : inferirMarcaDesdeTituloWidget(widget.titulo || "");
   return {
     id: widget.id,
     titulo: widget.titulo || "",
     link: widget.link || "",
     icon: empaquetado.icon,
     color: widget.color || "sky",
-    seccion: normalizarSeccionWidget(widget.seccion || empaquetado.seccion)
+    seccion: normalizarSeccionWidget(widget.seccion || empaquetado.seccion),
+    marca
+  };
+}
+
+function widgetVisibleEnMarca(widget, marca) {
+  if (!widget || !marca) return false;
+  const wm = resolverMarcaWidget(widget);
+  if (!wm) return false;
+  return marcasCoinciden(wm, marca);
+}
+
+function filtrarWidgetsPorMarca(widgets, marca) {
+  const visibles = filtrarWidgetsReales(widgets || [])
+    .map(normalizarWidgetDesdeApi)
+    .filter(Boolean)
+    .filter(w => widgetVisibleEnMarca(w, marca));
+
+  return {
+    robin: visibles.filter(w => w.seccion === "robin"),
+    clientes: visibles.filter(w => w.seccion === "clientes")
   };
 }
 

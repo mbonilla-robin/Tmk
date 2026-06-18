@@ -1,21 +1,44 @@
+function CalIconoVistaSemana({ className = "w-3.5 h-3.5" }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="1.5" y="3" width="1.75" height="10" rx="0.5" fill="currentColor" />
+      <rect x="4.75" y="3" width="1.75" height="10" rx="0.5" fill="currentColor" />
+      <rect x="8" y="3" width="1.75" height="10" rx="0.5" fill="currentColor" />
+      <rect x="11.25" y="3" width="1.75" height="10" rx="0.5" fill="currentColor" />
+    </svg>
+  );
+}
+
+function CalIconoVistaMes({ className = "w-3.5 h-3.5" }) {
+  return (
+    <svg className={className} viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="2" y="3" width="12" height="10.5" rx="1.2" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M2 6h12" stroke="currentColor" strokeWidth="1.2" />
+      <circle cx="5.5" cy="8.75" r="0.75" fill="currentColor" />
+      <circle cx="8" cy="8.75" r="0.75" fill="currentColor" />
+      <circle cx="10.5" cy="8.75" r="0.75" fill="currentColor" />
+      <circle cx="5.5" cy="11" r="0.75" fill="currentColor" />
+      <circle cx="8" cy="11" r="0.75" fill="currentColor" />
+    </svg>
+  );
+}
+
 function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
-  const MAX_TASKS_MONTH_DESKTOP = 3;
-  const MAX_TASKS_MONTH_MOBILE = 2;
+  const normalizarVistaCalendario = (valor) => (valor === "semana" ? "semana" : "mes");
 
-  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
-  const maxTasksMonth = isMobile ? MAX_TASKS_MONTH_MOBILE : MAX_TASKS_MONTH_DESKTOP;
-
-  useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
-  const [vista, setVista] = useState(() => getUserPreference("calendarioVista", "mes", username));
+  const [vista, setVista] = useState(() =>
+    normalizarVistaCalendario(getUserPreference("calendarioVista", "semana", username))
+  );
   const [weekAnchor, setWeekAnchor] = useState(() => new Date());
   const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
   const [selectedDayDetail, setSelectedDayDetail] = useState(null);
+
+  useEffect(() => {
+    if (!username) return;
+    const guardada = normalizarVistaCalendario(getUserPreference("calendarioVista", "semana", username));
+    setVista((actual) => (actual === guardada ? actual : guardada));
+  }, [username]);
 
   const monthNames = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -25,8 +48,22 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
   const dayNames = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"];
 
   const cambiarVista = (nueva) => {
-    setVista(nueva);
-    setUserPreference("calendarioVista", nueva, username);
+    const vistaValida = normalizarVistaCalendario(nueva);
+    const hoy = new Date();
+
+    if (vistaValida === "mes") {
+      setCurrentMonth(weekAnchor.getMonth());
+      setCurrentYear(weekAnchor.getFullYear());
+    } else if (currentMonth === hoy.getMonth() && currentYear === hoy.getFullYear()) {
+      setWeekAnchor(hoy);
+    } else {
+      setWeekAnchor(new Date(currentYear, currentMonth, 1));
+    }
+
+    setVista(vistaValida);
+    if (username) {
+      setUserPreference("calendarioVista", vistaValida, username);
+    }
   };
 
   const getMonday = (date) => {
@@ -84,6 +121,10 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
   const mesLabelShort = useMemo(() => {
     return `${monthNames[currentMonth].slice(0, 3)} ${currentYear}`;
   }, [currentMonth, currentYear]);
+
+  const periodoLabel = vista === "semana"
+    ? weekLabelShort
+    : `${monthNames[currentMonth].slice(0, 3)} ${currentYear}`;
 
   const gridCells = useMemo(() => {
     const firstDay = new Date(currentYear, currentMonth, 1).getDay();
@@ -162,22 +203,22 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
       day: date.getDate(),
       month: date.getMonth(),
       year: date.getFullYear(),
-      tasks: dayTasks
+      tasks: dayTasks || []
     });
   };
 
-  const renderMonthChip = (t, idx) => {
-    const calStyle = getMarcaStyle(t.marca);
-    return (
-      <div
-        key={`${t.idTarea || "t"}-${idx}`}
-        onClick={(e) => { e.stopPropagation(); onSelectTask(t); }}
-        className={`text-left w-full rounded px-1.5 py-0.5 cursor-pointer hover:brightness-95 transition-all border-l-2 ${calStyle.bg} ${calStyle.text} ${calStyle.border}`}
-        title={t.info}
-      >
-        <span className="block text-[10px] font-medium leading-tight line-clamp-1">{t.info}</span>
-      </div>
-    );
+  const obtenerMarcasUnicasDia = (dayTasks) => {
+    const marcas = [];
+    const vistos = new Set();
+
+    (dayTasks || []).forEach((t) => {
+      const key = normalizarMarcaKey(t.marca);
+      if (!key || vistos.has(key)) return;
+      vistos.add(key);
+      marcas.push(t.marca);
+    });
+
+    return marcas;
   };
 
   const renderWeekColumnCard = (t) => {
@@ -189,7 +230,8 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
         key={getTaskSelectionKey(t)}
         type="button"
         onClick={() => onSelectTask(t)}
-        className={`w-full h-[52px] shrink-0 text-left rounded border border-zinc-200 border-l-[3px] bg-white hover:bg-zinc-50/80 transition-colors p-1.5 flex flex-col justify-between ${calStyle.border}`}
+        className={`w-full h-[52px] shrink-0 text-left rounded border border-zinc-200 border-l-[3px] bg-white hover:bg-zinc-50/80 transition-colors p-1.5 flex flex-col justify-between`}
+        style={{ borderLeftColor: calStyle.accent }}
         title={`${formatearMarca(t.marca)} · ${normalizarEstado(t.estado) || "Sin estado"} · ${t.info}`}
       >
         <p className="text-[10px] font-medium text-zinc-800 leading-[13px] h-[26px] overflow-hidden line-clamp-2">
@@ -197,7 +239,7 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
         </p>
         <div className="flex items-center gap-1 h-[12px] min-w-0">
           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cEstado.dot}`} />
-          <span className="text-[9px] text-zinc-500 truncate leading-none">
+          <span className="text-[9px] truncate leading-none" style={{ color: calStyle.accent }}>
             {formatearMarca(t.marca)}
           </span>
         </div>
@@ -214,13 +256,14 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
         key={getTaskSelectionKey(t)}
         type="button"
         onClick={() => onSelectTask(t)}
-        className={`cal-mobile-task-row border-l-[3px] ${calStyle.border}`}
+        className="cal-mobile-task-row border-l-[3px]"
+        style={{ borderLeftColor: calStyle.accent }}
       >
         <div className="min-w-0 flex-1">
           <p className="text-[12px] font-semibold text-[#37352F] leading-snug line-clamp-2 text-left">{t.info}</p>
           <div className="flex items-center gap-2 mt-1">
             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cEstado.dot}`}></span>
-            <span className="text-[10px] text-zinc-500 truncate">{formatearMarca(t.marca)}</span>
+            <span className="text-[10px] truncate" style={{ color: calStyle.accent }}>{formatearMarca(t.marca)}</span>
           </div>
         </div>
         <i className="fa-solid fa-chevron-right text-[9px] text-zinc-300 shrink-0"></i>
@@ -339,19 +382,27 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
     );
   };
 
-  const renderModalChip = (t, idx) => {
+  const renderModalTaskRow = (t, idx) => {
     const calStyle = getMarcaStyle(t.marca);
+    const cEstado = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(t.estado)) || { dot: "bg-zinc-400" };
+
     return (
-      <div
-        key={`modal-${idx}`}
+      <button
+        key={`modal-${t.idTarea || idx}`}
+        type="button"
         onClick={() => onSelectTask(t)}
-        className={`border-l-[3px] rounded-r px-3 py-2 cursor-pointer hover:brightness-[0.98] transition-all ${calStyle.bg} ${calStyle.text} ${calStyle.border}`}
+        className="cal-day-modal-task w-full text-left"
+        style={{ borderLeftColor: calStyle.accent }}
       >
-        <span className="block text-ui-sm font-medium leading-snug">{t.info}</span>
-        <span className="block text-ui-sm opacity-60 mt-0.5">
-          {formatearMarca(t.marca)} · {normalizarEstado(t.estado) || "Sin estado"}
+        <span className="cal-day-modal-task-body">
+          <span className="cal-day-modal-task-title">{t.info}</span>
+          <span className="cal-day-modal-task-meta">
+            <span className={`inline-block w-1.5 h-1.5 rounded-full ${cEstado.dot}`} />
+            <span style={{ color: calStyle.accent }}>{formatearMarca(t.marca)}</span>
+            <span> · {normalizarEstado(t.estado) || "Sin estado"}</span>
+          </span>
         </span>
-      </div>
+      </button>
     );
   };
 
@@ -390,73 +441,72 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
         </div>
       </div>
 
-      {/* Header desktop — sin cambios */}
-      <div className="hidden md:flex bg-gradient-to-r from-[#FAF9F6] to-white px-4 py-3 border-b border-zinc-200 items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <span className="text-section">Cronograma</span>
-          <div className="flex items-center gap-0.5 bg-zinc-100 p-0.5 rounded-md border border-zinc-200">
-            <button
-              type="button"
-              onClick={() => cambiarVista("semana")}
-              className={`px-2.5 py-1 rounded text-ui-sm font-medium transition-all ${
-                vista === "semana" ? "bg-white text-zinc-900 shadow-sm border border-zinc-200" : "text-zinc-500 hover:text-zinc-700"
-              }`}
-            >
-              Semana
-            </button>
-            <button
-              type="button"
-              onClick={() => cambiarVista("mes")}
-              className={`px-2.5 py-1 rounded text-ui-sm font-medium transition-all ${
-                vista === "mes" ? "bg-white text-zinc-900 shadow-sm border border-zinc-200" : "text-zinc-500 hover:text-zinc-700"
-              }`}
-            >
-              Mes
-            </button>
-          </div>
-        </div>
+      {/* Header desktop — una sola fila */}
+      <div className="cal-header-desktop hidden md:flex">
+        <span className="cal-header-desktop-title">Cronograma</span>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-ui font-semibold text-zinc-700 min-w-[140px] text-right">
-            {vista === "semana" ? weekLabel : `${monthNames[currentMonth]} ${currentYear}`}
-          </span>
+        <div className="cal-header-view-toggle" role="tablist" aria-label="Vista del cronograma">
           <button
             type="button"
-            onClick={irAHoy}
-            className="px-2 py-1 text-ui-sm font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded border border-zinc-200 transition-colors"
+            role="tab"
+            aria-selected={vista === "semana"}
+            title="Semana"
+            onClick={() => cambiarVista("semana")}
+            className={`cal-header-view-btn ${vista === "semana" ? "is-active" : ""}`}
           >
-            Hoy
+            <CalIconoVistaSemana />
           </button>
-          <div className="flex items-center gap-0.5 border border-zinc-200 rounded-md p-0.5 bg-white">
-            <button type="button" onClick={handlePrev} className="p-1.5 text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 rounded transition-colors">
-              <i className="fa-solid fa-chevron-left text-ui-sm" />
-            </button>
-            <button type="button" onClick={handleNext} className="p-1.5 text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100 rounded transition-colors">
-              <i className="fa-solid fa-chevron-right text-ui-sm" />
-            </button>
-          </div>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={vista === "mes"}
+            title="Mes"
+            onClick={() => cambiarVista("mes")}
+            className={`cal-header-view-btn ${vista === "mes" ? "is-active" : ""}`}
+          >
+            <CalIconoVistaMes />
+          </button>
+        </div>
+
+        <span className="cal-header-spacer" aria-hidden="true" />
+
+        <span className="cal-header-period" title={vista === "semana" ? weekLabel : `${monthNames[currentMonth]} ${currentYear}`}>
+          {periodoLabel}
+        </span>
+
+        <button type="button" onClick={irAHoy} className="cal-header-today-btn">
+          Hoy
+        </button>
+
+        <div className="cal-header-nav">
+          <button type="button" onClick={handlePrev} className="cal-header-nav-btn" aria-label="Anterior">
+            <i className="fa-solid fa-chevron-left text-[11px]" />
+          </button>
+          <button type="button" onClick={handleNext} className="cal-header-nav-btn" aria-label="Siguiente">
+            <i className="fa-solid fa-chevron-right text-[11px]" />
+          </button>
         </div>
       </div>
 
       {/* Vista semana — columnas en desktop, días apilados en móvil */}
       {vista === "semana" && (
-        <div className="p-3">
-          <div className="hidden md:grid md:grid-cols-7 gap-2 h-[400px]">
+        <div className="p-3 cal-week-viewport">
+          <div className="cal-week-columns">
             {weekDays.map((date, i) => renderWeekDayColumn(date, i))}
           </div>
 
-          <div className="md:hidden flex flex-col gap-3">
+          <div className="cal-week-stacked">
             {weekDays.map((date, i) => renderWeekDayStack(date, i))}
           </div>
         </div>
       )}
 
-      {/* Vista mes — grid con 2-3 tareas visibles */}
+      {/* Vista mes — calendario con marcas por día */}
       {vista === "mes" && (
         <div className="p-2 md:p-3">
-          <div className="grid grid-cols-7 gap-1 md:gap-1.5">
-            {dayNames.map(d => (
-              <div key={d} className="text-center text-ui-sm font-semibold text-zinc-400 py-1">
+          <div className="cal-month-grid">
+            {dayNames.map((d) => (
+              <div key={d} className="cal-month-weekday">
                 {d}
               </div>
             ))}
@@ -464,54 +514,42 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
             {gridCells.map((cell, idx) => {
               const cellDate = new Date(cell.year, cell.month, cell.day);
               const dayTasks = tasksForDate(cellDate);
-              const visibleTasks = dayTasks.slice(0, maxTasksMonth);
-              const hiddenCount = dayTasks.length - visibleTasks.length;
+              const marcasDia = obtenerMarcasUnicasDia(dayTasks);
+              const marcasVisibles = marcasDia.slice(0, 3);
+              const marcasOcultas = marcasDia.length - marcasVisibles.length;
               const esHoy = isSameDay(cellDate, hoy);
 
               return (
-                <div
+                <button
                   key={idx}
-                  className={`min-h-[88px] md:min-h-[108px] rounded-md border p-1 md:p-1.5 flex flex-col gap-0.5 transition-colors ${
-                    cell.isCurrentMonth ? "bg-white border-zinc-200" : "bg-zinc-50/60 border-zinc-100"
-                  } ${esHoy ? "ring-2 ring-[#37352F]/25 border-zinc-400" : ""} ${
-                    dayTasks.length > 0 ? "hover:border-zinc-300 hover:shadow-sm" : ""
-                  }`}
+                  type="button"
+                  onClick={() => openDayDetail(cellDate, dayTasks)}
+                  className={`cal-month-day ${cell.isCurrentMonth ? "is-current-month" : "is-other-month"} ${esHoy ? "is-today" : ""} ${dayTasks.length > 0 ? "has-tasks" : ""}`}
+                  aria-label={`${cell.day} ${monthNames[cell.month]} ${cell.year}${dayTasks.length ? `, ${dayTasks.length} entregable${dayTasks.length !== 1 ? "s" : ""}` : ", sin entregables"}`}
                 >
-                  <div className="flex items-center justify-between shrink-0 mb-0.5">
-                    <span className={`text-ui-sm font-semibold leading-none ${
-                      esHoy
-                        ? "bg-[#37352F] text-white w-5 h-5 flex items-center justify-center rounded"
-                        : cell.isCurrentMonth ? "text-zinc-700" : "text-zinc-350"
-                    }`}>
-                      {cell.day}
-                    </span>
-                    {dayTasks.length > 0 && (
-                      <span className="text-[10px] font-medium text-zinc-400">{dayTasks.length}</span>
-                    )}
-                  </div>
+                  <span className={`cal-month-day-num ${esHoy ? "is-today-num" : ""}`}>
+                    {cell.day}
+                  </span>
 
-                  <div className="flex flex-col gap-0.5 flex-1 min-h-0 overflow-hidden">
-                    {visibleTasks.map((t, i) => renderMonthChip(t, i))}
-                    {hiddenCount > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => openDayDetail(cellDate, dayTasks)}
-                        className="text-left w-full text-[10px] font-semibold text-zinc-500 hover:text-zinc-800 bg-zinc-100 hover:bg-zinc-150 rounded px-1.5 py-0.5 transition-colors"
-                      >
-                        +{hiddenCount} más
-                      </button>
-                    )}
-                    {dayTasks.length > 0 && hiddenCount === 0 && dayTasks.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => openDayDetail(cellDate, dayTasks)}
-                        className="text-[9px] text-zinc-400 hover:text-zinc-600 text-left px-0.5"
-                      >
-                        Ver todo
-                      </button>
-                    )}
-                  </div>
-                </div>
+                  {marcasVisibles.length > 0 && (
+                    <span className="cal-month-day-marcas">
+                      {marcasVisibles.map((marca) => {
+                        const calStyle = getMarcaStyle(marca);
+                        return (
+                          <span
+                            key={normalizarMarcaKey(marca)}
+                            className={`cal-month-marca-pill ${calStyle.surface}`}
+                          >
+                            {formatearMarca(marca)}
+                          </span>
+                        );
+                      })}
+                      {marcasOcultas > 0 && (
+                        <span className="cal-month-marca-more">+{marcasOcultas}</span>
+                      )}
+                    </span>
+                  )}
+                </button>
               );
             })}
           </div>
@@ -537,7 +575,11 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
               </button>
             </div>
             <div className="overflow-y-auto p-3 flex flex-col gap-2">
-              {selectedDayDetail.tasks.map((t, i) => renderModalChip(t, i))}
+              {selectedDayDetail.tasks.length === 0 ? (
+                <p className="text-center text-zinc-400 text-sm py-8">Sin entregables este día</p>
+              ) : (
+                selectedDayDetail.tasks.map((t, i) => renderModalTaskRow(t, i))
+              )}
             </div>
           </div>
         </div>

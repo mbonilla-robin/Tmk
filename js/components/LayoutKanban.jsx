@@ -70,10 +70,11 @@ function LayoutKanban({ tareas, onUpdateField, onSelectTask, onDeleteTask, getMa
                     draggable={true}
                     onDragStart={(e) => handleDragStart(e, t)}
                     onClick={() => onSelectTask(t)}
-                    className={`bg-white p-3 rounded border ${currentTheme.border} shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:shadow-sm cursor-grab active:cursor-grabbing transition-all flex flex-col gap-2 animate-fade-in`}
+                    className={`bg-white p-3 rounded border border-l-[3px] ${currentTheme.border} shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:shadow-sm cursor-grab active:cursor-grabbing transition-all flex flex-col gap-2 animate-fade-in`}
+                    style={{ borderLeftColor: cMarca.accent }}
                   >
                     <div className="flex items-center justify-between">
-                      <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded border ${cMarca.bg} ${cMarca.text} ${cMarca.border}`}>
+                      <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded border ${cMarca.surface}`}>
                         {formatearMarca(t.marca)}
                       </span>
                       <span className="text-[9px] text-zinc-400 font-normal">

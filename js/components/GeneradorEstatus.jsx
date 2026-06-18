@@ -109,7 +109,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                         onClick={() => toggleMarca(m)}
                         className={`text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
                           seleccionada
-                            ? `${estilo.bg} ${estilo.text} ${estilo.border} ring-2 ring-offset-1 ring-zinc-300`
+                            ? `${estilo.surface} ring-2 ring-offset-1 ring-zinc-300`
                             : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
                         }`}
                       >

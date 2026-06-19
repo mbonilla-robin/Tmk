@@ -1,4 +1,4 @@
-const CACHE_NAME = "robin-pwa-v60";
+const CACHE_NAME = "robin-pwa-v61";
 
 const STATIC_ASSETS = [
   "./",
@@ -100,7 +100,15 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
+  const isLocalDev =
+    url.hostname === "localhost" || url.hostname === "127.0.0.1";
+
   if (isAppScript(url.pathname)) {
+    if (isLocalDev) {
+      event.respondWith(fetch(request));
+      return;
+    }
+
     event.respondWith(
       fetch(request)
         .then((response) => {

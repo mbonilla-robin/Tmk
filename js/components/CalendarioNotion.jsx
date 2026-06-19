@@ -33,6 +33,7 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
   const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
   const [selectedDayDetail, setSelectedDayDetail] = useState(null);
+  const hoy = new Date();
 
   useEffect(() => {
     if (!username) return;
@@ -66,18 +67,7 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
     }
   };
 
-  const getMonday = (date) => {
-    const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-    const day = d.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    d.setDate(d.getDate() + diff);
-    return d;
-  };
-
-  const isSameDay = (a, b) =>
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate();
+  const isSameDay = esMismoDiaLocal;
 
   const isSameDayTask = (task, y, m, d) => {
     if (!task.deadline) return false;
@@ -90,17 +80,31 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
     tareas.filter(t => isSameDayTask(t, date.getFullYear(), date.getMonth(), date.getDate()));
 
   const weekDays = useMemo(() => {
-    const monday = getMonday(weekAnchor);
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      return d;
-    });
-  }, [weekAnchor]);
+    const lunes = obtenerLunesSemana(weekAnchor);
+    const dias = [];
+
+    for (let i = 0; i < 5; i++) {
+      const d = new Date(lunes);
+      d.setDate(lunes.getDate() + i);
+      dias.push(d);
+    }
+
+    for (let i = 5; i < 7; i++) {
+      const d = new Date(lunes);
+      d.setDate(lunes.getDate() + i);
+      const y = d.getFullYear();
+      const m = d.getMonth();
+      const day = d.getDate();
+      const hayEntregables = (tareas || []).some((t) => isSameDayTask(t, y, m, day));
+      if (hayEntregables) dias.push(d);
+    }
+
+    return dias;
+  }, [weekAnchor, tareas]);
 
   const weekLabel = useMemo(() => {
     const start = weekDays[0];
-    const end = weekDays[6];
+    const end = weekDays[weekDays.length - 1];
     if (start.getMonth() === end.getMonth()) {
       return `${start.getDate()} – ${end.getDate()} ${monthNames[start.getMonth()]} ${start.getFullYear()}`;
     }
@@ -109,7 +113,7 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
 
   const weekLabelShort = useMemo(() => {
     const start = weekDays[0];
-    const end = weekDays[6];
+    const end = weekDays[weekDays.length - 1];
     const mes = monthNames[start.getMonth()].slice(0, 3);
     if (start.getMonth() === end.getMonth()) {
       return `${start.getDate()}–${end.getDate()} ${mes}`;
@@ -271,7 +275,9 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
     );
   };
 
-  const renderWeekDayStack = (date, i) => {
+  const indiceNombreDia = (date) => (date.getDay() + 6) % 7;
+
+  const renderWeekDayStack = (date) => {
     const dayTasks = tasksForDate(date);
     const esHoy = isSameDay(date, hoy);
     const visibleTasks = dayTasks.slice(0, 3);
@@ -284,7 +290,7 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
       >
         <div className="cal-mobile-day-head">
           <div className="cal-mobile-day-date">
-            <span className="cal-mobile-day-name">{dayNames[i]}</span>
+            <span className="cal-mobile-day-name">{dayNames[indiceNombreDia(date)]}</span>
             <span className="cal-mobile-day-num">{date.getDate()}</span>
           </div>
           <div className="flex items-center gap-2">
@@ -317,7 +323,7 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
     );
   };
 
-  const renderWeekDayColumn = (date, i, compact = false) => {
+  const renderWeekDayColumn = (date, compact = false) => {
     const dayTasks = tasksForDate(date);
     const esHoy = isSameDay(date, hoy);
     const tieneMuchas = dayTasks.length > 5;
@@ -331,7 +337,7 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
       >
         <div className={`cal-week-day-col-head shrink-0 h-[64px] flex flex-col items-center justify-center border-b px-1 ${esHoy ? "is-today" : ""}`}>
           <div className="cal-week-day-col-dow text-[10px] font-semibold uppercase tracking-wide leading-none">
-            {dayNames[i]}
+            {dayNames[indiceNombreDia(date)]}
           </div>
           <div className={`cal-week-day-col-num text-lg font-bold leading-none mt-1 ${esHoy ? "is-today" : ""}`}>
             {date.getDate()}
@@ -399,8 +405,6 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
       </button>
     );
   };
-
-  const hoy = new Date();
 
   return (
     <div className="cal-shell rounded-lg border overflow-hidden shadow-sm w-full">
@@ -484,13 +488,16 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
 
       {/* Vista semana — columnas en desktop, días apilados en móvil */}
       {vista === "semana" && (
-        <div className="p-3 cal-week-viewport">
+        <div
+          className="p-3 cal-week-viewport"
+          style={{ "--cal-week-cols": weekDays.length }}
+        >
           <div className="cal-week-columns">
-            {weekDays.map((date, i) => renderWeekDayColumn(date, i))}
+            {weekDays.map((date) => renderWeekDayColumn(date))}
           </div>
 
           <div className="cal-week-stacked">
-            {weekDays.map((date, i) => renderWeekDayStack(date, i))}
+            {weekDays.map((date) => renderWeekDayStack(date))}
           </div>
         </div>
       )}

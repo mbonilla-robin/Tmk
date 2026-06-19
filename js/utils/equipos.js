@@ -49,12 +49,7 @@ function obtenerNombreDisplayEquipo(handle) {
 }
 
 function obtenerRangoSemana(fechaRef) {
-  const ref = fechaRef || new Date();
-  const dia = ref.getDay();
-  const diffLunes = dia === 0 ? -6 : 1 - dia;
-  const lunes = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate() + diffLunes);
-  const domingo = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + 6, 23, 59, 59, 999);
-  return { inicio: lunes.getTime(), fin: domingo.getTime() };
+  return obtenerRangoSemanaLaboral(fechaRef);
 }
 
 function tareaCuentaParaRangoEquipos(tarea, modo, tHoy, semanaInicio, semanaFin) {

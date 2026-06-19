@@ -105,6 +105,59 @@ function esDiaHabil(fecha) {
   return dia !== 0 && dia !== 6;
 }
 
+function esMismoDiaLocal(a, b) {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+function obtenerLunesSemana(fechaRef) {
+  const ref = fechaRef || new Date();
+  const d = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate());
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+
+function obtenerRangoSemanaLaboral(fechaRef) {
+  const lunes = obtenerLunesSemana(fechaRef);
+  const viernes = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate() + 4, 23, 59, 59, 999);
+  return { inicio: lunes.getTime(), fin: viernes.getTime() };
+}
+
+function diaTieneEntregableEnFecha(fecha, tareas) {
+  const ts = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()).getTime();
+  return (tareas || []).some((t) => {
+    const td = obtenerTiempoFecha(t.deadline);
+    return td !== Infinity && td === ts;
+  });
+}
+
+function obtenerDiasSemanaVisibles(fechaRef, tareas, fechaHoy) {
+  const lunes = obtenerLunesSemana(fechaRef);
+  const hoy = fechaHoy || new Date();
+  const dias = [];
+
+  for (let i = 0; i < 5; i++) {
+    const d = new Date(lunes);
+    d.setDate(lunes.getDate() + i);
+    dias.push(d);
+  }
+
+  for (let i = 5; i < 7; i++) {
+    const d = new Date(lunes);
+    d.setDate(lunes.getDate() + i);
+    if (diaTieneEntregableEnFecha(d, tareas) || esMismoDiaLocal(d, hoy)) {
+      dias.push(d);
+    }
+  }
+
+  return dias;
+}
+
 function restarDiasHabiles(timestamp, dias) {
   if (!dias || dias <= 0) {
     const ref = new Date(timestamp);

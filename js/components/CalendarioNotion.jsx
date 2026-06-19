@@ -79,6 +79,13 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
   const tasksForDate = (date) =>
     tareas.filter(t => isSameDayTask(t, date.getFullYear(), date.getMonth(), date.getDate()));
 
+  const actividadesPorDia = useMemo(
+    () => construirIndiceActividadesPorDia(tareas),
+    [tareas]
+  );
+
+  const actividadesForDate = (date) => actividadesParaFecha(actividadesPorDia, date);
+
   const weekDays = useMemo(() => {
     const lunes = obtenerLunesSemana(weekAnchor);
     const dias = [];
@@ -96,11 +103,12 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
       const m = d.getMonth();
       const day = d.getDate();
       const hayEntregables = (tareas || []).some((t) => isSameDayTask(t, y, m, day));
-      if (hayEntregables) dias.push(d);
+      const hayActividad = actividadesParaFecha(actividadesPorDia, d).length > 0;
+      if (hayEntregables || hayActividad) dias.push(d);
     }
 
     return dias;
-  }, [weekAnchor, tareas]);
+  }, [weekAnchor, tareas, actividadesPorDia]);
 
   const weekLabel = useMemo(() => {
     const start = weekDays[0];
@@ -201,13 +209,14 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
     }
   };
 
-  const openDayDetail = (date, dayTasks) => {
+  const openDayDetail = (date, dayTasks, dayActivities) => {
     setSelectedDayDetail({
       date,
       day: date.getDate(),
       month: date.getMonth(),
       year: date.getFullYear(),
-      tasks: dayTasks || []
+      tasks: dayTasks || [],
+      activities: dayActivities || []
     });
   };
 
@@ -223,6 +232,75 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
     });
 
     return marcas;
+  };
+
+  const renderActivityRow = (act) => (
+    <button
+      key={act.id}
+      type="button"
+      onClick={() => onSelectTask(act.tarea)}
+      className="cal-activity-row"
+      title={`${act.tarea.info} · ${act.etiqueta}`}
+    >
+      <span className="cal-activity-row-time">{act.hora}</span>
+      <span className="cal-activity-row-body">
+        <span className="cal-activity-row-title">{act.tarea.info}</span>
+        <span className="cal-activity-row-desc">{act.etiqueta}</span>
+      </span>
+    </button>
+  );
+
+  const renderActivityPanel = (activities, { limit = null, onMore = null } = {}) => {
+    if (!activities.length) return null;
+
+    const visible = limit ? activities.slice(0, limit) : activities;
+    const hidden = activities.length - visible.length;
+
+    return (
+      <div className="cal-activity-panel">
+        <div className="cal-activity-panel-head">
+          <i className="fa-regular fa-clock" aria-hidden="true" />
+          <span>Actividad del día</span>
+        </div>
+        <div className="cal-activity-panel-list">
+          {visible.map((act) => renderActivityRow(act))}
+        </div>
+        {hidden > 0 && onMore && (
+          <button type="button" onClick={onMore} className="cal-activity-panel-more">
+            +{hidden} más
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  const renderDayHeaderMeta = (dayTasks, dayActivities, esHoy) => {
+    if (esHoy) {
+      return (
+        <span className="cal-week-day-col-today-pill text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded leading-none">
+          Hoy{dayTasks.length > 0 ? ` · ${dayTasks.length}` : ""}
+        </span>
+      );
+    }
+
+    if (dayTasks.length > 0) {
+      return (
+        <span className="cal-week-day-col-count text-[9px] font-medium leading-none">
+          {dayTasks.length}
+        </span>
+      );
+    }
+
+    if (dayActivities.length > 0) {
+      return (
+        <span className="cal-week-day-col-activity-icon text-[9px] font-medium leading-none" title="Actividad registrada">
+          <i className="fa-regular fa-clock" aria-hidden="true" />
+          {dayActivities.length}
+        </span>
+      );
+    }
+
+    return <span className="text-[9px] text-transparent leading-none">0</span>;
   };
 
   const renderWeekColumnCard = (t) => {
@@ -275,57 +353,64 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
     );
   };
 
-  const indiceNombreDia = (date) => (date.getDay() + 6) % 7;
-
-  const renderWeekDayStack = (date) => {
+  const renderDayContent = (date, { compact = false, mobile = false } = {}) => {
     const dayTasks = tasksForDate(date);
+    const dayActivities = actividadesForDate(date);
     const esHoy = isSameDay(date, hoy);
-    const visibleTasks = dayTasks.slice(0, 3);
-    const hiddenCount = dayTasks.length - visibleTasks.length;
+    const totalItems = dayTasks.length + dayActivities.length;
+    const openDetail = () => openDayDetail(date, dayTasks, dayActivities);
 
-    return (
-      <div
-        key={date.toISOString()}
-        className={`cal-mobile-day-block ${esHoy ? "is-today" : ""}`}
-      >
-        <div className="cal-mobile-day-head">
-          <div className="cal-mobile-day-date">
-            <span className="cal-mobile-day-name">{dayNames[indiceNombreDia(date)]}</span>
-            <span className="cal-mobile-day-num">{date.getDate()}</span>
+    if (mobile) {
+      const visibleTasks = dayTasks.slice(0, 3);
+      const hiddenTasks = dayTasks.length - visibleTasks.length;
+      const activityLimit = Math.max(0, 3 - visibleTasks.length);
+      const visibleActivities = dayActivities.slice(0, activityLimit);
+      const hiddenActivities = dayActivities.length - visibleActivities.length;
+      const hiddenTotal = hiddenTasks + hiddenActivities;
+
+      return (
+        <div
+          key={date.toISOString()}
+          className={`cal-mobile-day-block ${esHoy ? "is-today" : ""}`}
+        >
+          <div className="cal-mobile-day-head">
+            <div className="cal-mobile-day-date">
+              <span className="cal-mobile-day-name">{dayNames[indiceNombreDia(date)]}</span>
+              <span className="cal-mobile-day-num">{date.getDate()}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {esHoy && <span className="cal-mobile-today-pill">Hoy</span>}
+              {dayTasks.length > 0 && (
+                <span className="cal-mobile-day-count">{dayTasks.length}</span>
+              )}
+              {dayTasks.length === 0 && dayActivities.length > 0 && (
+                <span className="cal-week-day-col-activity-icon" title="Actividad registrada">
+                  <i className="fa-regular fa-clock" aria-hidden="true" />
+                  {dayActivities.length}
+                </span>
+              )}
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            {esHoy && <span className="cal-mobile-today-pill">Hoy</span>}
-            {dayTasks.length > 0 && (
-              <span className="cal-mobile-day-count">{dayTasks.length}</span>
+
+          <div className="cal-mobile-day-tasks">
+            {totalItems === 0 ? (
+              <p className="cal-mobile-day-empty">Sin entregables ni actividad</p>
+            ) : (
+              <>
+                {visibleTasks.map((t) => renderWeekMobileTaskRow(t))}
+                {visibleActivities.length > 0 && renderActivityPanel(visibleActivities)}
+                {hiddenTotal > 0 && (
+                  <button type="button" onClick={openDetail} className="cal-mobile-day-more">
+                    +{hiddenTotal} más
+                  </button>
+                )}
+              </>
             )}
           </div>
         </div>
+      );
+    }
 
-        <div className="cal-mobile-day-tasks">
-          {dayTasks.length === 0 ? (
-            <p className="cal-mobile-day-empty">Sin entregables este día</p>
-          ) : (
-            <>
-              {visibleTasks.map(t => renderWeekMobileTaskRow(t))}
-              {hiddenCount > 0 && (
-                <button
-                  type="button"
-                  onClick={() => openDayDetail(date, dayTasks)}
-                  className="cal-mobile-day-more"
-                >
-                  +{hiddenCount} más
-                </button>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const renderWeekDayColumn = (date, compact = false) => {
-    const dayTasks = tasksForDate(date);
-    const esHoy = isSameDay(date, hoy);
     const tieneMuchas = dayTasks.length > 5;
 
     return (
@@ -343,25 +428,23 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
             {date.getDate()}
           </div>
           <div className="h-[16px] flex items-center justify-center mt-1">
-            {esHoy ? (
-              <span className="cal-week-day-col-today-pill text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded leading-none">
-                Hoy{dayTasks.length > 0 ? ` · ${dayTasks.length}` : ""}
-              </span>
-            ) : dayTasks.length > 0 ? (
-              <span className="cal-week-day-col-count text-[9px] font-medium leading-none">{dayTasks.length}</span>
-            ) : (
-              <span className="text-[9px] text-transparent leading-none">0</span>
-            )}
+            {renderDayHeaderMeta(dayTasks, dayActivities, esHoy)}
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-1.5 flex flex-col gap-1 min-h-0 cal-week-scroll">
-          {dayTasks.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center">
-              <span className="cal-week-day-col-empty text-[10px]">Sin entregables este día</span>
+        <div className="flex-1 overflow-y-auto p-1.5 flex flex-col gap-1.5 min-h-0 cal-week-scroll">
+          {totalItems === 0 ? (
+            <div className="flex-1 flex items-center justify-center px-2">
+              <span className="cal-week-day-col-empty text-[10px] text-center">Sin entregables ni actividad</span>
             </div>
           ) : (
-            dayTasks.map(t => renderWeekColumnCard(t))
+            <>
+              {dayTasks.map((t) => renderWeekColumnCard(t))}
+              {renderActivityPanel(dayActivities, {
+                limit: 3,
+                onMore: dayActivities.length > 3 ? openDetail : null
+              })}
+            </>
           )}
         </div>
 
@@ -369,7 +452,7 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
           {tieneMuchas ? (
             <button
               type="button"
-              onClick={() => openDayDetail(date, dayTasks)}
+              onClick={openDetail}
               className="cal-week-day-col-more text-[9px] font-semibold transition-colors w-full h-full"
             >
               Ver los {dayTasks.length}
@@ -381,6 +464,27 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
       </div>
     );
   };
+
+  const indiceNombreDia = (date) => (date.getDay() + 6) % 7;
+
+  const renderModalActivityRow = (act, idx) => (
+    <button
+      key={`act-${act.id || idx}`}
+      type="button"
+      onClick={() => onSelectTask(act.tarea)}
+      className="cal-activity-row cal-activity-row--modal"
+    >
+      <span className="cal-activity-row-time">{act.hora}</span>
+      <span className="cal-activity-row-body">
+        <span className="cal-activity-row-title">{act.tarea.info}</span>
+        <span className="cal-activity-row-desc">{act.etiqueta}</span>
+      </span>
+    </button>
+  );
+
+  const renderWeekDayStack = (date) => renderDayContent(date, { mobile: true });
+
+  const renderWeekDayColumn = (date, compact = false) => renderDayContent(date, { compact });
 
   const renderModalTaskRow = (t, idx) => {
     const calStyle = getMarcaStyle(t.marca);
@@ -515,6 +619,7 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
             {gridCells.map((cell, idx) => {
               const cellDate = new Date(cell.year, cell.month, cell.day);
               const dayTasks = tasksForDate(cellDate);
+              const dayActivities = actividadesForDate(cellDate);
               const marcasDia = obtenerMarcasUnicasDia(dayTasks);
               const marcasVisibles = marcasDia.slice(0, 3);
               const marcasOcultas = marcasDia.length - marcasVisibles.length;
@@ -524,13 +629,19 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
                 <button
                   key={idx}
                   type="button"
-                  onClick={() => openDayDetail(cellDate, dayTasks)}
-                  className={`cal-month-day ${cell.isCurrentMonth ? "is-current-month" : "is-other-month"} ${esHoy ? "is-today" : ""} ${dayTasks.length > 0 ? "has-tasks" : ""}`}
-                  aria-label={`${cell.day} ${monthNames[cell.month]} ${cell.year}${dayTasks.length ? `, ${dayTasks.length} entregable${dayTasks.length !== 1 ? "s" : ""}` : ", sin entregables"}`}
+                  onClick={() => openDayDetail(cellDate, dayTasks, dayActivities)}
+                  className={`cal-month-day ${cell.isCurrentMonth ? "is-current-month" : "is-other-month"} ${esHoy ? "is-today" : ""} ${dayTasks.length > 0 ? "has-tasks" : ""} ${dayActivities.length > 0 ? "has-activity" : ""}`}
+                  aria-label={`${cell.day} ${monthNames[cell.month]} ${cell.year}${dayTasks.length ? `, ${dayTasks.length} entregable${dayTasks.length !== 1 ? "s" : ""}` : ""}${dayActivities.length ? `, ${dayActivities.length} actividad${dayActivities.length !== 1 ? "es" : ""}` : ", sin entregables ni actividad"}`}
                 >
                   <span className={`cal-month-day-num ${esHoy ? "is-today-num" : ""}`}>
                     {cell.day}
                   </span>
+
+                  {dayActivities.length > 0 && marcasVisibles.length === 0 && (
+                    <span className="cal-month-activity-icon" title={`${dayActivities.length} actividad${dayActivities.length !== 1 ? "es" : ""}`}>
+                      <i className="fa-regular fa-clock" aria-hidden="true" />
+                    </span>
+                  )}
 
                   {marcasVisibles.length > 0 && (
                     <span className="cal-month-day-marcas">
@@ -562,7 +673,7 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
           <div className="cal-day-modal">
             <div className="cal-day-modal-header">
               <div>
-                <span className="text-section">Entregables del día</span>
+                <span className="text-section">Resumen del día</span>
                 <p className="cal-day-modal-date">
                   {selectedDayDetail.day} {monthNames[selectedDayDetail.month]} {selectedDayDetail.year}
                 </p>
@@ -576,10 +687,31 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
               </button>
             </div>
             <div className="cal-day-modal-body">
-              {selectedDayDetail.tasks.length === 0 ? (
-                <p className="cal-day-modal-empty">Sin entregables este día</p>
+              {selectedDayDetail.tasks.length === 0 && (selectedDayDetail.activities || []).length === 0 ? (
+                <p className="cal-day-modal-empty">Sin entregables ni actividad</p>
               ) : (
-                selectedDayDetail.tasks.map((t, i) => renderModalTaskRow(t, i))
+                <>
+                  {selectedDayDetail.tasks.length > 0 && (
+                    <>
+                      <p className="cal-day-modal-section-title">Entregas</p>
+                      {selectedDayDetail.tasks.map((t, i) => renderModalTaskRow(t, i))}
+                    </>
+                  )}
+                  {(selectedDayDetail.activities || []).length > 0 && (
+                    <div className="cal-activity-panel cal-activity-panel--modal">
+                      <div className="cal-activity-panel-head">
+                        <i className="fa-regular fa-clock" aria-hidden="true" />
+                        <span>Actividad del día</span>
+                      </div>
+                      <p className="cal-activity-panel-note">
+                        Lo que se trabajó o cambió. No es fecha de entrega.
+                      </p>
+                      <div className="cal-activity-panel-list">
+                        {(selectedDayDetail.activities || []).map((act, i) => renderModalActivityRow(act, i))}
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>

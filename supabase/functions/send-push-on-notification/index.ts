@@ -1,9 +1,9 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3";
 
-const ROBIN_VAPID_PUBLIC = "BCXRrxFM-MiBBd4dpGxWTZwBpumTiqZfGk732b9YEEOXes0qZtgEFD550dVPtq7DVZh-XoRPTjxInWcqTsfPHqU";
-const ROBIN_VAPID_PRIVATE = "vr-cBOrtjdsS_cU3ptqlWbjzsPsz0Wmu-hK4-UA39UA";
-const ROBIN_VAPID_KEY_ID = "v5";
+const ROBIN_VAPID_PUBLIC = "BAyctUnZFrHN9AF_-VfjndrCZD8Qrnsh3AHrokDY_rVZkOfJGhqibGvo1DLA8732yJ3EcgUnh1KEfxAo9kj2uXw";
+const ROBIN_VAPID_PRIVATE = "1oSAPn3kQrfsekRPkW4R18zSeIypWCOs6u33p7AZKLI";
+const ROBIN_VAPID_KEY_ID = "v6";
 const ROBIN_VAPID_SUBJECT = "mailto:robin@trade.local";
 
 const DISPLAY_NAMES: Record<string, string> = {
@@ -200,6 +200,7 @@ Deno.serve(async (req) => {
   const errors: PushSendError[] = [];
 
   for (const row of subs as PushSubscriptionRow[]) {
+    const isApple = row.endpoint.includes("web.push.apple.com");
     try {
       await webpush.sendNotification(
         {
@@ -207,7 +208,11 @@ Deno.serve(async (req) => {
           keys: { p256dh: row.p256dh, auth: row.auth }
         },
         payload,
-        { TTL: 60 * 60 * 12, urgency: "high" }
+        {
+          TTL: 60 * 60 * 12,
+          urgency: "high",
+          ...(isApple ? { contentEncoding: "aes128gcm" as const } : {})
+        }
       );
       sent += 1;
     } catch (err) {

@@ -118,7 +118,10 @@ function MobileNavBar({
       </header>
 
       <nav className="mobile-nav-bar md:hidden" aria-label="Navegación principal">
-        <div className="mobile-nav-grid">
+        <div
+          className="mobile-nav-grid"
+          style={{ "--mobile-nav-cols": navItems.length }}
+        >
           {navItems.map((item) => (
             <button
               key={item.key}

@@ -1576,9 +1576,6 @@ function App() {
               Acceso exclusivo de Trade & Shopper Marketing.<br />
               Socio estratégico de marca ROBIN.
             </p>
-            <p className={`text-[10px] ${currentTheme.mutedText} font-semibold leading-relaxed mt-2 opacity-80`}>
-              Área de diseño: contraseña distinta a la del equipo trade.
-            </p>
           </div>
         </div>
       </div>

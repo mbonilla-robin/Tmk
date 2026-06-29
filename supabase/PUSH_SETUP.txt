@@ -1,0 +1,68 @@
+ROBIN — Activar notificaciones push (Web Push)
+================================================
+
+Esto conecta las notificaciones de robin_notifications con el teléfono/escritorio
+de cada usuario cuando tienen la PWA instalada.
+
+1) Aplicar migración en Supabase
+--------------------------------
+Ejecuta la migración:
+  supabase/migrations/20260629140000_robin_push_subscriptions.sql
+
+Desde el panel: SQL Editor → pegar el contenido → Run.
+
+2) Configurar secrets de la Edge Function
+-----------------------------------------
+En Supabase → Project Settings → Edge Functions → Secrets:
+
+  VAPID_PUBLIC_KEY=BAQ7zERRng58qoZfmaCa871_OhYeFCJcOp0EKMw1COkG8ccxo_Zd7AuF1RugUJhF9WxMYEh-5EUPLP9z0mYO1wNe
+  VAPID_PRIVATE_KEY=AKFWudgOnBU0qz8m5EkPNWhenz-ArmhxhiDOLpB1x8OP
+  VAPID_SUBJECT=mailto:tu-correo@empresa.com
+
+La clave pública debe coincidir con js/config/push.js (ROBIN_VAPID_PUBLIC_KEY).
+
+Para regenerar claves en tu máquina:
+  npx web-push generate-vapid-keys
+
+3) Desplegar la Edge Function
+-----------------------------
+  supabase functions deploy send-push-on-notification --no-verify-jwt
+
+La función vive en:
+  supabase/functions/send-push-on-notification/
+
+4) Crear Database Webhook
+-------------------------
+Supabase → Database → Webhooks → Create webhook
+
+  Name: robin-push-on-notification
+  Table: public.robin_notifications
+  Events: INSERT
+  Type: Supabase Edge Function
+  Function: send-push-on-notification
+  HTTP method: POST
+  Timeout: 5000 ms
+
+Con esto, cada mención (@R Álvarez), respuesta, asignación o cambio de estado
+dispara un push al dispositivo suscrito del recipient.
+
+5) Probar en un teléfono
+------------------------
+1. Abre ROBIN en HTTPS (no file://).
+2. Instala la PWA en la pantalla de inicio (iOS) o “Instalar app” (Android).
+3. Inicia sesión como el usuario destino (ej. ralvarez).
+4. Acepta “Activar” en el banner de notificaciones.
+5. Desde otro usuario (ej. mbonilla), menciona @R Álvarez en un comentario.
+6. Debería llegar un push del estilo:
+   "Miguel Bonilla te dejó este comentario: \"...\""
+
+Notas iOS
+---------
+- Push en PWA solo funciona con la app instalada en Inicio (iOS 16.4+).
+- El permiso debe concederse después de instalar la PWA.
+
+Notas Android / Desktop
+-----------------------
+- Chrome/Edge/Firefox soportan Web Push en HTTPS.
+- En desktop también funciona sin instalar, pero conviene tener la PWA abierta
+  al menos una vez para registrar el service worker.

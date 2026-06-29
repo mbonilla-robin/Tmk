@@ -1,4 +1,4 @@
-const CACHE_NAME = "robin-pwa-v71";
+const CACHE_NAME = "robin-pwa-v72";
 
 const STATIC_ASSETS = [
   "./",
@@ -24,6 +24,7 @@ const STATIC_ASSETS = [
   "./js/react/setup.js",
   "./js/config/api.js",
   "./js/config/supabase.js",
+  "./js/config/push.js",
   "./js/config/auth.js",
   "./js/utils/storage.js",
   "./js/utils/user.js",
@@ -43,6 +44,7 @@ const STATIC_ASSETS = [
   "./js/utils/estatus.js",
   "./js/utils/equipos.js",
   "./js/utils/comentarios.js",
+  "./js/utils/pushNotifications.js",
   "./js/constants/index.js",
   "./js/utils/marcas.js",
   "./js/pwa.js",
@@ -138,5 +140,57 @@ self.addEventListener("fetch", (event) => {
         return response;
       })
       .catch(() => caches.match(request).then((cached) => cached || caches.match("./index.html")))
+  );
+});
+
+function abrirRobinConTarea(clientList, taskKey) {
+  const destino = taskKey ? `./index.html#tarea=${encodeURIComponent(taskKey)}` : "./index.html";
+
+  for (const client of clientList) {
+    if ("focus" in client) {
+      client.postMessage({ type: "ROBIN_OPEN_TASK", taskKey: taskKey || "" });
+      return client.focus();
+    }
+  }
+
+  if (self.clients.openWindow) {
+    return self.clients.openWindow(destino);
+  }
+
+  return Promise.resolve();
+}
+
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (e) {
+    data = {};
+  }
+
+  const title = data.title || "ROBIN";
+  const body = data.body || "Tienes una notificación nueva";
+  const taskKey = data.task_key || "";
+  const tag = data.id ? `robin-notif-${data.id}` : "robin-notif";
+
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body,
+      icon: "./icons/pwa-naranja-192.png",
+      badge: "./icons/pwa-naranja-192.png",
+      tag,
+      renotify: true,
+      data: { taskKey, type: data.type || "" }
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const taskKey = event.notification.data?.taskKey || "";
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true })
+      .then((clientList) => abrirRobinConTarea(clientList, taskKey))
   );
 });

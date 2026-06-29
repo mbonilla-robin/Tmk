@@ -71,6 +71,8 @@ function App() {
   const [notificaciones, setNotificaciones] = useState([]);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [notifCargando, setNotifCargando] = useState(false);
+  const [pushPromptVisible, setPushPromptVisible] = useState(false);
+  const [pushActivando, setPushActivando] = useState(false);
   const [tareasSeleccionadas, setTareasSeleccionadas] = useState(() => new Set());
   const [bulkDeadline, setBulkDeadline] = useState("");
 
@@ -1134,6 +1136,61 @@ function App() {
     }
 
     showToast("No se encontró el entregable", "error");
+  };
+
+  useEffect(() => {
+    if (!usuario || isConfigOnlyAdmin) return undefined;
+    let cancelado = false;
+
+    (async () => {
+      const resultado = await inicializarPushNotificaciones(usuario);
+      if (cancelado) return;
+      if (resultado && resultado.reason === "needs_prompt") {
+        setPushPromptVisible(true);
+      }
+    })();
+
+    return () => { cancelado = true; };
+  }, [usuario, isConfigOnlyAdmin]);
+
+  useEffect(() => {
+    if (!usuario || isConfigOnlyAdmin) return undefined;
+    return registrarListenerAperturaPush(abrirTareaPorKey);
+  }, [usuario, isConfigOnlyAdmin, tareas]);
+
+  useEffect(() => {
+    if (!usuario || !tareas.length) return;
+    const taskKey = leerTaskKeyDesdeUrl();
+    if (!taskKey) return;
+    abrirTareaPorKey(taskKey);
+    limpiarTaskKeyEnUrl();
+  }, [usuario, tareas]);
+
+  const handleActivarPush = async () => {
+    if (!usuario || pushActivando) return;
+    setPushActivando(true);
+    try {
+      const resultado = await suscribirPushNotificaciones(usuario);
+      if (resultado.ok) {
+        setPushPromptVisible(false);
+        showToast("Notificaciones push activadas", "success");
+        return;
+      }
+      if (resultado.reason === "denied") {
+        diferirPushNotificaciones();
+        setPushPromptVisible(false);
+        showToast("Puedes activarlas después en Ajustes del navegador", "info");
+        return;
+      }
+      showToast("No se pudieron activar las notificaciones push", "error");
+    } finally {
+      setPushActivando(false);
+    }
+  };
+
+  const handleOmitirPush = () => {
+    diferirPushNotificaciones();
+    setPushPromptVisible(false);
   };
 
   const layoutTablaProps = {
@@ -2409,6 +2466,32 @@ function App() {
           registrarNuevaPersona={registrarNuevaPersonaGlobal}
           onClose={() => setShowGeneradorEstatus(false)}
         />
+      )}
+
+      {!isConfigOnlyAdmin && pushPromptVisible && (
+        <div className="fixed bottom-[calc(var(--mobile-chrome-bottom,4rem)+0.75rem)] left-4 right-4 md:left-auto md:right-6 md:max-w-sm z-[45] p-4 rounded-lg border border-zinc-200 bg-white shadow-lg animate-zoom-in">
+          <p className="text-sm font-semibold text-zinc-800 mb-1">Notificaciones en tu teléfono</p>
+          <p className="text-xs text-zinc-500 leading-relaxed mb-3">
+            Actívalas para recibir menciones y comentarios aunque no tengas ROBIN abierto.
+          </p>
+          <div className="flex gap-2 justify-end">
+            <button
+              type="button"
+              onClick={handleOmitirPush}
+              className="px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-800"
+            >
+              Ahora no
+            </button>
+            <button
+              type="button"
+              onClick={handleActivarPush}
+              disabled={pushActivando}
+              className="px-3 py-1.5 text-xs font-semibold rounded bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-60"
+            >
+              {pushActivando ? "Activando…" : "Activar"}
+            </button>
+          </div>
+        </div>
       )}
 
     </div>

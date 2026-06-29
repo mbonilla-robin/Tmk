@@ -78,6 +78,7 @@ function App() {
   const [notifCargando, setNotifCargando] = useState(false);
   const [pushPromptVisible, setPushPromptVisible] = useState(false);
   const [pushActivando, setPushActivando] = useState(false);
+  const [pushRegistroPendiente, setPushRegistroPendiente] = useState(false);
   const [tareasSeleccionadas, setTareasSeleccionadas] = useState(() => new Set());
   const [bulkDeadline, setBulkDeadline] = useState("");
 
@@ -1261,6 +1262,35 @@ function App() {
   };
 
   useEffect(() => {
+    if (!usuario || isConfigOnlyAdmin) return undefined;
+    precalentarPushServiceWorker();
+  }, [usuario, isConfigOnlyAdmin]);
+
+  useEffect(() => {
+    if (!usuario || isConfigOnlyAdmin) return undefined;
+    if (typeof Notification === "undefined" || Notification.permission !== "granted") {
+      setPushRegistroPendiente(false);
+      return undefined;
+    }
+
+    registrarPushEnSegundoPlano(usuario).catch(() => {});
+
+    const revisarEstado = () => {
+      obtenerEstadoPushUsuario(usuario).then((estado) => {
+        setPushRegistroPendiente(Boolean(estado.soportado && !estado.guardadoRemoto));
+        if (!estado.guardadoRemoto) {
+          registrarPushEnSegundoPlano(usuario).catch(() => {});
+        }
+      }).catch(() => {});
+    };
+
+    revisarEstado();
+    const interval = setInterval(revisarEstado, 45000);
+
+    return () => clearInterval(interval);
+  }, [usuario, isConfigOnlyAdmin]);
+
+  useEffect(() => {
     pushPromptDescartadoRef.current = Boolean(usuario && pushPromptYaAtendido(usuario));
   }, [usuario]);
 
@@ -1324,34 +1354,54 @@ function App() {
   }, [usuario, tareas]);
 
   const handleActivarPush = async () => {
-    if (!usuario || pushActivando) return;
+    if (!usuario || isConfigOnlyAdmin || pushActivando) return;
 
     if (typeof Notification === "undefined") {
+      showToast("Este navegador no soporta notificaciones", "error");
       cerrarPushPrompt();
       return;
     }
 
+    if (pushRequierePwaInstalada()) {
+      showToast(mensajeErrorPush("needs_pwa"), "error");
+      return;
+    }
+
     if (Notification.permission === "denied") {
+      showToast(mensajeErrorPush("denied"), "error");
       cerrarPushPrompt();
       return;
     }
 
     setPushActivando(true);
     try {
+      const reg = await obtenerRegistroParaPush();
+
       if (Notification.permission === "default") {
         const permiso = await Notification.requestPermission();
         if (permiso !== "granted") {
+          showToast(mensajeErrorPush("denied"), "error");
           cerrarPushPrompt();
           return;
         }
       }
 
-      const resultado = await suscribirPushNotificaciones(usuario, { omitirPermiso: true });
-      cerrarPushPrompt();
+      const resultado = reg
+        ? await suscribirConRegistro(reg, usuario)
+        : await activarPushEnDispositivo(usuario);
+
       if (resultado.ok) {
+        setPushRegistroPendiente(false);
+        cerrarPushPrompt();
+        showToast("Notificaciones activadas en este dispositivo", "success");
         enviarPushPruebaUsuario(usuario).catch(() => {});
-      } else {
-        registrarPushEnSegundoPlano(usuario).catch(() => {});
+        return;
+      }
+
+      setPushRegistroPendiente(true);
+      showToast(mensajeErrorPush(resultado.reason), "error");
+      if (typeof registrarDiagnosticoRobin === "function") {
+        registrarDiagnosticoRobin("push", "Activación fallida", resultado.detail || resultado.reason || "");
       }
     } finally {
       setPushActivando(false);
@@ -2682,6 +2732,31 @@ function App() {
           registrarNuevaPersona={registrarNuevaPersonaGlobal}
           onClose={() => setShowGeneradorEstatus(false)}
         />
+      )}
+
+      {!isConfigOnlyAdmin && pushRegistroPendiente && esEntornoPushMovil() && typeof Notification !== "undefined" && Notification.permission === "granted" && (
+        <div className="robin-float-above-chrome robin-push-prompt p-4 rounded-lg border border-amber-200 bg-amber-50 shadow-lg animate-zoom-in">
+          <p className="text-sm font-semibold text-zinc-800 mb-1">Falta registrar este iPhone</p>
+          <p className="text-xs text-zinc-600 leading-relaxed mb-3">
+            Ya diste permiso, pero el teléfono aún no está vinculado para recibir alertas con la app cerrada.
+          </p>
+          <div className="flex gap-2 justify-end">
+            <button
+              type="button"
+              onClick={() => setPushRegistroPendiente(false)}
+              className="px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-800"
+            >
+              Después
+            </button>
+            <button
+              type="button"
+              onClick={handleActivarPush}
+              className="px-3 py-1.5 text-xs font-semibold rounded bg-zinc-900 text-white hover:bg-zinc-800"
+            >
+              {pushActivando ? "Registrando…" : "Registrar dispositivo"}
+            </button>
+          </div>
+        </div>
       )}
 
       {!isConfigOnlyAdmin && pushPromptVisible && esEntornoPushMovil() && typeof Notification !== "undefined" && Notification.permission !== "granted" && (

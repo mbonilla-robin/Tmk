@@ -160,12 +160,25 @@ async function obtenerRegistroParaPush() {
     if (!reg) {
       reg = await navigator.serviceWorker.register("./sw.js", { scope: "./" });
     }
+
     await navigator.serviceWorker.ready;
+
+    const inicio = Date.now();
+    while (!reg.active && Date.now() - inicio < 8000) {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      reg = await navigator.serviceWorker.getRegistration("./") || reg;
+    }
+
     return reg;
   } catch (e) {
     console.warn("ROBIN: service worker push no disponible", e);
     return null;
   }
+}
+
+function precalentarPushServiceWorker() {
+  if (!pushSoportado()) return;
+  obtenerRegistroParaPush().catch(() => {});
 }
 
 async function asegurarServiceWorkerRegistrado() {
@@ -222,31 +235,54 @@ async function guardarSuscripcionPush(username, subscription) {
   }
 
   const payload = {
-    p_recipient: user,
-    p_endpoint: json.endpoint,
-    p_p256dh: json.keys.p256dh,
-    p_auth: json.keys.auth,
-    p_user_agent: String(navigator.userAgent || "").slice(0, 240)
+    recipient: user,
+    endpoint: json.endpoint,
+    p256dh: json.keys.p256dh,
+    auth: json.keys.auth,
+    user_agent: String(navigator.userAgent || "").slice(0, 240)
   };
 
   try {
+    if (typeof SUPABASE_ANON_KEY !== "undefined") {
+      const fnRes = await fetch(
+        `${pushSupabaseUrl()}/functions/v1/register-push-subscription`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify(payload)
+        }
+      );
+
+      if (fnRes.ok) {
+        const fnJson = await fnRes.json().catch(() => ({}));
+        if (fnJson.ok && fnJson.id) {
+          return { ok: true, endpoint: json.endpoint, id: fnJson.id };
+        }
+      }
+    }
+
     const rpcRes = await fetch(
       `${pushSupabaseUrl()}/rest/v1/rpc/robin_upsert_push_subscription`,
       {
         method: "POST",
         headers: pushSupabaseHeaders(),
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          p_recipient: user,
+          p_endpoint: json.endpoint,
+          p_p256dh: json.keys.p256dh,
+          p_auth: json.keys.auth,
+          p_user_agent: payload.user_agent
+        })
       }
     );
 
     if (rpcRes.ok) {
       const id = await rpcRes.json().catch(() => null);
       if (id) return { ok: true, endpoint: json.endpoint, id };
-    } else {
-      const detalleRpc = (await rpcRes.text()).slice(0, 300);
-      if (typeof registrarDiagnosticoRobin === "function") {
-        registrarDiagnosticoRobin("push", "RPC suscripción falló", `HTTP ${rpcRes.status}: ${detalleRpc}`);
-      }
     }
 
     const fila = {
@@ -254,7 +290,7 @@ async function guardarSuscripcionPush(username, subscription) {
       endpoint: json.endpoint,
       p256dh: json.keys.p256dh,
       auth: json.keys.auth,
-      user_agent: payload.p_user_agent,
+      user_agent: payload.user_agent,
       updated_at: new Date().toISOString()
     };
 
@@ -273,26 +309,84 @@ async function guardarSuscripcionPush(username, subscription) {
 
     const detalle = (await res.text()).slice(0, 300);
     if (typeof registrarDiagnosticoRobin === "function") {
-      registrarDiagnosticoRobin("push", "Suscripción no guardada en Supabase", `HTTP ${res.status}: ${detalle}`);
+      registrarDiagnosticoRobin("push", "Suscripción no guardada", detalle);
     }
     return { ok: false, reason: "save_failed", status: res.status, detail: detalle };
   } catch (e) {
     const detalle = String(e?.message || e);
     if (typeof registrarDiagnosticoRobin === "function") {
-      registrarDiagnosticoRobin("push", "Error de red al guardar suscripción", detalle);
+      registrarDiagnosticoRobin("push", "Error al guardar suscripción", detalle);
     }
     return { ok: false, reason: "save_failed", detail: detalle };
   }
 }
 
-async function suscribirPushNotificaciones(username, opts) {
-  const omitirPermiso = opts?.omitirPermiso === true;
+async function suscribirConRegistro(reg, username) {
+  const user = pushUsuario(username);
+  if (!user || !reg?.pushManager) {
+    return { ok: false, reason: "no_sw" };
+  }
+
+  if (Notification.permission !== "granted") {
+    return { ok: false, reason: "denied" };
+  }
+
+  const vapidKey = typeof ROBIN_VAPID_PUBLIC_KEY !== "undefined" ? ROBIN_VAPID_PUBLIC_KEY : "";
+  if (!vapidKey) return { ok: false, reason: "no_vapid" };
+
+  let subscription;
+  try {
+    subscription = await Promise.race([
+      obtenerOCrearSuscripcionPush(reg, vapidKey),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("subscribe_timeout")), 25000);
+      })
+    ]);
+  } catch (e) {
+    const detalle = String(e?.message || e);
+    if (typeof registrarDiagnosticoRobin === "function") {
+      registrarDiagnosticoRobin("push", "Subscribe falló", detalle);
+    }
+    return { ok: false, reason: "subscribe_failed", detail: detalle };
+  }
+
+  const guardado = await guardarSuscripcionPush(user, subscription);
+  if (!guardado.ok) {
+    return { ok: false, reason: guardado.reason || "save_failed", detail: guardado.detail };
+  }
+
+  const remoto = await verificarSuscripcionRemota(user, subscription.endpoint);
+  if (!remoto) {
+    return { ok: false, reason: "save_failed", detail: "Suscripción local creada pero no aparece en el servidor." };
+  }
+
+  return { ok: true, endpoint: subscription.endpoint };
+}
+
+async function activarPushEnDispositivo(username) {
   if (!pushSoportado() || !pushSupabaseReady()) {
     return { ok: false, reason: "unsupported" };
   }
 
   if (pushRequierePwaInstalada()) {
     return { ok: false, reason: "needs_pwa" };
+  }
+
+  const user = pushUsuario(username);
+  if (!user) return { ok: false, reason: "no_user" };
+
+  const reg = await obtenerRegistroParaPush();
+  if (!reg?.pushManager) {
+    return { ok: false, reason: "no_sw" };
+  }
+
+  return suscribirConRegistro(reg, user);
+}
+
+async function suscribirPushNotificaciones(username, opts) {
+  const omitirPermiso = opts?.omitirPermiso === true;
+  if (!pushSoportado() || !pushSupabaseReady()) {
+    return { ok: false, reason: "unsupported" };
   }
 
   const user = pushUsuario(username);
@@ -310,57 +404,40 @@ async function suscribirPushNotificaciones(username, opts) {
     return { ok: false, reason: "denied" };
   }
 
-  const reg = await obtenerRegistroParaPush();
-  if (!reg || !reg.pushManager) return { ok: false, reason: "no_sw" };
-
-  const vapidKey = typeof ROBIN_VAPID_PUBLIC_KEY !== "undefined" ? ROBIN_VAPID_PUBLIC_KEY : "";
-  if (!vapidKey) return { ok: false, reason: "no_vapid" };
-
-  let subscription;
-  try {
-    subscription = await Promise.race([
-      obtenerOCrearSuscripcionPush(reg, vapidKey),
-      new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("subscribe_timeout")), 20000);
-      })
-    ]);
-  } catch (e) {
-    const detalle = String(e?.message || e);
-    if (typeof registrarDiagnosticoRobin === "function") {
-      registrarDiagnosticoRobin("push", "No se pudo suscribir al push manager", detalle);
-    }
-    if (/not allowed|denied|permission/i.test(detalle)) {
-      return { ok: false, reason: "denied", detail: detalle };
-    }
-    if (pushRequierePwaInstalada()) {
-      return { ok: false, reason: "needs_pwa", detail: detalle };
-    }
-    return { ok: false, reason: "subscribe_failed", detail: detalle };
-  }
-
-  const guardado = await guardarSuscripcionPush(user, subscription);
-  if (!guardado.ok) {
-    return { ok: false, reason: guardado.reason || "save_failed", detail: guardado.detail, status: guardado.status };
-  }
-
-  return { ok: true, endpoint: subscription.endpoint };
+  return activarPushEnDispositivo(user);
 }
 
-async function registrarPushEnSegundoPlano(username, intentos = 4) {
+async function registrarPushEnSegundoPlano(username, intentos = 6) {
   const user = pushUsuario(username);
   if (!user || Notification.permission !== "granted") return { ok: false };
 
   for (let i = 0; i < intentos; i += 1) {
-    const resultado = await suscribirPushNotificaciones(user, { omitirPermiso: true });
+    const reg = await obtenerRegistroParaPush();
+    const existente = reg?.pushManager ? await reg.pushManager.getSubscription() : null;
+
+    let resultado;
+    if (existente) {
+      resultado = await guardarSuscripcionPush(user, existente);
+      if (resultado.ok) {
+        const remoto = await verificarSuscripcionRemota(user, existente.endpoint);
+        if (remoto) return { ok: true, endpoint: existente.endpoint };
+        resultado = { ok: false, reason: "save_failed" };
+      }
+    } else if (esIos()) {
+      return { ok: false, reason: "needs_gesture" };
+    } else {
+      resultado = await activarPushEnDispositivo(user);
+    }
+
     if (resultado.ok) {
       enviarPushPruebaUsuario(user).catch(() => {});
       return resultado;
     }
-    if (resultado.reason === "denied" || resultado.reason === "needs_pwa") {
+    if (resultado.reason === "denied" || resultado.reason === "needs_gesture") {
       return resultado;
     }
     if (i < intentos - 1) {
-      await new Promise((resolve) => setTimeout(resolve, 800 * (i + 1)));
+      await new Promise((resolve) => setTimeout(resolve, 1200 * (i + 1)));
     }
   }
 
@@ -496,6 +573,7 @@ function mensajeErrorPush(reason) {
     no_sw: "La app aún está cargando. Espera unos segundos e inténtalo de nuevo.",
     save_failed: "Permiso concedido, pero no se registró el teléfono en Supabase. Usa Configuración → API → Activar en este dispositivo.",
     needs_pwa: "En iPhone debes instalar ROBIN en la pantalla de inicio (Compartir → Añadir a inicio) antes de activar notificaciones.",
+    needs_gesture: "Pulsa «Registrar dispositivo» para completar la activación en este iPhone.",
     subscribe_failed: "Cierra ROBIN, ábrela de nuevo desde el icono de Inicio y pulsa Activar otra vez.",
     timeout: "La activación tardó demasiado. Cierra ROBIN, ábrela de nuevo e inténtalo otra vez.",
     unsupported: "Este navegador no soporta notificaciones push.",

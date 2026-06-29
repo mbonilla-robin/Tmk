@@ -51,6 +51,48 @@ function esEntornoPushMovil() {
   return window.matchMedia("(max-width: 1023px)").matches;
 }
 
+function esPwaInstalada() {
+  if (typeof window === "undefined") return false;
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    window.navigator.standalone === true
+  );
+}
+
+function esIos() {
+  if (typeof navigator === "undefined") return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent || "");
+}
+
+function pushRequierePwaInstalada() {
+  return esIos() && !esPwaInstalada();
+}
+
+function limpiarPushPromptAtendido(username) {
+  const user = pushUsuario(username);
+  if (!user) return;
+  try {
+    removeLocalStorageItemSafe(pushPromptStorageKey(user));
+    removeLocalStorageItemSafe(PUSH_PROMPT_LEGACY_KEY);
+  } catch (e) { /* ignore */ }
+}
+
+async function asegurarServiceWorkerRegistrado() {
+  if (!("serviceWorker" in navigator)) return null;
+
+  try {
+    let reg = await navigator.serviceWorker.getRegistration("./");
+    if (!reg) {
+      reg = await navigator.serviceWorker.register("./sw.js", { scope: "./" });
+    }
+    await navigator.serviceWorker.ready;
+    return reg;
+  } catch (e) {
+    console.warn("ROBIN: service worker no disponible", e);
+    return null;
+  }
+}
+
 function pushPromptYaAtendido(username) {
   const user = pushUsuario(username);
   if (!user) return true;
@@ -74,18 +116,15 @@ function marcarPushPromptAtendido(username) {
 }
 
 async function obtenerRegistroServiceWorker() {
-  if (!("serviceWorker" in navigator)) return null;
-  try {
-    return await navigator.serviceWorker.ready;
-  } catch (e) {
-    return null;
-  }
+  return asegurarServiceWorkerRegistrado();
 }
 
 async function guardarSuscripcionPush(username, subscription) {
   const user = pushUsuario(username);
   const json = subscription.toJSON();
-  if (!pushSupabaseReady() || !user || !json.endpoint || !json.keys) return false;
+  if (!pushSupabaseReady() || !user || !json.endpoint || !json.keys) {
+    return { ok: false, reason: "invalid_payload" };
+  }
 
   const fila = {
     recipient: user,
@@ -105,16 +144,30 @@ async function guardarSuscripcionPush(username, subscription) {
         body: JSON.stringify(fila)
       }
     );
-    return res.ok;
+
+    if (res.ok) return { ok: true };
+
+    const detalle = (await res.text()).slice(0, 300);
+    if (typeof registrarDiagnosticoRobin === "function") {
+      registrarDiagnosticoRobin("push", "Suscripción no guardada en Supabase", `HTTP ${res.status}: ${detalle}`);
+    }
+    return { ok: false, reason: "save_failed", status: res.status, detail: detalle };
   } catch (e) {
-    console.warn("ROBIN: no se pudo guardar suscripción push", e);
-    return false;
+    const detalle = String(e?.message || e);
+    if (typeof registrarDiagnosticoRobin === "function") {
+      registrarDiagnosticoRobin("push", "Error de red al guardar suscripción", detalle);
+    }
+    return { ok: false, reason: "save_failed", detail: detalle };
   }
 }
 
 async function suscribirPushNotificaciones(username) {
   if (!pushSoportado() || !pushSupabaseReady()) {
     return { ok: false, reason: "unsupported" };
+  }
+
+  if (pushRequierePwaInstalada()) {
+    return { ok: false, reason: "needs_pwa" };
   }
 
   const user = pushUsuario(username);
@@ -128,7 +181,7 @@ async function suscribirPushNotificaciones(username) {
     return { ok: false, reason: "denied" };
   }
 
-  const reg = await obtenerRegistroServiceWorker();
+  const reg = await asegurarServiceWorkerRegistrado();
   if (!reg || !reg.pushManager) return { ok: false, reason: "no_sw" };
 
   const vapidKey = typeof ROBIN_VAPID_PUBLIC_KEY !== "undefined" ? ROBIN_VAPID_PUBLIC_KEY : "";
@@ -136,14 +189,30 @@ async function suscribirPushNotificaciones(username) {
 
   let subscription = await reg.pushManager.getSubscription();
   if (!subscription) {
-    subscription = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidKey)
-    });
+    try {
+      subscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidKey)
+      });
+    } catch (e) {
+      const detalle = String(e?.message || e);
+      if (typeof registrarDiagnosticoRobin === "function") {
+        registrarDiagnosticoRobin("push", "No se pudo suscribir al push manager", detalle);
+      }
+      if (/not allowed|denied|permission/i.test(detalle)) {
+        return { ok: false, reason: "denied", detail: detalle };
+      }
+      if (pushRequierePwaInstalada()) {
+        return { ok: false, reason: "needs_pwa", detail: detalle };
+      }
+      return { ok: false, reason: "subscribe_failed", detail: detalle };
+    }
   }
 
   const guardado = await guardarSuscripcionPush(user, subscription);
-  if (!guardado) return { ok: false, reason: "save_failed" };
+  if (!guardado.ok) {
+    return { ok: false, reason: guardado.reason || "save_failed", detail: guardado.detail, status: guardado.status };
+  }
 
   return { ok: true };
 }
@@ -157,14 +226,14 @@ async function inicializarPushNotificaciones(username) {
 
   const existente = await reg.pushManager.getSubscription();
   if (existente) {
-    await guardarSuscripcionPush(username, existente);
-    marcarPushPromptAtendido(user);
-    return { ok: true, reason: "existing" };
+    const guardado = await guardarSuscripcionPush(username, existente);
+    if (guardado.ok) marcarPushPromptAtendido(user);
+    return guardado.ok ? { ok: true, reason: "existing" } : { ok: false, reason: "save_failed", detail: guardado.detail };
   }
 
   if (Notification.permission === "granted") {
     const resultado = await suscribirPushNotificaciones(username);
-    marcarPushPromptAtendido(user);
+    if (resultado.ok) marcarPushPromptAtendido(user);
     return resultado;
   }
 
@@ -249,6 +318,19 @@ function nombreActorPush(actor) {
     if (nombre && !String(nombre).startsWith("@")) return nombre;
   }
   return formatearHandleCanonico(handle);
+}
+
+function mensajeErrorPush(reason) {
+  const mapa = {
+    denied: "Permiso denegado. Actívalas en Ajustes del navegador o del iPhone.",
+    no_sw: "La app aún está cargando. Espera unos segundos e inténtalo de nuevo.",
+    save_failed: "Permiso concedido, pero no se registró el teléfono en Supabase. Usa Configuración → API → Activar en este dispositivo.",
+    needs_pwa: "En iPhone debes instalar ROBIN en la pantalla de inicio (Compartir → Añadir a inicio) antes de activar notificaciones.",
+    subscribe_failed: "No se pudo vincular este dispositivo al servicio de push.",
+    unsupported: "Este navegador no soporta notificaciones push.",
+    no_vapid: "Falta configuración VAPID en la app."
+  };
+  return mapa[reason] || "No se pudieron activar las notificaciones push";
 }
 
 function construirPayloadPushNotificacion(notif) {

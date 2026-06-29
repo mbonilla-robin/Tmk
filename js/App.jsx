@@ -1230,6 +1230,9 @@ function App() {
       if (cancelado) return;
       if (resultado && resultado.reason === "needs_prompt") {
         setPushPromptVisible(true);
+      } else if (resultado && !resultado.ok && resultado.reason === "save_failed") {
+        limpiarPushPromptAtendido(usuario);
+        setPushPromptVisible(true);
       }
       await refrescarEstadoPushDiagnostico();
     })();
@@ -1253,21 +1256,19 @@ function App() {
 
   const handleActivarPush = async () => {
     if (!usuario || pushActivando) return;
-    marcarPushPromptAtendido(usuario);
-    setPushPromptVisible(false);
     setPushActivando(true);
     try {
       const resultado = await suscribirPushNotificaciones(usuario);
       if (resultado.ok) {
-        showToast("Notificaciones push activadas", "success");
+        marcarPushPromptAtendido(usuario);
+        setPushPromptVisible(false);
+        showToast("Notificaciones push activadas en este dispositivo", "success");
         await refrescarEstadoPushDiagnostico();
         return;
       }
-      if (resultado.reason === "denied") {
-        showToast("Puedes activarlas después en Ajustes del navegador", "info");
-        return;
-      }
-      showToast("No se pudieron activar las notificaciones push", "error");
+      setPushPromptVisible(true);
+      const severidad = resultado.reason === "denied" ? "info" : "error";
+      showToast(mensajeErrorPush(resultado.reason), severidad);
     } finally {
       setPushActivando(false);
     }
@@ -1663,30 +1664,50 @@ function App() {
           <li>{permisoOk ? "✓" : "✗"} Permiso del navegador: {pushEstadoDiagnostico.permiso}</li>
           <li>{suscrito ? "✓" : "✗"} Suscripción en este dispositivo</li>
           <li>{remotoOk ? "✓" : "✗"} Registrado en Supabase</li>
+          {typeof pushRequierePwaInstalada === "function" && pushRequierePwaInstalada() && (
+            <li className="text-amber-700">En iPhone: instala ROBIN en Inicio antes de activar push.</li>
+          )}
         </ul>
       )}
-      {!remotoOk && permisoOk && (
-        <p className="text-amber-700">Pulsa «Activar» abajo o «Probar notificación» para registrar este teléfono.</p>
-      )}
-      <button
-        type="button"
-        onClick={async () => {
-          const resultado = await probarPushLocal(usuario);
-          if (resultado.ok) {
-            showToast("Notificación de prueba enviada", "success");
-            await refrescarEstadoPushDiagnostico();
-            return;
-          }
-          if (resultado.reason === "denied") {
-            showToast("Permiso denegado en el navegador", "info");
-            return;
-          }
-          showToast(`No se pudo enviar la prueba${resultado.reason ? ` (${resultado.reason})` : ""}`, "error");
-        }}
-        className="self-start px-3 py-1.5 rounded border border-zinc-200 bg-white text-zinc-700 font-semibold"
-      >
-        Probar notificación
-      </button>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          disabled={pushActivando}
+          onClick={async () => {
+            setPushActivando(true);
+            try {
+              const resultado = await suscribirPushNotificaciones(usuario);
+              if (resultado.ok) {
+                marcarPushPromptAtendido(usuario);
+                showToast("Dispositivo registrado para push", "success");
+                await refrescarEstadoPushDiagnostico();
+                return;
+              }
+              showToast(mensajeErrorPush(resultado.reason), resultado.reason === "denied" ? "info" : "error");
+            } finally {
+              setPushActivando(false);
+            }
+          }}
+          className="px-3 py-1.5 rounded border border-zinc-200 bg-white text-zinc-700 font-semibold disabled:opacity-50"
+        >
+          {pushActivando ? "Activando…" : "Activar en este dispositivo"}
+        </button>
+        <button
+          type="button"
+          onClick={async () => {
+            const resultado = await probarPushLocal(usuario);
+            if (resultado.ok) {
+              showToast("Notificación de prueba enviada", "success");
+              await refrescarEstadoPushDiagnostico();
+              return;
+            }
+            showToast(mensajeErrorPush(resultado.reason), resultado.reason === "denied" ? "info" : "error");
+          }}
+          className="px-3 py-1.5 rounded border border-zinc-200 bg-white text-zinc-700 font-semibold"
+        >
+          Probar notificación
+        </button>
+      </div>
     </div>
     );
   };

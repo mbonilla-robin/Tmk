@@ -44,6 +44,11 @@ function obtenerPersonasTaggeadasEnTareas(tareas) {
 
 function obtenerNombreDisplayEquipo(handle) {
   const clave = normalizarClavePersona(handle);
+  if (typeof loadUserDataLocal === "function" && typeof migrarNombreCompletoAPerfil === "function") {
+    const prefs = migrarNombreCompletoAPerfil(loadUserDataLocal(clave));
+    const nombre = construirNombreCompletoPerfil(prefs.perfilNombre, prefs.perfilApellido) || prefs.nombreCompleto;
+    if (nombre) return nombre;
+  }
   if (NOMBRES_DISPLAY_EQUIPO[clave]) return NOMBRES_DISPLAY_EQUIPO[clave];
   return formatearHandleCanonico(clave);
 }

@@ -97,17 +97,65 @@ async function obtenerPerfilUsuario(username) {
     prefs = migrarNombreCompletoAPerfil(loadUserDataLocal(user));
   }
 
-  const yo = typeof getRobinApiUsername === "function" ? normalizeRobinUser(getRobinApiUsername()) : "";
-  if (yo !== user && typeof fetchRemoteUserSettings === "function") {
+  if (typeof fetchRemoteUserSettings === "function") {
     const remote = await fetchRemoteUserSettings(user);
     if (remote && remote.prefs) {
-      prefs = migrarNombreCompletoAPerfil({ ...(prefs || {}), ...remote.prefs });
+      const localSafe = { ...(typeof DEFAULT_USER_PREFS !== "undefined" ? DEFAULT_USER_PREFS : {}), ...(prefs || {}) };
+      const remoteSafe = migrarNombreCompletoAPerfil(remote.prefs);
+      const localTime = Number(localSafe._localUpdatedAt) || 0;
+      const remoteTime = new Date(remote.updatedAt).getTime();
+      if (typeof mergeUserPrefRecords === "function") {
+        prefs = mergeUserPrefRecords(localSafe, remoteSafe, remoteTime);
+        if (typeof saveUserDataLocal === "function") {
+          saveUserDataLocal(user, prefs);
+        }
+      } else {
+        prefs = migrarNombreCompletoAPerfil({ ...localSafe, ...remoteSafe });
+      }
+      if (typeof invalidarCachePerfilUsuario === "function") {
+        invalidarCachePerfilUsuario(user);
+      }
     }
   }
 
   const perfil = perfilDesdePrefs(prefs || {});
   perfilUsuarioCache.set(user, perfil);
   return perfil;
+}
+
+async function guardarPerfilUsuario(username, datos) {
+  const user = typeof normalizeRobinUser === "function"
+    ? normalizeRobinUser(username)
+    : String(username || "").replace(/^@/, "").trim().toLowerCase();
+  if (!user) return { ok: false, reason: "no_user" };
+
+  const nombreCompleto = construirNombreCompletoPerfil(datos?.perfilNombre, datos?.perfilApellido);
+  const payload = {
+    perfilNombre: String(datos?.perfilNombre || "").trim(),
+    perfilApellido: String(datos?.perfilApellido || "").trim(),
+    perfilCorreo: String(datos?.perfilCorreo || "").trim(),
+    perfilAvatar: String(datos?.perfilAvatar || "").trim(),
+    nombreCompleto,
+    _localUpdatedAt: Date.now()
+  };
+
+  if (typeof saveUserDataLocal === "function") {
+    saveUserDataLocal(user, payload);
+  }
+
+  invalidarCachePerfilUsuario(user);
+
+  if (typeof flushRemoteUserSettings !== "function") {
+    return { ok: true, nombreCompleto, remoto: false };
+  }
+
+  const remoto = await flushRemoteUserSettings(user);
+  return {
+    ok: true,
+    nombreCompleto,
+    remoto: remoto?.ok === true,
+    errorRemoto: remoto?.ok ? "" : (remoto?.detail || remoto?.reason || "sync_failed")
+  };
 }
 
 async function precargarPerfilesUsuarios(handles) {

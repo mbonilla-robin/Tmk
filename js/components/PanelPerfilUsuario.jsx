@@ -98,7 +98,7 @@ function PanelPerfilUsuario({
       )}
 
       <button type="submit" className={`w-full sm:w-auto self-start px-5 py-2.5 ${currentTheme.primary} text-ui font-semibold rounded-md`}>
-        Guardar perfil
+        Guardar y sincronizar perfil
       </button>
     </form>
   );

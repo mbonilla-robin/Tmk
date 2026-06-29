@@ -344,6 +344,9 @@ function App() {
         setListaAgrupacion,
         setPaginaActiva
       }, usuario);
+      if (typeof invalidarCachePerfilUsuario === "function") {
+        invalidarCachePerfilUsuario(usuario);
+      }
       setPrefsReady(true);
     }).catch((e) => {
       console.warn("ROBIN: fallo al sincronizar preferencias al iniciar", e);
@@ -372,6 +375,9 @@ function App() {
           setDashboardMobileVista,
           setPaginaActiva
         }, usuario);
+        if (typeof invalidarCachePerfilUsuario === "function") {
+          invalidarCachePerfilUsuario(usuario);
+        }
       });
     };
     document.addEventListener("visibilitychange", resyncAlVolver);
@@ -403,10 +409,6 @@ function App() {
     } catch (e) { /* ignore */ }
     saveUserData(usuario, {
       nombreCompleto,
-      perfilNombre,
-      perfilApellido,
-      perfilCorreo,
-      perfilAvatar,
       theme,
       pwaIconVariant,
       paginaActiva,
@@ -425,10 +427,6 @@ function App() {
     usuario,
     prefsReady,
     nombreCompleto,
-    perfilNombre,
-    perfilApellido,
-    perfilCorreo,
-    perfilAvatar,
     theme,
     pwaIconVariant,
     paginaActiva,
@@ -631,20 +629,25 @@ function App() {
     }
   };
 
-  const handleSavePerfil = (e) => {
+  const handleSavePerfil = async (e) => {
     e.preventDefault();
     if (!usuario) return;
-    const completo = construirNombreCompletoPerfil(perfilNombre, perfilApellido);
-    setNombreCompleto(completo);
-    invalidarCachePerfilUsuario(usuario);
-    saveUserData(usuario, {
+
+    const resultado = await guardarPerfilUsuario(usuario, {
       perfilNombre,
       perfilApellido,
       perfilCorreo,
-      perfilAvatar,
-      nombreCompleto: completo
+      perfilAvatar
     });
-    showToast("Perfil guardado", "success");
+
+    setNombreCompleto(resultado.nombreCompleto || construirNombreCompletoPerfil(perfilNombre, perfilApellido));
+
+    if (resultado.remoto === false) {
+      showToast("Perfil guardado aquí, pero no se pudo sincronizar con la nube", "error");
+      return;
+    }
+
+    showToast("Perfil guardado y sincronizado", "success");
   };
 
   const toggleSeleccionTarea = (tarea) => {

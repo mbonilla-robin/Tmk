@@ -53,10 +53,37 @@ function safeSupabaseRestHeaders(prefer) {
   return { "Content-Type": "application/json" };
 }
 
+const PERFIL_PREF_KEYS = ["perfilNombre", "perfilApellido", "perfilCorreo", "perfilAvatar", "nombreCompleto"];
+
 function prefsForRemote(prefs) {
   const copy = { ...prefs };
   delete copy._localUpdatedAt;
+  delete copy._v;
   return copy;
+}
+
+function usuarioTienePrefsParaSubir(prefs) {
+  const p = prefs || {};
+  if (Number(p._localUpdatedAt) > 0) return true;
+  return PERFIL_PREF_KEYS.some((key) => !isPrefValueEmpty(key, p[key]));
+}
+
+function fusionarCamposPerfil(merged, local, remote, localTime, remoteTime) {
+  const resultado = { ...merged };
+  PERFIL_PREF_KEYS.forEach((key) => {
+    const valorLocal = local[key];
+    const valorRemoto = remote[key];
+    const localTiene = !isPrefValueEmpty(key, valorLocal);
+    const remotoTiene = !isPrefValueEmpty(key, valorRemoto);
+
+    if (localTiene && remotoTiene && valorLocal !== valorRemoto) {
+      resultado[key] = localTime >= remoteTime ? valorLocal : valorRemoto;
+      return;
+    }
+    if (localTiene) resultado[key] = valorLocal;
+    else if (remotoTiene) resultado[key] = valorRemoto;
+  });
+  return resultado;
 }
 
 function safeSupabaseUrl() {
@@ -105,10 +132,11 @@ function mergeUserPrefRecords(local, remotePrefs, remoteTime) {
   const base = newerIsRemote ? remoteSafe : localSafe;
   const filler = newerIsRemote ? localSafe : remoteSafe;
   const merged = mergePrefFields(base, filler);
+  const conPerfil = fusionarCamposPerfil(merged, localSafe, remoteSafe, localTime, remoteTime);
 
-  merged._localUpdatedAt = Math.max(localTime, remoteTime);
-  merged._v = PREFS_VERSION;
-  return merged;
+  conPerfil._localUpdatedAt = Math.max(localTime, remoteTime);
+  conPerfil._v = PREFS_VERSION;
+  return conPerfil;
 }
 
 function migrateLegacyPrefs(username) {
@@ -180,9 +208,9 @@ function scheduleRemoteUserSettingsSync(username, prefs) {
   const prev = remoteSyncTimers.get(user);
   if (prev) clearTimeout(prev);
 
-  remoteSyncTimers.set(user, setTimeout(() => {
+  remoteSyncTimers.set(user, setTimeout(async () => {
     remoteSyncTimers.delete(user);
-    upsertRemoteUserSettings(user, prefs);
+    await upsertRemoteUserSettings(user, prefs);
   }, REMOTE_SYNC_DEBOUNCE_MS));
 }
 
@@ -221,24 +249,47 @@ async function fetchRemoteUserSettings(username) {
 
 async function upsertRemoteUserSettings(username, prefs) {
   const user = normalizeUsername(username);
-  if (!safeIsSupabaseConfigured() || !user) return false;
+  if (!safeIsSupabaseConfigured() || !user) {
+    return { ok: false, reason: "no_supabase" };
+  }
+
+  const payload = prefsForRemote(prefs);
 
   try {
-    const res = await fetch(
+    let res = await fetch(
       `${safeSupabaseUrl()}/rest/v1/robin_user_settings?on_conflict=username`,
       {
         method: "POST",
         headers: safeSupabaseRestHeaders("resolution=merge-duplicates,return=minimal"),
         body: JSON.stringify({
           username: user,
-          prefs: prefsForRemote(prefs)
+          prefs: payload
         })
       }
     );
-    return res.ok;
+
+    if (!res.ok) {
+      const detallePost = await res.text();
+      res = await fetch(
+        `${safeSupabaseUrl()}/rest/v1/robin_user_settings?username=eq.${encodeURIComponent(user)}`,
+        {
+          method: "PATCH",
+          headers: safeSupabaseRestHeaders("return=minimal"),
+          body: JSON.stringify({ prefs: payload })
+        }
+      );
+
+      if (!res.ok) {
+        const detallePatch = await res.text();
+        console.warn("ROBIN Supabase: no se pudo guardar perfil", res.status, detallePost || detallePatch);
+        return { ok: false, status: res.status, detail: detallePatch || detallePost };
+      }
+    }
+
+    return { ok: true };
   } catch (e) {
-    console.warn("ROBIN Supabase: no se pudo guardar preferencias", e);
-    return false;
+    console.warn("ROBIN Supabase: error guardando perfil", e);
+    return { ok: false, detail: String(e?.message || e) };
   }
 }
 
@@ -252,7 +303,7 @@ async function mergeAndSyncUserPrefs(username) {
   try {
     const remote = await fetchRemoteUserSettings(user);
     if (!remote) {
-      if (local.nombreCompleto || Number(local._localUpdatedAt) > 0) {
+      if (usuarioTienePrefsParaSubir(local)) {
         await upsertRemoteUserSettings(user, local);
       }
       return local;
@@ -263,8 +314,12 @@ async function mergeAndSyncUserPrefs(username) {
 
     const localTime = Number(local._localUpdatedAt) || 0;
     const remoteTime = new Date(remote.updatedAt).getTime();
-    if (merged._localUpdatedAt > remoteTime || localTime > remoteTime) {
+    if (merged._localUpdatedAt > remoteTime || localTime > remoteTime || usuarioTienePrefsParaSubir(merged)) {
       await upsertRemoteUserSettings(user, merged);
+    }
+
+    if (typeof invalidarCachePerfilUsuario === "function") {
+      invalidarCachePerfilUsuario(user);
     }
 
     return merged;
@@ -276,7 +331,7 @@ async function mergeAndSyncUserPrefs(username) {
 
 async function flushRemoteUserSettings(username) {
   const user = normalizeUsername(username);
-  if (!user) return;
+  if (!user) return { ok: false, reason: "no_user" };
 
   const pending = remoteSyncTimers.get(user);
   if (pending) {
@@ -284,7 +339,7 @@ async function flushRemoteUserSettings(username) {
     remoteSyncTimers.delete(user);
   }
 
-  await upsertRemoteUserSettings(user, loadUserDataLocal(user));
+  return upsertRemoteUserSettings(user, loadUserDataLocal(user));
 }
 
 function getUserPreference(key, fallback = null, username = null) {

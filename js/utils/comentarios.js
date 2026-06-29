@@ -454,6 +454,11 @@ const AVATAR_COLORES = ["#E8DEEE", "#FADEC9", "#D3E5EF", "#DBEDDB", "#FDECC8", "
 
 function obtenerNombreAutorComentario(author) {
   const handle = normalizeRobinUser(author);
+  if (typeof loadUserDataLocal === "function" && typeof migrarNombreCompletoAPerfil === "function") {
+    const prefs = migrarNombreCompletoAPerfil(loadUserDataLocal(handle));
+    const nombre = construirNombreCompletoPerfil(prefs.perfilNombre, prefs.perfilApellido) || prefs.nombreCompleto;
+    if (nombre) return nombre;
+  }
   if (typeof obtenerNombreDisplayEquipo === "function") {
     const nombre = obtenerNombreDisplayEquipo(handle);
     if (nombre && !/^@[\w.]+$/i.test(nombre)) return nombre;

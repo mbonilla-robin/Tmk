@@ -11,6 +11,7 @@ function BarraAccionesMasivas({
 
   useEffect(() => {
     const handleClickOutside = (event) => {
+      if (event.target.closest?.(".fecha-picker-popup")) return;
       if (barRef.current && !barRef.current.contains(event.target)) {
         setMenuAbierto(null);
       }

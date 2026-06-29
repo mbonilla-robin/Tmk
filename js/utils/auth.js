@@ -9,10 +9,13 @@ function isWorkspacePasswordValid(password) {
 function setRobinApiSession(username, password) {
   const user = normalizeRobinUsername(username);
   if (!user) return false;
+  const token = String(password || "");
   try {
     sessionStorage.setItem(ROBIN_API_SESSION_USER_KEY, user);
-    sessionStorage.setItem(ROBIN_API_SESSION_TOKEN_KEY, String(password || ""));
+    sessionStorage.setItem(ROBIN_API_SESSION_TOKEN_KEY, token);
     setLocalStorageItemSafe("robin_usuario_actual", user);
+    setLocalStorageItemSafe(ROBIN_API_SESSION_USER_KEY, user);
+    setLocalStorageItemSafe(ROBIN_API_SESSION_TOKEN_KEY, token);
     return true;
   } catch (e) {
     return false;
@@ -25,22 +28,24 @@ function clearRobinApiSession() {
     sessionStorage.removeItem(ROBIN_API_SESSION_TOKEN_KEY);
   } catch (e) {}
   removeLocalStorageItemSafe("robin_usuario_actual");
+  removeLocalStorageItemSafe(ROBIN_API_SESSION_USER_KEY);
+  removeLocalStorageItemSafe(ROBIN_API_SESSION_TOKEN_KEY);
 }
 
 function getRobinApiToken() {
   try {
-    return sessionStorage.getItem(ROBIN_API_SESSION_TOKEN_KEY) || "";
-  } catch (e) {
-    return "";
-  }
+    const fromSession = sessionStorage.getItem(ROBIN_API_SESSION_TOKEN_KEY);
+    if (fromSession) return fromSession;
+  } catch (e) { /* ignore */ }
+  return getLocalStorageItemSafe(ROBIN_API_SESSION_TOKEN_KEY, "") || "";
 }
 
 function getRobinApiUsername() {
   try {
-    return sessionStorage.getItem(ROBIN_API_SESSION_USER_KEY) || "";
-  } catch (e) {
-    return "";
-  }
+    const fromSession = sessionStorage.getItem(ROBIN_API_SESSION_USER_KEY);
+    if (fromSession) return fromSession;
+  } catch (e) { /* ignore */ }
+  return getLocalStorageItemSafe(ROBIN_API_SESSION_USER_KEY, "") || "";
 }
 
 function hasRobinApiSession() {

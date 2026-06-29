@@ -1107,6 +1107,21 @@ function buscarFilaTareaEnHoja_(sheet, payload) {
   return -1;
 }
 
+function resolverMarcaSheetTab_(marca) {
+  var raw = String(marca || "").trim();
+  if (!raw) return "";
+  var key = raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+  var map = {
+    "LA SANTE": "La Santé",
+    "DIAGEO": "DIAGEO",
+    "GAMA": "GAMA",
+    "ROBIN": "ROBIN",
+    "TMK": "TMK",
+    "TRADE & SHOPPER MARKETING": "TMK"
+  };
+  return map[key] || raw;
+}
+
 function doPost(e) {
   try {
     if (!e || !e.postData || !e.postData.contents) {
@@ -1203,7 +1218,7 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    var marca = String(payload.marca || "").trim();
+    var marca = resolverMarcaSheetTab_(payload.marca);
     if (!marca) {
       throw new Error("La marca es requerida para identificar la hoja de destino.");
     }

@@ -25,14 +25,38 @@ function cargarColaSync() {
   try {
     const raw = getLocalStorageItemSafe(STORAGE_COLA_KEY, "[]");
     const cola = JSON.parse(raw);
-    return Array.isArray(cola) ? cola : [];
+    if (!Array.isArray(cola)) return [];
+    return cola.map(normalizarOperacionSyncCola);
   } catch (e) {
     return [];
   }
 }
 
+function normalizarPayloadSyncMarca(payload) {
+  if (!payload || typeof payload !== "object") return payload;
+  const marcaSheet = marcaParaSheet(payload.marca);
+  if (!marcaSheet || marcaSheet === payload.marca) return payload;
+  return { ...payload, marca: marcaSheet };
+}
+
+function normalizarOperacionSyncCola(op) {
+  if (!op?.payload) return op;
+  return { ...op, payload: normalizarPayloadSyncMarca(op.payload) };
+}
+
 function guardarColaSync(cola) {
   setLocalStorageItemSafe(STORAGE_COLA_KEY, JSON.stringify(cola || []));
+}
+
+function repararColaSyncMarcas() {
+  try {
+    const raw = getLocalStorageItemSafe(STORAGE_COLA_KEY, "[]");
+    const cola = JSON.parse(raw);
+    if (!Array.isArray(cola) || !cola.length) return;
+    guardarColaSync(cola.map(normalizarOperacionSyncCola));
+  } catch (e) {
+    /* ignore */
+  }
 }
 
 function construirPayloadSyncTarea(original, actualizada, opciones = {}) {
@@ -348,6 +372,15 @@ async function procesarColaSync() {
   if (!isApiConfigured() || !apiUrl) {
     return { ok: false, processed: 0, remaining: cargarColaSync().length, errores: [] };
   }
+  if (!hasRobinApiSession()) {
+    return {
+      ok: false,
+      processed: 0,
+      remaining: cargarColaSync().length,
+      errores: [],
+      sessionMissing: true
+    };
+  }
 
   const cola = cargarColaSync();
   if (!cola.length) return { ok: true, processed: 0, remaining: 0, errores: [] };
@@ -357,6 +390,7 @@ async function procesarColaSync() {
   let processed = 0;
 
   for (const op of cola) {
+    const payload = normalizarPayloadSyncMarca(op.payload);
     let exito = false;
     let ultimoError = "Error desconocido";
 
@@ -367,7 +401,7 @@ async function procesarColaSync() {
           mode: "cors",
           redirect: "follow",
           headers: { "Content-Type": "text/plain; charset=utf-8" },
-          body: JSON.stringify(op.payload)
+          body: JSON.stringify(payload)
         });
 
         const rawText = await res.text();
@@ -395,7 +429,7 @@ async function procesarColaSync() {
     }
 
     if (!exito) {
-      restantes.push(op);
+      restantes.push({ ...op, payload });
       errores.push({ type: op.type, taskKey: op.taskKey, error: ultimoError });
       console.warn("ROBIN: no se pudo escribir en el Sheet", op.type, ultimoError);
     }

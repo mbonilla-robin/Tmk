@@ -1,5 +1,5 @@
 function App() {
-  const [usuario, setUsuario] = useState(() => getInicialUsuario());
+  const [usuario, setUsuario] = useState(() => (hasRobinApiSession() ? getInicialUsuario() : null));
   const [initialPrefs] = useState(() => {
     try {
       return getInitialUserPrefs(getInicialUsuario());
@@ -215,7 +215,7 @@ function App() {
   }, [usuario, isConfigOnlyAdmin, refrescarNotificaciones]);
 
   useEffect(() => {
-    if (!usuario) return;
+    if (!usuario || !hasRobinApiSession()) return;
 
     const apiUrl = getConfiguredApiUrl();
     if (!isApiConfigured()) {
@@ -252,6 +252,7 @@ function App() {
   useEffect(() => {
     const stored = getInicialUsuario();
     if (stored && hasRobinApiSession()) {
+      repararColaSyncMarcas();
       setUsuario(stored);
       return;
     }
@@ -386,13 +387,13 @@ function App() {
   ]);
 
   useEffect(() => {
-    if (usuario) {
+    if (usuario && hasRobinApiSession()) {
       fetchData(false).finally(() => sincronizarEnSegundoPlano());
     }
   }, [usuario]);
 
   useEffect(() => {
-    if (!usuario) return;
+    if (!usuario || !hasRobinApiSession()) return;
     const autoRefreshInterval = setInterval(() => {
       sincronizarEnSegundoPlano();
     }, typeof AUTO_SYNC_INTERVAL_MS !== "undefined" ? AUTO_SYNC_INTERVAL_MS : 35000);
@@ -400,7 +401,7 @@ function App() {
   }, [usuario]);
 
   useEffect(() => {
-    if (!usuario) return;
+    if (!usuario || !hasRobinApiSession()) return;
     const reconectarAlVolver = () => {
       if (document.visibilityState === "visible") {
         sincronizarEnSegundoPlano();
@@ -830,6 +831,7 @@ function App() {
       return;
     }
     setRobinApiSession(validation.username, claveInput);
+    repararColaSyncMarcas();
     setUsuario(validation.username);
     setLoginError("");
     setClaveInput("");
@@ -934,6 +936,14 @@ function App() {
       return;
     }
 
+    if (!hasRobinApiSession()) {
+      if (!isBackground) {
+        setLoading(false);
+        setSyncing(false);
+      }
+      return;
+    }
+
     const maxIntentos = isBackground ? 1 : 3;
     let ultimoError = null;
 
@@ -1022,11 +1032,12 @@ function App() {
   const sincronizarEnSegundoPlano = () => {
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     syncTimerRef.current = setTimeout(async () => {
-      if (syncMutexRef.current || !isApiConfigured()) return;
+      if (syncMutexRef.current || !isApiConfigured() || !hasRobinApiSession()) return;
       syncMutexRef.current = true;
       try {
         const resultado = await procesarColaSync();
         setHayPendientesLocales(hayPendientesSync() || hayTareasPendientesLocales(cargarTareasLocales()));
+        if (resultado.sessionMissing) return;
         if (resultado.errores && resultado.errores.length > 0) {
           showToast("No se pudo guardar en Google Sheets. Se reintentará automáticamente.", "error");
         } else if (resultado.processed > 0) {

@@ -1,6 +1,10 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3";
 
+const ROBIN_VAPID_PUBLIC = "BEJngr6mhRTnJgjkwtTbut3CIxIH0C45NkO0RW-pQmOsp5k4E1giYNZ1Ib_O0OEpSD1etbYahuMusKt3KNgBTuk";
+const ROBIN_VAPID_PRIVATE = "fY7ju6O4gUBHwPVT7fqPPN1pgLIDbxMeG7K43LCWGLQ";
+const ROBIN_VAPID_SUBJECT = "mailto:robin@trade.local";
+
 const DISPLAY_NAMES: Record<string, string> = {
   mbonilla: "Miguel Bonilla",
   ralvarez: "Ricardo Álvarez",
@@ -27,6 +31,32 @@ type PushSubscriptionRow = {
   p256dh: string;
   auth: string;
 };
+
+type PushSendError = {
+  endpoint: string;
+  status?: number;
+  message: string;
+};
+
+function resolveVapidKeys() {
+  const envPub = (Deno.env.get("VAPID_PUBLIC_KEY") || "").trim();
+  const envPriv = (Deno.env.get("VAPID_PRIVATE_KEY") || "").trim();
+  const subject = (Deno.env.get("VAPID_SUBJECT") || ROBIN_VAPID_SUBJECT).trim();
+
+  if (envPub === ROBIN_VAPID_PUBLIC && envPriv) {
+    return { publicKey: envPub, privateKey: envPriv, subject };
+  }
+
+  if (envPub && envPub !== ROBIN_VAPID_PUBLIC) {
+    console.warn("ROBIN push: ignoring stale VAPID secrets, using app defaults");
+  }
+
+  return {
+    publicKey: ROBIN_VAPID_PUBLIC,
+    privateKey: ROBIN_VAPID_PRIVATE,
+    subject
+  };
+}
 
 function normalizeUser(val: string) {
   return String(val || "").replace(/^@/, "").trim().toLowerCase();
@@ -84,6 +114,13 @@ function extractRecord(body: Record<string, unknown>): NotifRecord | null {
   return null;
 }
 
+function corsHeaders() {
+  return {
+    "Content-Type": "application/json",
+    "Access-Control-Allow-Origin": "*"
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -98,20 +135,17 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ ok: false, error: "method_not_allowed" }), {
       status: 405,
-      headers: { "Content-Type": "application/json" }
+      headers: corsHeaders()
     });
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-  const vapidPublic = Deno.env.get("VAPID_PUBLIC_KEY") || "BEJngr6mhRTnJgjkwtTbut3CIxIH0C45NkO0RW-pQmOsp5k4E1giYNZ1Ib_O0OEpSD1etbYahuMusKt3KNgBTuk";
-  const vapidPrivate = Deno.env.get("VAPID_PRIVATE_KEY") || "fY7ju6O4gUBHwPVT7fqPPN1pgLIDbxMeG7K43LCWGLQ";
-  const vapidSubject = Deno.env.get("VAPID_SUBJECT") || "mailto:robin@trade.local";
 
-  if (!supabaseUrl || !serviceRoleKey || !vapidPublic || !vapidPrivate) {
+  if (!supabaseUrl || !serviceRoleKey) {
     return new Response(JSON.stringify({ ok: false, error: "missing_env" }), {
       status: 500,
-      headers: { "Content-Type": "application/json" }
+      headers: corsHeaders()
     });
   }
 
@@ -121,7 +155,7 @@ Deno.serve(async (req) => {
   } catch {
     return new Response(JSON.stringify({ ok: false, error: "invalid_json" }), {
       status: 400,
-      headers: { "Content-Type": "application/json" }
+      headers: corsHeaders()
     });
   }
 
@@ -129,7 +163,7 @@ Deno.serve(async (req) => {
   if (!notif || !notif.recipient) {
     return new Response(JSON.stringify({ ok: false, error: "missing_record" }), {
       status: 400,
-      headers: { "Content-Type": "application/json" }
+      headers: corsHeaders()
     });
   }
 
@@ -144,23 +178,35 @@ Deno.serve(async (req) => {
   if (subsError) {
     return new Response(JSON.stringify({ ok: false, error: subsError.message }), {
       status: 500,
-      headers: { "Content-Type": "application/json" }
+      headers: corsHeaders()
     });
   }
 
   if (!subs || subs.length === 0) {
-    return new Response(JSON.stringify({ ok: true, sent: 0, reason: "no_subscriptions" }), {
+    return new Response(JSON.stringify({ ok: true, sent: 0, failed: 0, reason: "no_subscriptions" }), {
       status: 200,
-      headers: { "Content-Type": "application/json" }
+      headers: corsHeaders()
     });
   }
 
-  webpush.setVapidDetails(vapidSubject, vapidPublic, vapidPrivate);
+  const vapid = resolveVapidKeys();
+
+  try {
+    webpush.setVapidDetails(vapid.subject, vapid.publicKey, vapid.privateKey);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return new Response(JSON.stringify({ ok: false, error: "invalid_vapid", detail: message }), {
+      status: 500,
+      headers: corsHeaders()
+    });
+  }
+
   const pushPayload = buildPushContent(notif);
   const payload = JSON.stringify(pushPayload);
 
   let sent = 0;
   const staleIds: string[] = [];
+  const errors: PushSendError[] = [];
 
   for (const row of subs as PushSubscriptionRow[]) {
     try {
@@ -170,15 +216,23 @@ Deno.serve(async (req) => {
           keys: { p256dh: row.p256dh, auth: row.auth }
         },
         payload,
-        { TTL: 60 * 60 * 12 }
+        { TTL: 60 * 60 * 12, urgency: "high" }
       );
       sent += 1;
     } catch (err) {
       const status = (err as { statusCode?: number }).statusCode;
+      const message = err instanceof Error ? err.message : String(err);
+      errors.push({
+        endpoint: row.endpoint.slice(0, 80),
+        status,
+        message: message.slice(0, 240)
+      });
+
       if (status === 404 || status === 410) {
         staleIds.push(row.id);
       }
-      console.error("push failed", row.endpoint, err);
+
+      console.error("ROBIN push failed", row.endpoint, status, message);
     }
   }
 
@@ -186,8 +240,15 @@ Deno.serve(async (req) => {
     await supabase.from("robin_push_subscriptions").delete().in("id", staleIds);
   }
 
-  return new Response(JSON.stringify({ ok: true, sent, stale: staleIds.length }), {
+  return new Response(JSON.stringify({
+    ok: sent > 0,
+    sent,
+    failed: errors.length,
+    stale: staleIds.length,
+    errors,
+    reason: sent > 0 ? "delivered" : (errors.length ? "send_failed" : "no_subscriptions")
+  }), {
     status: 200,
-    headers: { "Content-Type": "application/json" }
+    headers: corsHeaders()
   });
 });

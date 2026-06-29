@@ -1417,7 +1417,12 @@ function App() {
         setPushError("");
         cerrarPushPrompt();
         showToast("Notificaciones activadas en este dispositivo", "success");
-        enviarPushPruebaUsuario(usuario).catch(() => {});
+        const prueba = await enviarPushPruebaUsuario(usuario);
+        if (prueba.via === "local") {
+          showToast("Prueba local OK. Cierra ROBIN y pide una mención para probar en segundo plano.", "info");
+        } else if (!prueba.ok) {
+          showToast("Registrado, pero el envío remoto falló. Intenta de nuevo en unos segundos.", "error");
+        }
         return;
       }
 

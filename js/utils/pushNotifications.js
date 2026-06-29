@@ -737,7 +737,7 @@ async function dispararPushRemoto(notif) {
   }
 
   try {
-    const res = await fetch(
+    const res = await fetchConTimeout(
       `${pushSupabaseUrl()}/functions/v1/send-push-on-notification`,
       {
         method: "POST",
@@ -747,7 +747,8 @@ async function dispararPushRemoto(notif) {
           Authorization: `Bearer ${SUPABASE_ANON_KEY}`
         },
         body: JSON.stringify({ record: notif })
-      }
+      },
+      15000
     );
 
     if (!res.ok) {
@@ -756,7 +757,22 @@ async function dispararPushRemoto(notif) {
     }
 
     const json = await res.json().catch(() => ({}));
-    return { ok: true, sent: json.sent || 0 };
+    const sent = Number(json.sent || 0);
+    const failed = Number(json.failed || 0);
+    const errors = Array.isArray(json.errors) ? json.errors : [];
+
+    if (sent > 0) {
+      return { ok: true, sent, failed, errors };
+    }
+
+    return {
+      ok: false,
+      sent: 0,
+      failed,
+      errors,
+      reason: json.reason || (failed ? "send_failed" : "no_subscriptions"),
+      detalle: errors[0]?.message || json.error || ""
+    };
   } catch (e) {
     return { ok: false, reason: "network", error: String(e.message || e) };
   }
@@ -787,20 +803,25 @@ async function entregarPushParaNotificacion(notif) {
 
   const destinatario = pushUsuario(notif?.recipient);
   const yo = pushUsuarioActual();
-  const suscripcionLocal = await tieneSuscripcionPushLocal();
   let local = { ok: false, reason: "skipped" };
   let remoto = { ok: false, reason: "skipped" };
-
-  if (destinatario && yo && destinatario === yo && !suscripcionLocal) {
-    local = await mostrarPushLocal(notif);
-  }
+  const esIdCliente = id.startsWith("m-") || id.startsWith("r-") || id.startsWith("test-");
 
   if (destinatario && yo && destinatario !== yo) {
     remoto = await dispararPushRemoto(notif);
-  } else if (destinatario && yo === destinatario && !local.ok && !suscripcionLocal) {
-    remoto = await dispararPushRemoto(notif);
-  } else if (suscripcionLocal) {
-    remoto = { ok: true, reason: "server_push" };
+  } else if (destinatario && yo === destinatario) {
+    if (esIdCliente) {
+      remoto = await dispararPushRemoto(notif);
+    }
+    if (
+      (typeof document !== "undefined" && document.visibilityState === "visible") ||
+      (esIdCliente && !remoto.ok)
+    ) {
+      local = await mostrarPushLocal(notif);
+    }
+    if (!esIdCliente && !remoto.ok) {
+      remoto = { ok: true, reason: "server_trigger" };
+    }
   }
 
   if (local.ok || remoto.ok) {
@@ -871,7 +892,7 @@ async function enviarPushPruebaUsuario(username) {
   const user = pushUsuario(username);
   if (!user || !pushSupabaseReady()) return { ok: false, reason: "no_user" };
 
-  return dispararPushRemoto({
+  const notif = {
     id: `test-${Date.now()}`,
     recipient: user,
     type: "mencion",
@@ -879,7 +900,28 @@ async function enviarPushPruebaUsuario(username) {
     task_title: "ROBIN",
     task_key: "",
     payload: { excerpt: "Si ves esto, las notificaciones push ya funcionan en segundo plano." }
-  });
+  };
+
+  const remoto = await dispararPushRemoto(notif);
+  if (remoto.ok && remoto.sent > 0) {
+    return { ok: true, sent: remoto.sent, via: "remote" };
+  }
+
+  const local = await mostrarPushLocal(notif);
+  if (local.ok) {
+    return {
+      ok: true,
+      sent: 0,
+      via: "local",
+      warning: remoto.detalle || remoto.reason || "remote_failed"
+    };
+  }
+
+  return {
+    ok: false,
+    reason: remoto.reason || "send_failed",
+    detalle: remoto.detalle || remoto.errors?.[0]?.message || ""
+  };
 }
 
 async function probarPushLocal(username) {

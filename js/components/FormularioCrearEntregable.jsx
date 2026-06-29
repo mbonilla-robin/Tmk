@@ -70,7 +70,7 @@ function FormularioCrearEntregable({
   return (
     <div className="task-form-page task-form-page--standalone w-full animate-fade-in">
       <form onSubmit={handleSubmit}>
-        <div className="px-5 md:px-12 lg:px-10 pt-1 pb-5 md:pt-6 md:pb-6">
+        <div className="px-5 md:px-12 lg:px-10 pt-1 pb-5 md:pt-6 md:pb-6" data-induccion="form-crear">
           <span className="task-form-eyebrow text-ui-sm text-zinc-400">Nuevo entregable</span>
           <input
             type="text"
@@ -152,13 +152,15 @@ function FormularioCrearEntregable({
             </PropertyRow>
 
             <PropertyRow icon="fa-regular fa-user" label="Ejecutivos">
-              <SelectorPersonasChips
-                personasSeleccionadas={personasEjecutivos}
-                onChange={actualizarPersonasEjecutivos}
-                listaGlobal={listaEjecutivos}
-                registrarNuevaPersona={registrarNuevaPersona}
-                variant="minimal"
-              />
+              <div data-induccion="form-personas">
+                <SelectorPersonasChips
+                  personasSeleccionadas={personasEjecutivos}
+                  onChange={actualizarPersonasEjecutivos}
+                  listaGlobal={listaEjecutivos}
+                  registrarNuevaPersona={registrarNuevaPersona}
+                  variant="minimal"
+                />
+              </div>
             </PropertyRow>
 
             <PropertyRow icon="fa-regular fa-user" label="Diseñadores">
@@ -196,7 +198,7 @@ function FormularioCrearEntregable({
             </div>
           </PropertyRow>
 
-          <div className="py-4 border-b border-zinc-100">
+          <div className="py-4 border-b border-zinc-100" data-induccion="form-notas">
             <div className="task-section-label flex items-center gap-2 mb-2 text-ui-sm text-zinc-500">
               <i className="fa-regular fa-note-sticky text-zinc-400 text-[11px]" />
               <span>Notas</span>

@@ -319,7 +319,7 @@ function LayoutMarcaHome({
       </header>
 
       <div className="marca-home-body">
-        <div className="area-stat-card">
+        <div className="area-stat-card marca-glass-panel">
           <div className="area-stat-header">
             <span>Resumen de la marca</span>
           </div>
@@ -345,8 +345,8 @@ function LayoutMarcaHome({
 
         <MarcaWidgetsStrip widgets={widgetsMarca} username={username} />
 
-        <div className={`home-priority-panel border ${currentTheme.border} rounded-md ${currentTheme.cardBg} overflow-hidden`}>
-          <div className={`home-priority-panel__header px-3 py-2.5 md:p-4 md:pb-3 border-b ${currentTheme.border} flex items-center justify-between gap-2`}>
+        <div className="marca-glass-panel marca-urgentes-panel overflow-hidden">
+          <div className="home-priority-panel__header px-3 py-2.5 md:p-4 md:pb-3 flex items-center justify-between gap-2">
             <span className="mobile-section-label md:hidden">Urgentes</span>
             <span className="hidden md:block text-[10px] font-semibold text-zinc-500">Prioridad alta</span>
             {highPriorityTasks.length > 0 && (

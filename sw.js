@@ -4,6 +4,8 @@ const STATIC_ASSETS = [
   "./manifest.webmanifest",
   "./css/main.css",
   "./logo robin negro.png",
+  "./logo robin blanco.png",
+  "./logo robin blanco@2x.png",
   "./icons/logo-blanco.png",
   "./icons/logo-negro.png",
   "./icons/logo-naranja.png",

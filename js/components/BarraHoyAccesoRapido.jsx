@@ -222,6 +222,7 @@ function BarraHoyAccesoRapido({ tareas, username, onSelectTask, getMarcaStyle, s
     <aside
       className="hidden md:flex flex-col shrink-0 w-56 min-w-[14rem] h-full bg-white border-l border-zinc-200 overflow-hidden"
       aria-label="Panel de hoy"
+      data-induccion="panel-hoy"
     >
       <div className="px-3 pt-3 pb-2 shrink-0 border-b border-zinc-100">
         <div className="relative rounded-xl border border-zinc-200 bg-white px-2.5 py-2 text-center shadow-[0_1px_2px_rgba(0,0,0,0.03)]">

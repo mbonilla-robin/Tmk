@@ -1,6 +1,7 @@
-function NotificacionFila({ notif, getMarcaStyle, onClick }) {
+function NotificacionFila({ notif, getMarcaStyle, onClick, tareas }) {
   const marcaEstilo = getMarcaStyle ? getMarcaStyle(notif.marca) : MARCAS_COLORES_DEFAULT;
   const noLeida = !notif.read_at;
+  const tituloTarea = resolverTituloNotificacion(notif, tareas);
 
   return (
     <button
@@ -17,7 +18,7 @@ function NotificacionFila({ notif, getMarcaStyle, onClick }) {
         <span className="robin-notif-item__marca">{formatearMarca(notif.marca)}</span>
         <span className="robin-notif-item__time">{formatearTiempoRelativo(notif.created_at)}</span>
       </div>
-      <p className="robin-notif-item__title">{notif.task_title || "Entregable"}</p>
+      <p className="robin-notif-item__title">{tituloTarea}</p>
       <p className="robin-notif-item__detail">{resumirTextoNotificacion(notif)}</p>
     </button>
   );
@@ -32,7 +33,8 @@ function CampanaNotificaciones({
   onAbrirTarea,
   onMarkRead,
   onMarkAllRead,
-  getMarcaStyle
+  getMarcaStyle,
+  tareas = []
 }) {
   const [abierto, setAbierto] = useState(false);
   const panelRef = useRef(null);
@@ -90,6 +92,7 @@ function CampanaNotificaciones({
         type="button"
         className={`robin-notif-bell__btn ${abierto ? "is-open" : ""}`}
         onClick={togglePanel}
+        data-induccion="notificaciones"
         title="Notificaciones"
         aria-label={unreadCount ? `${unreadCount} notificaciones pendientes` : "Notificaciones"}
       >
@@ -134,6 +137,7 @@ function CampanaNotificaciones({
                       <NotificacionFila
                         key={notif.id}
                         notif={notif}
+                        tareas={tareas}
                         getMarcaStyle={getMarcaStyle}
                         onClick={handleClickNotif}
                       />

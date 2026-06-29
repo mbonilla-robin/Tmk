@@ -39,6 +39,12 @@ function tituloLimpioTarea(t) {
   return extraerTituloLimpio(t?.info, t?.categoria).toLowerCase().trim();
 }
 
+function tituloDisplayTarea(t) {
+  const info = String(t?.info || "").trim();
+  if (info) return info;
+  return extraerTituloLimpio(t?.info, t?.categoria).trim();
+}
+
 function deadlineClaveTarea(t) {
   return normalizarDeadline(t?.deadline) || String(t?.deadline || "").trim();
 }

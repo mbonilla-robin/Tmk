@@ -70,6 +70,14 @@ function MobileNavBar({
     }
   ];
 
+  const induccionTargetByKey = {
+    home: "nav-home",
+    "dashboard-all": "nav-lista",
+    agregar: "nav-agregar",
+    clientes: "nav-clientes",
+    config: "nav-config"
+  };
+
   return (
     <>
       <header className="mobile-top-bar md:hidden">
@@ -82,6 +90,7 @@ function MobileNavBar({
           <button
             type="button"
             onClick={onSyncClick}
+            data-induccion="sync"
             className={`mobile-top-btn ${
               syncDetalleVisible
                 ? "is-active"
@@ -127,6 +136,7 @@ function MobileNavBar({
               key={item.key}
               type="button"
               onClick={item.onClick}
+              data-induccion={induccionTargetByKey[item.key] || undefined}
               className={`mobile-nav-item ${item.active ? "is-active" : ""} ${item.highlight ? "is-highlight" : ""}`}
             >
               <span className="mobile-nav-icon">

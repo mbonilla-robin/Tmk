@@ -77,7 +77,7 @@ function DesktopWidgetsPanel({ widgetsAgrupados, username, modoMarca }) {
 
   if (modoMarca) {
     return (
-      <section className="desktop-widgets hidden md:block" aria-label="Accesos rápidos">
+      <section className="desktop-widgets hidden md:block" aria-label="Accesos rápidos" data-induccion="accesos-rapidos">
         <h3 className="desktop-widgets-heading">Accesos rápidos</h3>
         <div className="desktop-widgets-filas">
           <DesktopWidgetsFila titulo="" widgets={todos} username={username} />
@@ -87,7 +87,7 @@ function DesktopWidgetsPanel({ widgetsAgrupados, username, modoMarca }) {
   }
 
   return (
-    <section className="desktop-widgets hidden md:block" aria-label="Accesos rápidos">
+    <section className="desktop-widgets hidden md:block" aria-label="Accesos rápidos" data-induccion="accesos-rapidos">
       <h3 className="desktop-widgets-heading">Accesos rápidos</h3>
       <div className="desktop-widgets-filas">
         <DesktopWidgetsFila titulo="Robin" widgets={robin} username={username} />

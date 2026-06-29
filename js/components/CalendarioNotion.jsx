@@ -512,7 +512,7 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
   return (
     <div className="cal-shell rounded-lg border overflow-hidden shadow-sm w-full">
       {/* Header móvil — limpio */}
-      <div className="md:hidden cal-mobile-toolbar">
+      <div className="md:hidden cal-mobile-toolbar" data-induccion="calendario">
         <div className="cal-mobile-toolbar-nav">
           <button type="button" onClick={handlePrev} className="cal-mobile-nav-btn" aria-label="Anterior">
             <i className="fa-solid fa-chevron-left text-[11px]"></i>
@@ -524,7 +524,7 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
             <i className="fa-solid fa-chevron-right text-[11px]"></i>
           </button>
         </div>
-        <div className="cal-mobile-toolbar-tabs">
+        <div className="cal-mobile-toolbar-tabs" data-induccion="calendario-vistas">
           <button
             type="button"
             onClick={() => cambiarVista("semana")}
@@ -543,10 +543,10 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
       </div>
 
       {/* Header desktop — una sola fila */}
-      <div className="cal-header-desktop hidden md:flex">
+      <div className="cal-header-desktop hidden md:flex" data-induccion="calendario">
         <span className="cal-header-desktop-title">Cronograma</span>
 
-        <div className="cal-header-view-toggle" role="tablist" aria-label="Vista del cronograma">
+        <div className="cal-header-view-toggle" role="tablist" aria-label="Vista del cronograma" data-induccion="calendario-vistas">
           <button
             type="button"
             role="tab"

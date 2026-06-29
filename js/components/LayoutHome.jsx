@@ -49,6 +49,13 @@ function LayoutHome({
   }, [tareas]);
 
   const saludo = formatearNombrePresencia({ username, nombre: nombreUsuario || `@${username}` });
+  const primerNombre = String(saludo).trim().split(/\s+/)[0] || saludo;
+  const fechaHoy = new Date().toLocaleDateString("es-MX", {
+    weekday: "long",
+    day: "numeric",
+    month: "long"
+  });
+  const fechaLabel = fechaHoy.charAt(0).toUpperCase() + fechaHoy.slice(1);
 
   return (
     <div className="flex flex-col gap-4 md:gap-5 animate-fade-in">
@@ -74,12 +81,21 @@ function LayoutHome({
       )}
 
       <div className={`flex flex-col gap-4 md:gap-5 ${widgetsMobileVista === "todos" ? "hidden md:flex" : ""}`}>
-      <div className="md:hidden">
-        <h2 className="text-lg font-bold text-[#37352F]">Hola, {saludo}</h2>
-        <p className="text-[11px] text-zinc-400 mt-0.5">Resumen de tu área</p>
-      </div>
+      <header className="home-mobile-hero md:hidden">
+        <div className="home-mobile-hero__bg" aria-hidden="true">
+          <div className="home-mobile-hero__orb home-mobile-hero__orb--1" />
+          <div className="home-mobile-hero__orb home-mobile-hero__orb--2" />
+        </div>
+        <div className="home-mobile-hero__content">
+          <p className="home-mobile-hero__date">{fechaLabel}</p>
+          <h1 className="home-mobile-hero__title">
+            Hola, <span className="home-mobile-hero__name">{primerNombre}</span>
+          </h1>
+          <p className="home-mobile-hero__subtitle">Resumen de tu área</p>
+        </div>
+      </header>
 
-      <div className="md:hidden mobile-presence-card">
+      <div className="md:hidden mobile-presence-card" data-induccion="presencia">
         <div className="flex items-center justify-between gap-2 mb-1">
           <span className="text-[11px] font-bold text-zinc-600 uppercase tracking-wide">Equipo en línea</span>
           <span className="text-[10px] font-medium text-zinc-400">
@@ -119,19 +135,21 @@ function LayoutHome({
       </div>
 
       {(widgetsVisibles.robin.length > 0 || widgetsVisibles.clientes.length > 0) && (
-        <div className="flex flex-col gap-2">
-          <span className="mobile-section-label md:hidden">Accesos rápidos</span>
-          <MobileWidgetsGrid
-            widgets={todosLosWidgets}
-            variant="preview"
-            username={username}
-            onVerMas={() => setWidgetsMobileVista("todos")}
-          />
+        <div className="flex flex-col gap-2 md:contents">
+          <div className="flex flex-col gap-2 md:hidden induccion-accesos-target" data-induccion="accesos-rapidos">
+            <span className="mobile-section-label">Accesos rápidos</span>
+            <MobileWidgetsGrid
+              widgets={todosLosWidgets}
+              variant="preview"
+              username={username}
+              onVerMas={() => setWidgetsMobileVista("todos")}
+            />
+          </div>
           <DesktopWidgetsPanel widgetsAgrupados={widgetsVisibles} username={username} />
         </div>
       )}
 
-      <div className={`home-priority-panel border ${currentTheme.border} rounded-md ${currentTheme.cardBg} overflow-hidden`}>
+      <div className={`home-priority-panel border ${currentTheme.border} rounded-md ${currentTheme.cardBg} overflow-hidden`} data-induccion="urgentes">
         <div className={`home-priority-panel__header px-3 py-2.5 md:p-4 md:pb-3 border-b ${currentTheme.border} flex items-center justify-between gap-2`}>
           <span className="mobile-section-label md:hidden">Urgentes</span>
           <span className="hidden md:block text-[10px] font-semibold text-zinc-500">Prioridad alta</span>
@@ -196,7 +214,7 @@ function LayoutHome({
       </div>
 
       <div className="area-stat-card">
-        <div className="area-stat-header">
+        <div className="area-stat-header" data-induccion="resumen-area">
           <span>Resumen del área</span>
         </div>
         <div className="area-stat-grid">

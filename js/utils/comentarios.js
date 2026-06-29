@@ -36,7 +36,7 @@ function construirContextoTarea(tarea) {
   return {
     taskKey: resolverTaskKeyComentarios(normalizada),
     marca: normalizarMarca(normalizada.marca) || "",
-    taskTitle: tituloLimpioTarea(normalizada) || String(normalizada.info || "").trim()
+    taskTitle: tituloDisplayTarea(normalizada) || String(normalizada.info || "").trim()
   };
 }
 
@@ -155,6 +155,20 @@ function formatearTiempoRelativo(iso) {
   if (dias < 7) return `hace ${dias} d`;
 
   return fecha.toLocaleDateString("es-VE", { day: "numeric", month: "short" });
+}
+
+function resolverTituloNotificacion(notif, tareas) {
+  const key = String(notif?.task_key || "").trim().toLowerCase();
+  if (key && Array.isArray(tareas)) {
+    const tarea = tareas.find((t) =>
+      clavesBusquedaComentariosTarea(t).some((k) => String(k).toLowerCase() === key)
+    );
+    if (tarea) {
+      const titulo = tituloDisplayTarea(tarea);
+      if (titulo) return titulo;
+    }
+  }
+  return String(notif?.task_title || "").trim() || "Entregable";
 }
 
 function resumirTextoNotificacion(notif) {

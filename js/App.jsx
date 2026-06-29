@@ -71,6 +71,7 @@ function App() {
   const [taskToDelete, setTaskToDelete] = useState(null);
   const [taskToComplete, setTaskToComplete] = useState(null);
   const [clientesReset, setClientesReset] = useState(0);
+  const [clientesDetalleMarca, setClientesDetalleMarca] = useState(null);
   const [notificaciones, setNotificaciones] = useState([]);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [notifCargando, setNotifCargando] = useState(false);
@@ -95,10 +96,16 @@ function App() {
   const [syncDetalleVisible, setSyncDetalleVisible] = useState(false);
   const [dashboardMobileVista, setDashboardMobileVista] = useState(() => initialPrefs.dashboardMobileVista || "lista");
   const [configSeccion, setConfigSeccion] = useState(null);
+  const [configUiBump, setConfigUiBump] = useState(0);
   const [showGeneradorEstatus, setShowGeneradorEstatus] = useState(false);
   const [sidebarMarcasAbierto, setSidebarMarcasAbierto] = useState(true);
   const [sidebarEnLineaAbierto, setSidebarEnLineaAbierto] = useState(true);
   const [prefsReady, setPrefsReady] = useState(() => !getInicialUsuario());
+  const [induccionActiva, setInduccionActiva] = useState(false);
+  const [induccionBienvenidaVisible, setInduccionBienvenidaVisible] = useState(false);
+  const [induccionPaso, setInduccionPaso] = useState(0);
+  const induccionPendienteRef = useRef(false);
+  const induccionReplayRef = useRef(false);
 
   const [listaPersonas, setListaPersonas] = useState(() => cargarListaPersonas());
   const [listaCategorias, setListaCategorias] = useState(() => cargarListaCategorias());
@@ -119,6 +126,16 @@ function App() {
       filtroTiempo !== "TODAS" ||
       searchQuery.trim() !== "";
   }, [filtroMarca, filtroEstado, filtroPrioridad, filtroPersona, filtroTiempo, searchQuery]);
+
+  const pasosInduccion = useMemo(
+    () => (typeof construirPasosInduccion === "function" ? construirPasosInduccion({ esDisenador: isDesigner }) : []),
+    [isDesigner]
+  );
+
+  const pasosInduccionFiltrados = useMemo(() => {
+    const mobile = typeof esPlataformaMobile === "function" && esPlataformaMobile();
+    return pasosInduccion.filter((p) => !(p.soloDesktop && mobile));
+  }, [pasosInduccion]);
 
   const [nuevaTarea, setNuevaTarea] = useState(() => (
     typeof window.crearNuevaTareaVacia === "function"
@@ -408,6 +425,12 @@ function App() {
   }, [usuario]);
 
   useEffect(() => {
+    if (["tema", "logo", "usuarios"].includes(configSeccion)) {
+      setConfigSeccion("avanzadas");
+    }
+  }, [configSeccion]);
+
+  useEffect(() => {
     if (paginaActiva !== "configuracion" || configSeccion) return;
     const esDesktop = window.matchMedia("(min-width: 1024px)").matches;
     if (esDesktop) {
@@ -534,6 +557,148 @@ function App() {
       setSearchQuery("");
     });
   };
+
+  const handleAbrirMarcaCliente = (marca) => {
+    navegarA("dashboard", () => {
+      setFiltroMarca(marca);
+      setFiltroTiempo("TODAS");
+      setFiltroEstado("TODOS");
+      setFiltroPrioridad("TODAS");
+      setFiltroPersona("TODAS");
+      setSearchQuery("");
+      setDashboardMobileVista("lista");
+    });
+  };
+
+  const limpiarFiltrosDashboardInduccion = useCallback(() => {
+    setFiltroTiempo("TODAS");
+    setFiltroMarca("TODAS");
+    setFiltroEstado("TODOS");
+    setFiltroPrioridad("TODAS");
+    setFiltroPersona("TODAS");
+    setSearchQuery("");
+    setDashboardMobileVista("lista");
+  }, []);
+
+  const aplicarEntradaPasoInduccion = useCallback((paso) => {
+    if (!paso) return;
+
+    if (paso.onEntrar === "limpiarFiltrosDashboard") {
+      limpiarFiltrosDashboardInduccion();
+    }
+    if (paso.mobileAbrirFiltros && typeof esPlataformaMobile === "function" && esPlataformaMobile()) {
+      setDashboardMobileVista("filtros");
+    }
+
+    if (!paso.pagina) return;
+
+    if (paso.pagina === "dashboard") {
+      navegarA("dashboard", limpiarFiltrosDashboardInduccion);
+      return;
+    }
+    if (paginaActiva !== paso.pagina) {
+      navegarA(paso.pagina);
+    }
+  }, [limpiarFiltrosDashboardInduccion, paginaActiva]);
+
+  const pasoInduccionTieneTarget = useCallback((paso) => {
+    if (!paso?.target) return true;
+    return typeof encontrarElementoInduccion === "function" && !!encontrarElementoInduccion(paso.target);
+  }, []);
+
+  const finalizarInduccion = useCallback(() => {
+    setInduccionActiva(false);
+    setInduccionBienvenidaVisible(false);
+    setInduccionPaso(0);
+    induccionReplayRef.current = false;
+    if (usuario && typeof marcarInduccionCompletada === "function") {
+      marcarInduccionCompletada(usuario);
+    }
+    setPaginaActiva("home");
+    limpiarFiltrosDashboardInduccion();
+  }, [usuario, limpiarFiltrosDashboardInduccion]);
+
+  const iniciarInduccion = useCallback((reiniciarPrefs = false) => {
+    if (!usuario || isConfigOnlyAdmin) return;
+    if (reiniciarPrefs && typeof reiniciarInduccionUsuario === "function") {
+      reiniciarInduccionUsuario(usuario);
+    }
+    induccionReplayRef.current = reiniciarPrefs;
+    induccionPendienteRef.current = false;
+    setInduccionPaso(0);
+    setInduccionActiva(false);
+    setInduccionBienvenidaVisible(true);
+    setPaginaActiva("home");
+    limpiarFiltrosDashboardInduccion();
+    setSyncDetalleVisible(false);
+  }, [usuario, isConfigOnlyAdmin, limpiarFiltrosDashboardInduccion]);
+
+  const comenzarRecorridoInduccion = useCallback(() => {
+    setInduccionBienvenidaVisible(false);
+    setInduccionPaso(0);
+    setInduccionActiva(true);
+  }, []);
+
+  const irAPasoInduccion = useCallback((index) => {
+    setInduccionPaso(index);
+  }, []);
+
+  const buscarSiguientePasoInduccion = useCallback((desde, direccion = 1) => {
+    let i = desde;
+    while (i >= 0 && i < pasosInduccionFiltrados.length) {
+      const paso = pasosInduccionFiltrados[i];
+      if (!paso.opcional || pasoInduccionTieneTarget(paso)) {
+        return i;
+      }
+      i += direccion;
+    }
+    return direccion > 0 ? pasosInduccionFiltrados.length : -1;
+  }, [pasosInduccionFiltrados, pasoInduccionTieneTarget]);
+
+  const avanzarInduccion = useCallback(() => {
+    const siguiente = buscarSiguientePasoInduccion(induccionPaso + 1, 1);
+    if (siguiente >= pasosInduccionFiltrados.length) {
+      finalizarInduccion();
+      return;
+    }
+    irAPasoInduccion(siguiente);
+  }, [induccionPaso, buscarSiguientePasoInduccion, pasosInduccionFiltrados.length, finalizarInduccion, irAPasoInduccion]);
+
+  const retrocederInduccion = useCallback(() => {
+    const anterior = buscarSiguientePasoInduccion(induccionPaso - 1, -1);
+    if (anterior < 0) return;
+    irAPasoInduccion(anterior);
+  }, [induccionPaso, buscarSiguientePasoInduccion, irAPasoInduccion]);
+
+  const saltarInduccion = useCallback(() => {
+    finalizarInduccion();
+  }, [finalizarInduccion]);
+
+  useEffect(() => {
+    if (!usuario || isConfigOnlyAdmin || !prefsReady) return;
+    const prefs = loadUserDataLocal(usuario);
+    if (typeof usuarioDebeVerInduccion === "function" && usuarioDebeVerInduccion(prefs)) {
+      induccionPendienteRef.current = true;
+    }
+  }, [usuario, prefsReady, isConfigOnlyAdmin]);
+
+  useEffect(() => {
+    if (!usuario || isConfigOnlyAdmin || !induccionPendienteRef.current || induccionActiva || induccionBienvenidaVisible) return;
+    const timer = setTimeout(() => {
+      if (!induccionPendienteRef.current) return;
+      induccionPendienteRef.current = false;
+      iniciarInduccion(false);
+    }, 1400);
+    return () => clearTimeout(timer);
+  }, [usuario, isConfigOnlyAdmin, induccionActiva, induccionBienvenidaVisible, iniciarInduccion]);
+
+  useEffect(() => {
+    if (!induccionActiva) return;
+    const paso = pasosInduccionFiltrados[induccionPaso];
+    if (!paso) return;
+    const timer = setTimeout(() => aplicarEntradaPasoInduccion(paso), induccionPaso === 0 ? 0 : 320);
+    return () => clearTimeout(timer);
+  }, [induccionActiva, induccionPaso, pasosInduccionFiltrados, aplicarEntradaPasoInduccion]);
 
   const handleAddWidget = async (nuevoWidget) => {
     if (!isConfigOnlyAdmin) {
@@ -1599,18 +1764,138 @@ function App() {
         refrescarNotificaciones();
       }}
       getMarcaStyle={getMarcaStyle}
+      tareas={tareasVisibles}
     />
   ) : null;
 
   const tituloConfigSeccion = (seccion) => ({
     perfil: "Perfil",
-    tema: "Tema",
-    logo: "Icono del teléfono",
+    avanzadas: "Opciones avanzadas",
     api: "Base de datos",
-    usuarios: "Usuarios",
     widgets: "Enlaces",
     clientes: "Fichas clientes"
   }[seccion] || "Ajustes");
+
+  const renderConfigAvanzadas = () => {
+    void configUiBump;
+    const calVista = getUserPreference("calendarioVista", "semana", usuario) === "mes" ? "mes" : "semana";
+
+    return (
+      <div className="robin-config-advanced">
+        <section className="robin-config-advanced__block">
+          <h3 className="robin-config-advanced__label">Tema</h3>
+          <p className="robin-config-advanced__hint">Apariencia clara u oscura de la interfaz.</p>
+          <div className="grid grid-cols-2 gap-2 max-w-xs">
+            <button type="button" onClick={() => handleThemeChange("notion")} className={`${themePickerBtnClass(theme, "notion")} theme-picker-btn--compact`}>Claro</button>
+            <button type="button" onClick={() => handleThemeChange("midnight")} className={`${themePickerBtnClass(theme, "midnight")} theme-picker-btn--compact`}>Oscuro</button>
+          </div>
+        </section>
+
+        <section className="robin-config-advanced__block">
+          <h3 className="robin-config-advanced__label">Icono en el teléfono</h3>
+          <p className="robin-config-advanced__hint">Al instalar la PWA. El logo del encabezado no cambia.</p>
+          <div className="grid grid-cols-3 gap-2 max-w-md">
+            {Object.entries(PWA_ICON_VARIANTS).map(([key, { preview, label }]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => handlePwaIconVariantChange(key)}
+                className={`p-2 rounded-md border flex flex-col items-center gap-1.5 transition-all ${
+                  pwaIconVariant === key ? "border-[#37352F] ring-2 ring-[#37352F]/20" : "border-zinc-200"
+                }`}
+              >
+                <img src={preview} alt={label} className="w-full aspect-square object-contain rounded" />
+                <span className="text-[10px] font-semibold text-zinc-600">{label}</span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {!isConfigOnlyAdmin && (
+          <section className="robin-config-advanced__block">
+            <h3 className="robin-config-advanced__label">Vista por defecto</h3>
+            <p className="robin-config-advanced__hint">Cómo se abre el listado de entregables.</p>
+            <div className="robin-config-advanced__pills">
+              <button
+                type="button"
+                className={`robin-config-advanced__pill ${vistaModo === "TABLE" ? "is-active" : ""}`}
+                onClick={() => { setVistaModo("TABLE"); setUserPreference("vistaModo", "TABLE", usuario); setConfigUiBump((n) => n + 1); }}
+              >
+                Lista
+              </button>
+              <button
+                type="button"
+                className={`robin-config-advanced__pill ${vistaModo === "KANBAN" ? "is-active" : ""}`}
+                onClick={() => { setVistaModo("KANBAN"); setUserPreference("vistaModo", "KANBAN", usuario); setConfigUiBump((n) => n + 1); }}
+              >
+                Tablero
+              </button>
+            </div>
+          </section>
+        )}
+
+        {!isConfigOnlyAdmin && (
+          <section className="robin-config-advanced__block">
+            <h3 className="robin-config-advanced__label">Cronograma</h3>
+            <p className="robin-config-advanced__hint">Vista inicial del calendario en Home.</p>
+            <div className="robin-config-advanced__pills">
+              <button
+                type="button"
+                className={`robin-config-advanced__pill ${calVista === "semana" ? "is-active" : ""}`}
+                onClick={() => { setUserPreference("calendarioVista", "semana", usuario); setConfigUiBump((n) => n + 1); }}
+              >
+                Semana
+              </button>
+              <button
+                type="button"
+                className={`robin-config-advanced__pill ${calVista === "mes" ? "is-active" : ""}`}
+                onClick={() => { setUserPreference("calendarioVista", "mes", usuario); setConfigUiBump((n) => n + 1); }}
+              >
+                Mes
+              </button>
+            </div>
+          </section>
+        )}
+
+        {(isAdmin || (!isConfigOnlyAdmin && !isDesigner)) && (
+          <section className="robin-config-advanced__block">
+            <h3 className="robin-config-advanced__label">Usuarios</h3>
+            <p className="robin-config-advanced__hint">Personas con acceso a ROBIN.</p>
+            {isAdmin ? (
+              <div className={`${currentTheme.cardBg} border ${currentTheme.border} p-3 rounded-md flex flex-col gap-3`}>
+                <form onSubmit={handleAddUser} className="flex gap-2">
+                  <input type="text" placeholder="Usuario (ej: ralvarez)" value={nuevoUsuarioInput} onChange={(e) => setNuevoUsuarioInput(e.target.value)} className="flex-1 bg-zinc-50 border border-zinc-200 px-3 py-2 text-sm rounded font-semibold" />
+                  <button type="submit" className="px-3 py-2 bg-[#37352F] text-white text-ui font-semibold rounded-md">+</button>
+                </form>
+                <div className="flex flex-wrap gap-1.5">
+                  {listaUsuarios.map((u) => (
+                    <span key={u} className="inline-flex items-center gap-1 bg-zinc-50 border border-zinc-200 text-zinc-800 text-[11px] font-semibold px-2 py-1 rounded-full">
+                      @{u}
+                      {u !== "admin" && (
+                        <button type="button" onClick={() => handleRemoveUser(u)} className="text-zinc-400 font-bold">&times;</button>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-ui-sm text-zinc-500">Solo administradores pueden editar la lista.</p>
+            )}
+          </section>
+        )}
+
+        {!isConfigOnlyAdmin && (
+          <section className="robin-config-advanced__block">
+            <h3 className="robin-config-advanced__label">Guía de uso</h3>
+            <p className="robin-config-advanced__hint">Recorrido interactivo por la aplicación.</p>
+            <button type="button" className="robin-config-advanced__link-btn" onClick={() => iniciarInduccion(true)}>
+              Ver inducción de nuevo
+            </button>
+          </section>
+        )}
+      </div>
+    );
+  };
 
   const renderConfigSeccionContenido = (seccion) => {
     if (seccion === "perfil" && !isConfigOnlyAdmin) {
@@ -1632,62 +1917,11 @@ function App() {
       );
     }
 
-    if (seccion === "tema") {
-      return (
-        <div className="grid grid-cols-2 gap-2 max-w-md">
-          <button type="button" onClick={() => handleThemeChange("notion")} className={`${themePickerBtnClass(theme, "notion")} theme-picker-btn--compact`}>Claro</button>
-          <button type="button" onClick={() => handleThemeChange("midnight")} className={`${themePickerBtnClass(theme, "midnight")} theme-picker-btn--compact`}>Oscuro</button>
-        </div>
-      );
-    }
-
-    if (seccion === "logo") {
-      return (
-        <div className="flex flex-col gap-2 max-w-lg">
-          <p className={`text-[11px] ${currentTheme.mutedText}`}>Color del icono al instalar la app en el teléfono. El logo del encabezado no cambia.</p>
-          <div className="grid grid-cols-3 gap-2">
-            {Object.entries(PWA_ICON_VARIANTS).map(([key, { preview, label }]) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => handlePwaIconVariantChange(key)}
-                className={`p-2 rounded-md border flex flex-col items-center gap-1.5 transition-all ${
-                  pwaIconVariant === key ? "border-[#37352F] ring-2 ring-[#37352F]/20" : "border-zinc-200"
-                }`}
-              >
-                <img src={preview} alt={label} className="w-full aspect-square object-contain rounded" />
-                <span className="text-[10px] font-semibold text-zinc-600">{label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      );
+    if (seccion === "avanzadas") {
+      return renderConfigAvanzadas();
     }
 
     if (seccion === "api") return renderPanelDiagnosticoApi();
-
-    if (seccion === "usuarios") {
-      return isAdmin ? (
-        <div className={`${currentTheme.cardBg} border ${currentTheme.border} p-3 rounded-md flex flex-col gap-3 max-w-xl`}>
-          <form onSubmit={handleAddUser} className="flex gap-2">
-            <input type="text" placeholder="Usuario (ej: ralvarez)" value={nuevoUsuarioInput} onChange={(e) => setNuevoUsuarioInput(e.target.value)} className="flex-1 bg-zinc-50 border border-zinc-200 px-3 py-2 text-sm rounded font-semibold" />
-            <button type="submit" className="px-3 py-2 bg-[#37352F] text-white text-ui font-semibold rounded-md">+</button>
-          </form>
-          <div className="flex flex-wrap gap-1.5">
-            {listaUsuarios.map((u) => (
-              <span key={u} className="inline-flex items-center gap-1 bg-zinc-50 border border-zinc-200 text-zinc-800 text-[11px] font-semibold px-2 py-1 rounded-full">
-                @{u}
-                {u !== "admin" && (
-                  <button type="button" onClick={() => handleRemoveUser(u)} className="text-zinc-400 font-bold">&times;</button>
-                )}
-              </span>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <p className="text-ui-sm text-zinc-500 bg-zinc-50 border border-zinc-200 rounded-md p-3 max-w-xl">Solo administradores.</p>
-      );
-    }
 
     if (seccion === "widgets" && isConfigOnlyAdmin) {
       return (
@@ -1737,10 +1971,8 @@ function App() {
       <div className={`flex flex-col gap-2 ${esDesktop ? "robin-config-nav" : ""}`}>
         {!esDesktop && <h2 className={`text-base font-bold mb-1 ${currentTheme.text}`}>Ajustes</h2>}
         {!isConfigOnlyAdmin && <Item seccion="perfil" icon="fa-user" label="Perfil" />}
-        <Item seccion="tema" icon="fa-palette" label="Tema" />
-        <Item seccion="logo" icon="fa-mobile-screen" label="Icono del teléfono" />
         <Item seccion="api" icon="fa-database" label="Base de datos" />
-        {(isAdmin || (!isConfigOnlyAdmin && !isDesigner)) && <Item seccion="usuarios" icon="fa-users" label="Usuarios" />}
+        <Item seccion="avanzadas" icon="fa-gear" label="Opciones avanzadas" />
         {isConfigOnlyAdmin && (
           <>
             <Item seccion="widgets" icon="fa-link" label="Enlaces" />
@@ -1930,7 +2162,7 @@ function App() {
           </div>
 
           <div className="robin-sidebar__top">
-            <div className="robin-sidebar__presence">
+            <div className="robin-sidebar__presence" data-induccion="presencia">
               <button
                 type="button"
                 onClick={() => setSidebarEnLineaAbierto(prev => !prev)}
@@ -1975,7 +2207,7 @@ function App() {
             </div>
 
             {!isDesigner && (
-              <button type="button" onClick={() => navegarA("agregar")} className="robin-sidebar__cta">
+              <button type="button" onClick={() => navegarA("agregar")} className="robin-sidebar__cta" data-induccion="nav-agregar">
                 <SVGIcon.Plus />
                 <span>Añadir entregable</span>
               </button>
@@ -1990,6 +2222,7 @@ function App() {
                   type="button"
                   onClick={() => navegarA("home")}
                   className={`robin-sidebar__tile ${paginaActiva === "home" ? "is-active" : ""}`}
+                  data-induccion="nav-home"
                 >
                   <SVGIcon.Home />
                   <span>Home</span>
@@ -2001,6 +2234,7 @@ function App() {
                     paginaActiva === "dashboard" && filtroTiempo === "TODAS" && filtroMarca === "TODAS" && filtroEstado === "TODOS" && filtroPrioridad === "TODAS" && filtroPersona === "TODAS"
                       ? "is-active" : ""
                   }`}
+                  data-induccion="nav-lista"
                 >
                   <SVGIcon.All />
                   <span>Todos</span>
@@ -2013,6 +2247,7 @@ function App() {
                 type="button"
                 onClick={() => setSidebarMarcasAbierto(prev => !prev)}
                 className="robin-sidebar__section-toggle"
+                data-induccion="nav-marcas"
               >
                 <span className="text-section">Marcas</span>
                 {marcasDisponibles.length > 0 && (
@@ -2027,6 +2262,7 @@ function App() {
                       type="button"
                       onClick={() => navegarA("clientes")}
                       className={`robin-sidebar__link ${paginaActiva === "clientes" ? "is-active" : ""}`}
+                      data-induccion="nav-clientes"
                     >
                       <i className="fa-solid fa-layer-group robin-sidebar__link-icon"></i>
                       <span className="robin-sidebar__link-label">Todos los clientes</span>
@@ -2057,7 +2293,7 @@ function App() {
             {!isDesigner && (
             <div className="robin-sidebar__section">
               <span className="robin-sidebar__section-title">Más opciones</span>
-              <div className="robin-sidebar__tile-grid">
+              <div className="robin-sidebar__tile-grid" data-induccion="estatus-equipos">
                 <button
                   type="button"
                   onClick={() => setShowGeneradorEstatus(true)}
@@ -2084,6 +2320,7 @@ function App() {
                 type="button"
                 onClick={() => navegarA("configuracion")}
                 className={`robin-sidebar__link ${paginaActiva === "configuracion" ? "is-active" : ""}`}
+                data-induccion="nav-config"
               >
                 <i className="fa-solid fa-sliders robin-sidebar__link-icon"></i>
                 <span className="robin-sidebar__link-label">Ajustes</span>
@@ -2114,6 +2351,7 @@ function App() {
             <button
               type="button"
               onClick={handleSyncClick}
+              data-induccion="sync"
               className={`flex items-center gap-2 rounded border px-2 py-1.5 transition-all ${
                 syncDetalleVisible
                   ? "border-zinc-400 bg-zinc-100 ring-2 ring-zinc-200"
@@ -2225,7 +2463,10 @@ function App() {
               kanbanOrdenPrioridadActivo={kanbanOrdenPrioridadActivo}
               alternarKanbanOrdenPrioridad={alternarKanbanOrdenPrioridad}
               kanbanOrdenPrioridad={kanbanOrdenPrioridad}
-              onVerFichaCliente={isDesigner ? undefined : () => navegarA("clientes")}
+              onVerFichaCliente={isDesigner ? undefined : () => {
+                setClientesDetalleMarca(filtroMarca);
+                navegarA("clientes");
+              }}
               onLimpiarFiltros={() => {
                 setFiltroTiempo("TODAS");
                 setFiltroEstado("TODOS");
@@ -2262,7 +2503,7 @@ function App() {
                           {listaPersonas.map(p => (<option key={p} value={p}>{p}</option>))}
                         </select>
                       </div>
-                      <div className="grid grid-cols-3 gap-1.5 pt-1">
+                      <div className="grid grid-cols-3 gap-1.5 pt-1" data-induccion="dashboard-tiempo">
                         <button onClick={() => setFiltroTiempo("TODAS")} className={`px-2 py-2 rounded text-[10px] font-semibold border ${filtroTiempo === "TODAS" ? "bg-[#37352F] text-white border-zinc-900" : "bg-white border-zinc-200 text-zinc-600"}`}>Todo</button>
                         <button onClick={() => setFiltroTiempo("HOY")} className={`px-2 py-2 rounded text-[10px] font-semibold border ${filtroTiempo === "HOY" ? "bg-blue-600 text-white border-blue-700" : "bg-white border-zinc-200 text-zinc-600"}`}>Hoy{metricaCounters.activasHoy > 0 ? ` (${metricaCounters.activasHoy})` : ""}</button>
                         <button onClick={() => setFiltroTiempo("ATRASADAS")} className={`px-2 py-2 rounded text-[10px] font-semibold border ${filtroTiempo === "ATRASADAS" ? "bg-red-600 text-white border-red-700" : "bg-white border-zinc-200 text-zinc-600"}`}>Atraso{metricaCounters.atrasadas > 0 ? ` (${metricaCounters.atrasadas})` : ""}</button>
@@ -2296,8 +2537,8 @@ function App() {
                           {filtrosDashboardActivos ? " · filtros activos" : ""}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button type="button" onClick={() => setDashboardMobileVista("filtros")} className={`mobile-icon-btn ${filtrosDashboardActivos ? "has-badge" : ""}`} title="Filtros">
+                      <div className="flex items-center gap-1 shrink-0" data-induccion="dashboard-vistas">
+                        <button type="button" onClick={() => setDashboardMobileVista("filtros")} className={`mobile-icon-btn ${filtrosDashboardActivos ? "has-badge" : ""}`} title="Filtros" data-induccion="dashboard-filtros">
                           <i className="fa-solid fa-filter"></i>
                         </button>
                         <button type="button" onClick={() => { setVistaModo("TABLE"); setUserPreference("vistaModo", "TABLE"); }} className={`mobile-icon-btn ${vistaModo === "TABLE" ? "is-active" : ""}`} title="Lista">
@@ -2319,7 +2560,7 @@ function App() {
                       </div>
                     </div>
 
-                    <div className="notion-dash-search">
+                    <div className="notion-dash-search" data-induccion="dashboard-buscar">
                       <i className="fa-solid fa-magnifying-glass notion-dash-search-icon" />
                       <input type="text" placeholder="Buscar..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                     </div>
@@ -2369,7 +2610,7 @@ function App() {
                   </p>
                 </div>
 
-                <div className="flex items-center gap-0.5">
+                <div className="flex items-center gap-0.5" data-induccion="dashboard-vistas">
                   <button onClick={() => { setVistaModo("TABLE"); setUserPreference("vistaModo", "TABLE"); }} className={`px-2.5 py-1 text-ui-sm font-medium rounded transition-colors ${vistaModo === "TABLE" ? "bg-zinc-100 text-zinc-800" : "text-zinc-450 hover:text-zinc-700 hover:bg-zinc-50"}`}>
                     Lista
                   </button>
@@ -2381,7 +2622,7 @@ function App() {
 
               <div className="notion-dash-toolbar">
                 <div className="notion-dash-filters">
-                  <div className="notion-dash-search">
+                  <div className="notion-dash-search" data-induccion="dashboard-buscar">
                     <i className="fa-solid fa-magnifying-glass notion-dash-search-icon" />
                     <input
                       type="text"
@@ -2390,7 +2631,7 @@ function App() {
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
-                  <select value={filtroMarca} onChange={(e) => setFiltroMarca(e.target.value)} className="notion-filter-select">
+                  <select value={filtroMarca} onChange={(e) => setFiltroMarca(e.target.value)} className="notion-filter-select" data-induccion="dashboard-filtros">
                     <option value="TODAS">Cliente</option>
                     {marcasDisponibles.map(m => (<option key={m} value={m}>{formatearMarca(m)}</option>))}
                   </select>
@@ -2407,7 +2648,7 @@ function App() {
                     {listaPersonas.map(p => (<option key={p} value={p}>{p}</option>))}
                   </select>
                 </div>
-                <div className="notion-time-pills">
+                <div className="notion-time-pills" data-induccion="dashboard-tiempo">
                   <button type="button" onClick={() => setFiltroTiempo("TODAS")} className={`notion-time-pill ${filtroTiempo === "TODAS" ? "is-active" : ""}`}>Todo</button>
                   <button type="button" onClick={() => setFiltroTiempo("HOY")} className={`notion-time-pill ${filtroTiempo === "HOY" ? "is-active-blue" : ""}`}>Hoy{metricaCounters.activasHoy > 0 ? ` (${metricaCounters.activasHoy})` : ""}</button>
                   <button type="button" onClick={() => setFiltroTiempo("ATRASADAS")} className={`notion-time-pill ${filtroTiempo === "ATRASADAS" ? "is-active-red" : ""}`}>Atrasados{metricaCounters.atrasadas > 0 ? ` (${metricaCounters.atrasadas})` : ""}</button>
@@ -2470,6 +2711,9 @@ function App() {
               onSaveBrandMetadata={handleSaveBrandMetadata}
               onRegisterBrand={handleCreateBrand}
               onDeleteBrand={handleDeleteBrand}
+              onAbrirMarca={handleAbrirMarcaCliente}
+              marcaDetalleInicial={clientesDetalleMarca}
+              onMarcaDetalleConsumido={() => setClientesDetalleMarca(null)}
             />
           )}
 
@@ -2639,6 +2883,30 @@ function App() {
           listaPersonas={listaPersonas}
           registrarNuevaPersona={registrarNuevaPersonaGlobal}
           onClose={() => setShowGeneradorEstatus(false)}
+        />
+      )}
+
+      {!isConfigOnlyAdmin && induccionBienvenidaVisible && (
+        <InduccionBienvenida
+          visible={induccionBienvenidaVisible}
+          nombreCompleto={nombreCompleto}
+          username={usuario}
+          esDisenador={isDesigner}
+          marcas={marcasDisponibles}
+          onComenzar={comenzarRecorridoInduccion}
+          onOmitir={finalizarInduccion}
+        />
+      )}
+
+      {!isConfigOnlyAdmin && induccionActiva && pasosInduccionFiltrados.length > 0 && (
+        <InduccionTour
+          activo={induccionActiva}
+          pasos={pasosInduccionFiltrados}
+          pasoIndex={induccionPaso}
+          onSiguiente={avanzarInduccion}
+          onAnterior={retrocederInduccion}
+          onSaltar={saltarInduccion}
+          onCerrar={finalizarInduccion}
         />
       )}
 

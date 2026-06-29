@@ -263,3 +263,29 @@ function obtenerGradienteMarcaHeader(marcaName) {
   const glow = ajustarColorHex(accent, 0.22);
   return `linear-gradient(128deg, ${deep} 0%, ${mid} 38%, ${bright} 68%, ${glow} 100%)`;
 }
+
+function hexToRgba(hex, alpha) {
+  const raw = String(hex || "").replace("#", "").trim();
+  if (raw.length !== 6) return `rgba(113, 113, 122, ${alpha})`;
+  const r = parseInt(raw.slice(0, 2), 16);
+  const g = parseInt(raw.slice(2, 4), 16);
+  const b = parseInt(raw.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function obtenerGradientesMarcaTarjeta(marcaName) {
+  const accent = getMarcaStyle(marcaName).accent || "#71717A";
+  const deep = ajustarColorHex(accent, -0.38);
+  const shade = ajustarColorHex(accent, -0.14);
+  const mid = accent;
+  const vivid = ajustarColorHex(accent, 0.14);
+  const glow = ajustarColorHex(accent, 0.26);
+
+  const card = `linear-gradient(128deg, ${deep} 0%, ${shade} 32%, ${mid} 62%, ${vivid} 88%, ${glow} 100%)`;
+
+  return {
+    card,
+    border: hexToRgba(ajustarColorHex(accent, 0.22), 0.45),
+    shadow: hexToRgba(deep, 0.32)
+  };
+}

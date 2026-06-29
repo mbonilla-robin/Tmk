@@ -77,7 +77,7 @@ function BloquePersonasLectura({ titulo, items, mostrarTipo }) {
   );
 }
 
-function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, onRegisterBrand, onDeleteBrand }) {
+function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, onRegisterBrand, onDeleteBrand, onAbrirMarca, marcaDetalleInicial, onMarcaDetalleConsumido }) {
   const [vista, setVista] = useState("grid");
   const [selectedBrand, setSelectedBrand] = useState(marcas[0] || "La Santé");
   const [ficha, setFicha] = useState(() => metadataMarcaVacia());
@@ -87,6 +87,18 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
   const [marcaAEliminar, setMarcaAEliminar] = useState(null);
   const [eliminando, setEliminando] = useState(false);
   const [fichaSucia, setFichaSucia] = useState(false);
+
+  useEffect(() => {
+    if (!marcaDetalleInicial) return;
+    const match = marcas.find(m => marcasCoinciden(m, marcaDetalleInicial));
+    if (match) {
+      setSelectedBrand(match);
+      setVista("detalle");
+    }
+    if (typeof onMarcaDetalleConsumido === "function") {
+      onMarcaDetalleConsumido();
+    }
+  }, [marcaDetalleInicial]);
 
   useEffect(() => {
     setFicha(obtenerMetadataMarca(marcasMetadata, selectedBrand));
@@ -183,39 +195,45 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
   if (vista === "grid") {
     return (
       <div className="flex flex-col gap-5 animate-fade-in">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-200 pb-4">
-          <div>
-            <h2 className="text-base font-bold text-[#37352F]">Fichas Técnicas de Clientes</h2>
-            <p className="text-xs text-zinc-400 mt-0.5">
-              Resumen de marcas, equipos asignados y lineamientos corporativos.
+        <header className="clientes-page-header">
+          <div className="clientes-page-header__bg" aria-hidden="true">
+            <div className="clientes-page-header__orb clientes-page-header__orb--1" />
+            <div className="clientes-page-header__orb clientes-page-header__orb--2" />
+          </div>
+          <div className="clientes-page-header__content">
+            <h2 className="clientes-page-header__title">Clientes</h2>
+            <p className="clientes-page-header__subtitle">
+              Toca un cliente para entrar a su espacio de trabajo.
             </p>
           </div>
           {canEdit && (
             <button
               type="button"
               onClick={() => setShowAddBrandModal(true)}
-              className="px-3 py-1.5 bg-[#37352F] hover:bg-[#2c2a26] text-white text-xs font-semibold rounded transition-colors shrink-0"
+              className="clientes-page-header__add-btn"
             >
               + Añadir cliente
             </button>
           )}
-        </div>
+        </header>
 
         {marcas.length === 0 ? (
           <div className="text-center py-12 text-zinc-400 text-sm italic border border-dashed border-zinc-200 rounded-md">
             No hay clientes registrados todavía.
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="clientes-marca-grid">
             {marcas.map(m => {
-              const meta = obtenerMetadataMarca(marcasMetadata, m);
-              const estilo = getMarcaStyle(m);
+              const gradientes = obtenerGradientesMarcaTarjeta(m);
+              const abrirMarca = () => {
+                if (typeof onAbrirMarca === "function") {
+                  onAbrirMarca(m);
+                  return;
+                }
+                abrirDetalle(m);
+              };
               return (
-                <div
-                  key={m}
-                  className="relative text-left border border-zinc-200 rounded-md p-4 flex flex-col gap-3 bg-white hover:bg-zinc-50/80 transition-all border-l-[3px]"
-                  style={{ borderLeftColor: estilo.accent }}
-                >
+                <div key={m} className="clientes-marca-btn-wrap">
                   {canEdit && onDeleteBrand && (
                     <button
                       type="button"
@@ -223,7 +241,7 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
                         e.stopPropagation();
                         setMarcaAEliminar(m);
                       }}
-                      className="absolute top-2 right-2 p-1.5 rounded opacity-50 hover:opacity-100 hover:bg-black/5 transition-all"
+                      className="clientes-marca-btn__delete"
                       title="Eliminar cliente"
                     >
                       <i className="fa-regular fa-trash-can text-[10px]"></i>
@@ -231,52 +249,16 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
                   )}
                   <button
                     type="button"
-                    onClick={() => abrirDetalle(m)}
-                    className="text-left flex flex-col gap-3 w-full"
+                    onClick={abrirMarca}
+                    className="clientes-marca-btn"
+                    style={{
+                      background: gradientes.card,
+                      borderColor: gradientes.border,
+                      boxShadow: `0 10px 32px ${gradientes.shadow}`
+                    }}
                   >
-                  <div className="flex items-start justify-between gap-2 pr-6">
-                    <div className="min-w-0">
-                      <span className="text-sm font-bold block" style={{ color: estilo.accent }}>
-                        {formatearMarca(m)}
-                      </span>
-                      <span className="text-[10px] opacity-60 font-medium">Ficha técnica</span>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5 text-[11px] leading-relaxed opacity-90">
-                    {meta.clienteDirecto && (
-                      <div className="flex gap-1.5">
-                        <span className="font-bold shrink-0 opacity-70">Cliente directo:</span>
-                        <span className="truncate">{meta.clienteDirecto}</span>
-                      </div>
-                    )}
-                    <div className="flex gap-1.5">
-                      <span className="font-bold shrink-0 opacity-70">Ejecutivos:</span>
-                      <span className="truncate">{formatearPersonasLista(meta.ejecutivos)}</span>
-                    </div>
-                    <div className="flex gap-1.5">
-                      <span className="font-bold shrink-0 opacity-70">Diseño:</span>
-                      <span className="truncate">{formatearDisenadoresLista(meta.disenadores)}</span>
-                    </div>
-                    <div className="flex gap-1.5">
-                      <span className="font-bold shrink-0 opacity-70">Content:</span>
-                      <span className="truncate">{formatearPersonasLista(meta.contentEquipo)}</span>
-                    </div>
-                  </div>
-
-                  {meta.notas ? (
-                    <p className="text-[10px] leading-relaxed opacity-75 line-clamp-3 border-t border-current/10 pt-2">
-                      {meta.notas}
-                    </p>
-                  ) : (
-                    <p className="text-[10px] italic opacity-50 border-t border-current/10 pt-2">
-                      Sin notas técnicas registradas.
-                    </p>
-                  )}
-
-                  <span className="text-[10px] font-bold opacity-60 mt-auto">
-                    {canEdit ? "Ver / Editar →" : "Ver detalle →"}
-                  </span>
+                    <span className="clientes-marca-btn__name">{formatearMarca(m)}</span>
+                    <i className="fa-solid fa-chevron-right clientes-marca-btn__arrow" aria-hidden="true" />
                   </button>
                 </div>
               );

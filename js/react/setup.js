@@ -38,3 +38,20 @@ function limpiarTaskKeyEnUrl() {
     window.history.replaceState({}, "", nextUrl);
   } catch (e) { /* ignore */ }
 }
+
+function crearNuevaTareaVacia() {
+  var hoy = new Date();
+  var fechaInicio = hoy.getDate() + "/" + (hoy.getMonth() + 1) + "/" + hoy.getFullYear();
+  return {
+    marca: "La Santé",
+    categoria: "",
+    info: "",
+    personas: "",
+    detalles: "",
+    link: "",
+    estado: "Pendiente",
+    deadline: "",
+    fechaInicio: fechaInicio,
+    prioridad: "Media"
+  };
+}

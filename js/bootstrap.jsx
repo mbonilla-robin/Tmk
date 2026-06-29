@@ -67,6 +67,10 @@
         showBootError("La aplicación no compiló. Prueba recargar o borrar la caché de la PWA.");
         return;
       }
+      if (typeof window.crearNuevaTareaVacia !== "function") {
+        showBootError("No cargó el módulo de tareas. Borra la caché del sitio (Application → Clear site data) y recarga.");
+        return;
+      }
       const root = ReactDOM.createRoot(container);
       root.render(
         <RobinErrorBoundary>

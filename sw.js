@@ -1,8 +1,6 @@
-const CACHE_NAME = "robin-pwa-v100";
+const CACHE_NAME = "robin-pwa-v102";
 
 const STATIC_ASSETS = [
-  "./",
-  "./index.html",
   "./manifest.webmanifest",
   "./css/main.css",
   "./logo robin negro.png",
@@ -20,65 +18,7 @@ const STATIC_ASSETS = [
   "./icons/pwa-naranja-512.png",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
-  "./icons/apple-touch-icon.png",
-  "./js/react/setup.js",
-  "./js/config/api.js",
-  "./js/config/supabase.js",
-  "./js/config/auth.js",
-  "./js/utils/storage.js",
-  "./js/utils/diagnostics.js",
-  "./js/utils/user.js",
-  "./js/utils/preferences.js",
-  "./js/utils/auth.js",
-  "./js/utils/api.js",
-  "./js/utils/personas.js",
-  "./js/utils/categorias.js",
-  "./js/utils/tasks.js",
-  "./js/utils/taskBackup.js",
-  "./js/utils/strings.js",
-  "./js/utils/dates.js",
-  "./js/utils/detalles.js",
-  "./js/utils/validation.js",
-  "./js/utils/presence.js",
-  "./js/utils/widgets.js",
-  "./js/utils/estatus.js",
-  "./js/utils/equipos.js",
-  "./js/utils/comentarios.js",
-  "./js/utils/perfil.js",
-  "./js/constants/index.js",
-  "./js/utils/marcas.js",
-  "./js/pwa.js",
-  "./js/components/RobinLogo.jsx",
-  "./js/components/WidgetIcon.jsx",
-  "./js/components/SvgIcons.jsx",
-  "./js/components/CalendarioNotion.jsx",
-  "./js/components/LayoutTablaAgrupada.jsx",
-  "./js/components/LayoutKanban.jsx",
-  "./js/components/SelectorPersonasChips.jsx",
-  "./js/components/SelectorCategoriasChips.jsx",
-  "./js/components/EditorNotasRich.jsx",
-  "./js/components/FormularioCrearEntregable.jsx",
-  "./js/components/GeneradorEstatus.jsx",
-  "./js/components/BarraAccionesMasivas.jsx",
-  "./js/components/BarraHoyAccesoRapido.jsx",
-  "./js/components/DesktopWidgetsPanel.jsx",
-  "./js/components/MobileWidgetsGrid.jsx",
-  "./js/components/LayoutHome.jsx",
-  "./js/components/LayoutMarcaHome.jsx",
-  "./js/components/LayoutEquipos.jsx",
-  "./js/components/ModalPortal.jsx",
-  "./js/components/LayoutClientes.jsx",
-  "./js/components/ListaSubtareas.jsx",
-  "./js/components/InputFechaLibre.jsx",
-  "./js/components/ModalEdicionTarea.jsx",
-  "./js/components/PanelPerfilUsuario.jsx",
-  "./js/components/ComentariosTarea.jsx",
-  "./js/components/CampanaNotificaciones.jsx",
-  "./js/components/WidgetsAdminPanel.jsx",
-  "./js/components/MobileSubpageBar.jsx",
-  "./js/components/MobileNavBar.jsx",
-  "./js/App.jsx",
-  "./js/bootstrap.jsx"
+  "./icons/apple-touch-icon.png"
 ];
 
 self.addEventListener("message", (event) => {
@@ -114,26 +54,10 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  const isLocalDev =
-    url.hostname === "localhost" || url.hostname === "127.0.0.1";
-
-  if (isAppScript(url.pathname)) {
-    if (isLocalDev) {
-      event.respondWith(fetch(request));
-      return;
-    }
-
+  // JS/JSX siempre desde red: evita funciones "is not defined" por caché vieja
+  if (isAppScript(url.pathname) || url.pathname.endsWith(".html")) {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response && response.status === 200) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-            return response;
-          }
-          return caches.match(request);
-        })
-        .catch(() => caches.match(request))
+      fetch(request).catch(() => caches.match(request))
     );
     return;
   }
@@ -147,6 +71,6 @@ self.addEventListener("fetch", (event) => {
         }
         return response;
       })
-      .catch(() => caches.match(request).then((cached) => cached || caches.match("./index.html")))
+      .catch(() => caches.match(request))
   );
 });

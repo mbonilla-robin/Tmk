@@ -103,8 +103,73 @@
     })();
   </script>
 
+  <!-- Boot crítico inline: no depende de caché externa del service worker -->
+  <script>
+    (function () {
+      var ROBIN_BUILD = "102";
+      try {
+        if (localStorage.getItem("robin_build") !== ROBIN_BUILD) {
+          localStorage.setItem("robin_build", ROBIN_BUILD);
+          if ("serviceWorker" in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function (regs) {
+              regs.forEach(function (r) { r.unregister(); });
+            });
+          }
+          if (typeof caches !== "undefined" && caches.keys) {
+            caches.keys().then(function (keys) {
+              keys.forEach(function (k) { caches.delete(k); });
+            });
+          }
+        }
+      } catch (e) { /* ignore */ }
+
+      var TASK_KEY_URL_PARAMS = ["task", "task_key", "tarea"];
+
+      window.leerTaskKeyDesdeUrl = function () {
+        try {
+          var params = new URLSearchParams(window.location.search || "");
+          for (var i = 0; i < TASK_KEY_URL_PARAMS.length; i++) {
+            var valor = String(params.get(TASK_KEY_URL_PARAMS[i]) || "").trim();
+            if (valor) return valor;
+          }
+        } catch (e) { /* ignore */ }
+        return "";
+      };
+
+      window.limpiarTaskKeyEnUrl = function () {
+        try {
+          var url = new URL(window.location.href);
+          var changed = false;
+          TASK_KEY_URL_PARAMS.forEach(function (key) {
+            if (url.searchParams.has(key)) { url.searchParams.delete(key); changed = true; }
+          });
+          if (!changed) return;
+          var query = url.searchParams.toString();
+          var nextUrl = query ? url.pathname + "?" + query + url.hash : url.pathname + url.hash;
+          window.history.replaceState({}, "", nextUrl);
+        } catch (e) { /* ignore */ }
+      };
+
+      window.crearNuevaTareaVacia = function () {
+        var hoy = new Date();
+        return {
+          marca: "La Santé",
+          categoria: "",
+          info: "",
+          personas: "",
+          detalles: "",
+          link: "",
+          estado: "Pendiente",
+          deadline: "",
+          fechaInicio: hoy.getDate() + "/" + (hoy.getMonth() + 1) + "/" + hoy.getFullYear(),
+          prioridad: "Media"
+        };
+      };
+    })();
+  </script>
+
   <!-- Capa base (sin JSX) -->
-  <script src="js/react/setup.js?v=100"></script>
+  <script src="js/react/setup.js"></script>
   <script src="js/config/api.js"></script>
   <script src="js/config/supabase.js"></script>
   <script src="js/config/auth.js"></script>
@@ -115,11 +180,11 @@
   <script src="js/utils/auth.js"></script>
   <script src="js/utils/api.js"></script>
   <script src="js/utils/personas.js"></script>
+  <script src="js/utils/strings.js"></script>
+  <script src="js/utils/dates.js"></script>
   <script src="js/utils/categorias.js"></script>
   <script src="js/utils/tasks.js"></script>
   <script src="js/utils/taskBackup.js"></script>
-  <script src="js/utils/strings.js"></script>
-  <script src="js/utils/dates.js"></script>
   <script src="js/utils/detalles.js"></script>
   <script src="js/utils/validation.js"></script>
   <script src="js/utils/presence.js"></script>
@@ -162,7 +227,7 @@
   <script type="text/babel" data-presets="react" src="js/components/WidgetsAdminPanel.jsx"></script>
   <script type="text/babel" data-presets="react" src="js/components/MobileSubpageBar.jsx"></script>
   <script type="text/babel" data-presets="react" src="js/components/MobileNavBar.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/App.jsx?v=100"></script>
+  <script type="text/babel" data-presets="react" src="js/App.jsx"></script>
   <script type="text/babel" data-presets="react" src="js/bootstrap.jsx"></script>
 </body>
 </html>

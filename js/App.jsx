@@ -120,7 +120,14 @@ function App() {
       searchQuery.trim() !== "";
   }, [filtroMarca, filtroEstado, filtroPrioridad, filtroPersona, filtroTiempo, searchQuery]);
 
-  const [nuevaTarea, setNuevaTarea] = useState(() => crearNuevaTareaVacia());
+  const [nuevaTarea, setNuevaTarea] = useState(() => (
+    typeof window.crearNuevaTareaVacia === "function"
+      ? window.crearNuevaTareaVacia()
+      : (typeof crearNuevaTareaVacia === "function" ? crearNuevaTareaVacia() : {
+          marca: "La Santé", categoria: "", info: "", personas: "", detalles: "",
+          link: "", estado: "Pendiente", deadline: "", fechaInicio: "", prioridad: "Media"
+        })
+  ));
 
   // 🚨 UBICACIÓN CORRECTA DE VARIABLES COMPUTADAS Y useMemo (Evita ReferenceError y TDZ)
   const tareasVisibles = useMemo(() => {
@@ -1263,11 +1270,13 @@ function App() {
 
   useEffect(() => {
     if (!usuario || !tareas.length) return;
-    if (typeof leerTaskKeyDesdeUrl !== "function") return;
-    const taskKey = leerTaskKeyDesdeUrl();
+    var leer = window.leerTaskKeyDesdeUrl || leerTaskKeyDesdeUrl;
+    if (typeof leer !== "function") return;
+    const taskKey = leer();
     if (!taskKey) return;
     abrirTareaPorKey(taskKey);
-    if (typeof limpiarTaskKeyEnUrl === "function") limpiarTaskKeyEnUrl();
+    var limpiar = window.limpiarTaskKeyEnUrl || limpiarTaskKeyEnUrl;
+    if (typeof limpiar === "function") limpiar();
   }, [usuario, tareas]);
 
   const layoutTablaProps = {
@@ -1497,7 +1506,14 @@ function App() {
       setHayPendientesLocales(true);
       notificarAsignacionTarea(nuevaConId, usuario).then(() => refrescarNotificaciones());
 
-      setNuevaTarea(crearNuevaTareaVacia());
+      setNuevaTarea(
+        typeof window.crearNuevaTareaVacia === "function"
+          ? window.crearNuevaTareaVacia()
+          : (typeof crearNuevaTareaVacia === "function" ? crearNuevaTareaVacia() : {
+              marca: "La Santé", categoria: "", info: "", personas: "", detalles: "",
+              link: "", estado: "Pendiente", deadline: "", fechaInicio: "", prioridad: "Media"
+            })
+      );
       setPaginaActiva("dashboard");
       showToast("Entregable creado", "success");
       sincronizarEnSegundoPlano();

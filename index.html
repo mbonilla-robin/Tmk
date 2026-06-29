@@ -66,13 +66,91 @@
     })();
   </script>
 
-  <link rel="stylesheet" href="css/main.css?v=139">
+  <link rel="stylesheet" href="css/main.css?v=141">
 </head>
 <body class="overflow-hidden">
 
-  <div id="root" class="h-screen w-screen overflow-hidden flex items-center justify-center bg-white">
-    <p id="robin-boot-placeholder" style="font-family:Inter,sans-serif;font-size:13px;color:#71717a;">Cargando ROBIN…</p>
+  <div id="root" class="h-screen w-screen overflow-hidden">
+    <div id="robin-boot-splash" class="robin-boot-splash" data-robin-boot aria-live="polite">
+      <div class="robin-boot-splash__bg" aria-hidden="true">
+        <div class="robin-boot-splash__orb robin-boot-splash__orb--1"></div>
+        <div class="robin-boot-splash__orb robin-boot-splash__orb--2"></div>
+        <div class="robin-boot-splash__orb robin-boot-splash__orb--3"></div>
+      </div>
+      <div class="robin-boot-splash__content">
+        <div class="robin-boot-splash__logo-wrap">
+          <img
+            src="logo robin negro.png"
+            alt="ROBIN"
+            class="robin-boot-splash__logo"
+            width="240"
+            height="80"
+            decoding="async"
+          />
+        </div>
+        <p id="robin-boot-greeting" class="robin-boot-splash__greeting">Hola</p>
+        <p class="robin-boot-splash__tagline">Trade &amp; Shopper Marketing</p>
+        <div class="robin-boot-splash__loader" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    </div>
   </div>
+
+  <script>
+    (function robinBootPersonalize() {
+      function safeGet(key) {
+        try { return localStorage.getItem(key); } catch (e) { return null; }
+      }
+
+      function primerNombreBoot() {
+        var user = safeGet("robin_usuario_actual");
+        if (!user || user === "null" || user === "undefined") return null;
+        user = String(user).replace(/^@/, "").toLowerCase().trim();
+        if (!user) return null;
+
+        var nombresEquipo = {
+          mbonilla: "Miguel",
+          ralvarez: "Ricardo",
+          dsalavarria: "Daniela",
+          fcolmenares: "Francisco",
+          gnebrus: "Genesis",
+          sgiucastro: "Sofia",
+          jalfiero: "Juan",
+          arusso: "Andrea",
+          arodriguez: "Alejandro",
+          agraterol: "Alejandro",
+          dmatheus: "Daniel",
+          admin: "Admin"
+        };
+
+        try {
+          var raw = safeGet("robin_user_data_" + user);
+          if (raw) {
+            var prefs = JSON.parse(raw);
+            var nombre = String(prefs.perfilNombre || "").trim();
+            if (!nombre && prefs.nombreCompleto) {
+              nombre = String(prefs.nombreCompleto).trim().split(/\s+/)[0];
+            }
+            if (nombre) return nombre;
+          }
+        } catch (e) { /* ignore */ }
+
+        if (nombresEquipo[user]) return nombresEquipo[user];
+        return user.charAt(0).toUpperCase() + user.slice(1);
+      }
+
+      var greeting = document.getElementById("robin-boot-greeting");
+      if (!greeting) return;
+
+      var nombre = primerNombreBoot();
+      if (nombre) {
+        greeting.innerHTML = 'Hola, <span class="robin-boot-splash__name">' + nombre + "</span>";
+      } else {
+        greeting.textContent = "Bienvenido";
+      }
+    })();
+  </script>
 
   <script>
     (function robinEarlyBootGuard() {
@@ -96,8 +174,8 @@
       }
 
       window.setTimeout(function () {
-        var placeholder = document.getElementById("robin-boot-placeholder");
-        if (placeholder) {
+        var splash = document.querySelector("[data-robin-boot]");
+        if (splash) {
           showBootError(
             "La aplicación no compiló. Revisa tu conexión, recarga la página o borra la caché de la PWA."
           );
@@ -188,7 +266,7 @@
   <script type="text/babel" data-presets="robin-react" src="js/components/MobileNavBar.jsx?v=110"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/InduccionBienvenida.jsx?v=123"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/InduccionTour.jsx?v=125"></script>
-  <script type="text/babel" data-presets="robin-react" src="js/App.jsx?v=137"></script>
+  <script type="text/babel" data-presets="robin-react" src="js/App.jsx?v=138"></script>
   <script type="text/babel" data-presets="robin-react" src="js/bootstrap.jsx?v=111"></script>
 
 </body>

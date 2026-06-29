@@ -2404,7 +2404,9 @@ function App() {
             ? "robin-mobile-main robin-main-agregar !px-0 lg:!px-8"
             : paginaActiva === "dashboard" && filtroMarca !== "TODAS"
               ? "robin-mobile-main marca-home-main"
-              : "robin-mobile-main max-w-6xl mx-auto"
+              : paginaActiva === "configuracion"
+                ? "robin-mobile-main robin-main-config max-w-6xl mx-auto"
+                : "robin-mobile-main max-w-6xl mx-auto"
         }`}>
           {syncDetalleVisible && renderSyncSubpage()}
           
@@ -2731,12 +2733,14 @@ function App() {
             <>
               <div className="robin-mobile-only flex-col gap-3 animate-fade-in">
                 {configSeccion ? (
-                  <div className="flex flex-col gap-3">
+                  <div className="robin-config-subpage flex flex-col gap-3">
                     <MobileSubpageBar
                       title={tituloConfigSeccion(configSeccion)}
                       onBack={() => setConfigSeccion(null)}
                     />
-                    {renderConfigSeccionContenido(configSeccion)}
+                    <div className="robin-config-subpage__body">
+                      {renderConfigSeccionContenido(configSeccion)}
+                    </div>
                   </div>
                 ) : (
                   renderConfigMenu("mobile")

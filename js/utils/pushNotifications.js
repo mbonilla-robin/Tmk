@@ -33,6 +33,15 @@ function urlBase64ToUint8Array(base64String) {
   const raw = atob(base64);
   const arr = new Uint8Array(raw.length);
   for (let i = 0; i < raw.length; i += 1) arr[i] = raw.charCodeAt(i);
+
+  if (arr.length === 66 && arr[0] === 0x04 && arr[1] === 0x04) {
+    return arr.subarray(1);
+  }
+
+  if (arr.length !== 65 || arr[0] !== 0x04) {
+    throw new Error("invalid_vapid_public_key");
+  }
+
   return arr;
 }
 
@@ -378,7 +387,13 @@ async function suscribirConRegistro(reg, username) {
     );
   } catch (e) {
     const detalle = String(e?.message || e);
-    const reason = detalle.includes("subscribe_timeout") ? "timeout" : "subscribe_failed";
+    const reason = detalle.includes("subscribe_timeout") || detalle.includes("timeout")
+      ? "timeout"
+      : detalle.includes("invalid_vapid")
+        ? "invalid_vapid"
+        : detalle.includes("P-256") || detalle.includes("applicationServerKey")
+          ? "invalid_vapid"
+          : "subscribe_failed";
     if (typeof registrarDiagnosticoRobin === "function") {
       registrarDiagnosticoRobin("push", "Subscribe falló", detalle);
     }
@@ -641,7 +656,8 @@ function mensajeErrorPush(reason) {
     save_failed: "Permiso concedido, pero no se registró el teléfono en Supabase. Usa Configuración → API → Activar en este dispositivo.",
     needs_pwa: "En iPhone debes instalar ROBIN en la pantalla de inicio (Compartir → Añadir a inicio) antes de activar notificaciones.",
     needs_gesture: "Pulsa «Registrar dispositivo» para completar la activación en este iPhone.",
-    subscribe_failed: "Cierra ROBIN, ábrela de nuevo desde el icono de Inicio y pulsa Activar otra vez.",
+    subscribe_failed: "No se pudo vincular este iPhone. Cierra ROBIN, ábrela de nuevo e inténtalo otra vez.",
+    invalid_vapid: "Configuración push inválida. Actualiza ROBIN e inténtalo de nuevo.",
     timeout: "La activación tardó demasiado. Cierra ROBIN, ábrela de nuevo e inténtalo otra vez.",
     unsupported: "Este navegador no soporta notificaciones push.",
     no_vapid: "Falta configuración VAPID en la app."

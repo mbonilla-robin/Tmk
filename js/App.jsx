@@ -1280,8 +1280,11 @@ function App() {
 
     const revisarEstado = () => {
       obtenerEstadoPushUsuario(usuario).then((estado) => {
-        setPushRegistroPendiente(Boolean(estado.soportado && !estado.guardadoRemoto));
-        if (!estado.guardadoRemoto) {
+        const pendiente = Boolean(
+          estado.soportado && (!estado.guardadoRemoto || necesitaResuscribirPorVapid(usuario))
+        );
+        setPushRegistroPendiente(pendiente);
+        if (!estado.guardadoRemoto || necesitaResuscribirPorVapid(usuario)) {
           registrarPushEnSegundoPlano(usuario).catch(() => {});
         }
       }).catch(() => {});
@@ -2774,9 +2777,9 @@ function App() {
 
       {!isConfigOnlyAdmin && pushRegistroPendiente && esEntornoPushMovil() && typeof Notification !== "undefined" && Notification.permission === "granted" && (
         <div className="robin-float-above-chrome robin-push-prompt p-4 rounded-lg border border-amber-200 bg-amber-50 shadow-lg animate-zoom-in">
-          <p className="text-sm font-semibold text-zinc-800 mb-1">Falta registrar este iPhone</p>
+          <p className="text-sm font-semibold text-zinc-800 mb-1">Actualiza las notificaciones push</p>
           <p className="text-xs text-zinc-600 leading-relaxed mb-3">
-            Ya diste permiso, pero el teléfono aún no está vinculado para recibir alertas con la app cerrada.
+            Hay una nueva versión del registro push. Pulsa abajo para que las alertas lleguen fuera de la app.
           </p>
           {pushPaso && (
             <p className="text-xs text-amber-800 mb-2">{pushPaso}</p>

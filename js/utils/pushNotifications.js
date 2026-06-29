@@ -77,6 +77,40 @@ function pushRequierePwaInstalada() {
   return esIos() && !esPwaInstalada();
 }
 
+function pushVapidKeyStorageKey(username) {
+  return `robin_push_vapid_${pushUsuario(username)}`;
+}
+
+function pushVapidKeyActual() {
+  return typeof ROBIN_VAPID_KEY_ID !== "undefined" ? String(ROBIN_VAPID_KEY_ID) : "v1";
+}
+
+function necesitaResuscribirPorVapid(username) {
+  const user = pushUsuario(username);
+  if (!user) return false;
+  try {
+    return getLocalStorageItemSafe(pushVapidKeyStorageKey(user), "") !== pushVapidKeyActual();
+  } catch (e) {
+    return true;
+  }
+}
+
+function marcarVapidKeyActual(username) {
+  const user = pushUsuario(username);
+  if (!user) return;
+  try {
+    setLocalStorageItemSafe(pushVapidKeyStorageKey(user), pushVapidKeyActual());
+  } catch (e) { /* ignore */ }
+}
+
+async function invalidarSuscripcionPushLocal(reg) {
+  if (!reg?.pushManager) return;
+  try {
+    const sub = await reg.pushManager.getSubscription();
+    if (sub) await sub.unsubscribe();
+  } catch (e) { /* ignore */ }
+}
+
 function conTimeout(promise, ms, mensaje = "timeout") {
   let timer;
   return Promise.race([
@@ -441,19 +475,33 @@ async function registrarPushConPaso(username, onPaso) {
       return { ok: false, reason: "no_sw", detail: "Service worker no disponible" };
     }
 
+    const requiereNuevaSuscripcion = necesitaResuscribirPorVapid(username);
+    if (requiereNuevaSuscripcion) {
+      avisar("Actualizando registro push…");
+      await invalidarSuscripcionPushLocal(reg);
+    }
+
     avisar("Vinculando este iPhone…");
-    const existente = await reg.pushManager.getSubscription();
+    const existente = requiereNuevaSuscripcion
+      ? null
+      : await reg.pushManager.getSubscription();
+
     if (existente) {
       avisar("Guardando en el servidor…");
       const guardado = await guardarSuscripcionPush(username, existente);
       if (guardado.ok) {
+        marcarVapidKeyActual(username);
         return { ok: true, endpoint: existente.endpoint };
       }
-      return { ok: false, reason: guardado.reason || "save_failed", detail: guardado.detail };
+      await invalidarSuscripcionPushLocal(reg);
     }
 
     avisar("Creando suscripción push…");
-    return await suscribirConRegistro(reg, username);
+    const resultado = await suscribirConRegistro(reg, username);
+    if (resultado.ok) {
+      marcarVapidKeyActual(username);
+    }
+    return resultado;
   } catch (e) {
     const detalle = String(e?.message || e);
     const reason = detalle.includes("timeout") ? "timeout" : "no_sw";
@@ -658,6 +706,7 @@ function mensajeErrorPush(reason) {
     needs_gesture: "Pulsa «Registrar dispositivo» para completar la activación en este iPhone.",
     subscribe_failed: "No se pudo vincular este iPhone. Cierra ROBIN, ábrela de nuevo e inténtalo otra vez.",
     invalid_vapid: "Configuración push inválida. Actualiza ROBIN e inténtalo de nuevo.",
+    vapid_stale: "Hay una actualización de notificaciones. Pulsa «Registrar dispositivo» otra vez.",
     timeout: "La activación tardó demasiado. Cierra ROBIN, ábrela de nuevo e inténtalo otra vez.",
     unsupported: "Este navegador no soporta notificaciones push.",
     no_vapid: "Falta configuración VAPID en la app."
@@ -905,6 +954,12 @@ async function enviarPushPruebaUsuario(username) {
   const remoto = await dispararPushRemoto(notif);
   if (remoto.ok && remoto.sent > 0) {
     return { ok: true, sent: remoto.sent, via: "remote" };
+  }
+
+  if (Array.isArray(remoto.errors) && remoto.errors.some((e) => e.status === 403)) {
+    try {
+      removeLocalStorageItemSafe(pushVapidKeyStorageKey(user));
+    } catch (e) { /* ignore */ }
   }
 
   const local = await mostrarPushLocal(notif);

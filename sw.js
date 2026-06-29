@@ -1,4 +1,4 @@
-const CACHE_NAME = "robin-pwa-v92";
+const CACHE_NAME = "robin-pwa-v93";
 
 const STATIC_ASSETS = [
   "./",
@@ -179,16 +179,13 @@ self.addEventListener("push", (event) => {
   const body = data.body || "Tienes una notificación nueva";
   const taskKey = data.task_key || "";
   const tag = data.id ? `robin-notif-${data.id}` : "robin-notif";
-  const iconUrl = new URL("./icons/pwa-naranja-192.png", self.location.origin).href;
 
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
-      icon: iconUrl,
-      badge: iconUrl,
       tag,
-      renotify: true,
-      data: { taskKey, type: data.type || "", notifId: data.id || "" }
+      data: { taskKey, type: data.type || "", notifId: data.id || "" },
+      silent: false
     }).then(() =>
       self.clients.matchAll({ type: "window", includeUncontrolled: true })
         .then((clientList) => {
@@ -200,7 +197,9 @@ self.addEventListener("push", (event) => {
             });
           });
         })
-    )
+    ).catch((err) => {
+      console.error("ROBIN SW: showNotification falló", err);
+    })
   );
 });
 

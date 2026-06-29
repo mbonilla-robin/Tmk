@@ -1,8 +1,9 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3";
 
-const ROBIN_VAPID_PUBLIC = "BEJngr6mhRTnJgjkwtTbut3CIxIH0C45NkO0RW-pQmOsp5k4E1giYNZ1Ib_O0OEpSD1etbYahuMusKt3KNgBTuk";
-const ROBIN_VAPID_PRIVATE = "fY7ju6O4gUBHwPVT7fqPPN1pgLIDbxMeG7K43LCWGLQ";
+const ROBIN_VAPID_PUBLIC = "BCXRrxFM-MiBBd4dpGxWTZwBpumTiqZfGk732b9YEEOXes0qZtgEFD550dVPtq7DVZh-XoRPTjxInWcqTsfPHqU";
+const ROBIN_VAPID_PRIVATE = "vr-cBOrtjdsS_cU3ptqlWbjzsPsz0Wmu-hK4-UA39UA";
+const ROBIN_VAPID_KEY_ID = "v3";
 const ROBIN_VAPID_SUBJECT = "mailto:robin@trade.local";
 
 const DISPLAY_NAMES: Record<string, string> = {
@@ -228,7 +229,7 @@ Deno.serve(async (req) => {
         message: message.slice(0, 240)
       });
 
-      if (status === 404 || status === 410) {
+      if (status === 404 || status === 410 || status === 403) {
         staleIds.push(row.id);
       }
 

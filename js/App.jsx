@@ -192,11 +192,11 @@ function App() {
   const estadoSyncResumen = useMemo(() => resumirEstadoSyncRobin({
     apiError,
     apiErrorDetail,
-    hayPendientesLocales,
+    hayPendientesLocales: calcularHayPendientesLocales(tareas),
     syncing,
     loading,
     colaPendiente: typeof cargarColaSync === "function" ? cargarColaSync().length : 0
-  }), [apiError, apiErrorDetail, hayPendientesLocales, syncing, loading]);
+  }), [apiError, apiErrorDetail, tareas, syncing, loading]);
 
   const otrosUsuariosEnLinea = useMemo(() => {
     const yo = String(usuario || "").replace(/^@/, "").toLowerCase();
@@ -1012,6 +1012,7 @@ function App() {
           }
 
           const remotas = normalizarTareasDesdeApi(json.data);
+          reconciliarTareasLocalesConRemotas(remotas);
           let fusionadas = [];
           setTareas((prevTareas) => {
             const base = combinarLocalesParaFusion(prevTareas, cargarTareasLocales());
@@ -1019,7 +1020,7 @@ function App() {
             guardarTareasLocales(fusionadas);
             return fusionadas;
           });
-          setHayPendientesLocales(hayPendientesSync() || hayTareasPendientesLocales(fusionadas));
+          setHayPendientesLocales(calcularHayPendientesLocales(fusionadas));
 
           if (json.marcasMetadata) {
             const normalizado = {};
@@ -1033,7 +1034,11 @@ function App() {
           setApiError(null);
           setApiErrorDetail("");
           setUltimaSyncOk(new Date().toISOString());
-          registrarDiagnosticoRobin("sheets", "Sincronización correcta", `Tareas: ${fusionadas.length}`);
+          registrarDiagnosticoRobin(
+            "sheets",
+            "Sincronización correcta",
+            `Remotas: ${remotas.length} · Fusionadas: ${fusionadas.length} · Cola: ${cargarColaSync().length}`
+          );
           if (!isBackground) setLoading(false);
           if (!isBackground) setSyncing(false);
           return;
@@ -1080,7 +1085,8 @@ function App() {
       syncMutexRef.current = true;
       try {
         const resultado = await procesarColaSync();
-        setHayPendientesLocales(hayPendientesSync() || hayTareasPendientesLocales(cargarTareasLocales()));
+        reconciliarTareasLocalesConRemotas([]);
+        setHayPendientesLocales(calcularHayPendientesLocales(cargarTareasLocales()));
         if (resultado.sessionMissing) return;
         if (resultado.errores && resultado.errores.length > 0) {
           const detalle = resultado.errores.map((e) => e.error || e.type).join(" · ");
@@ -1088,16 +1094,21 @@ function App() {
           setApiError((prev) => prev || "Cambios pendientes en Google Sheets");
           setApiErrorDetail((prev) => prev || detalle);
           showToast("No se pudo guardar en Google Sheets. Se reintentará automáticamente.", "error");
-        } else if (resultado.processed > 0) {
-          showToast("Cambios guardados en Google Sheets", "success");
-          await new Promise((resolve) => setTimeout(resolve, 600));
+        } else {
+          if (resultado.processed > 0) {
+            showToast("Cambios guardados en Google Sheets", "success");
+            await new Promise((resolve) => setTimeout(resolve, 600));
+          }
+          setApiError(null);
+          setApiErrorDetail("");
         }
         await fetchData(true);
       } catch (e) {
         console.warn("ROBIN: sync en segundo plano", e);
+        registrarDiagnosticoRobin("sheets", "Error de sincronización en segundo plano", e?.message || String(e));
       } finally {
         syncMutexRef.current = false;
-        setHayPendientesLocales(hayPendientesSync() || hayTareasPendientesLocales(cargarTareasLocales()));
+        setHayPendientesLocales(calcularHayPendientesLocales(cargarTareasLocales()));
       }
     }, 350);
   };
@@ -1554,7 +1565,7 @@ function App() {
               </p>
             ) : null}
             <p className={`${currentTheme.mutedText} mt-2 text-[11px]`}>
-              Cola local: {colaPendiente} · Pendientes: {hayPendientesLocales ? "sí" : "no"}
+              Cola local: {colaPendiente} · Pendientes: {calcularHayPendientesLocales(tareas) ? "sí" : "no"}
               {ultimaSyncOk ? ` · Última sync OK: ${new Date(ultimaSyncOk).toLocaleString("es-VE")}` : ""}
             </p>
           </div>

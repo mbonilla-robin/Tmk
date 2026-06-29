@@ -151,7 +151,84 @@ function tareaEsPendienteLocal(t) {
   if (!t) return false;
   if (t._pendingSync) return true;
   const id = String(t.idTarea || "").trim();
-  return id.startsWith("STB-");
+  if (!id.startsWith("STB-")) return false;
+  const key = getTaskSelectionKey(t);
+  return cargarColaSync().some((op) => op.taskKey === key || op.taskKeyOriginal === key);
+}
+
+function tareaCoincideConOperacionSync(tarea, op) {
+  if (!tarea || !op) return false;
+  const keys = [op.taskKey, op.taskKeyOriginal].filter(Boolean);
+  const key = getTaskSelectionKey(tarea);
+  if (keys.includes(key)) return true;
+
+  const payload = op.payload || {};
+  if (!marcasCoinciden(tarea.marca, payload.marca)) return false;
+  if (infoTareaCoincide(tarea.info, payload.info)) return true;
+  if (infoTareaCoincide(tarea.info, payload.originalInfo)) return true;
+  return false;
+}
+
+function confirmarTareaLocalTrasSync(op, respuesta) {
+  const idRemoto = String(respuesta?.idTarea || "").trim();
+  const tareas = cargarTareasLocales();
+  let cambio = false;
+
+  const actualizadas = tareas.map((tarea) => {
+    if (!tareaCoincideConOperacionSync(tarea, op)) return tarea;
+
+    let next = desmarcarTareaPendiente(normalizarTareaCampos(tarea));
+    if (idRemoto && !idRemoto.startsWith("STB-")) {
+      next = { ...next, idTarea: idRemoto };
+    }
+    if (next._localFechas) {
+      const limpia = limpiarFechasLocalesSiConfirmadas(next, next);
+      next = desmarcarTareaPendiente(limpia);
+    }
+    cambio = true;
+    return next;
+  });
+
+  if (cambio) guardarTareasLocales(actualizadas);
+  return cambio;
+}
+
+function reconciliarTareasLocalesConRemotas(remotas) {
+  const listaRemotas = remotas || [];
+  const tareas = cargarTareasLocales();
+  if (!tareas.length || !listaRemotas.length) return tareas;
+
+  const cola = cargarColaSync();
+  let cambio = false;
+
+  const actualizadas = tareas.map((local) => {
+    const idLocal = String(local.idTarea || "").trim();
+    const pendiente = local._pendingSync || idLocal.startsWith("STB-");
+    if (!pendiente) return local;
+
+    const remota = listaRemotas.find((r) => remotaCorrespondeATareaLocal(r, local, cola));
+    if (!remota) return local;
+
+    const idRemoto = String(remota.idTarea || "").trim();
+    if (!idRemoto || idRemoto.startsWith("STB-")) return local;
+
+    cambio = true;
+    const fusionada = normalizarTareaCampos({
+      ...local,
+      ...remota,
+      idTarea: idRemoto,
+      detalles: local.detalles || remota.detalles
+    });
+    return desmarcarTareaPendiente(limpiarFechasLocalesSiConfirmadas(fusionada, remota));
+  });
+
+  if (cambio) guardarTareasLocales(actualizadas);
+  return cambio ? actualizadas : tareas;
+}
+
+function calcularHayPendientesLocales(tareas) {
+  const lista = tareas || cargarTareasLocales();
+  return hayPendientesSync() || hayTareasPendientesLocales(lista);
 }
 
 function infoTareaCoincide(a, b) {
@@ -413,6 +490,7 @@ async function procesarColaSync() {
         }
 
         if (json && json.success === true) {
+          confirmarTareaLocalTrasSync(op, json);
           exito = true;
           processed += 1;
           break;

@@ -1362,7 +1362,18 @@ function doPost(e) {
     
     actualizarHojaHoy();
 
-    return robinJsonResponse_({ success: true, message: "Sincronización completada con éxito." });
+    var idFinal = String(idTarea || "").trim();
+    if (!idFinal && targetRow !== -1) {
+      idFinal = String(targetSheet.getRange(targetRow, 9).getValue() || "").trim();
+    }
+
+    return robinJsonResponse_({
+      success: true,
+      message: "Sincronización completada con éxito.",
+      idTarea: idFinal,
+      marca: marca,
+      info: String(payload.info || "").trim()
+    });
 
   } catch (err) {
     return robinErrorResponse_(err.message || err.toString());

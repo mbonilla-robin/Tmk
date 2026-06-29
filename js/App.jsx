@@ -1,3 +1,39 @@
+const TASK_KEY_URL_PARAMS = ["task", "task_key", "tarea"];
+
+function leerTaskKeyDesdeUrl() {
+  try {
+    const params = new URLSearchParams(window.location.search || "");
+    for (let i = 0; i < TASK_KEY_URL_PARAMS.length; i += 1) {
+      const valor = String(params.get(TASK_KEY_URL_PARAMS[i]) || "").trim();
+      if (valor) return valor;
+    }
+  } catch (e) {
+    /* ignore */
+  }
+  return "";
+}
+
+function limpiarTaskKeyEnUrl() {
+  try {
+    const url = new URL(window.location.href);
+    let changed = false;
+    TASK_KEY_URL_PARAMS.forEach((key) => {
+      if (url.searchParams.has(key)) {
+        url.searchParams.delete(key);
+        changed = true;
+      }
+    });
+    if (!changed) return;
+    const query = url.searchParams.toString();
+    const nextUrl = query
+      ? `${url.pathname}?${query}${url.hash}`
+      : `${url.pathname}${url.hash}`;
+    window.history.replaceState({}, "", nextUrl);
+  } catch (e) {
+    /* ignore */
+  }
+}
+
 function App() {
   const [usuario, setUsuario] = useState(() => (hasRobinApiSession() ? getInicialUsuario() : null));
   const [initialPrefs] = useState(() => {

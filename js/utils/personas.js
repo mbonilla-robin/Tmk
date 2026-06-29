@@ -44,6 +44,7 @@ const PERSONAS_ALIAS_A_CANONICO = (() => {
   add("migue", "mbonilla");
   add("bonilla", "mbonilla");
   add("miguel bonilla", "mbonilla");
+  add("m bonilla", "mbonilla");
   add("mbonilla", "mbonilla");
   add("@miguel", "mbonilla");
   add("@migue", "mbonilla");
@@ -54,6 +55,7 @@ const PERSONAS_ALIAS_A_CANONICO = (() => {
   add("ric", "ralvarez");
   add("alvarez", "ralvarez");
   add("ricardo alvarez", "ralvarez");
+  add("r alvarez", "ralvarez");
   add("ralvarez", "ralvarez");
   add("@ricardo", "ralvarez");
   add("@ricky", "ralvarez");
@@ -64,6 +66,7 @@ const PERSONAS_ALIAS_A_CANONICO = (() => {
   add("dani", "dsalavarria");
   add("salavarria", "dsalavarria");
   add("daniela salavarria", "dsalavarria");
+  add("d salavarria", "dsalavarria");
   add("dsalavarria", "dsalavarria");
   add("@daniela", "dsalavarria");
   add("@dani", "dsalavarria");
@@ -104,6 +107,44 @@ const PERSONAS_ALIAS_A_CANONICO = (() => {
 
 const PERSONAS_ALIAS_ORDENADOS = Object.keys(PERSONAS_ALIAS_A_CANONICO)
   .sort((a, b) => b.length - a.length);
+
+function resolverMencionEnPosicion(texto, indiceDespuesDeArroba) {
+  const raw = String(texto || "");
+  const slice = raw.slice(indiceDespuesDeArroba);
+  if (!slice) return null;
+
+  const sliceNorm = normalizarClavePersona(slice);
+
+  for (const alias of PERSONAS_ALIAS_ORDENADOS) {
+    const aliasNorm = normalizarClavePersona(alias);
+    if (!aliasNorm) continue;
+
+    if (sliceNorm.startsWith(aliasNorm)) {
+      const nextChar = slice.charAt(aliasNorm.length);
+      if (!nextChar || /[\s,;.:!?\n]/.test(nextChar)) {
+        const canonico = PERSONAS_ALIAS_A_CANONICO[alias];
+        if (!canonico) continue;
+        return {
+          handle: canonico,
+          endIndex: indiceDespuesDeArroba + aliasNorm.length
+        };
+      }
+    }
+  }
+
+  const wordMatch = slice.match(/^[^\s@,]+/);
+  if (wordMatch) {
+    const canonico = resolverHandleCanonico(wordMatch[0]);
+    if (canonico) {
+      return {
+        handle: canonico,
+        endIndex: indiceDespuesDeArroba + wordMatch[0].length
+      };
+    }
+  }
+
+  return null;
+}
 
 function normalizarClavePersona(valor) {
   return String(valor || "")

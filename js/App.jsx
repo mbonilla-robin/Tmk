@@ -251,7 +251,9 @@ function App() {
     const alVolverVisible = () => {
       if (document.visibilityState !== "visible") return;
       refrescarNotificaciones({ soloActualizarUi: true });
-      mantenerSuscripcionPushActiva(usuario).catch(() => {});
+      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+        registrarPushEnSegundoPlano(usuario).catch(() => {});
+      }
     };
 
     document.addEventListener("visibilitychange", alVolverVisible);
@@ -1259,32 +1261,35 @@ function App() {
   };
 
   useEffect(() => {
-    pushPromptDescartadoRef.current = false;
+    pushPromptDescartadoRef.current = Boolean(usuario && pushPromptYaAtendido(usuario));
   }, [usuario]);
 
   useEffect(() => {
     if (!usuario || isConfigOnlyAdmin) return undefined;
+    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+      setPushPromptVisible(false);
+      registrarPushEnSegundoPlano(usuario).catch(() => {});
+      return undefined;
+    }
+
     let cancelado = false;
 
     (async () => {
-      const resultado = await inicializarPushNotificaciones(usuario);
-      if (cancelado || pushPromptDescartadoRef.current) return;
+      if (pushPromptDescartadoRef.current || pushPromptYaAtendido(usuario)) return;
 
-      const estado = await obtenerEstadoPushUsuario(usuario);
-      if (resultado?.ok || estado.guardadoRemoto) {
+      const resultado = await inicializarPushNotificaciones(usuario);
+      if (cancelado || pushPromptDescartadoRef.current || pushPromptYaAtendido(usuario)) return;
+      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
         setPushPromptVisible(false);
         return;
       }
 
-      if (pushPromptYaAtendido(usuario) && estado.permiso !== "granted") return;
+      if (resultado?.ok || resultado?.reason === "denied") {
+        setPushPromptVisible(false);
+        return;
+      }
 
-      const necesitaActivar = (
-        resultado?.reason === "needs_prompt" ||
-        resultado?.reason === "save_failed" ||
-        (estado.permiso === "granted" && !estado.guardadoRemoto)
-      );
-
-      if (necesitaActivar && esEntornoPushMovil()) {
+      if (resultado?.reason === "needs_prompt" && esEntornoPushMovil()) {
         setPushPromptVisible(true);
       }
     })();
@@ -1321,51 +1326,33 @@ function App() {
   const handleActivarPush = async () => {
     if (!usuario || pushActivando) return;
 
-    if (pushRequierePwaInstalada && pushRequierePwaInstalada()) {
-      showToast(mensajeErrorPush("needs_pwa"), "error");
+    if (typeof Notification === "undefined") {
+      cerrarPushPrompt();
+      return;
+    }
+
+    if (Notification.permission === "denied") {
+      cerrarPushPrompt();
       return;
     }
 
     setPushActivando(true);
     try {
-      if (typeof Notification === "undefined") {
-        showToast(mensajeErrorPush("unsupported"), "error");
-        return;
-      }
-
       if (Notification.permission === "default") {
         const permiso = await Notification.requestPermission();
         if (permiso !== "granted") {
           cerrarPushPrompt();
-          showToast(mensajeErrorPush("denied"), "info");
           return;
         }
-      } else if (Notification.permission === "denied") {
-        showToast(mensajeErrorPush("denied"), "info");
-        return;
       }
 
-      const resultado = await Promise.race([
-        suscribirPushNotificaciones(usuario),
-        new Promise((_, reject) => {
-          setTimeout(() => reject(new Error("push_timeout")), 45000);
-        })
-      ]).catch((e) => ({
-        ok: false,
-        reason: e?.message === "push_timeout" ? "timeout" : "subscribe_failed",
-        detail: String(e?.message || e)
-      }));
-
+      const resultado = await suscribirPushNotificaciones(usuario, { omitirPermiso: true });
+      cerrarPushPrompt();
       if (resultado.ok) {
-        cerrarPushPrompt();
-        showToast("Notificaciones activadas en este dispositivo", "success");
         enviarPushPruebaUsuario(usuario).catch(() => {});
-        return;
+      } else {
+        registrarPushEnSegundoPlano(usuario).catch(() => {});
       }
-
-      setPushPromptVisible(true);
-      const detalle = resultado.detail ? `: ${resultado.detail}` : "";
-      showToast(`${mensajeErrorPush(resultado.reason)}${detalle}`, "error");
     } finally {
       setPushActivando(false);
     }
@@ -2697,11 +2684,11 @@ function App() {
         />
       )}
 
-      {!isConfigOnlyAdmin && pushPromptVisible && esEntornoPushMovil() && (
+      {!isConfigOnlyAdmin && pushPromptVisible && esEntornoPushMovil() && typeof Notification !== "undefined" && Notification.permission !== "granted" && (
         <div className="robin-float-above-chrome robin-push-prompt p-4 rounded-lg border border-zinc-200 bg-white shadow-lg animate-zoom-in">
           <p className="text-sm font-semibold text-zinc-800 mb-1">Notificaciones en tu teléfono</p>
           <p className="text-xs text-zinc-500 leading-relaxed mb-3">
-            Actívalas para recibir menciones y comentarios aunque no tengas ROBIN abierto. Sin activarlas, solo verás avisos al volver a entrar.
+            Recibe menciones y comentarios aunque no tengas ROBIN abierto.
           </p>
           <div className="flex gap-2 justify-end">
             <button
@@ -2714,8 +2701,7 @@ function App() {
             <button
               type="button"
               onClick={handleActivarPush}
-              disabled={pushActivando}
-              className="px-3 py-1.5 text-xs font-semibold rounded bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-60"
+              className="px-3 py-1.5 text-xs font-semibold rounded bg-zinc-900 text-white hover:bg-zinc-800"
             >
               {pushActivando ? "Activando…" : "Activar"}
             </button>

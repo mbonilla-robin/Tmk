@@ -1,5 +1,4 @@
 const NOTIF_POLL_MS = 45000;
-const MENCION_EN_TEXTO_RE = /@([^\s@,]+(?:\s+[^\s@,]+)?)\s*,?/g;
 const MENCION_ACTIVA_RE = /@([^\s@,]*)$/;
 
 const NOTIF_TIPO_ETIQUETA = {
@@ -81,18 +80,29 @@ function normalizarTokenMencion(raw) {
 function extraerMencionesDeTexto(texto) {
   const menciones = new Set();
   const raw = String(texto || "");
-  let match;
+  let i = 0;
 
-  MENCION_EN_TEXTO_RE.lastIndex = 0;
-  while ((match = MENCION_EN_TEXTO_RE.exec(raw)) !== null) {
-    const token = normalizarTokenMencion(match[1]);
-    if (!token) continue;
-    expandirTokenPersona(`@${token}`).forEach((handle) => {
-      const limpio = normalizeRobinUser(handle);
-      if (limpio && limpio !== "cliente" && limpio !== "trade" && limpio !== "admin") {
-        menciones.add(limpio);
-      }
-    });
+  while (i < raw.length) {
+    if (raw[i] !== "@") {
+      i += 1;
+      continue;
+    }
+
+    const resolved = typeof resolverMencionEnPosicion === "function"
+      ? resolverMencionEnPosicion(raw, i + 1)
+      : null;
+
+    if (resolved && resolved.handle) {
+      expandirTokenPersona(resolved.handle).forEach((handle) => {
+        const limpio = normalizeRobinUser(handle);
+        if (limpio && limpio !== "cliente" && limpio !== "trade" && limpio !== "admin") {
+          menciones.add(limpio);
+        }
+      });
+      i = Math.max(resolved.endIndex, i + 1);
+    } else {
+      i += 1;
+    }
   }
 
   return Array.from(menciones);

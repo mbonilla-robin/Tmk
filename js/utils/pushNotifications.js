@@ -285,7 +285,8 @@ async function guardarSuscripcionPush(username, subscription) {
   }
 }
 
-async function suscribirPushNotificaciones(username) {
+async function suscribirPushNotificaciones(username, opts) {
+  const omitirPermiso = opts?.omitirPermiso === true;
   if (!pushSoportado() || !pushSupabaseReady()) {
     return { ok: false, reason: "unsupported" };
   }
@@ -297,11 +298,15 @@ async function suscribirPushNotificaciones(username) {
   const user = pushUsuario(username);
   if (!user) return { ok: false, reason: "no_user" };
 
-  let permission = Notification.permission;
-  if (permission === "default") {
-    permission = await Notification.requestPermission();
-  }
-  if (permission !== "granted") {
+  if (!omitirPermiso) {
+    let permission = Notification.permission;
+    if (permission === "default") {
+      permission = await Notification.requestPermission();
+    }
+    if (permission !== "granted") {
+      return { ok: false, reason: "denied" };
+    }
+  } else if (Notification.permission !== "granted") {
     return { ok: false, reason: "denied" };
   }
 
@@ -313,7 +318,12 @@ async function suscribirPushNotificaciones(username) {
 
   let subscription;
   try {
-    subscription = await obtenerOCrearSuscripcionPush(reg, vapidKey);
+    subscription = await Promise.race([
+      obtenerOCrearSuscripcionPush(reg, vapidKey),
+      new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("subscribe_timeout")), 20000);
+      })
+    ]);
   } catch (e) {
     const detalle = String(e?.message || e);
     if (typeof registrarDiagnosticoRobin === "function") {
@@ -334,6 +344,27 @@ async function suscribirPushNotificaciones(username) {
   }
 
   return { ok: true, endpoint: subscription.endpoint };
+}
+
+async function registrarPushEnSegundoPlano(username, intentos = 4) {
+  const user = pushUsuario(username);
+  if (!user || Notification.permission !== "granted") return { ok: false };
+
+  for (let i = 0; i < intentos; i += 1) {
+    const resultado = await suscribirPushNotificaciones(user, { omitirPermiso: true });
+    if (resultado.ok) {
+      enviarPushPruebaUsuario(user).catch(() => {});
+      return resultado;
+    }
+    if (resultado.reason === "denied" || resultado.reason === "needs_pwa") {
+      return resultado;
+    }
+    if (i < intentos - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 800 * (i + 1)));
+    }
+  }
+
+  return { ok: false, reason: "retry_exhausted" };
 }
 
 async function mantenerSuscripcionPushActiva(username) {
@@ -362,11 +393,9 @@ async function inicializarPushNotificaciones(username) {
   if (!pushSoportado() || !username) return null;
 
   const user = pushUsuario(username);
-  const reg = await obtenerRegistroServiceWorker();
-  if (!reg) return null;
 
-  const resultado = await mantenerSuscripcionPushActiva(username);
-  if (resultado.ok) {
+  if (Notification.permission === "granted") {
+    registrarPushEnSegundoPlano(user).catch(() => {});
     marcarPushPromptAtendido(user);
     return { ok: true, reason: "registered" };
   }
@@ -374,10 +403,6 @@ async function inicializarPushNotificaciones(username) {
   if (Notification.permission === "denied") {
     marcarPushPromptAtendido(user);
     return { ok: false, reason: "denied" };
-  }
-
-  if (Notification.permission === "granted") {
-    return { ok: false, reason: "save_failed", detail: resultado.detail };
   }
 
   if (!esEntornoPushMovil() || pushPromptYaAtendido(user)) {

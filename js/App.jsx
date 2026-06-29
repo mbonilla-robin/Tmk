@@ -77,6 +77,7 @@ function App() {
   const [notifCargando, setNotifCargando] = useState(false);
   const [pushPromptVisible, setPushPromptVisible] = useState(false);
   const [pushActivando, setPushActivando] = useState(false);
+  const [pushEstadoDiagnostico, setPushEstadoDiagnostico] = useState(null);
   const [tareasSeleccionadas, setTareasSeleccionadas] = useState(() => new Set());
   const [bulkDeadline, setBulkDeadline] = useState("");
 
@@ -1208,6 +1209,21 @@ function App() {
   useEffect(() => {
     if (!usuario || isConfigOnlyAdmin) return undefined;
     let cancelado = false;
+    obtenerEstadoPushUsuario(usuario).then((estado) => {
+      if (!cancelado) setPushEstadoDiagnostico(estado);
+    });
+    return () => { cancelado = true; };
+  }, [usuario, isConfigOnlyAdmin, pushActivando]);
+
+  const refrescarEstadoPushDiagnostico = useCallback(async () => {
+    if (!usuario) return;
+    const estado = await obtenerEstadoPushUsuario(usuario);
+    setPushEstadoDiagnostico(estado);
+  }, [usuario]);
+
+  useEffect(() => {
+    if (!usuario || isConfigOnlyAdmin) return undefined;
+    let cancelado = false;
 
     (async () => {
       const resultado = await inicializarPushNotificaciones(usuario);
@@ -1215,10 +1231,12 @@ function App() {
       if (resultado && resultado.reason === "needs_prompt") {
         setPushPromptVisible(true);
       }
+      await refrescarEstadoPushDiagnostico();
     })();
 
     return () => { cancelado = true; };
-  }, [usuario, isConfigOnlyAdmin]);
+  }, [usuario, isConfigOnlyAdmin, refrescarEstadoPushDiagnostico]);
+
 
   useEffect(() => {
     if (!usuario || isConfigOnlyAdmin) return undefined;
@@ -1242,6 +1260,7 @@ function App() {
       const resultado = await suscribirPushNotificaciones(usuario);
       if (resultado.ok) {
         showToast("Notificaciones push activadas", "success");
+        await refrescarEstadoPushDiagnostico();
         return;
       }
       if (resultado.reason === "denied") {
@@ -1628,28 +1647,49 @@ function App() {
     );
   };
 
-  const renderPanelDiagnosticoPush = () => (
+  const renderPanelDiagnosticoPush = () => {
+    const permisoOk = pushEstadoDiagnostico?.permiso === "granted";
+    const suscrito = Boolean(pushEstadoDiagnostico?.suscrito);
+    const remotoOk = Boolean(pushEstadoDiagnostico?.guardadoRemoto);
+
+    return (
     <div className={`${currentTheme.cardBg} border ${currentTheme.border} p-3 rounded-md flex flex-col gap-2 text-xs`}>
       <p className={`font-bold ${currentTheme.text}`}>Notificaciones push</p>
       <p className={currentTheme.mutedText}>
         Las menciones y comentarios pueden avisarte aunque no tengas ROBIN abierto.
       </p>
+      {pushEstadoDiagnostico && (
+        <ul className={`${currentTheme.mutedText} space-y-0.5`}>
+          <li>{permisoOk ? "✓" : "✗"} Permiso del navegador: {pushEstadoDiagnostico.permiso}</li>
+          <li>{suscrito ? "✓" : "✗"} Suscripción en este dispositivo</li>
+          <li>{remotoOk ? "✓" : "✗"} Registrado en Supabase</li>
+        </ul>
+      )}
+      {!remotoOk && permisoOk && (
+        <p className="text-amber-700">Pulsa «Activar» abajo o «Probar notificación» para registrar este teléfono.</p>
+      )}
       <button
         type="button"
         onClick={async () => {
           const resultado = await probarPushLocal(usuario);
           if (resultado.ok) {
             showToast("Notificación de prueba enviada", "success");
-          } else {
-            showToast(resultado.reason === "denied" ? "Permiso denegado en el navegador" : "No se pudo enviar la prueba", "error");
+            await refrescarEstadoPushDiagnostico();
+            return;
           }
+          if (resultado.reason === "denied") {
+            showToast("Permiso denegado en el navegador", "info");
+            return;
+          }
+          showToast(`No se pudo enviar la prueba${resultado.reason ? ` (${resultado.reason})` : ""}`, "error");
         }}
         className="self-start px-3 py-1.5 rounded border border-zinc-200 bg-white text-zinc-700 font-semibold"
       >
         Probar notificación
       </button>
     </div>
-  );
+    );
+  };
 
   return (
     <div className={`flex h-screen w-screen overflow-hidden ${currentTheme.bg} ${currentTheme.text} select-none transition-all`}>

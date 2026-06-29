@@ -348,14 +348,33 @@ async function dispararPushRemoto(notif) {
   }
 }
 
+function pushUsuarioActual() {
+  if (typeof getRobinApiUsername === "function") {
+    return pushUsuario(getRobinApiUsername());
+  }
+  return pushUsuario(getLocalStorageItemSafe("robin_usuario_actual", ""));
+}
+
 async function entregarPushParaNotificacion(notif) {
   const id = String(notif?.id || "").trim();
   if (!id || pushYaEnviadosIds().has(id)) {
     return { ok: false, reason: "already_sent" };
   }
 
-  const local = await mostrarPushLocal(notif);
-  const remoto = await dispararPushRemoto(notif);
+  const destinatario = pushUsuario(notif?.recipient);
+  const yo = pushUsuarioActual();
+  let local = { ok: false, reason: "skipped" };
+  let remoto = { ok: false, reason: "skipped" };
+
+  if (destinatario && yo && destinatario === yo) {
+    local = await mostrarPushLocal(notif);
+  }
+
+  if (destinatario && yo && destinatario !== yo) {
+    remoto = await dispararPushRemoto(notif);
+  } else if (destinatario && yo === destinatario && !local.ok) {
+    remoto = await dispararPushRemoto(notif);
+  }
 
   if (local.ok || remoto.ok) {
     marcarPushEnviado(id);

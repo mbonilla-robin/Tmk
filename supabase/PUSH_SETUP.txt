@@ -11,40 +11,22 @@ Ejecuta la migración:
 
 Desde el panel: SQL Editor → pegar el contenido → Run.
 
-2) Configurar secrets de la Edge Function
------------------------------------------
-En Supabase → Project Settings → Edge Functions → Secrets:
+2) Claves VAPID — CONFIGURADAS EN LA FUNCIÓN (v2)
+-------------------------------------------------
+La Edge Function incluye las claves VAPID por defecto (coinciden con js/config/push.js).
+Opcional: puedes sobreescribirlas en Supabase → Edge Functions → Secrets.
 
-  VAPID_PUBLIC_KEY=BAQ7zERRng58qoZfmaCa871_OhYeFCJcOp0EKMw1COkG8ccxo_Zd7AuF1RugUJhF9WxMYEh-5EUPLP9z0mYO1wNe
-  VAPID_PRIVATE_KEY=AKFWudgOnBU0qz8m5EkPNWhenz-ArmhxhiDOLpB1x8OP
-  VAPID_SUBJECT=mailto:tu-correo@empresa.com
+3) Edge Function — DESPLEGADA (v2)
+----------------------------------
+  send-push-on-notification (verify_jwt = false)
 
-La clave pública debe coincidir con js/config/push.js (ROBIN_VAPID_PUBLIC_KEY).
+4) Migración robin_push_subscriptions — APLICADA
+------------------------------------------------
 
-Para regenerar claves en tu máquina:
-  npx web-push generate-vapid-keys
-
-3) Desplegar la Edge Function
------------------------------
-  supabase functions deploy send-push-on-notification --no-verify-jwt
-
-La función vive en:
-  supabase/functions/send-push-on-notification/
-
-4) Crear Database Webhook
--------------------------
-Supabase → Database → Webhooks → Create webhook
-
-  Name: robin-push-on-notification
-  Table: public.robin_notifications
-  Events: INSERT
-  Type: Supabase Edge Function
-  Function: send-push-on-notification
-  HTTP method: POST
-  Timeout: 5000 ms
-
-Con esto, cada mención (@R Álvarez), respuesta, asignación o cambio de estado
-dispara un push al dispositivo suscrito del recipient.
+5) Webhook automático — APLICADO VÍA TRIGGER
+---------------------------------------------
+Trigger `robin_push_on_notification_insert` en `robin_notifications` (pg_net).
+Cada INSERT dispara la Edge Function sin configuración manual en el panel.
 
 5) Probar en un teléfono
 ------------------------

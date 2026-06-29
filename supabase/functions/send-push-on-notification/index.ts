@@ -104,8 +104,8 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
-  const vapidPublic = Deno.env.get("VAPID_PUBLIC_KEY") || "";
-  const vapidPrivate = Deno.env.get("VAPID_PRIVATE_KEY") || "";
+  const vapidPublic = Deno.env.get("VAPID_PUBLIC_KEY") || "BAQ7zERRng58qoZfmaCa871_OhYeFCJcOp0EKMw1COkG8ccxo_Zd7AuF1RugUJhF9WxMYEh-5EUPLP9z0mYO1wNe";
+  const vapidPrivate = Deno.env.get("VAPID_PRIVATE_KEY") || "AKFWudgOnBU0qz8m5EkPNWhenz-ArmhxhiDOLpB1x8OP";
   const vapidSubject = Deno.env.get("VAPID_SUBJECT") || "mailto:robin@trade.local";
 
   if (!supabaseUrl || !serviceRoleKey || !vapidPublic || !vapidPrivate) {

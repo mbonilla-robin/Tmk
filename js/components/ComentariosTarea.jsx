@@ -1,7 +1,17 @@
-function AvatarComentario({ author, nombre }) {
+function AvatarComentario({ author, nombre, avatarUrl }) {
   const etiqueta = nombre || obtenerNombreAutorComentario(author);
   const iniciales = obtenerInicialesAutor(author, etiqueta);
   const fondo = colorAvatarAutor(author);
+
+  if (avatarUrl) {
+    return (
+      <span
+        className="robin-comment-avatar robin-comment-avatar--photo"
+        style={{ backgroundImage: `url(${avatarUrl})` }}
+        aria-hidden="true"
+      />
+    );
+  }
 
   return (
     <span
@@ -14,13 +24,17 @@ function AvatarComentario({ author, nombre }) {
   );
 }
 
-function ComentarioItem({ comentario, usuarioActual, onResponder }) {
+function ComentarioItem({ comentario, usuarioActual, onResponder, perfil }) {
   const esMio = normalizeRobinUser(comentario.author) === normalizeRobinUser(usuarioActual);
-  const autorLabel = obtenerNombreAutorComentario(comentario.author);
+  const autorLabel = nombreVisiblePerfil(perfil, comentario.author);
 
   return (
     <article className="robin-comment">
-      <AvatarComentario author={comentario.author} />
+      <AvatarComentario
+        author={comentario.author}
+        nombre={autorLabel}
+        avatarUrl={perfil?.avatarUrl}
+      />
       <div className="robin-comment__content">
         <div className="robin-comment__meta">
           <span className="robin-comment__author">{autorLabel}</span>
@@ -52,6 +66,8 @@ function ComentariosTarea({ tarea, usuario, nombreUsuario, listaPersonas, onCome
   const [respondiendoA, setRespondiendoA] = useState(null);
   const [sugerencias, setSugerencias] = useState([]);
   const [sugerenciaIdx, setSugerenciaIdx] = useState(0);
+  const [perfilesAutores, setPerfilesAutores] = useState({});
+  const [miPerfil, setMiPerfil] = useState(null);
   const textareaRef = useRef(null);
 
   const clavesTarea = useMemo(
@@ -63,8 +79,16 @@ function ComentariosTarea({ tarea, usuario, nombreUsuario, listaPersonas, onCome
     setCargando(true);
     const lista = await fetchComentariosTarea(tarea);
     setComentarios(lista);
+    const autores = [...new Set((lista || []).map((c) => c.author).filter(Boolean))];
+    if (usuario) autores.push(usuario);
+    const mapa = await precargarPerfilesUsuarios(autores);
+    setPerfilesAutores(mapa);
+    if (usuario) {
+      const yo = typeof normalizeRobinUser === "function" ? normalizeRobinUser(usuario) : usuario;
+      setMiPerfil(mapa[yo] || await obtenerPerfilUsuario(usuario));
+    }
     setCargando(false);
-  }, [tarea, clavesTarea.join("|")]);
+  }, [tarea, clavesTarea.join("|"), usuario]);
 
   useEffect(() => {
     recargar();
@@ -210,11 +234,16 @@ function ComentariosTarea({ tarea, usuario, nombreUsuario, listaPersonas, onCome
 
       {comentarios.length > 0 && (
         <div className="robin-comments-thread">
-          {comentarios.map((c) => (
+          {comentarios.map((c) => {
+            const key = typeof normalizeRobinUser === "function"
+              ? normalizeRobinUser(c.author)
+              : String(c.author || "").replace(/^@/, "").trim().toLowerCase();
+            return (
             <ComentarioItem
               key={c.id}
               comentario={c}
               usuarioActual={usuario}
+              perfil={perfilesAutores[key]}
               onResponder={(com) => {
                 setRespondiendoA(com);
                 const mencion = formatearHandleCanonico(com.author);
@@ -222,7 +251,8 @@ function ComentariosTarea({ tarea, usuario, nombreUsuario, listaPersonas, onCome
                 textareaRef.current?.focus();
               }}
             />
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -235,8 +265,12 @@ function ComentariosTarea({ tarea, usuario, nombreUsuario, listaPersonas, onCome
         </div>
       )}
 
-      <form onSubmit={(e) => { e.preventDefault(); enviarComentario(); }} className="robin-comment-compose">
-        <AvatarComentario author={usuario} nombre={nombreUsuario} />
+      <div className="robin-comment-compose">
+        <AvatarComentario
+          author={usuario}
+          nombre={nombreVisiblePerfil(miPerfil, usuario) || nombreUsuario}
+          avatarUrl={miPerfil?.avatarUrl}
+        />
         <div className="robin-comment-input-wrap">
           <textarea
             ref={textareaRef}
@@ -280,8 +314,9 @@ function ComentariosTarea({ tarea, usuario, nombreUsuario, listaPersonas, onCome
             <i className="fa-solid fa-at" />
           </button>
           <button
-            type="submit"
+            type="button"
             disabled={!puedeEnviar}
+            onClick={enviarComentario}
             className={`robin-comment-send ${puedeEnviar ? "is-ready" : ""}`}
             title="Enviar comentario"
             aria-label="Enviar comentario"
@@ -289,7 +324,7 @@ function ComentariosTarea({ tarea, usuario, nombreUsuario, listaPersonas, onCome
             <i className="fa-solid fa-arrow-up" />
           </button>
         </div>
-      </form>
+      </div>
     </div>
   );
 }

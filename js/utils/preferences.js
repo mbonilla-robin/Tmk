@@ -11,6 +11,10 @@ const LEGACY_KEYS = {
 
 const DEFAULT_USER_PREFS = {
   nombreCompleto: "",
+  perfilNombre: "",
+  perfilApellido: "",
+  perfilCorreo: "",
+  perfilAvatar: "",
   theme: "notion",
   pwaIconVariant: "naranja",
   paginaActiva: "home",
@@ -135,11 +139,11 @@ function migrateLegacyPrefs(username) {
     hasLegacy = true;
   }
 
-  const record = {
+  const record = migrarNombreCompletoAPerfil({
     ...prefs,
     _localUpdatedAt: hasLegacy ? Date.now() : 0,
     _v: PREFS_VERSION
-  };
+  });
   setLocalStorageItemSafe(userDataStorageKey(username), JSON.stringify(record));
   return record;
 }
@@ -148,7 +152,7 @@ function loadUserDataLocal(username) {
   if (!username) return { ...DEFAULT_USER_PREFS };
 
   const stored = readStoredUserPrefs(username);
-  if (stored) return stored;
+  if (stored) return migrarNombreCompletoAPerfil(stored);
 
   return migrateLegacyPrefs(username);
 }
@@ -327,7 +331,16 @@ function getBootTheme() {
 }
 
 function applyPrefsToReactState(prefs, setters, username) {
-  setters.setNombreCompleto(prefs.nombreCompleto || "");
+  const migradas = migrarNombreCompletoAPerfil(prefs);
+  const nombreCompleto = construirNombreCompletoPerfil(migradas.perfilNombre, migradas.perfilApellido)
+    || migradas.nombreCompleto
+    || "";
+
+  setters.setNombreCompleto(nombreCompleto);
+  if (setters.setPerfilNombre) setters.setPerfilNombre(migradas.perfilNombre || "");
+  if (setters.setPerfilApellido) setters.setPerfilApellido(migradas.perfilApellido || "");
+  if (setters.setPerfilCorreo) setters.setPerfilCorreo(migradas.perfilCorreo || "");
+  if (setters.setPerfilAvatar) setters.setPerfilAvatar(migradas.perfilAvatar || "");
   const nextTheme = prefs.theme || "notion";
   setters.setTheme(nextTheme);
   if (typeof applyRobinDocumentTheme === "function") applyRobinDocumentTheme(nextTheme);

@@ -80,7 +80,14 @@ function App() {
   const [tareasSeleccionadas, setTareasSeleccionadas] = useState(() => new Set());
   const [bulkDeadline, setBulkDeadline] = useState("");
 
-  const [nombreCompleto, setNombreCompleto] = useState(() => initialPrefs.nombreCompleto || "");
+  const [nombreCompleto, setNombreCompleto] = useState(() => {
+    const p = migrarNombreCompletoAPerfil(initialPrefs);
+    return construirNombreCompletoPerfil(p.perfilNombre, p.perfilApellido) || p.nombreCompleto || "";
+  });
+  const [perfilNombre, setPerfilNombre] = useState(() => migrarNombreCompletoAPerfil(initialPrefs).perfilNombre || "");
+  const [perfilApellido, setPerfilApellido] = useState(() => migrarNombreCompletoAPerfil(initialPrefs).perfilApellido || "");
+  const [perfilCorreo, setPerfilCorreo] = useState(() => migrarNombreCompletoAPerfil(initialPrefs).perfilCorreo || "");
+  const [perfilAvatar, setPerfilAvatar] = useState(() => migrarNombreCompletoAPerfil(initialPrefs).perfilAvatar || "");
 
   const [marcasMetadata, setMarcasMetadata] = useState({});
   const [widgets, setWidgets] = useState([]);
@@ -90,7 +97,7 @@ function App() {
 
   const [syncDetalleVisible, setSyncDetalleVisible] = useState(false);
   const [dashboardMobileVista, setDashboardMobileVista] = useState(() => initialPrefs.dashboardMobileVista || "lista");
-  const [configMobileSeccion, setConfigMobileSeccion] = useState(null);
+  const [configSeccion, setConfigSeccion] = useState(null);
   const [showGeneradorEstatus, setShowGeneradorEstatus] = useState(false);
   const [sidebarMarcasAbierto, setSidebarMarcasAbierto] = useState(true);
   const [sidebarEnLineaAbierto, setSidebarEnLineaAbierto] = useState(true);
@@ -289,6 +296,10 @@ function App() {
     const prefs = await mergeAndSyncUserPrefs(userClean);
     applyPrefsToReactState(prefs, {
       setNombreCompleto,
+      setPerfilNombre,
+      setPerfilApellido,
+      setPerfilCorreo,
+      setPerfilAvatar,
       setTheme,
       setPwaIconVariant,
       setVistaModo,
@@ -316,6 +327,10 @@ function App() {
       if (cancelled) return;
       applyPrefsToReactState(prefs, {
         setNombreCompleto,
+        setPerfilNombre,
+        setPerfilApellido,
+        setPerfilCorreo,
+        setPerfilAvatar,
         setTheme,
         setPwaIconVariant,
         setVistaModo,
@@ -341,6 +356,10 @@ function App() {
         if (cancelled) return;
         applyPrefsToReactState(prefs, {
           setNombreCompleto,
+          setPerfilNombre,
+          setPerfilApellido,
+          setPerfilCorreo,
+          setPerfilAvatar,
           setTheme,
           setPwaIconVariant,
           setVistaModo,
@@ -364,6 +383,14 @@ function App() {
   }, [usuario]);
 
   useEffect(() => {
+    if (paginaActiva !== "configuracion" || configSeccion) return;
+    const esDesktop = window.matchMedia("(min-width: 1024px)").matches;
+    if (esDesktop) {
+      setConfigSeccion(isConfigOnlyAdmin ? "api" : "perfil");
+    }
+  }, [paginaActiva, configSeccion, isConfigOnlyAdmin]);
+
+  useEffect(() => {
     if (typeof applyPwaIconVariant === "function") {
       applyPwaIconVariant(pwaIconVariant);
     }
@@ -376,6 +403,10 @@ function App() {
     } catch (e) { /* ignore */ }
     saveUserData(usuario, {
       nombreCompleto,
+      perfilNombre,
+      perfilApellido,
+      perfilCorreo,
+      perfilAvatar,
       theme,
       pwaIconVariant,
       paginaActiva,
@@ -394,6 +425,10 @@ function App() {
     usuario,
     prefsReady,
     nombreCompleto,
+    perfilNombre,
+    perfilApellido,
+    perfilCorreo,
+    perfilAvatar,
     theme,
     pwaIconVariant,
     paginaActiva,
@@ -470,7 +505,7 @@ function App() {
       limpiarSeleccionTareas();
       setDashboardMobileVista("lista");
     }
-    if (pagina !== "configuracion") setConfigMobileSeccion(null);
+    if (pagina !== "configuracion") setConfigSeccion(null);
     if (pagina === "clientes") setClientesReset(n => n + 1);
     if (extraFn) extraFn();
   };
@@ -596,12 +631,20 @@ function App() {
     }
   };
 
-  const handleSaveNombreCompleto = (e) => {
+  const handleSavePerfil = (e) => {
     e.preventDefault();
-    if (usuario) {
-      saveUserData(usuario, { nombreCompleto });
-    }
-    showToast("Nombre guardado", "success");
+    if (!usuario) return;
+    const completo = construirNombreCompletoPerfil(perfilNombre, perfilApellido);
+    setNombreCompleto(completo);
+    invalidarCachePerfilUsuario(usuario);
+    saveUserData(usuario, {
+      perfilNombre,
+      perfilApellido,
+      perfilCorreo,
+      perfilAvatar,
+      nombreCompleto: completo
+    });
+    showToast("Perfil guardado", "success");
   };
 
   const toggleSeleccionTarea = (tarea) => {
@@ -1552,6 +1595,160 @@ function App() {
     />
   ) : null;
 
+  const tituloConfigSeccion = (seccion) => ({
+    perfil: "Perfil",
+    tema: "Tema",
+    logo: "Icono del teléfono",
+    api: "Base de datos",
+    usuarios: "Usuarios",
+    widgets: "Enlaces",
+    clientes: "Fichas clientes"
+  }[seccion] || "Ajustes");
+
+  const renderConfigSeccionContenido = (seccion) => {
+    if (seccion === "perfil" && !isConfigOnlyAdmin) {
+      return (
+        <PanelPerfilUsuario
+          usuario={usuario}
+          perfilNombre={perfilNombre}
+          perfilApellido={perfilApellido}
+          perfilCorreo={perfilCorreo}
+          perfilAvatar={perfilAvatar}
+          onChangeNombre={setPerfilNombre}
+          onChangeApellido={setPerfilApellido}
+          onChangeCorreo={setPerfilCorreo}
+          onChangeAvatar={setPerfilAvatar}
+          onGuardar={handleSavePerfil}
+          currentTheme={currentTheme}
+          theme={theme}
+        />
+      );
+    }
+
+    if (seccion === "tema") {
+      return (
+        <div className="grid grid-cols-2 gap-2 max-w-md">
+          <button type="button" onClick={() => handleThemeChange("notion")} className={`${themePickerBtnClass(theme, "notion")} theme-picker-btn--compact`}>Claro</button>
+          <button type="button" onClick={() => handleThemeChange("midnight")} className={`${themePickerBtnClass(theme, "midnight")} theme-picker-btn--compact`}>Oscuro</button>
+        </div>
+      );
+    }
+
+    if (seccion === "logo") {
+      return (
+        <div className="flex flex-col gap-2 max-w-lg">
+          <p className={`text-[11px] ${currentTheme.mutedText}`}>Color del icono al instalar la app en el teléfono. El logo del encabezado no cambia.</p>
+          <div className="grid grid-cols-3 gap-2">
+            {Object.entries(PWA_ICON_VARIANTS).map(([key, { preview, label }]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => handlePwaIconVariantChange(key)}
+                className={`p-2 rounded-md border flex flex-col items-center gap-1.5 transition-all ${
+                  pwaIconVariant === key ? "border-[#37352F] ring-2 ring-[#37352F]/20" : "border-zinc-200"
+                }`}
+              >
+                <img src={preview} alt={label} className="w-full aspect-square object-contain rounded" />
+                <span className="text-[10px] font-semibold text-zinc-600">{label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (seccion === "api") return renderPanelDiagnosticoApi();
+
+    if (seccion === "usuarios") {
+      return isAdmin ? (
+        <div className={`${currentTheme.cardBg} border ${currentTheme.border} p-3 rounded-md flex flex-col gap-3 max-w-xl`}>
+          <form onSubmit={handleAddUser} className="flex gap-2">
+            <input type="text" placeholder="Usuario (ej: ralvarez)" value={nuevoUsuarioInput} onChange={(e) => setNuevoUsuarioInput(e.target.value)} className="flex-1 bg-zinc-50 border border-zinc-200 px-3 py-2 text-sm rounded font-semibold" />
+            <button type="submit" className="px-3 py-2 bg-[#37352F] text-white text-ui font-semibold rounded-md">+</button>
+          </form>
+          <div className="flex flex-wrap gap-1.5">
+            {listaUsuarios.map((u) => (
+              <span key={u} className="inline-flex items-center gap-1 bg-zinc-50 border border-zinc-200 text-zinc-800 text-[11px] font-semibold px-2 py-1 rounded-full">
+                @{u}
+                {u !== "admin" && (
+                  <button type="button" onClick={() => handleRemoveUser(u)} className="text-zinc-400 font-bold">&times;</button>
+                )}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <p className="text-ui-sm text-zinc-500 bg-zinc-50 border border-zinc-200 rounded-md p-3 max-w-xl">Solo administradores.</p>
+      );
+    }
+
+    if (seccion === "widgets" && isConfigOnlyAdmin) {
+      return (
+        <WidgetsAdminPanel
+          widgets={widgets}
+          onAddWidget={handleAddWidget}
+          onEditWidget={handleEditWidget}
+          onDeleteWidget={handleDeleteWidget}
+          marcasDisponibles={marcasDisponibles}
+        />
+      );
+    }
+
+    if (seccion === "clientes" && isConfigOnlyAdmin) {
+      return (
+        <LayoutClientes
+          key={clientesReset}
+          marcas={marcasDisponibles}
+          marcasMetadata={marcasMetadata}
+          canEdit={canEditFichas}
+          onSaveBrandMetadata={handleSaveBrandMetadata}
+          onRegisterBrand={handleCreateBrand}
+          onDeleteBrand={handleDeleteBrand}
+        />
+      );
+    }
+
+    return null;
+  };
+
+  const renderConfigMenu = (variant) => {
+    const esDesktop = variant === "desktop";
+    const itemClass = esDesktop ? "robin-config-nav-btn" : "mobile-menu-btn";
+
+    const Item = ({ seccion, icon, label }) => (
+      <button
+        type="button"
+        onClick={() => setConfigSeccion(seccion)}
+        className={`${itemClass} ${esDesktop && configSeccion === seccion ? "is-active" : ""}`}
+      >
+        <span><i className={`fa-solid ${icon}`}></i> {label}</span>
+        {!esDesktop && <i className="fa-solid fa-chevron-right text-[10px] text-zinc-300"></i>}
+      </button>
+    );
+
+    return (
+      <div className={`flex flex-col gap-2 ${esDesktop ? "robin-config-nav" : ""}`}>
+        {!esDesktop && <h2 className={`text-base font-bold mb-1 ${currentTheme.text}`}>Ajustes</h2>}
+        {!isConfigOnlyAdmin && <Item seccion="perfil" icon="fa-user" label="Perfil" />}
+        <Item seccion="tema" icon="fa-palette" label="Tema" />
+        <Item seccion="logo" icon="fa-mobile-screen" label="Icono del teléfono" />
+        <Item seccion="api" icon="fa-database" label="Base de datos" />
+        {(isAdmin || !isConfigOnlyAdmin) && <Item seccion="usuarios" icon="fa-users" label="Usuarios" />}
+        {isConfigOnlyAdmin && (
+          <>
+            <Item seccion="widgets" icon="fa-link" label="Enlaces" />
+            <Item seccion="clientes" icon="fa-id-card" label="Fichas clientes" />
+          </>
+        )}
+        {!esDesktop && (
+          <button type="button" onClick={handleLogout} className="mobile-menu-btn is-danger mt-2">
+            <span><i className="fa-solid fa-right-from-bracket"></i> Cerrar sesión</span>
+          </button>
+        )}
+      </div>
+    );
+  };
+
   const renderPanelDiagnosticoApi = () => {
     const logs = leerDiagnosticoRobin();
     const colaPendiente = cargarColaSync().length;
@@ -1645,7 +1842,7 @@ function App() {
           type="button"
           onClick={() => {
             navegarA("configuracion");
-            setConfigMobileSeccion("api");
+            setConfigSeccion("api");
           }}
           className={`robin-sync-alert ${estadoSyncResumen.severidad === "error" ? "is-error" : "is-warn"}`}
         >
@@ -2208,281 +2405,36 @@ function App() {
 
           {paginaActiva === "configuracion" && (
             <>
-              {/* Móvil: menú + subpáginas */}
               <div className="robin-mobile-only flex-col gap-3 animate-fade-in">
-                {configMobileSeccion ? (
+                {configSeccion ? (
                   <div className="flex flex-col gap-3">
                     <MobileSubpageBar
-                      title={
-                        configMobileSeccion === "perfil" ? "Perfil" :
-                        configMobileSeccion === "tema" ? "Tema" :
-                        configMobileSeccion === "logo" ? "Icono del teléfono" :
-                        configMobileSeccion === "api" ? "Base de datos" :
-                        configMobileSeccion === "usuarios" ? "Usuarios" :
-                        configMobileSeccion === "widgets" ? "Enlaces" :
-                        configMobileSeccion === "clientes" ? "Fichas clientes" : "Ajustes"
-                      }
-                      onBack={() => setConfigMobileSeccion(null)}
+                      title={tituloConfigSeccion(configSeccion)}
+                      onBack={() => setConfigSeccion(null)}
                     />
-
-                    {configMobileSeccion === "perfil" && (
-                      <form onSubmit={handleSaveNombreCompleto} className={`${currentTheme.cardBg} border ${currentTheme.border} p-3 rounded-md flex flex-col gap-3`}>
-                        <input type="text" placeholder="Tu nombre" value={nombreCompleto} onChange={(e) => setNombreCompleto(e.target.value)} className={`w-full border ${currentTheme.border} px-3 py-2 text-sm rounded font-semibold ${currentTheme.text} ${theme === "midnight" ? "bg-zinc-900" : "bg-zinc-50"}`} />
-                        <button type="submit" className={`w-full py-2.5 ${currentTheme.primary} text-ui font-semibold rounded-md`}>Guardar</button>
-                      </form>
-                    )}
-
-                    {configMobileSeccion === "tema" && (
-                      <div className="grid grid-cols-2 gap-2">
-                        <button type="button" onClick={() => handleThemeChange("notion")} className={themePickerBtnClass(theme, "notion")}>Claro</button>
-                        <button type="button" onClick={() => handleThemeChange("midnight")} className={themePickerBtnClass(theme, "midnight")}>Oscuro</button>
-                      </div>
-                    )}
-
-                    {configMobileSeccion === "logo" && (
-                      <div className="flex flex-col gap-2">
-                        <p className="text-[11px] text-zinc-500">Color del icono al instalar la app en el teléfono. El logo del encabezado no cambia.</p>
-                        <div className="grid grid-cols-3 gap-2">
-                          {Object.entries(PWA_ICON_VARIANTS).map(([key, { preview, label }]) => (
-                            <button
-                              key={key}
-                              type="button"
-                              onClick={() => handlePwaIconVariantChange(key)}
-                              className={`p-2 rounded-md border flex flex-col items-center gap-1.5 transition-all ${
-                                pwaIconVariant === key ? "border-[#37352F] ring-2 ring-[#37352F]/20" : "border-zinc-200"
-                              }`}
-                            >
-                              <img src={preview} alt={label} className="w-full aspect-square object-contain rounded" />
-                              <span className="text-[10px] font-semibold text-zinc-600">{label}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {configMobileSeccion === "api" && renderPanelDiagnosticoApi()}
-
-                    {configMobileSeccion === "usuarios" && (
-                      isAdmin ? (
-                        <div className={`${currentTheme.cardBg} border ${currentTheme.border} p-3 rounded-md flex flex-col gap-3`}>
-                          <form onSubmit={handleAddUser} className="flex gap-2">
-                            <input type="text" placeholder="Usuario (ej: ralvarez)" value={nuevoUsuarioInput} onChange={(e) => setNuevoUsuarioInput(e.target.value)} className="flex-1 bg-zinc-50 border border-zinc-200 px-3 py-2 text-sm rounded font-semibold" />
-                            <button type="submit" className="px-3 py-2 bg-[#37352F] text-white text-ui font-semibold rounded-md">+</button>
-                          </form>
-                          <div className="flex flex-wrap gap-1.5">
-                            {listaUsuarios.map(u => (
-                              <span key={u} className="inline-flex items-center gap-1 bg-zinc-50 border border-zinc-200 text-zinc-800 text-[11px] font-semibold px-2 py-1 rounded-full">
-                                @{u}
-                                {u !== "admin" && (
-                                  <button type="button" onClick={() => handleRemoveUser(u)} className="text-zinc-400 font-bold">&times;</button>
-                                )}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      ) : (
-                        <p className="text-ui-sm text-zinc-500 bg-zinc-50 border border-zinc-200 rounded-md p-3">Solo administradores.</p>
-                      )
-                    )}
-
-                    {configMobileSeccion === "widgets" && isConfigOnlyAdmin && (
-                      <WidgetsAdminPanel widgets={widgets} onAddWidget={handleAddWidget} onEditWidget={handleEditWidget} onDeleteWidget={handleDeleteWidget} marcasDisponibles={marcasDisponibles} />
-                    )}
-
-                    {configMobileSeccion === "clientes" && isConfigOnlyAdmin && (
-                      <LayoutClientes key={clientesReset} marcas={marcasDisponibles} marcasMetadata={marcasMetadata} canEdit={canEditFichas} onSaveBrandMetadata={handleSaveBrandMetadata} onRegisterBrand={handleCreateBrand} onDeleteBrand={handleDeleteBrand} />
-                    )}
+                    {renderConfigSeccionContenido(configSeccion)}
                   </div>
                 ) : (
-                  <div className="flex flex-col gap-2">
-                    <h2 className={`text-base font-bold mb-1 ${currentTheme.text}`}>Ajustes</h2>
+                  renderConfigMenu("mobile")
+                )}
+              </div>
 
-                    {!isConfigOnlyAdmin && (
-                    <button type="button" onClick={() => setConfigMobileSeccion("perfil")} className="mobile-menu-btn">
-                      <span><i className="fa-solid fa-user"></i> Perfil</span>
-                      <i className="fa-solid fa-chevron-right text-[10px] text-zinc-300"></i>
-                    </button>
-                    )}
-                    <button type="button" onClick={() => setConfigMobileSeccion("tema")} className="mobile-menu-btn">
-                      <span><i className="fa-solid fa-palette"></i> Tema</span>
-                      <i className="fa-solid fa-chevron-right text-[10px] text-zinc-300"></i>
-                    </button>
-                    <button type="button" onClick={() => setConfigMobileSeccion("logo")} className="mobile-menu-btn">
-                      <span><i className="fa-solid fa-mobile-screen"></i> Icono del teléfono</span>
-                      <i className="fa-solid fa-chevron-right text-[10px] text-zinc-300"></i>
-                    </button>
-                    <button type="button" onClick={() => setConfigMobileSeccion("api")} className="mobile-menu-btn">
-                      <span><i className="fa-solid fa-database"></i> Base de datos</span>
-                      <i className="fa-solid fa-chevron-right text-[10px] text-zinc-300"></i>
-                    </button>
-                    {(isAdmin || !isConfigOnlyAdmin) && (
-                      <button type="button" onClick={() => setConfigMobileSeccion("usuarios")} className="mobile-menu-btn">
-                        <span><i className="fa-solid fa-users"></i> Usuarios</span>
-                        <i className="fa-solid fa-chevron-right text-[10px] text-zinc-300"></i>
-                      </button>
-                    )}
-                    {isConfigOnlyAdmin && (
-                      <>
-                        <button type="button" onClick={() => setConfigMobileSeccion("widgets")} className="mobile-menu-btn">
-                          <span><i className="fa-solid fa-link"></i> Enlaces</span>
-                          <i className="fa-solid fa-chevron-right text-[10px] text-zinc-300"></i>
-                        </button>
-                        <button type="button" onClick={() => setConfigMobileSeccion("clientes")} className="mobile-menu-btn">
-                          <span><i className="fa-solid fa-id-card"></i> Fichas clientes</span>
-                          <i className="fa-solid fa-chevron-right text-[10px] text-zinc-300"></i>
-                        </button>
-                      </>
-                    )}
-
-                    <button type="button" onClick={handleLogout} className="mobile-menu-btn is-danger mt-2">
+              <div className={`robin-desktop-only ${isConfigOnlyAdmin ? "max-w-6xl" : "max-w-5xl"} mx-auto w-full animate-fade-in`}>
+                <div className="robin-config-layout">
+                  <aside className={`robin-config-sidebar ${currentTheme.cardBg} border ${currentTheme.border} rounded-md p-4`}>
+                    <h2 className={`text-sm font-bold mb-3 ${currentTheme.text}`}>Ajustes</h2>
+                    {renderConfigMenu("desktop")}
+                    <button type="button" onClick={handleLogout} className="robin-config-nav-btn is-danger mt-4 w-full">
                       <span><i className="fa-solid fa-right-from-bracket"></i> Cerrar sesión</span>
                     </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Desktop: sin cambios */}
-              <div className={`robin-desktop-only ${isConfigOnlyAdmin ? "max-w-6xl" : "max-w-xl"} mx-auto border ${currentTheme.border} p-6 rounded-md ${currentTheme.cardBg} animate-fade-in flex-col gap-6`}>
-              <div>
-                <h2 className={`text-sm font-bold uppercase tracking-wider border-b pb-2 ${currentTheme.mutedText} ${currentTheme.border}`}>Ajustes del Sistema</h2>
-                <p className={`text-xs ${currentTheme.mutedText} mt-1 opacity-80`}>Configuración técnica de origen de datos y del sistema.</p>
-              </div>
-
-              {/* Integración Google Sheets Informada */}
-              <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Base de Datos</span>
-                {renderPanelDiagnosticoApi()}
-              </div>
-
-              {/* Ocultar sección de datos personales para administrador global */}
-              {!isConfigOnlyAdmin && (
-              <div className="flex flex-col gap-2 animate-fade-in">
-                  <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Colaborador</span>
-                  <form onSubmit={handleSaveNombreCompleto} className={`${theme === "midnight" ? "bg-zinc-900" : "bg-zinc-50"} p-3 rounded border ${currentTheme.border} flex flex-col sm:flex-row gap-2 items-end`}>
-                    <div className="flex-1 w-full">
-                      <label className={`block text-[10px] font-semibold ${currentTheme.mutedText} mb-1`}>Nombre de perfil</label>
-                      <input 
-                        type="text" 
-                        placeholder="Francisco Colmenares"
-                        value={nombreCompleto}
-                        onChange={(e) => setNombreCompleto(e.target.value)}
-                        className={`w-full border ${currentTheme.border} px-3 py-1.5 text-xs rounded focus:outline-none font-bold ${currentTheme.text} ${theme === "midnight" ? "bg-zinc-900" : "bg-white"}`}
-                      />
-                    </div>
-                    <button 
-                      type="submit"
-                      className={`${currentTheme.primary} text-xs font-semibold px-4 py-2 rounded transition-colors whitespace-nowrap`}
-                    >
-                      Guardar
-                    </button>
-                  </form>
+                  </aside>
+                  <section className={`robin-config-content ${currentTheme.cardBg} border ${currentTheme.border} rounded-md p-6 min-h-[420px]`}>
+                    <h2 className={`text-lg font-bold mb-4 ${currentTheme.text}`}>
+                      {tituloConfigSeccion(configSeccion)}
+                    </h2>
+                    {renderConfigSeccionContenido(configSeccion)}
+                  </section>
                 </div>
-              )}
-
-              {/* Estilo Visual */}
-              <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Tema</span>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleThemeChange("notion")}
-                    className={`${themePickerBtnClass(theme, "notion")} theme-picker-btn--compact`}
-                  >
-                    Notion Claro
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleThemeChange("midnight")}
-                    className={`${themePickerBtnClass(theme, "midnight")} theme-picker-btn--compact`}
-                  >
-                    Oscuro
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Icono del teléfono</span>
-                <p className="text-[11px] text-zinc-400">Color del icono al instalar la PWA. El logo del encabezado siempre se mantiene igual.</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {Object.entries(PWA_ICON_VARIANTS).map(([key, { preview, label }]) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => handlePwaIconVariantChange(key)}
-                      className={`p-2 rounded border flex flex-col items-center gap-1.5 transition-all ${
-                        pwaIconVariant === key ? "border-[#37352F] ring-2 ring-[#37352F]/20" : "border-zinc-200 hover:border-zinc-300"
-                      }`}
-                    >
-                      <img src={preview} alt={label} className="w-full max-w-[72px] aspect-square object-contain rounded" />
-                      <span className="text-[10px] font-semibold text-zinc-550">{label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {isConfigOnlyAdmin && (
-                <WidgetsAdminPanel
-                  widgets={widgets}
-                  onAddWidget={handleAddWidget}
-                  onEditWidget={handleEditWidget}
-                  onDeleteWidget={handleDeleteWidget}
-                  marcasDisponibles={marcasDisponibles}
-                />
-              )}
-
-              {isConfigOnlyAdmin && (
-                <div className="flex flex-col gap-3 border-t border-zinc-200 pt-5">
-                  <div>
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Fichas técnicas de clientes</span>
-                    <p className="text-xs text-zinc-400 mt-1">Gestión de equipos, contactos y lineamientos por marca.</p>
-                  </div>
-                  <LayoutClientes
-                    key={clientesReset}
-                    marcas={marcasDisponibles}
-                    marcasMetadata={marcasMetadata}
-                    canEdit={canEditFichas}
-                    onSaveBrandMetadata={handleSaveBrandMetadata}
-                    onRegisterBrand={handleCreateBrand}
-                    onDeleteBrand={handleDeleteBrand}
-                  />
-                </div>
-              )}
-
-              <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Usuarios autorizados</span>
-                {isAdmin ? (
-                  <div className="bg-zinc-50 p-3 rounded border border-zinc-200 flex flex-col gap-3">
-                    <form onSubmit={handleAddUser} className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="Usuario (ej: ralvarez)"
-                        value={nuevoUsuarioInput}
-                        onChange={(e) => setNuevoUsuarioInput(e.target.value)}
-                        className="w-full bg-white border border-zinc-200 px-3 py-1.5 text-xs rounded focus:outline-none font-bold text-[#37352F]"
-                      />
-                      <button type="submit" className="bg-[#37352F] hover:bg-[#2c2a26] text-white text-xs font-semibold px-4 py-2 rounded transition-colors whitespace-nowrap">
-                        Autorizar
-                      </button>
-                    </form>
-                    <div className="flex flex-wrap gap-1">
-                      {listaUsuarios.map(u => (
-                        <span key={u} className="inline-flex items-center gap-1 bg-white border border-zinc-200 text-zinc-800 text-[11px] font-semibold px-2 py-0.5 rounded">
-                          @{u}
-                          {u !== "admin" && (
-                            <button type="button" onClick={() => handleRemoveUser(u)} className="text-zinc-400 hover:text-red-500 font-bold ml-1">&times;</button>
-                          )}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="bg-zinc-50 p-3 rounded border border-zinc-200 text-zinc-500 text-xs font-medium flex items-start gap-2 leading-relaxed">
-                    <i className="fa-solid fa-lock text-zinc-400 mt-0.5"></i>
-                    <span>Requiere privilegios de administrador para autorizar o desautorizar colaboradores.</span>
-                  </div>
-                )}
-              </div>
-
               </div>
             </>
           )}

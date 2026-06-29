@@ -1,4 +1,8 @@
-const PUSH_DEFER_KEY = "robin_push_deferred";
+const PUSH_PROMPT_LEGACY_KEY = "robin_push_deferred";
+
+function pushPromptStorageKey(username) {
+  return `robin_push_prompt_${pushUsuario(username)}`;
+}
 
 function pushSupabaseHeaders(prefer) {
   if (typeof getSupabaseRestHeaders === "function") {
@@ -42,17 +46,30 @@ function pushSoportado() {
   );
 }
 
-function pushEstaDiferido() {
+function esEntornoPushMovil() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia("(max-width: 1023px)").matches;
+}
+
+function pushPromptYaAtendido(username) {
+  const user = pushUsuario(username);
+  if (!user) return true;
+
   try {
-    return getLocalStorageItemSafe(PUSH_DEFER_KEY, "") === "1";
-  } catch (e) {
+    if (getLocalStorageItemSafe(pushPromptStorageKey(user), "") === "1") return true;
+    if (getLocalStorageItemSafe(PUSH_PROMPT_LEGACY_KEY, "") === "1") return true;
     return false;
+  } catch (e) {
+    return true;
   }
 }
 
-function diferirPushNotificaciones() {
+function marcarPushPromptAtendido(username) {
+  const user = pushUsuario(username);
+  if (!user) return;
+
   try {
-    setLocalStorageItemSafe(PUSH_DEFER_KEY, "1");
+    setLocalStorageItemSafe(pushPromptStorageKey(user), "1");
   } catch (e) { /* ignore */ }
 }
 
@@ -128,28 +145,36 @@ async function suscribirPushNotificaciones(username) {
   const guardado = await guardarSuscripcionPush(user, subscription);
   if (!guardado) return { ok: false, reason: "save_failed" };
 
-  try {
-    setLocalStorageItemSafe(PUSH_DEFER_KEY, "0");
-  } catch (e) { /* ignore */ }
-
   return { ok: true };
 }
 
 async function inicializarPushNotificaciones(username) {
-  if (!pushSoportado() || pushEstaDiferido() || !username) return null;
-  if (Notification.permission === "denied") return { ok: false, reason: "denied" };
+  if (!pushSoportado() || !username) return null;
 
+  const user = pushUsuario(username);
   const reg = await obtenerRegistroServiceWorker();
   if (!reg) return null;
 
   const existente = await reg.pushManager.getSubscription();
   if (existente) {
     await guardarSuscripcionPush(username, existente);
+    marcarPushPromptAtendido(user);
     return { ok: true, reason: "existing" };
   }
 
   if (Notification.permission === "granted") {
-    return suscribirPushNotificaciones(username);
+    const resultado = await suscribirPushNotificaciones(username);
+    marcarPushPromptAtendido(user);
+    return resultado;
+  }
+
+  if (Notification.permission === "denied") {
+    marcarPushPromptAtendido(user);
+    return { ok: false, reason: "denied" };
+  }
+
+  if (!esEntornoPushMovil() || pushPromptYaAtendido(user)) {
+    return { ok: false, reason: "no_prompt" };
   }
 
   return { ok: false, reason: "needs_prompt" };

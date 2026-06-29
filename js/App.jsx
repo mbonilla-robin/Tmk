@@ -112,10 +112,6 @@ function App() {
       searchQuery.trim() !== "";
   }, [filtroMarca, filtroEstado, filtroPrioridad, filtroPersona, filtroTiempo, searchQuery]);
 
-  const handleSyncClick = () => {
-    setSyncDetalleVisible(prev => !prev);
-  };
-
   const [nuevaTarea, setNuevaTarea] = useState(() => crearNuevaTareaVacia());
 
   // 🚨 UBICACIÓN CORRECTA DE VARIABLES COMPUTADAS Y useMemo (Evita ReferenceError y TDZ)
@@ -416,6 +412,18 @@ function App() {
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleSyncClick = () => {
+    const esMovil = typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches;
+    setSyncDetalleVisible((prev) => {
+      const next = !prev;
+      if (esMovil && next) {
+        const tipo = apiError ? "error" : syncing ? "info" : hayPendientesLocales ? "info" : "success";
+        setTimeout(() => showToast(palabraEstadoSync, tipo), 0);
+      }
+      return next;
+    });
   };
 
   const persistTareas = (updater) => {
@@ -1168,17 +1176,16 @@ function App() {
 
   const handleActivarPush = async () => {
     if (!usuario || pushActivando) return;
+    marcarPushPromptAtendido(usuario);
+    setPushPromptVisible(false);
     setPushActivando(true);
     try {
       const resultado = await suscribirPushNotificaciones(usuario);
       if (resultado.ok) {
-        setPushPromptVisible(false);
         showToast("Notificaciones push activadas", "success");
         return;
       }
       if (resultado.reason === "denied") {
-        diferirPushNotificaciones();
-        setPushPromptVisible(false);
         showToast("Puedes activarlas después en Ajustes del navegador", "info");
         return;
       }
@@ -1189,7 +1196,7 @@ function App() {
   };
 
   const handleOmitirPush = () => {
-    diferirPushNotificaciones();
+    marcarPushPromptAtendido(usuario);
     setPushPromptVisible(false);
   };
 
@@ -1488,7 +1495,7 @@ function App() {
     <div className={`flex h-screen w-screen overflow-hidden ${currentTheme.bg} ${currentTheme.text} select-none transition-all`}>
       
       {toast && (
-        <div className="fixed bottom-[calc(var(--mobile-chrome-bottom,4rem)+0.5rem)] right-4 md:bottom-6 md:right-6 z-[40] px-4 py-2.5 rounded shadow text-xs font-semibold flex items-center gap-2 border bg-zinc-900 text-white border-zinc-800 animate-zoom-in">
+        <div className="robin-float-above-chrome robin-toast-stack px-4 py-2.5 rounded shadow text-xs font-semibold flex items-center gap-2 border bg-zinc-900 text-white border-zinc-800 animate-zoom-in">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
           <span>{toast.msg}</span>
         </div>
@@ -2468,8 +2475,8 @@ function App() {
         />
       )}
 
-      {!isConfigOnlyAdmin && pushPromptVisible && (
-        <div className="fixed bottom-[calc(var(--mobile-chrome-bottom,4rem)+0.75rem)] left-4 right-4 md:left-auto md:right-6 md:max-w-sm z-[45] p-4 rounded-lg border border-zinc-200 bg-white shadow-lg animate-zoom-in">
+      {!isConfigOnlyAdmin && pushPromptVisible && esEntornoPushMovil() && (
+        <div className="robin-float-above-chrome robin-push-prompt p-4 rounded-lg border border-zinc-200 bg-white shadow-lg animate-zoom-in">
           <p className="text-sm font-semibold text-zinc-800 mb-1">Notificaciones en tu teléfono</p>
           <p className="text-xs text-zinc-500 leading-relaxed mb-3">
             Actívalas para recibir menciones y comentarios aunque no tengas ROBIN abierto.

@@ -35,6 +35,54 @@ function guardarColaSync(cola) {
   setLocalStorageItemSafe(STORAGE_COLA_KEY, JSON.stringify(cola || []));
 }
 
+function construirPayloadSyncTarea(original, actualizada, opciones = {}) {
+  const orig = original || actualizada || {};
+  const act = actualizada || original || {};
+  const campoSync = opciones.campoSync || "todo";
+  const inicio = normalizarDeadline(
+    act.fechaInicio || orig.fechaInicio || resolverFechaInicioTarea(act) || ""
+  );
+
+  const payload = {
+    marca: act.marca || orig.marca,
+    idTarea: idTareaParaApi(orig) || idTareaParaApi(act) || "",
+    info: act.info || orig.info,
+    originalInfo: orig.info || act.info,
+    originalCategoria: orig.categoria || "",
+    categoria: act.categoria || orig.categoria,
+    personas: act.personas || orig.personas,
+    detalles: act.detalles || orig.detalles,
+    estado: normalizarEstado(act.estado || orig.estado),
+    deadline: normalizarDeadline(act.deadline || orig.deadline),
+    prioridad: normalizarPrioridad(act.prioridad || orig.prioridad),
+    campo: campoSync,
+    esActualizacion: !opciones.esNuevo
+  };
+
+  if (inicio) payload.fechaInicio = inicio;
+
+  if (opciones.campoSync === "estado" && opciones.valor !== undefined) {
+    payload.estado = normalizarEstado(opciones.valor);
+    payload.valor = payload.estado;
+  } else if (opciones.campoSync === "deadline" && opciones.valor !== undefined) {
+    payload.deadline = normalizarDeadline(opciones.valor);
+    payload.valor = payload.deadline;
+  } else if (opciones.campoSync === "prioridad" && opciones.valor !== undefined) {
+    payload.prioridad = normalizarPrioridad(opciones.valor);
+    payload.valor = payload.prioridad;
+  } else if (opciones.campoSync === "fechaInicio" && opciones.valor !== undefined) {
+    payload.fechaInicio = normalizarDeadline(opciones.valor);
+    payload.valor = payload.fechaInicio;
+  }
+
+  if (opciones.esNuevo) {
+    payload.esActualizacion = false;
+    payload.esNuevo = true;
+  }
+
+  return payload;
+}
+
 function encolarSync(operacion) {
   let cola = cargarColaSync();
   const taskKey = operacion.taskKey || "";
@@ -125,8 +173,13 @@ function remotaCorrespondeATareaLocal(remota, local, cola) {
   return false;
 }
 
-function elegirFechaLocal(remota, local) {
-  const l = normalizarDeadline(local);
+function elegirFechaLocal(remota, local, campo) {
+  const pin = local?._localFechas?.[campo];
+  if (pin) {
+    const remotaNorm = normalizarDeadline(remota);
+    if (!remotaNorm || remotaNorm !== pin) return pin;
+  }
+  const l = normalizarDeadline(local?.[campo]);
   const r = normalizarDeadline(remota);
   if (l && r && l !== r) return l;
   return l || r || "";
@@ -134,21 +187,46 @@ function elegirFechaLocal(remota, local) {
 
 function fusionarFechasLocales(remota, local) {
   return {
-    deadline: elegirFechaLocal(remota?.deadline, local?.deadline),
-    fechaInicio: elegirFechaLocal(remota?.fechaInicio, local?.fechaInicio)
+    deadline: elegirFechaLocal(remota?.deadline, local, "deadline"),
+    fechaInicio: elegirFechaLocal(remota?.fechaInicio, local, "fechaInicio")
   };
 }
 
-function syncConfirmadoConRemota(local, remota) {
-  if (!local || !remota) return false;
-  const dlLocal = normalizarDeadline(local.deadline);
-  const dlRemota = normalizarDeadline(remota.deadline);
-  if (dlLocal && !dlRemota) return false;
-  if (dlLocal && dlRemota && dlLocal !== dlRemota) return false;
-  const fiLocal = normalizarDeadline(local.fechaInicio || "");
-  const fiRemota = normalizarDeadline(remota.fechaInicio || "");
-  if (fiLocal && fiRemota && fiLocal !== fiRemota) return false;
-  return true;
+function remotaContradiceFechasLocales(remota, local) {
+  if (!local?._localFechas || !remota) return false;
+  const pin = local._localFechas;
+  if (pin.deadline && normalizarDeadline(remota.deadline) !== pin.deadline) return true;
+  if (pin.fechaInicio && normalizarDeadline(remota.fechaInicio) !== pin.fechaInicio) return true;
+  return false;
+}
+
+function combinarLocalesParaFusion(prevTareas, almacenadas) {
+  const resultado = [...(almacenadas || [])];
+
+  (prevTareas || []).forEach((tarea) => {
+    const indice = resultado.findIndex((existente) => sonLaMismaTarea(existente, tarea, { estricto: false }));
+    if (indice === -1) {
+      resultado.push(tarea);
+      return;
+    }
+
+    const existente = resultado[indice];
+    const preferida = (tarea._localFechas || tarea._pendingSync)
+      ? tarea
+      : (existente._localFechas || existente._pendingSync ? existente : tarea);
+    const otra = preferida === tarea ? existente : tarea;
+    const fechas = fusionarFechasLocales(otra, preferida);
+
+    resultado[indice] = aplicarFechasLocales(normalizarTareaCampos({
+      ...existente,
+      ...preferida,
+      ...fechas,
+      _localFechas: preferida._localFechas || existente._localFechas,
+      _pendingSync: !!(preferida._pendingSync || existente._pendingSync)
+    }));
+  });
+
+  return resultado;
 }
 
 function deduplicarTareasFusionadas(lista) {
@@ -162,22 +240,26 @@ function deduplicarTareasFusionadas(lista) {
     }
 
     const existente = resultado[indice];
-    const preferida = tareaEsPendienteLocal(tarea)
+    const tienePrioridadLocal = (t) => tareaEsPendienteLocal(t) || tareaTieneFechasLocalesPendientes(t);
+    const preferida = tienePrioridadLocal(tarea)
       ? tarea
-      : (tareaEsPendienteLocal(existente) ? existente : tarea);
+      : (tienePrioridadLocal(existente) ? existente : tarea);
     const otra = preferida === tarea ? existente : tarea;
     const fechas = fusionarFechasLocales(otra, preferida);
     const fusionada = normalizarTareaCampos({
       ...existente,
       ...preferida,
       ...fechas,
+      _localFechas: preferida._localFechas || existente._localFechas,
       idTarea: preferida.idTarea || existente.idTarea,
       detalles: preferida.detalles || existente.detalles
     });
 
-    resultado[indice] = tareaEsPendienteLocal(preferida) && !syncConfirmadoConRemota(preferida, otra)
-      ? marcarTareaPendiente(fusionada)
-      : desmarcarTareaPendiente(fusionada);
+    const confirmada = fechasLocalesConfirmadasConRemota(preferida, otra);
+    const fusionFinal = limpiarFechasLocalesSiConfirmadas(fusionada, otra);
+    resultado[indice] = tienePrioridadLocal(preferida) && !confirmada
+      ? marcarTareaPendiente(fusionFinal)
+      : desmarcarTareaPendiente(fusionFinal);
   });
 
   return resultado;
@@ -193,8 +275,9 @@ function remotaDebeOcultarseDuranteSync(remota, cola, locales) {
   }
 
   for (const local of locales || []) {
-    if (!tareaEsPendienteLocal(local)) continue;
-    if (sonLaMismaTarea(remota, local, { estricto: false })) return true;
+    if (!sonLaMismaTarea(remota, local, { estricto: false })) continue;
+    if (tareaEsPendienteLocal(local)) return true;
+    if (remotaContradiceFechasLocales(remota, local)) return true;
   }
 
   return false;
@@ -202,6 +285,7 @@ function remotaDebeOcultarseDuranteSync(remota, cola, locales) {
 
 function fusionarTareasRemotasYLocales(remotas, locales) {
   const cola = cargarColaSync();
+  const localesConPins = (locales || []).map((t) => aplicarFechasLocales(t));
   const eliminaciones = new Set(
     cola
       .filter((op) => op.type === "delete")
@@ -211,7 +295,7 @@ function fusionarTareasRemotasYLocales(remotas, locales) {
   const remotoFiltrado = (remotas || []).filter((t) => {
     const key = getTaskSelectionKey(t);
     if (eliminaciones.has(key)) return false;
-    return !remotaDebeOcultarseDuranteSync(t, cola, locales);
+    return !remotaDebeOcultarseDuranteSync(t, cola, localesConPins);
   });
 
   const mapa = new Map();
@@ -219,13 +303,13 @@ function fusionarTareasRemotasYLocales(remotas, locales) {
     mapa.set(getTaskSelectionKey(t), desmarcarTareaPendiente(normalizarTareaCampos(t)));
   });
 
-  (locales || []).forEach((t) => {
-    if (!tareaEsPendienteLocal(t)) return;
+  localesConPins.forEach((t) => {
+    if (!tareaEsPendienteLocal(t) && !tareaTieneFechasLocalesPendientes(t)) return;
     mapa.set(getTaskSelectionKey(t), normalizarTareaCampos(t));
   });
 
-  (locales || []).forEach((local) => {
-    if (!tareaEsPendienteLocal(local)) return;
+  localesConPins.forEach((local) => {
+    if (!tareaEsPendienteLocal(local) && !tareaTieneFechasLocalesPendientes(local)) return;
     const remota = (remotas || []).find((r) => remotaCorrespondeATareaLocal(r, local, cola));
     if (remota) {
       const fechas = fusionarFechasLocales(remota, local);
@@ -233,14 +317,17 @@ function fusionarTareasRemotasYLocales(remotas, locales) {
         ...remota,
         ...local,
         ...fechas,
+        _localFechas: local._localFechas,
         idTarea: remota.idTarea || local.idTarea,
         detalles: local.detalles || remota.detalles
       });
+      const confirmada = fechasLocalesConfirmadasConRemota(local, remota);
+      const fusionFinal = limpiarFechasLocalesSiConfirmadas(fusionada, remota);
       mapa.set(
         getTaskSelectionKey(local),
-        tareaEsPendienteLocal(local) && !syncConfirmadoConRemota(local, remota)
-          ? marcarTareaPendiente(fusionada)
-          : desmarcarTareaPendiente(fusionada)
+        (tareaEsPendienteLocal(local) || tareaTieneFechasLocalesPendientes(local)) && !confirmada
+          ? marcarTareaPendiente(fusionFinal)
+          : desmarcarTareaPendiente(fusionFinal)
       );
     }
   });
@@ -253,52 +340,69 @@ function hayPendientesSync() {
 }
 
 function hayTareasPendientesLocales(tareas) {
-  return (tareas || []).some(tareaEsPendienteLocal);
+  return (tareas || []).some((t) => tareaEsPendienteLocal(t) || tareaTieneFechasLocalesPendientes(t));
 }
 
 async function procesarColaSync() {
   const apiUrl = getConfiguredApiUrl();
   if (!isApiConfigured() || !apiUrl) {
-    return { ok: false, processed: 0, remaining: cargarColaSync().length };
+    return { ok: false, processed: 0, remaining: cargarColaSync().length, errores: [] };
   }
 
   const cola = cargarColaSync();
-  if (!cola.length) return { ok: true, processed: 0, remaining: 0 };
+  if (!cola.length) return { ok: true, processed: 0, remaining: 0, errores: [] };
 
   const restantes = [];
+  const errores = [];
   let processed = 0;
 
   for (const op of cola) {
-    try {
-      const res = await fetchRobinApi(apiUrl, {
-        method: "POST",
-        mode: "cors",
-        redirect: "follow",
-        headers: { "Content-Type": "text/plain; charset=utf-8" },
-        body: JSON.stringify(op.payload)
-      });
+    let exito = false;
+    let ultimoError = "Error desconocido";
 
-      let json = null;
+    for (let intento = 1; intento <= 3; intento++) {
       try {
-        json = await res.json();
-      } catch (parseErr) {
-        json = null;
+        const res = await fetchRobinApi(apiUrl, {
+          method: "POST",
+          mode: "cors",
+          redirect: "follow",
+          headers: { "Content-Type": "text/plain; charset=utf-8" },
+          body: JSON.stringify(op.payload)
+        });
+
+        const rawText = await res.text();
+        let json = null;
+        try {
+          json = JSON.parse(rawText);
+        } catch (parseErr) {
+          json = null;
+        }
+
+        if (json && json.success === true) {
+          exito = true;
+          processed += 1;
+          break;
+        }
+
+        ultimoError = (json && json.error) ? String(json.error) : (rawText || `HTTP ${res.status}`).slice(0, 200);
+      } catch (e) {
+        ultimoError = e?.message || String(e);
       }
 
-      if (!json || json.success !== true) {
-        restantes.push(op);
-        continue;
+      if (intento < 3) {
+        await new Promise((resolve) => setTimeout(resolve, intento * 800));
       }
+    }
 
-      processed += 1;
-    } catch (e) {
-      console.warn("ROBIN: fallo al enviar operación pendiente", op.type, e);
+    if (!exito) {
       restantes.push(op);
+      errores.push({ type: op.type, taskKey: op.taskKey, error: ultimoError });
+      console.warn("ROBIN: no se pudo escribir en el Sheet", op.type, ultimoError);
     }
   }
 
   guardarColaSync(restantes);
-  return { ok: restantes.length === 0, processed, remaining: restantes.length };
+  return { ok: restantes.length === 0, processed, remaining: restantes.length, errores };
 }
 
 function normalizarTareasDesdeApi(jsonData) {

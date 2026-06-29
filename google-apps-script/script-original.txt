@@ -915,6 +915,81 @@ function doGet(e) {
   }
 }
 
+function normalizarTextoBusqueda_(val) {
+  return String(val || "").trim().toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function extraerTituloDeInfo_(info) {
+  var txt = String(info || "").trim();
+  var match = txt.match(/^([^|]+)\s*\|\s*(.+)$/);
+  if (match) return match[2].trim();
+  return txt;
+}
+
+function buscarFilaTareaEnHoja_(sheet, payload) {
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 3) return -1;
+
+  var numFilas = lastRow - 2;
+  var brandData = sheet.getRange(3, 1, numFilas, 9).getValues();
+  var idTarea = String(payload.idTarea || "").trim();
+  if (idTarea.indexOf("STB-") === 0) idTarea = "";
+
+  var i, j;
+  if (idTarea) {
+    for (i = 0; i < brandData.length; i++) {
+      if (String(brandData[i][8] || "").trim() === idTarea) return i + 3;
+    }
+  }
+
+  var valInfo = normalizarTextoBusqueda_(payload.info);
+  var valInfoOriginal = normalizarTextoBusqueda_(payload.originalInfo);
+  var valCat = normalizarTextoBusqueda_(payload.originalCategoria || payload.categoria);
+  var valTitulo = normalizarTextoBusqueda_(extraerTituloDeInfo_(payload.info));
+  var valTituloOriginal = normalizarTextoBusqueda_(extraerTituloDeInfo_(payload.originalInfo));
+
+  if (valInfoOriginal) {
+    for (i = 0; i < brandData.length; i++) {
+      if (normalizarTextoBusqueda_(brandData[i][3]) === valInfoOriginal) return i + 3;
+    }
+  }
+
+  if (valInfo) {
+    for (i = 0; i < brandData.length; i++) {
+      if (normalizarTextoBusqueda_(brandData[i][3]) === valInfo) return i + 3;
+    }
+  }
+
+  var candidatos = [];
+  for (j = 0; j < brandData.length; j++) {
+    var filaCat = normalizarTextoBusqueda_(brandData[j][1]);
+    var filaTitulo = normalizarTextoBusqueda_(extraerTituloDeInfo_(brandData[j][3]));
+    var filaInfoNorm = normalizarTextoBusqueda_(brandData[j][3]);
+    var catOk = !valCat || !filaCat || filaCat === valCat;
+
+    if (catOk && filaTitulo && (filaTitulo === valTitulo || filaTitulo === valTituloOriginal)) {
+      candidatos.push(j + 3);
+    } else if (filaTitulo === valTitulo || filaTitulo === valTituloOriginal) {
+      candidatos.push(j + 3);
+    } else if (filaInfoNorm === valTitulo || filaInfoNorm === valTituloOriginal) {
+      candidatos.push(j + 3);
+    }
+  }
+
+  var unicos = [];
+  var visto = {};
+  for (i = 0; i < candidatos.length; i++) {
+    if (!visto[candidatos[i]]) {
+      visto[candidatos[i]] = true;
+      unicos.push(candidatos[i]);
+    }
+  }
+  if (unicos.length === 1) return unicos[0];
+
+  return -1;
+}
+
 function doPost(e) {
   try {
     if (!e || !e.postData || !e.postData.contents) {
@@ -1024,43 +1099,13 @@ function doPost(e) {
     var lastRow = targetSheet.getLastRow();
     var targetRow = -1;
     var idTarea = String(payload.idTarea || "").trim();
+    if (idTarea.indexOf("STB-") === 0) idTarea = "";
 
-    if (idTarea !== "") {
-      if (lastRow >= 1) {
-        var ids = targetSheet.getRange(1, 9, lastRow, 1).getValues();
-        for (var i = 0; i < ids.length; i++) {
-          if (String(ids[i][0]).trim() === idTarea) {
-            targetRow = i + 1;
-            break;
-          }
-        }
-      }
-    }
-
-    if (targetRow === -1 && (payload.info || payload.originalInfo) && lastRow >= 3 && marca !== "Config_Marcas") {
-      var brandData = targetSheet.getRange(3, 1, lastRow - 2, 9).getValues();
-      var valCat = String(payload.categoria || "").trim().toLowerCase();
-      var valInfo = String(payload.info || "").trim().toLowerCase();
-      var valInfoOriginal = String(payload.originalInfo || "").trim().toLowerCase();
-
-      for (var j = 0; j < brandData.length; j++) {
-        var filaCat = String(brandData[j][1]).trim().toLowerCase();
-        var filaInfo = String(brandData[j][3]).trim().toLowerCase();
-        var catCoincide = filaCat === valCat;
-        var infoCoincide = filaInfo === valInfo || (valInfoOriginal !== "" && filaInfo === valInfoOriginal);
-        if (catCoincide && infoCoincide) {
-          targetRow = j + 3;
-          break;
-        }
-      }
-
-      if (targetRow === -1 && valInfoOriginal !== "") {
-        for (var k = 0; k < brandData.length; k++) {
-          if (String(brandData[k][3]).trim().toLowerCase() === valInfoOriginal) {
-            targetRow = k + 3;
-            break;
-          }
-        }
+    if (marca !== "Config_Marcas") {
+      targetRow = buscarFilaTareaEnHoja_(targetSheet, payload);
+      if (targetRow !== -1 && !idTarea) {
+        var idEnHoja = String(targetSheet.getRange(targetRow, 9).getValue() || "").trim();
+        if (idEnHoja && idEnHoja.indexOf("STB-") !== 0) idTarea = idEnHoja;
       }
     }
 
@@ -1077,6 +1122,9 @@ function doPost(e) {
 
     if (campo) {
       if (targetRow === -1) {
+        if (payload.esActualizacion) {
+          throw new Error("No se encontró el entregable en el Sheet para actualizar.");
+        }
         targetRow = lastRow + 1;
         var limitRow = (marca === "Config_Marcas") ? 2 : 3;
         if (targetRow < limitRow) targetRow = limitRow;

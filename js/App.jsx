@@ -597,37 +597,28 @@ function App() {
         [campo]: valorFinal,
         detalles: campo === "estado" ? detalles : t.detalles
       });
+      const conFechas = campo === "deadline" || campo === "fechaInicio"
+        ? registrarEdicionFechasLocales(actualizada, { [campo]: valorFinal })
+        : actualizada;
 
       const taskKeyOriginal = getTaskSelectionKey(t);
-      const inicioPayload = normalizarDeadline(actualizada.fechaInicio || t.fechaInicio || resolverFechaInicioTarea(t) || "");
       encolarSync({
         type: "update",
-        taskKey: getTaskSelectionKey(actualizada),
+        taskKey: getTaskSelectionKey(conFechas),
         taskKeyOriginal,
-        payload: {
-          marca: t.marca,
-          idTarea: idTareaParaApi(t) || actualizada.idTarea,
-          info: actualizada.info || t.info,
-          originalInfo: t.info,
-          categoria: actualizada.categoria || t.categoria,
-          campo: "todo",
-          valor: valorFinal,
-          personas: actualizada.personas || t.personas,
-          detalles: actualizada.detalles || detalles,
-          estado: campo === "estado" ? valorFinal : normalizarEstado(actualizada.estado || t.estado),
-          deadline: campo === "deadline" ? valorFinal : normalizarDeadline(actualizada.deadline || t.deadline),
-          ...(inicioPayload ? { fechaInicio: inicioPayload } : {}),
-          prioridad: campo === "prioridad" ? valorFinal : normalizarPrioridad(actualizada.prioridad || t.prioridad)
-        }
+        payload: construirPayloadSyncTarea(t, conFechas, {
+          campoSync: (campo === "estado" || campo === "deadline" || campo === "prioridad" || campo === "fechaInicio") ? campo : "todo",
+          valor: valorFinal
+        })
       });
 
-      return actualizada;
+      return conFechas;
     });
 
     persistTareas(actualizadas);
     setHayPendientesLocales(true);
     limpiarSeleccionTareas();
-    showToast(`${objetivos.length} entregable(s) actualizado(s)`, "success");
+    showToast(`${objetivos.length} entregable(s) guardado(s). Sincronizando con el Sheet...`, "success");
     sincronizarEnSegundoPlano();
   };
 
@@ -945,7 +936,7 @@ function App() {
           const remotas = normalizarTareasDesdeApi(json.data);
           let fusionadas = [];
           setTareas((prevTareas) => {
-            const base = prevTareas.length ? prevTareas : cargarTareasLocales();
+            const base = combinarLocalesParaFusion(prevTareas, cargarTareasLocales());
             fusionadas = fusionarTareasRemotasYLocales(remotas, base);
             guardarTareasLocales(fusionadas);
             return fusionadas;
@@ -1003,7 +994,10 @@ function App() {
       try {
         const resultado = await procesarColaSync();
         setHayPendientesLocales(hayPendientesSync() || hayTareasPendientesLocales(cargarTareasLocales()));
-        if (resultado.processed > 0) {
+        if (resultado.errores && resultado.errores.length > 0) {
+          showToast("No se pudo guardar en Google Sheets. Se reintentará automáticamente.", "error");
+        } else if (resultado.processed > 0) {
+          showToast("Cambios guardados en Google Sheets", "success");
           await new Promise((resolve) => setTimeout(resolve, 600));
         }
         await fetchData(true);
@@ -1037,40 +1031,29 @@ function App() {
     }
 
     const valorFinal = normalizarValorCampoTarea(campo, nuevoValor);
-    const actualizada = marcarTareaPendiente({
+    let actualizada = marcarTareaPendiente({
       ...original,
       idTarea: taskTargetId,
       [campo]: valorFinal,
       detalles: campo === "estado" ? detallesConHistorial : original.detalles
     });
+    if (campo === "deadline" || campo === "fechaInicio") {
+      actualizada = registrarEdicionFechasLocales(actualizada, { [campo]: valorFinal });
+    }
 
     const temp = [...tareas];
     temp[index] = actualizada;
     persistTareas(temp);
 
-    const inicioPayload = normalizarDeadline(actualizada.fechaInicio || original.fechaInicio || resolverFechaInicioTarea(original) || "");
+    const campoSync = (campo === "estado" || campo === "deadline" || campo === "prioridad" || campo === "fechaInicio") ? campo : "todo";
     encolarSync({
       type: "update",
       taskKey: getTaskSelectionKey(actualizada),
       taskKeyOriginal,
-      payload: {
-        marca: original.marca,
-        idTarea: idTareaParaApi(original) || taskTargetId,
-        info: actualizada.info || original.info,
-        originalInfo: original.info,
-        categoria: actualizada.categoria || original.categoria,
-        campo: "todo",
-        valor: valorFinal,
-        personas: actualizada.personas || original.personas,
-        detalles: actualizada.detalles || detallesConHistorial,
-        estado: campo === "estado" ? valorFinal : normalizarEstado(actualizada.estado || original.estado),
-        deadline: campo === "deadline" ? valorFinal : normalizarDeadline(actualizada.deadline || original.deadline),
-        ...(inicioPayload ? { fechaInicio: inicioPayload } : {}),
-        prioridad: campo === "prioridad" ? valorFinal : normalizarPrioridad(actualizada.prioridad || original.prioridad)
-      }
+      payload: construirPayloadSyncTarea(original, actualizada, { campoSync, valor: valorFinal })
     });
     setHayPendientesLocales(true);
-    showToast("Cambio guardado", "success");
+    showToast("Guardando en Google Sheets...", "success");
     sincronizarEnSegundoPlano();
   };
 
@@ -1141,13 +1124,24 @@ function App() {
         detallesAudoria += `\n• [${timestamp}] Editado (${cambios.join(", ")}) por @${usuario}`;
       }
 
-      const taskConHistorial = marcarTareaPendiente(normalizarTareaCampos(prepararTareaConCategoria({
+      let taskConHistorial = marcarTareaPendiente(normalizarTareaCampos(prepararTareaConCategoria({
         ...editedTask,
         idTarea: original.idTarea,
         prioridad: prioridadNormalizada,
         fechaInicio: normalizarDeadline(editedTask.fechaInicio || resolverFechaInicioTarea(editedTask) || fechaHoyDisplay()),
         detalles: detallesAudoria
       })));
+
+      const fechasEditadas = {};
+      if (normalizarDeadline(original.deadline) !== normalizarDeadline(editedTask.deadline)) {
+        fechasEditadas.deadline = taskConHistorial.deadline;
+      }
+      if (normalizarDeadline(original.fechaInicio || "") !== normalizarDeadline(editedTask.fechaInicio || "")) {
+        fechasEditadas.fechaInicio = taskConHistorial.fechaInicio;
+      }
+      if (fechasEditadas.deadline || fechasEditadas.fechaInicio) {
+        taskConHistorial = registrarEdicionFechasLocales(taskConHistorial, fechasEditadas);
+      }
 
       const taskKeyOriginal = getTaskSelectionKey(original);
       const copiaTareas = [...tareas];
@@ -1158,20 +1152,7 @@ function App() {
         type: "update",
         taskKey: getTaskSelectionKey(taskConHistorial),
         taskKeyOriginal,
-        payload: {
-          marca: taskConHistorial.marca,
-          idTarea: idTareaParaApi(original),
-          info: taskConHistorial.info,
-          originalInfo: original.info,
-          categoria: taskConHistorial.categoria,
-          personas: taskConHistorial.personas,
-          detalles: taskConHistorial.detalles,
-          estado: taskConHistorial.estado,
-          deadline: taskConHistorial.deadline,
-          fechaInicio: taskConHistorial.fechaInicio || "",
-          prioridad: normalizarPrioridad(taskConHistorial.prioridad),
-          campo: "todo"
-        }
+        payload: construirPayloadSyncTarea(original, taskConHistorial, { campoSync: "todo" })
       });
       setHayPendientesLocales(true);
 
@@ -1183,7 +1164,7 @@ function App() {
 
       setIsEditing(false);
       setActiveTask(null);
-      showToast("Guardado", "success");
+      showToast("Guardando en Google Sheets...", "success");
       sincronizarEnSegundoPlano();
     } finally {
       setTimeout(() => { guardandoRef.current = false; }, 250);
@@ -1277,19 +1258,7 @@ function App() {
       encolarSync({
         type: "create",
         taskKey,
-        payload: {
-          marca: nuevaConId.marca,
-          idTarea: "",
-          info: nuevaConId.info,
-          categoria: nuevaConId.categoria,
-          personas: nuevaConId.personas,
-          detalles: nuevaConId.detalles,
-          estado: nuevaConId.estado,
-          deadline: nuevaConId.deadline,
-          fechaInicio: nuevaConId.fechaInicio || "",
-          prioridad: normalizarPrioridad(nuevaConId.prioridad),
-          campo: "todo"
-        }
+        payload: construirPayloadSyncTarea(nuevaConId, nuevaConId, { esNuevo: true, campoSync: "todo" })
       });
       setHayPendientesLocales(true);
 

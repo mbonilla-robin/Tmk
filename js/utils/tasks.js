@@ -14,7 +14,7 @@ function generateBrandId(marca) {
 }
 
 function generarIdDeterminista(t) {
-  const contentSeed = `${t.marca || "GEN"}-${t.info || ""}-${t.deadline || ""}`;
+  const contentSeed = `${t.marca || "GEN"}-${t.info || ""}`;
   let hash = 0;
   for (let i = 0; i < contentSeed.length; i++) {
     hash = ((hash << 5) - hash) + contentSeed.charCodeAt(i);
@@ -210,8 +210,71 @@ function ordenarTareasParaHoy(lista) {
   });
 }
 
-function normalizarTareaCampos(t) {
+function aplicarFechasLocales(tarea) {
+  if (!tarea?._localFechas) return tarea;
+  const pin = tarea._localFechas;
   return {
+    ...tarea,
+    ...(pin.deadline ? { deadline: pin.deadline } : {}),
+    ...(pin.fechaInicio ? { fechaInicio: pin.fechaInicio } : {})
+  };
+}
+
+function registrarEdicionFechasLocales(tarea, campos = {}) {
+  const pin = { ...(tarea?._localFechas || {}) };
+  let touched = false;
+
+  if (campos.deadline !== undefined) {
+    const norm = normalizarDeadline(campos.deadline);
+    if (norm) {
+      pin.deadline = norm;
+      touched = true;
+    }
+  }
+  if (campos.fechaInicio !== undefined) {
+    const norm = normalizarDeadline(campos.fechaInicio);
+    if (norm) {
+      pin.fechaInicio = norm;
+      touched = true;
+    }
+  }
+  if (!touched) return tarea;
+
+  pin.updatedAt = Date.now();
+  return aplicarFechasLocales({ ...tarea, _localFechas: pin });
+}
+
+function tareaTieneFechasLocalesPendientes(tarea) {
+  return !!(tarea?._localFechas?.deadline || tarea?._localFechas?.fechaInicio);
+}
+
+function fechasLocalesConfirmadasConRemota(local, remota) {
+  if (!local?._localFechas) {
+    const dlLocal = normalizarDeadline(local?.deadline);
+    const dlRemota = normalizarDeadline(remota?.deadline);
+    if (dlLocal && !dlRemota) return false;
+    if (dlLocal && dlRemota && dlLocal !== dlRemota) return false;
+    const fiLocal = normalizarDeadline(local?.fechaInicio || "");
+    const fiRemota = normalizarDeadline(remota?.fechaInicio || "");
+    if (fiLocal && fiRemota && fiLocal !== fiRemota) return false;
+    return true;
+  }
+
+  const pin = local._localFechas;
+  if (pin.deadline && normalizarDeadline(remota?.deadline) !== pin.deadline) return false;
+  if (pin.fechaInicio && normalizarDeadline(remota?.fechaInicio) !== pin.fechaInicio) return false;
+  return true;
+}
+
+function limpiarFechasLocalesSiConfirmadas(tarea, remota) {
+  if (!tarea?._localFechas || !fechasLocalesConfirmadasConRemota(tarea, remota)) return tarea;
+  const copia = { ...tarea };
+  delete copia._localFechas;
+  return copia;
+}
+
+function normalizarTareaCampos(t) {
+  return aplicarFechasLocales({
     ...t,
     marca: normalizarMarca(t.marca),
     estado: normalizarEstado(t.estado),
@@ -219,7 +282,7 @@ function normalizarTareaCampos(t) {
     deadline: normalizarDeadline(t.deadline),
     fechaInicio: resolverFechaInicioTarea(t),
     personas: normalizarCampoPersonas(t.personas)
-  };
+  });
 }
 
 function normalizarValorCampoTarea(campo, valor) {

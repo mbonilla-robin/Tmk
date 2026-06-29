@@ -3092,9 +3092,6 @@ body {
 
       /* Toasts, prompts y barras flotantes: siempre por encima del chrome inferior */
       .robin-float-above-chrome {
-        position: fixed;
-        z-index: 80;
-        pointer-events: auto;
         bottom: calc(var(--mobile-chrome-bottom) + 1rem);
       }
 
@@ -3129,46 +3126,6 @@ body {
         bottom: auto;
         left: 1rem;
         right: 1rem;
-        display: flex;
-        align-items: flex-start;
-        gap: 0.5rem;
-        padding: 0.65rem 0.75rem;
-        border-radius: 0.5rem;
-        border: 1px solid var(--robin-border);
-        background: var(--robin-card);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-        text-align: left;
-        z-index: 75;
-      }
-
-      .robin-sync-alert.is-error {
-        border-color: #fecaca;
-        background: #fef2f2;
-      }
-
-      .robin-sync-alert.is-warn {
-        border-color: #fde68a;
-        background: #fffbeb;
-      }
-
-      .robin-sync-alert__text {
-        flex: 1;
-        min-width: 0;
-        font-size: 11px;
-        line-height: 1.45;
-        color: var(--robin-text);
-      }
-
-      .robin-sync-alert__text strong {
-        font-weight: 700;
-      }
-
-      .robin-sync-alert__cta {
-        flex-shrink: 0;
-        font-size: 10px;
-        font-weight: 700;
-        color: #3f3f46;
-        text-decoration: underline;
       }
 
       .mobile-nav-grid {
@@ -4232,6 +4189,61 @@ body {
         padding-top: 1.5rem;
         padding-bottom: 1.5rem;
       }
+    }
+
+    /* Banner de estado Sheets (fuera del flujo flex de la app) */
+    .robin-sync-alert {
+      position: fixed;
+      z-index: 75;
+      box-sizing: border-box;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      padding: 0.65rem 0.75rem;
+      border-radius: 0.5rem;
+      border: 1px solid var(--robin-border);
+      background: var(--robin-card);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+      text-align: left;
+      max-width: calc(100vw - 2rem);
+      width: auto;
+    }
+
+    .robin-sync-alert.is-error {
+      border-color: #fecaca;
+      background: #fef2f2;
+    }
+
+    .robin-sync-alert.is-warn {
+      border-color: #fde68a;
+      background: #fffbeb;
+    }
+
+    .robin-sync-alert__text {
+      flex: 1;
+      min-width: 0;
+      font-size: 11px;
+      line-height: 1.45;
+      color: var(--robin-text);
+    }
+
+    .robin-sync-alert__text strong {
+      font-weight: 700;
+    }
+
+    .robin-sync-alert__cta {
+      flex-shrink: 0;
+      font-size: 10px;
+      font-weight: 700;
+      color: #3f3f46;
+      text-decoration: underline;
+    }
+
+    .robin-float-above-chrome {
+      position: fixed;
+      z-index: 80;
+      pointer-events: auto;
+      box-sizing: border-box;
     }
 
     /* ── Barra flotante de acciones masivas (estilo Notion/Linear) ── */

@@ -1640,7 +1640,7 @@ function App() {
         </div>
       )}
 
-      {!isConfigOnlyAdmin && estadoSyncResumen.severidad !== "ok" && (
+      {!isConfigOnlyAdmin && (estadoSyncResumen.severidad === "error" || estadoSyncResumen.severidad === "warn") && (
         <button
           type="button"
           onClick={() => {
@@ -1652,7 +1652,7 @@ function App() {
           <i className={`fa-solid ${estadoSyncResumen.severidad === "error" ? "fa-cloud-arrow-down" : "fa-triangle-exclamation"}`}></i>
           <span className="robin-sync-alert__text">
             <strong>{estadoSyncResumen.titulo}</strong>
-            {apiErrorDetail ? ` — ${apiErrorDetail}` : ""}
+            {estadoSyncResumen.detalle ? ` — ${estadoSyncResumen.detalle}` : ""}
           </span>
           <span className="robin-sync-alert__cta">Ver detalle</span>
         </button>

@@ -52,6 +52,7 @@ function App() {
   const notifIdsConocidosRef = useRef(null);
   const notifPrimeraCargaRef = useRef(true);
   const pushPromptDescartadoRef = useRef(false);
+  const pushOpRef = useRef(0);
   const guardandoRef = useRef(false);
   
   const [filtroTiempo, setFiltroTiempo] = useState(() => initialPrefs.filtroTiempo || "TODAS"); 
@@ -79,6 +80,8 @@ function App() {
   const [pushPromptVisible, setPushPromptVisible] = useState(false);
   const [pushActivando, setPushActivando] = useState(false);
   const [pushRegistroPendiente, setPushRegistroPendiente] = useState(false);
+  const [pushPaso, setPushPaso] = useState("");
+  const [pushError, setPushError] = useState("");
   const [tareasSeleccionadas, setTareasSeleccionadas] = useState(() => new Set());
   const [bulkDeadline, setBulkDeadline] = useState("");
 
@@ -1357,54 +1360,84 @@ function App() {
     if (!usuario || isConfigOnlyAdmin || pushActivando) return;
 
     if (typeof Notification === "undefined") {
+      setPushError("Este navegador no soporta notificaciones");
       showToast("Este navegador no soporta notificaciones", "error");
       cerrarPushPrompt();
       return;
     }
 
     if (pushRequierePwaInstalada()) {
-      showToast(mensajeErrorPush("needs_pwa"), "error");
+      const msg = mensajeErrorPush("needs_pwa");
+      setPushError(msg);
+      showToast(msg, "error");
       return;
     }
 
     if (Notification.permission === "denied") {
-      showToast(mensajeErrorPush("denied"), "error");
+      const msg = mensajeErrorPush("denied");
+      setPushError(msg);
+      showToast(msg, "error");
       cerrarPushPrompt();
       return;
     }
 
     setPushActivando(true);
-    try {
-      const reg = await obtenerRegistroParaPush();
+    setPushError("");
+    setPushPaso("Iniciando…");
 
+    const opId = pushOpRef.current + 1;
+    pushOpRef.current = opId;
+
+    const safetyTimer = setTimeout(() => {
+      if (pushOpRef.current !== opId) return;
+      setPushActivando(false);
+      setPushPaso("");
+      const msg = mensajeErrorPush("timeout");
+      setPushError(msg);
+      showToast(msg, "error");
+    }, 18000);
+
+    try {
       if (Notification.permission === "default") {
+        setPushPaso("Pidiendo permiso…");
         const permiso = await Notification.requestPermission();
         if (permiso !== "granted") {
-          showToast(mensajeErrorPush("denied"), "error");
+          const msg = mensajeErrorPush("denied");
+          setPushError(msg);
+          showToast(msg, "error");
           cerrarPushPrompt();
           return;
         }
       }
 
-      const resultado = reg
-        ? await suscribirConRegistro(reg, usuario)
-        : await activarPushEnDispositivo(usuario);
+      const resultado = await registrarPushConPaso(usuario, setPushPaso);
 
       if (resultado.ok) {
         setPushRegistroPendiente(false);
+        setPushError("");
         cerrarPushPrompt();
         showToast("Notificaciones activadas en este dispositivo", "success");
         enviarPushPruebaUsuario(usuario).catch(() => {});
         return;
       }
 
+      const msg = mensajeErrorPush(resultado.reason);
       setPushRegistroPendiente(true);
-      showToast(mensajeErrorPush(resultado.reason), "error");
+      setPushError(resultado.detail ? `${msg} (${resultado.detail})` : msg);
+      showToast(msg, "error");
       if (typeof registrarDiagnosticoRobin === "function") {
         registrarDiagnosticoRobin("push", "Activación fallida", resultado.detail || resultado.reason || "");
       }
+    } catch (e) {
+      const msg = mensajeErrorPush("timeout");
+      setPushError(String(e?.message || msg));
+      showToast(msg, "error");
     } finally {
-      setPushActivando(false);
+      clearTimeout(safetyTimer);
+      if (pushOpRef.current === opId) {
+        setPushActivando(false);
+        setPushPaso("");
+      }
     }
   };
 
@@ -2740,20 +2773,31 @@ function App() {
           <p className="text-xs text-zinc-600 leading-relaxed mb-3">
             Ya diste permiso, pero el teléfono aún no está vinculado para recibir alertas con la app cerrada.
           </p>
+          {pushPaso && (
+            <p className="text-xs text-amber-800 mb-2">{pushPaso}</p>
+          )}
+          {pushError && (
+            <p className="text-xs text-red-600 mb-2 leading-relaxed">{pushError}</p>
+          )}
           <div className="flex gap-2 justify-end">
             <button
               type="button"
-              onClick={() => setPushRegistroPendiente(false)}
-              className="px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-800"
+              onClick={() => {
+                setPushRegistroPendiente(false);
+                setPushError("");
+              }}
+              disabled={pushActivando}
+              className="px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-800 disabled:opacity-50"
             >
               Después
             </button>
             <button
               type="button"
               onClick={handleActivarPush}
-              className="px-3 py-1.5 text-xs font-semibold rounded bg-zinc-900 text-white hover:bg-zinc-800"
+              disabled={pushActivando}
+              className="px-3 py-1.5 text-xs font-semibold rounded bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-60"
             >
-              {pushActivando ? "Registrando…" : "Registrar dispositivo"}
+              {pushActivando ? (pushPaso || "Registrando…") : "Registrar dispositivo"}
             </button>
           </div>
         </div>

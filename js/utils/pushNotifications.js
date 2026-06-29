@@ -68,6 +68,28 @@ function pushRequierePwaInstalada() {
   return esIos() && !esPwaInstalada();
 }
 
+function conTimeout(promise, ms, mensaje = "timeout") {
+  let timer;
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(mensaje)), ms);
+    })
+  ]).finally(() => {
+    if (timer) clearTimeout(timer);
+  });
+}
+
+async function fetchConTimeout(url, options = {}, ms = 12000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function limpiarPushPromptAtendido(username) {
   const user = pushUsuario(username);
   if (!user) return;
@@ -161,12 +183,21 @@ async function obtenerRegistroParaPush() {
       reg = await navigator.serviceWorker.register("./sw.js", { scope: "./" });
     }
 
-    await navigator.serviceWorker.ready;
+    await conTimeout(navigator.serviceWorker.ready, 10000, "sw_ready_timeout");
+
+    if (reg.waiting) {
+      reg.waiting.postMessage({ type: "SKIP_WAITING" });
+    }
 
     const inicio = Date.now();
     while (!reg.active && Date.now() - inicio < 8000) {
       await new Promise((resolve) => setTimeout(resolve, 150));
       reg = await navigator.serviceWorker.getRegistration("./") || reg;
+    }
+
+    if (!reg.active) {
+      console.warn("ROBIN: service worker sin worker activo");
+      return null;
     }
 
     return reg;
@@ -209,9 +240,10 @@ async function verificarSuscripcionRemota(username, endpoint, intentos = 3) {
 
   for (let i = 0; i < intentos; i += 1) {
     try {
-      const res = await fetch(
+      const res = await fetchConTimeout(
         `${pushSupabaseUrl()}/rest/v1/robin_push_subscriptions?recipient=eq.${encodeURIComponent(user)}&endpoint=eq.${encodeURIComponent(ep)}&select=id&limit=1`,
-        { method: "GET", headers: pushSupabaseHeaders() }
+        { method: "GET", headers: pushSupabaseHeaders() },
+        8000
       );
       if (res.ok) {
         const rows = await res.json();
@@ -244,7 +276,7 @@ async function guardarSuscripcionPush(username, subscription) {
 
   try {
     if (typeof SUPABASE_ANON_KEY !== "undefined") {
-      const fnRes = await fetch(
+      const fnRes = await fetchConTimeout(
         `${pushSupabaseUrl()}/functions/v1/register-push-subscription`,
         {
           method: "POST",
@@ -254,7 +286,8 @@ async function guardarSuscripcionPush(username, subscription) {
             Authorization: `Bearer ${SUPABASE_ANON_KEY}`
           },
           body: JSON.stringify(payload)
-        }
+        },
+        12000
       );
 
       if (fnRes.ok) {
@@ -265,7 +298,7 @@ async function guardarSuscripcionPush(username, subscription) {
       }
     }
 
-    const rpcRes = await fetch(
+    const rpcRes = await fetchConTimeout(
       `${pushSupabaseUrl()}/rest/v1/rpc/robin_upsert_push_subscription`,
       {
         method: "POST",
@@ -277,7 +310,8 @@ async function guardarSuscripcionPush(username, subscription) {
           p_auth: json.keys.auth,
           p_user_agent: payload.user_agent
         })
-      }
+      },
+      12000
     );
 
     if (rpcRes.ok) {
@@ -294,13 +328,14 @@ async function guardarSuscripcionPush(username, subscription) {
       updated_at: new Date().toISOString()
     };
 
-    const res = await fetch(
+    const res = await fetchConTimeout(
       `${pushSupabaseUrl()}/rest/v1/robin_push_subscriptions?on_conflict=endpoint`,
       {
         method: "POST",
         headers: pushSupabaseHeaders("resolution=merge-duplicates,return=minimal"),
         body: JSON.stringify(fila)
-      }
+      },
+      12000
     );
 
     if (res.ok) {
@@ -336,18 +371,18 @@ async function suscribirConRegistro(reg, username) {
 
   let subscription;
   try {
-    subscription = await Promise.race([
+    subscription = await conTimeout(
       obtenerOCrearSuscripcionPush(reg, vapidKey),
-      new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("subscribe_timeout")), 25000);
-      })
-    ]);
+      12000,
+      "subscribe_timeout"
+    );
   } catch (e) {
     const detalle = String(e?.message || e);
+    const reason = detalle.includes("subscribe_timeout") ? "timeout" : "subscribe_failed";
     if (typeof registrarDiagnosticoRobin === "function") {
       registrarDiagnosticoRobin("push", "Subscribe falló", detalle);
     }
-    return { ok: false, reason: "subscribe_failed", detail: detalle };
+    return { ok: false, reason, detail: detalle };
   }
 
   const guardado = await guardarSuscripcionPush(user, subscription);
@@ -355,15 +390,23 @@ async function suscribirConRegistro(reg, username) {
     return { ok: false, reason: guardado.reason || "save_failed", detail: guardado.detail };
   }
 
-  const remoto = await verificarSuscripcionRemota(user, subscription.endpoint);
+  const remoto = await verificarSuscripcionRemota(user, subscription.endpoint, 2);
   if (!remoto) {
-    return { ok: false, reason: "save_failed", detail: "Suscripción local creada pero no aparece en el servidor." };
+    return {
+      ok: true,
+      endpoint: subscription.endpoint,
+      warning: "saved_unverified"
+    };
   }
 
   return { ok: true, endpoint: subscription.endpoint };
 }
 
-async function activarPushEnDispositivo(username) {
+async function registrarPushConPaso(username, onPaso) {
+  const avisar = (paso) => {
+    if (typeof onPaso === "function") onPaso(paso);
+  };
+
   if (!pushSoportado() || !pushSupabaseReady()) {
     return { ok: false, reason: "unsupported" };
   }
@@ -372,15 +415,39 @@ async function activarPushEnDispositivo(username) {
     return { ok: false, reason: "needs_pwa" };
   }
 
-  const user = pushUsuario(username);
-  if (!user) return { ok: false, reason: "no_user" };
-
-  const reg = await obtenerRegistroParaPush();
-  if (!reg?.pushManager) {
-    return { ok: false, reason: "no_sw" };
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") {
+    return { ok: false, reason: "denied" };
   }
 
-  return suscribirConRegistro(reg, user);
+  try {
+    avisar("Preparando la app…");
+    const reg = await conTimeout(obtenerRegistroParaPush(), 12000, "sw_ready_timeout");
+    if (!reg?.pushManager) {
+      return { ok: false, reason: "no_sw", detail: "Service worker no disponible" };
+    }
+
+    avisar("Vinculando este iPhone…");
+    const existente = await reg.pushManager.getSubscription();
+    if (existente) {
+      avisar("Guardando en el servidor…");
+      const guardado = await guardarSuscripcionPush(username, existente);
+      if (guardado.ok) {
+        return { ok: true, endpoint: existente.endpoint };
+      }
+      return { ok: false, reason: guardado.reason || "save_failed", detail: guardado.detail };
+    }
+
+    avisar("Creando suscripción push…");
+    return await suscribirConRegistro(reg, username);
+  } catch (e) {
+    const detalle = String(e?.message || e);
+    const reason = detalle.includes("timeout") ? "timeout" : "no_sw";
+    return { ok: false, reason, detail: detalle };
+  }
+}
+
+async function activarPushEnDispositivo(username) {
+  return registrarPushConPaso(username);
 }
 
 async function suscribirPushNotificaciones(username, opts) {

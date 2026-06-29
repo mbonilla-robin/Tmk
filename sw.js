@@ -1,4 +1,4 @@
-const CACHE_NAME = "robin-pwa-v89";
+const CACHE_NAME = "robin-pwa-v90";
 
 const STATIC_ASSETS = [
   "./",
@@ -79,6 +79,12 @@ const STATIC_ASSETS = [
   "./js/App.jsx",
   "./js/bootstrap.jsx"
 ];
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

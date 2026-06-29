@@ -1025,6 +1025,20 @@ function doGet(e) {
       estadosConfig: COLORES_ESTADOS
     };
 
+    if (session.isDesigner) {
+      response.data = todasLasTareas.filter(function (t) {
+        return robinTareaAsignadaADisenador_(t.personas, session.username);
+      });
+      var marcasPermitidas = {};
+      response.data.forEach(function (t) {
+        var mName = String(t.marca || "").trim();
+        if (mName && marcasMetadata[mName]) {
+          marcasPermitidas[mName] = marcasMetadata[mName];
+        }
+      });
+      response.marcasMetadata = marcasPermitidas;
+    }
+
     return robinJsonResponse_(response);
 
   } catch (err) {
@@ -1133,6 +1147,7 @@ function doPost(e) {
     var session = robinValidarSesionRobin_(e, payload);
     payload = robinLimpiarPayload_(payload);
     robinExigirOperacionAdmin_(session, payload);
+    robinExigirOperacionDisenador_(session, payload);
 
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var campo = payload.campo ? String(payload.campo).trim() : null;
@@ -1304,6 +1319,8 @@ function doPost(e) {
         setFechaSafe(targetSheet, targetRow, 8, payload.valor);
       } else if (campo === "prioridad") {
         targetSheet.getRange(targetRow, 10).setValue(payload.valor);
+      } else if (campo === "detalles") {
+        targetSheet.getRange(targetRow, 6).setValue(payload.detalles || "");
       } else if (campo === "todo") {
         targetSheet.getRange(targetRow, 1).setValue(marca);
         targetSheet.getRange(targetRow, 2).setValue(payload.categoria || "");

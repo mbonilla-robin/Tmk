@@ -14,7 +14,7 @@ function LayoutKanban({ tareas, onUpdateField, onSelectTask, onDeleteTask, getMa
     const taskInfo = e.dataTransfer.getData("taskInfo");
 
     const taskMatched = tareas.find(t => (t.idTarea === taskId && taskId) || t.info === taskInfo);
-    if (taskMatched && cleanEstado(taskMatched.estado) !== cleanEstado(targetEstado)) {
+    if (taskMatched && onUpdateField && cleanEstado(taskMatched.estado) !== cleanEstado(targetEstado)) {
       onUpdateField(taskMatched, "estado", targetEstado);
     }
   };
@@ -57,6 +57,7 @@ function LayoutKanban({ tareas, onUpdateField, onSelectTask, onDeleteTask, getMa
                 
                 const avanzarEstado = (e) => {
                   e.stopPropagation();
+                  if (!onUpdateField) return;
                   const index = ESTADOS_MAPA.findIndex(e => cleanEstado(e.id) === cleanEstado(t.estado));
                   const nextIndex = (index + 1) % ESTADOS_MAPA.length;
                   onUpdateField(t, "estado", ESTADOS_MAPA[nextIndex].id);
@@ -65,7 +66,7 @@ function LayoutKanban({ tareas, onUpdateField, onSelectTask, onDeleteTask, getMa
                 return (
                   <div 
                     key={t.idTarea + t.info}
-                    draggable={true}
+                    draggable={!!onUpdateField}
                     onDragStart={(e) => handleDragStart(e, t)}
                     onClick={() => onSelectTask(t)}
                     className="kanban-card animate-fade-in"
@@ -89,6 +90,7 @@ function LayoutKanban({ tareas, onUpdateField, onSelectTask, onDeleteTask, getMa
                       </span>
                     </div>
 
+                    {onUpdateField && (
                     <div className="kanban-card-actions">
                       <button 
                         type="button"
@@ -97,6 +99,7 @@ function LayoutKanban({ tareas, onUpdateField, onSelectTask, onDeleteTask, getMa
                       >
                         Avanzar
                       </button>
+                      {onDeleteTask && (
                       <button
                         type="button"
                         onClick={(e) => { e.stopPropagation(); onDeleteTask(t); }}
@@ -105,7 +108,9 @@ function LayoutKanban({ tareas, onUpdateField, onSelectTask, onDeleteTask, getMa
                       >
                         <i className="fa-regular fa-trash-can text-[11px]"></i>
                       </button>
+                      )}
                     </div>
+                    )}
                   </div>
                 );
               })}

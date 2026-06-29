@@ -86,6 +86,7 @@ function NotionTaskRow({
         transition: swiping ? "none" : "transform 0.2s ease"
       }}
     >
+      {onToggleSeleccion && (
       <input
         type="checkbox"
         checked={estaSeleccionada}
@@ -94,6 +95,7 @@ function NotionTaskRow({
         className="notion-task-check"
         aria-label="Seleccionar entregable"
       />
+      )}
 
       <div className="notion-task-body">
         <p className="notion-task-title">{t.info}</p>
@@ -146,6 +148,7 @@ function NotionTaskRow({
         </div>
       </div>
 
+      {onDeleteTask && (
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); onDeleteTask(t); }}
@@ -155,6 +158,7 @@ function NotionTaskRow({
       >
         <i className="fa-regular fa-trash-can" />
       </button>
+      )}
     </div>
   );
 

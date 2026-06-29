@@ -15,6 +15,7 @@ function App() {
   const isAdmin = useMemo(() => isRobinAdmin(usuario), [usuario]);
   const canEditFichas = useMemo(() => isRobinConfigOnlyAdmin(usuario), [usuario]);
   const isConfigOnlyAdmin = useMemo(() => isRobinConfigOnlyAdmin(usuario), [usuario]);
+  const isDesigner = useMemo(() => isRobinDesigner(usuario), [usuario]);
 
   const [listaUsuarios, setListaUsuarios] = useState(() => {
     try {
@@ -122,22 +123,27 @@ function App() {
   const [nuevaTarea, setNuevaTarea] = useState(() => crearNuevaTareaVacia());
 
   // 🚨 UBICACIÓN CORRECTA DE VARIABLES COMPUTADAS Y useMemo (Evita ReferenceError y TDZ)
+  const tareasVisibles = useMemo(() => {
+    if (!isDesigner || !usuario) return tareas;
+    return filtrarTareasAsignadasADisenador(tareas, usuario);
+  }, [tareas, isDesigner, usuario]);
+
   const marcasDisponibles = useMemo(() => {
     return obtenerMarcasUnicas([
       ...Object.keys(marcasMetadata),
-      ...tareas.map(t => t.marca).filter(Boolean)
+      ...tareasVisibles.map(t => t.marca).filter(Boolean)
     ]);
-  }, [tareas, marcasMetadata]);
+  }, [tareasVisibles, marcasMetadata]);
 
   const tareasActivasCount = useMemo(() => {
-    return tareas.filter(t => cleanEstado(t.estado) !== "completada").length;
-  }, [tareas]);
+    return tareasVisibles.filter(t => cleanEstado(t.estado) !== "completada").length;
+  }, [tareasVisibles]);
 
   const tareasFiltradas = useMemo(() => {
     const hoy = new Date();
     const tHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
     
-    return tareas.filter(t => {
+    return tareasVisibles.filter(t => {
       const tDeadline = obtenerTiempoFecha(t.deadline);
       const esCompletada = cleanEstado(t.estado) === "completada";
       
@@ -173,21 +179,21 @@ function App() {
 
       return true;
     });
-  }, [tareas, filtroTiempo, filtroMarca, filtroEstado, filtroPrioridad, filtroPersona, searchQuery]);
+  }, [tareasVisibles, filtroTiempo, filtroMarca, filtroEstado, filtroPrioridad, filtroPersona, searchQuery]);
 
   const metricaCounters = useMemo(() => {
     const tHoy = obtenerTiempoHoyLocal();
-    const entregasHoy = tareas.filter(t => esEntregaHoyTarea(t, tHoy)).length;
-    const trabajarHoy = tareas.filter(t => esTrabajarHoyTarea(t, tHoy)).length;
+    const entregasHoy = tareasVisibles.filter(t => esEntregaHoyTarea(t, tHoy)).length;
+    const trabajarHoy = tareasVisibles.filter(t => esTrabajarHoyTarea(t, tHoy)).length;
     const activasHoy = entregasHoy + trabajarHoy;
 
-    const atrasadas = tareas.filter(t => {
+    const atrasadas = tareasVisibles.filter(t => {
       const tDeadline = obtenerTiempoFecha(t.deadline);
       return tDeadline !== Infinity && tDeadline < tHoy && cleanEstado(t.estado) !== "completada";
     }).length;
     
     return { activasHoy, entregasHoy, trabajarHoy, atrasadas };
-  }, [tareas]);
+  }, [tareasVisibles]);
 
   // getMarcaStyle definido en js/utils/marcas.js
   // =========================================================================
@@ -275,6 +281,14 @@ function App() {
       setPaginaActiva("configuracion");
     }
   }, [usuario, paginaActiva, isConfigOnlyAdmin]);
+
+  useEffect(() => {
+    if (!isDesigner) return;
+    const paginasRestringidas = ["clientes", "agregar", "equipos"];
+    if (paginasRestringidas.includes(paginaActiva)) {
+      setPaginaActiva("home");
+    }
+  }, [usuario, paginaActiva, isDesigner]);
 
   useEffect(() => {
     const stored = getInicialUsuario();
@@ -488,6 +502,10 @@ function App() {
       showToast("Función restringida para el administrador de ajustes", "info");
       return;
     }
+    if (isDesigner && ["clientes", "agregar", "equipos"].includes(pagina)) {
+      showToast("Función no disponible en modo diseño", "info");
+      return;
+    }
     setPaginaActiva(pagina);
     setSyncDetalleVisible(false);
     if (pagina !== "dashboard") {
@@ -670,6 +688,7 @@ function App() {
   const kanbanOrdenPrioridadActivo = vistaModo === "KANBAN" && filtroTiempo === "HOY" ? kanbanOrdenPrioridad : null;
 
   const handleBulkUpdate = async (campo, nuevoValor) => {
+    if (isDesigner) return;
     if (!nuevoValor && campo !== "deadline") return;
     const keys = tareasSeleccionadas;
     const objetivos = tareas.filter(t => keys.has(getTaskSelectionKey(t)));
@@ -909,7 +928,7 @@ function App() {
     setLoginError("");
     setClaveInput("");
     await aplicarPreferenciasUsuario(validation.username);
-    showToast(`Sesión iniciada: @${validation.username}`, "success");
+    showToast(`Sesión iniciada: @${validation.username}${isRobinDesigner(validation.username) ? " (Diseño)" : ""}`, "success");
   };
 
   const handleLogout = async () => {
@@ -1161,6 +1180,7 @@ function App() {
   };
 
   const handleUpdateField = async (tarea, campo, nuevoValor) => {
+    if (isDesigner) return;
     if (!nuevoValor && nuevoValor !== "") return;
 
     const original = resolverTareaActual(tareas, tarea);
@@ -1251,16 +1271,16 @@ function App() {
 
   const layoutTablaProps = {
     tareas: tareasFiltradas,
-    onUpdateField: handleUpdateField,
+    onUpdateField: isDesigner ? undefined : handleUpdateField,
     onSelectTask: abrirEdicionTarea,
-    onDeleteTask: (t) => setTaskToDelete(t),
-    onSolicitarCompletar: (t) => setTaskToComplete(t),
+    onDeleteTask: isDesigner ? undefined : (t) => setTaskToDelete(t),
+    onSolicitarCompletar: isDesigner ? undefined : (t) => setTaskToComplete(t),
     getMarcaStyle,
     currentTheme,
     modoAgrupacion: listaAgrupacion,
-    tareasSeleccionadas,
-    onToggleSeleccion: toggleSeleccionTarea,
-    onToggleSeleccionGrupo: (lista, seleccionar) => {
+    tareasSeleccionadas: isDesigner ? new Set() : tareasSeleccionadas,
+    onToggleSeleccion: isDesigner ? undefined : toggleSeleccionTarea,
+    onToggleSeleccionGrupo: isDesigner ? undefined : (lista, seleccionar) => {
       setTareasSeleccionadas(prev => {
         const next = new Set(prev);
         lista.forEach(t => {
@@ -1283,6 +1303,30 @@ function App() {
       const index = encontrarIndiceTarea(tareas, original);
       if (index === -1) {
         showToast("No se encontró el entregable para guardar", "error");
+        return;
+      }
+
+      if (isDesigner) {
+        const taskConDetalles = marcarTareaPendiente(normalizarTareaCampos({
+          ...original,
+          detalles: editedTask.detalles || original.detalles
+        }));
+        const taskKeyOriginal = getTaskSelectionKey(original);
+        const copiaTareas = [...tareas];
+        copiaTareas[index] = taskConDetalles;
+        persistTareas(copiaTareas);
+
+        encolarSync({
+          type: "update",
+          taskKey: getTaskSelectionKey(taskConDetalles),
+          taskKeyOriginal,
+          payload: construirPayloadSyncTarea(original, taskConDetalles, { campoSync: "detalles" })
+        });
+        setHayPendientesLocales(true);
+        setIsEditing(false);
+        setActiveTask(null);
+        showToast("Notas guardadas", "success");
+        sincronizarEnSegundoPlano();
         return;
       }
 
@@ -1359,6 +1403,7 @@ function App() {
   };
 
   const handleDeleteTask = async (tarea) => {
+    if (isDesigner) return;
     if (guardandoRef.current) return;
     guardandoRef.current = true;
 
@@ -1390,6 +1435,7 @@ function App() {
   };
 
   const handleCreateTask = async (e, detallesSerializados, tareaPreparada) => {
+    if (isDesigner) return;
     e.preventDefault();
     if (guardandoRef.current) return;
 
@@ -1677,7 +1723,7 @@ function App() {
         <Item seccion="tema" icon="fa-palette" label="Tema" />
         <Item seccion="logo" icon="fa-mobile-screen" label="Icono del teléfono" />
         <Item seccion="api" icon="fa-database" label="Base de datos" />
-        {(isAdmin || !isConfigOnlyAdmin) && <Item seccion="usuarios" icon="fa-users" label="Usuarios" />}
+        {(isAdmin || (!isConfigOnlyAdmin && !isDesigner)) && <Item seccion="usuarios" icon="fa-users" label="Usuarios" />}
         {isConfigOnlyAdmin && (
           <>
             <Item seccion="widgets" icon="fa-link" label="Enlaces" />
@@ -1911,10 +1957,12 @@ function App() {
               )}
             </div>
 
-            <button type="button" onClick={() => navegarA("agregar")} className="robin-sidebar__cta">
-              <SVGIcon.Plus />
-              <span>Añadir entregable</span>
-            </button>
+            {!isDesigner && (
+              <button type="button" onClick={() => navegarA("agregar")} className="robin-sidebar__cta">
+                <SVGIcon.Plus />
+                <span>Añadir entregable</span>
+              </button>
+            )}
           </div>
 
           <nav className="robin-sidebar__body no-scrollbar" aria-label="Menú lateral">
@@ -1957,14 +2005,16 @@ function App() {
               </button>
               {sidebarMarcasAbierto && (
                 <div className="flex flex-col gap-0.5">
-                  <button
-                    type="button"
-                    onClick={() => navegarA("clientes")}
-                    className={`robin-sidebar__link ${paginaActiva === "clientes" ? "is-active" : ""}`}
-                  >
-                    <i className="fa-solid fa-layer-group robin-sidebar__link-icon"></i>
-                    <span className="robin-sidebar__link-label">Todos los clientes</span>
-                  </button>
+                  {!isDesigner && (
+                    <button
+                      type="button"
+                      onClick={() => navegarA("clientes")}
+                      className={`robin-sidebar__link ${paginaActiva === "clientes" ? "is-active" : ""}`}
+                    >
+                      <i className="fa-solid fa-layer-group robin-sidebar__link-icon"></i>
+                      <span className="robin-sidebar__link-label">Todos los clientes</span>
+                    </button>
+                  )}
                   {marcasDisponibles.map(b => {
                     const marcaEstilo = getMarcaStyle(b);
                     return (
@@ -1987,6 +2037,7 @@ function App() {
               )}
             </div>
 
+            {!isDesigner && (
             <div className="robin-sidebar__section">
               <span className="robin-sidebar__section-title">Más opciones</span>
               <div className="robin-sidebar__tile-grid">
@@ -2008,6 +2059,7 @@ function App() {
                 </button>
               </div>
             </div>
+            )}
 
             <div className="robin-sidebar__section">
               <span className="robin-sidebar__section-title">Soporte</span>
@@ -2035,7 +2087,7 @@ function App() {
         <header className={`app-header-bar ${currentTheme.bg} px-6 justify-between robin-desktop-only`}>
           <div className="flex items-center gap-3">
             <h1 className="text-ui font-semibold text-zinc-500">
-              Trade & Shopper Marketing{isConfigOnlyAdmin ? " · Admin" : ""}
+              Trade & Shopper Marketing{isConfigOnlyAdmin ? " · Admin" : isDesigner ? " · Diseño" : ""}
             </h1>
           </div>
 
@@ -2093,14 +2145,14 @@ function App() {
           
           {!isConfigOnlyAdmin && paginaActiva === "home" && (
             <LayoutHome
-              tareas={tareas}
+              tareas={tareasVisibles}
               nombreUsuario={nombreCompleto}
               username={usuario}
               onSelectTask={abrirEdicionTarea}
-              onUpdateField={handleUpdateField}
+              onUpdateField={isDesigner ? undefined : handleUpdateField}
               widgets={widgets}
-              onAbrirEstatus={() => setShowGeneradorEstatus(true)}
-              onAbrirEquipos={() => navegarA("equipos")}
+              onAbrirEstatus={isDesigner ? undefined : () => setShowGeneradorEstatus(true)}
+              onAbrirEquipos={isDesigner ? undefined : () => navegarA("equipos")}
               currentTheme={currentTheme}
               getMarcaStyle={getMarcaStyle}
               otrosUsuariosEnLinea={otrosUsuariosEnLinea}
@@ -2108,7 +2160,7 @@ function App() {
             />
           )}
 
-          {!isConfigOnlyAdmin && paginaActiva === "agregar" && (
+          {!isConfigOnlyAdmin && !isDesigner && paginaActiva === "agregar" && (
             <FormularioCrearEntregable
               nuevaTarea={nuevaTarea}
               setNuevaTarea={setNuevaTarea}
@@ -2125,14 +2177,14 @@ function App() {
           {!isConfigOnlyAdmin && paginaActiva === "dashboard" && filtroMarca !== "TODAS" && (
             <LayoutMarcaHome
               marca={filtroMarca}
-              tareas={tareas}
+              tareas={tareasVisibles}
               tareasFiltradas={tareasFiltradas}
               widgets={widgets}
               marcasMetadata={marcasMetadata}
               username={usuario}
               onSelectTask={abrirEdicionTarea}
-              onUpdateField={handleUpdateField}
-              onDeleteTask={(t) => setTaskToDelete(t)}
+              onUpdateField={isDesigner ? undefined : handleUpdateField}
+              onDeleteTask={isDesigner ? undefined : (t) => setTaskToDelete(t)}
               getMarcaStyle={getMarcaStyle}
               currentTheme={currentTheme}
               vistaModo={vistaModo}
@@ -2156,7 +2208,7 @@ function App() {
               kanbanOrdenPrioridadActivo={kanbanOrdenPrioridadActivo}
               alternarKanbanOrdenPrioridad={alternarKanbanOrdenPrioridad}
               kanbanOrdenPrioridad={kanbanOrdenPrioridad}
-              onVerFichaCliente={() => navegarA("clientes")}
+              onVerFichaCliente={isDesigner ? undefined : () => navegarA("clientes")}
               onLimpiarFiltros={() => {
                 setFiltroTiempo("TODAS");
                 setFiltroEstado("TODOS");
@@ -2278,7 +2330,7 @@ function App() {
                     {vistaModo === "TABLE" ? (
                       <LayoutTablaAgrupada {...layoutTablaProps} />
                     ) : (
-                      <LayoutKanban tareas={tareasFiltradas} ordenPrioridad={kanbanOrdenPrioridadActivo} onUpdateField={handleUpdateField} onSelectTask={abrirEdicionTarea} onDeleteTask={(t) => setTaskToDelete(t)} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
+                      <LayoutKanban tareas={tareasFiltradas} ordenPrioridad={kanbanOrdenPrioridadActivo} onUpdateField={isDesigner ? undefined : handleUpdateField} onSelectTask={abrirEdicionTarea} onDeleteTask={isDesigner ? undefined : (t) => setTaskToDelete(t)} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
                     )}
                   </>
                 )}
@@ -2378,13 +2430,13 @@ function App() {
               {vistaModo === "TABLE" ? (
                 <LayoutTablaAgrupada {...layoutTablaProps} />
               ) : (
-                <LayoutKanban tareas={tareasFiltradas} ordenPrioridad={kanbanOrdenPrioridadActivo} onUpdateField={handleUpdateField} onSelectTask={abrirEdicionTarea} onDeleteTask={(t) => setTaskToDelete(t)} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
+                <LayoutKanban tareas={tareasFiltradas} ordenPrioridad={kanbanOrdenPrioridadActivo} onUpdateField={isDesigner ? undefined : handleUpdateField} onSelectTask={abrirEdicionTarea} onDeleteTask={isDesigner ? undefined : (t) => setTaskToDelete(t)} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
               )}
               </div>
             </>
           )}
 
-          {!isConfigOnlyAdmin && paginaActiva === "equipos" && (
+          {!isConfigOnlyAdmin && !isDesigner && paginaActiva === "equipos" && (
             <LayoutEquipos
               tareas={tareas}
               usuariosConectados={usuariosConectados}
@@ -2392,7 +2444,7 @@ function App() {
             />
           )}
 
-          {!isConfigOnlyAdmin && paginaActiva === "clientes" && (
+          {!isConfigOnlyAdmin && !isDesigner && paginaActiva === "clientes" && (
             <LayoutClientes
               key={clientesReset}
               marcas={marcasDisponibles}
@@ -2445,7 +2497,7 @@ function App() {
 
       {/* BARRA ACCESO RÁPIDO — entregables de hoy (solo Home, desktop md+) */}
       {!isConfigOnlyAdmin && paginaActiva === "home" && (
-        <BarraHoyAccesoRapido tareas={tareas} username={usuario} onSelectTask={abrirEdicionTarea} getMarcaStyle={getMarcaStyle} />
+        <BarraHoyAccesoRapido tareas={tareasVisibles} username={usuario} onSelectTask={abrirEdicionTarea} getMarcaStyle={getMarcaStyle} soloMisTareas={isDesigner} />
       )}
 
       {!isConfigOnlyAdmin && (
@@ -2459,6 +2511,7 @@ function App() {
         setFiltroPrioridad={setFiltroPrioridad}
         setFiltroPersona={setFiltroPersona}
         usuario={usuario}
+        esDisenador={isDesigner}
         syncing={syncing}
         apiError={apiError}
         hayPendientesLocales={hayPendientesLocales}
@@ -2489,11 +2542,12 @@ function App() {
             nombreUsuario={nombreCompleto}
             onComentarioPublicado={refrescarNotificaciones}
             onToast={showToast}
+            soloLectura={isDesigner}
           />
         </ModalPortal>
       )}
 
-      {!isConfigOnlyAdmin && paginaActiva === "dashboard" && tareasSeleccionadas.size > 0 && (
+      {!isConfigOnlyAdmin && !isDesigner && paginaActiva === "dashboard" && tareasSeleccionadas.size > 0 && (
         <BarraAccionesMasivas
           count={tareasSeleccionadas.size}
           bulkDeadline={bulkDeadline}
@@ -2561,7 +2615,7 @@ function App() {
         </div>
       )}
 
-      {!isConfigOnlyAdmin && showGeneradorEstatus && (
+      {!isConfigOnlyAdmin && !isDesigner && showGeneradorEstatus && (
         <GeneradorEstatus
           tareas={tareas}
           marcasDisponibles={marcasDisponibles}

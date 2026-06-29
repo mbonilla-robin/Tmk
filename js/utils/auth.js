@@ -6,6 +6,19 @@ function isWorkspacePasswordValid(password) {
   return String(password || "") === ROBIN_WORKSPACE_PASSWORD;
 }
 
+function isDesignerPasswordValid(password) {
+  return String(password || "") === ROBIN_DESIGNER_PASSWORD;
+}
+
+function isRobinDesigner(username) {
+  return ROBIN_DESIGNER_USERNAMES.includes(normalizeRobinUsername(username));
+}
+
+function isPasswordValidForUser(username, password) {
+  if (isRobinDesigner(username)) return isDesignerPasswordValid(password);
+  return isWorkspacePasswordValid(password);
+}
+
 function setRobinApiSession(username, password) {
   const user = normalizeRobinUsername(username);
   if (!user) return false;
@@ -52,7 +65,7 @@ function hasRobinApiSession() {
   const user = normalizeRobinUsername(getRobinApiUsername());
   const stored = normalizeRobinUsername(getInicialUsuario());
   const token = getRobinApiToken();
-  return Boolean(user && token && user === stored && isWorkspacePasswordValid(token));
+  return Boolean(user && token && user === stored && isPasswordValidForUser(user, token));
 }
 
 function validateLocalLogin(username, password, allowedUsers) {
@@ -60,10 +73,10 @@ function validateLocalLogin(username, password, allowedUsers) {
   if (!user) {
     return { ok: false, error: "Usuario requerido." };
   }
-  if (!Array.isArray(allowedUsers) || !allowedUsers.map(normalizeRobinUsername).includes(user)) {
+  if (!Array.isArray(allowedUsers) || (!allowedUsers.map(normalizeRobinUsername).includes(user) && !isRobinDesigner(user))) {
     return { ok: false, error: "Usuario no autorizado." };
   }
-  if (!isWorkspacePasswordValid(password)) {
+  if (!isPasswordValidForUser(user, password)) {
     return { ok: false, error: "Contraseña incorrecta." };
   }
   return { ok: true, username: user };
@@ -79,5 +92,9 @@ function isRobinAdmin(username) {
 }
 
 function getDefaultAllowedUsers() {
-  return ["fcolmenares", "ralvarez", "dsalavarria", "mbonilla", "gnebrus", "sgiucastro", "admin"];
+  return [
+    "fcolmenares", "ralvarez", "dsalavarria", "mbonilla", "gnebrus", "sgiucastro",
+    "jalfiero", "arusso", "arodriguez", "agraterol", "dmatheus",
+    "admin"
+  ];
 }

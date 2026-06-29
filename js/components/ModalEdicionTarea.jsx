@@ -10,7 +10,7 @@ function PropertyRow({ icon, label, children }) {
   );
 }
 
-function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNuevaPersona, listaCategorias, registrarNuevaCategoria, marcasDisponibles, usuario, nombreUsuario, onComentarioPublicado, onToast }) {
+function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNuevaPersona, listaCategorias, registrarNuevaCategoria, marcasDisponibles, usuario, nombreUsuario, onComentarioPublicado, onToast, soloLectura = false }) {
   const resolverEstadoInicial = () => {
     let categoriaInicial = tarea.categoria || "";
     let infoInicial = extraerTituloLimpio(tarea.info, tarea.categoria);
@@ -37,9 +37,20 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   const [fechaInicio, setFechaInicio] = useState(() => deadlineParaEdicion(resolverFechaInicioTarea(tarea) || tarea.fechaInicio));
   const [deadlineError, setDeadlineError] = useState("");
   const [fechaInicioError, setFechaInicioError] = useState("");
-  const [personas, setPersonas] = useState(tarea.personas || "");
+  const rolesIniciales = dividirCampoPersonasPorRol(tarea.personas || "");
+  const [personasEjecutivos, setPersonasEjecutivos] = useState(rolesIniciales.ejecutivos);
+  const [personasDisenadores, setPersonasDisenadores] = useState(rolesIniciales.disenadores);
   const [rawDetalles, setRawDetalles] = useState(tarea.detalles || "");
   const [guardando, setGuardando] = useState(false);
+
+  const listaEjecutivos = useMemo(
+    () => fusionarListasPersonas(obtenerListaEjecutivosActiva(), partesCampoPersonas(personasEjecutivos)),
+    [personasEjecutivos]
+  );
+  const listaDisenadores = useMemo(
+    () => fusionarListasPersonas(obtenerListaDisenadoresActiva(), partesCampoPersonas(personasDisenadores)),
+    [personasDisenadores]
+  );
 
   const parsed = useMemo(() => parseDetalles(rawDetalles), [rawDetalles]);
   
@@ -73,7 +84,9 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     setFechaInicio(deadlineParaEdicion(resolverFechaInicioTarea(tarea) || tarea.fechaInicio));
     setDeadlineError("");
     setFechaInicioError("");
-    setPersonas(tarea.personas || "");
+    const roles = dividirCampoPersonasPorRol(tarea.personas || "");
+    setPersonasEjecutivos(roles.ejecutivos);
+    setPersonasDisenadores(roles.disenadores);
     setRawDetalles(detalles);
     setNotes(parsedDetalles.notes || parsedDetalles.notas);
     setSubtareas(parsedDetalles.subtareas);
@@ -121,6 +134,22 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (soloLectura) {
+      const tFinal = serializeDetalles(notes, subtareas, parsed.historial, link);
+      const tareaPreparada = prepararTareaConCategoria({
+        ...tarea,
+        detalles: tFinal
+      });
+      setGuardando(true);
+      try {
+        await Promise.resolve(onSave(tareaPreparada));
+      } finally {
+        setGuardando(false);
+      }
+      return;
+    }
+
     const fechaNorm = normalizarDeadline(deadline);
     if (!fechaNorm) {
       setDeadlineError(deadline.trim() ? "Fecha no válida. Ej: 16/06/2026" : "La fecha de entrega es obligatoria");
@@ -140,6 +169,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     setDeadlineError("");
     setFechaInicioError("");
     const tFinal = serializeDetalles(notes, subtareas, parsed.historial, link);
+    const personas = combinarEjecutivosYDisenadores(personasEjecutivos, personasDisenadores);
     const tareaPreparada = prepararTareaConCategoria({
       ...tarea,
       info: info.trim(),
@@ -162,6 +192,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
 
   const inputPropClass = "w-full bg-transparent border-0 text-ui-sm text-[#37352F] focus:outline-none cursor-pointer font-medium";
   const inputPropTextClass = "w-full bg-transparent border-0 text-ui-sm text-[#37352F] focus:outline-none font-medium placeholder-zinc-400";
+  const readOnlyClass = "w-full text-ui-sm text-[#37352F] font-medium";
 
   return (
     <div className="task-sheet-overlay">
@@ -189,14 +220,20 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
 
           {/* Encabezado estilo Notion */}
           <div className="relative px-6 md:px-10 pb-4 max-w-3xl mx-auto w-full">
-            <input
-              type="text"
-              required
-              value={info}
-              onChange={(e) => setInfo(e.target.value)}
-              placeholder="Sin título"
-              className="task-form-title w-full pr-8 text-2xl md:text-[1.75rem] font-bold text-[#37352F] bg-transparent border-0 focus:outline-none placeholder-zinc-300 leading-snug"
-            />
+            {soloLectura ? (
+              <h2 className="task-form-title w-full pr-8 text-2xl md:text-[1.75rem] font-bold text-[#37352F] leading-snug">
+                {info || "Sin título"}
+              </h2>
+            ) : (
+              <input
+                type="text"
+                required
+                value={info}
+                onChange={(e) => setInfo(e.target.value)}
+                placeholder="Sin título"
+                className="task-form-title w-full pr-8 text-2xl md:text-[1.75rem] font-bold text-[#37352F] bg-transparent border-0 focus:outline-none placeholder-zinc-300 leading-snug"
+              />
+            )}
             {cleanIdTarea(tarea.idTarea) && (
               <span className="inline-block mt-1.5 text-[11px] font-mono text-zinc-400">
                 {cleanIdTarea(tarea.idTarea)}
@@ -208,88 +245,136 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
           {/* Propiedades lineales */}
           <div className="pb-2 flex flex-col gap-0.5 border-b border-zinc-100">
             <PropertyRow icon="fa-regular fa-building" label="Cliente">
-              <select value={marca} onChange={(e) => setMarca(e.target.value)} className={inputPropClass}>
-                {opcionesMarca.map(m => (
-                  <option key={m} value={m}>{formatearMarca(m)}</option>
-                ))}
-              </select>
+              {soloLectura ? (
+                <span className={readOnlyClass}>{formatearMarca(marca)}</span>
+              ) : (
+                <select value={marca} onChange={(e) => setMarca(e.target.value)} className={inputPropClass}>
+                  {opcionesMarca.map(m => (
+                    <option key={m} value={m}>{formatearMarca(m)}</option>
+                  ))}
+                </select>
+              )}
             </PropertyRow>
 
             <PropertyRow icon="fa-regular fa-circle-dot" label="Estado">
               <div className="flex items-center gap-2">
                 <span className={`w-2 h-2 rounded-full shrink-0 ${estadoVisual.dot}`} />
-                <select value={estado} onChange={(e) => setEstado(e.target.value)} className={inputPropClass}>
-                  {LISTA_ESTADOS_VALIDOS.map(opt => (
-                    <option key={opt} value={opt}>{opt}</option>
-                  ))}
-                </select>
+                {soloLectura ? (
+                  <span className={readOnlyClass}>{estado || "—"}</span>
+                ) : (
+                  <select value={estado} onChange={(e) => setEstado(e.target.value)} className={inputPropClass}>
+                    {LISTA_ESTADOS_VALIDOS.map(opt => (
+                      <option key={opt} value={opt}>{opt}</option>
+                    ))}
+                  </select>
+                )}
               </div>
             </PropertyRow>
 
             <PropertyRow icon="fa-solid fa-signal" label="Prioridad">
-              <select value={prioridad} onChange={(e) => setPrioridad(e.target.value)} className={inputPropClass}>
-                {PRIORIDADES_MAPA.map(p => (
-                  <option key={p.id} value={p.id}>{p.label}</option>
-                ))}
-              </select>
+              {soloLectura ? (
+                <span className={readOnlyClass}>
+                  {PRIORIDADES_MAPA.find(p => p.id === prioridad)?.label || prioridad || "—"}
+                </span>
+              ) : (
+                <select value={prioridad} onChange={(e) => setPrioridad(e.target.value)} className={inputPropClass}>
+                  {PRIORIDADES_MAPA.map(p => (
+                    <option key={p.id} value={p.id}>{p.label}</option>
+                  ))}
+                </select>
+              )}
             </PropertyRow>
 
             <PropertyRow icon="fa-regular fa-calendar-check" label="Inicio">
-              <div className="flex flex-col gap-0.5">
-                <InputFechaLibre
-                  value={fechaInicio}
-                  onChange={(val) => { setFechaInicio(val); if (fechaInicioError) setFechaInicioError(""); }}
-                  className={inputPropClass}
-                />
-                {fechaInicioError && (
-                  <span className="text-[11px] text-red-500">{fechaInicioError}</span>
-                )}
-              </div>
+              {soloLectura ? (
+                <span className={readOnlyClass}>{fechaInicio || "—"}</span>
+              ) : (
+                <div className="flex flex-col gap-0.5">
+                  <InputFechaLibre
+                    value={fechaInicio}
+                    onChange={(val) => { setFechaInicio(val); if (fechaInicioError) setFechaInicioError(""); }}
+                    className={inputPropClass}
+                  />
+                  {fechaInicioError && (
+                    <span className="text-[11px] text-red-500">{fechaInicioError}</span>
+                  )}
+                </div>
+              )}
             </PropertyRow>
 
             <PropertyRow icon="fa-regular fa-calendar" label="Entrega">
-              <div className="flex flex-col gap-0.5">
-                <InputFechaLibre
-                  value={deadline}
-                  onChange={(val) => { setDeadline(val); if (deadlineError) setDeadlineError(""); }}
-                  className={inputPropClass}
-                  required
-                />
-                {deadlineError && (
-                  <span className="text-[11px] text-red-500">{deadlineError}</span>
-                )}
-              </div>
+              {soloLectura ? (
+                <span className={readOnlyClass}>{deadline || "—"}</span>
+              ) : (
+                <div className="flex flex-col gap-0.5">
+                  <InputFechaLibre
+                    value={deadline}
+                    onChange={(val) => { setDeadline(val); if (deadlineError) setDeadlineError(""); }}
+                    className={inputPropClass}
+                    required
+                  />
+                  {deadlineError && (
+                    <span className="text-[11px] text-red-500">{deadlineError}</span>
+                  )}
+                </div>
+              )}
             </PropertyRow>
 
             <PropertyRow icon="fa-regular fa-folder" label="Categoría">
-              <SelectorCategoriasChips
-                categoriasSeleccionadas={categoria}
-                onChange={setCategoria}
-                listaGlobal={listaCategorias}
-                registrarNuevaCategoria={registrarNuevaCategoria}
-                variant="minimal"
-              />
+              {soloLectura ? (
+                <span className={readOnlyClass}>{parseCategoriasTarea(categoria).principal || categoria || "—"}</span>
+              ) : (
+                <SelectorCategoriasChips
+                  categoriasSeleccionadas={categoria}
+                  onChange={setCategoria}
+                  listaGlobal={listaCategorias}
+                  registrarNuevaCategoria={registrarNuevaCategoria}
+                  variant="minimal"
+                />
+              )}
             </PropertyRow>
 
-            <PropertyRow icon="fa-regular fa-user" label="Asignados">
-              <SelectorPersonasChips
-                personasSeleccionadas={personas}
-                onChange={setPersonas}
-                listaGlobal={listaPersonas}
-                registrarNuevaPersona={registrarNuevaPersona}
-                variant="minimal"
-              />
+            <PropertyRow icon="fa-regular fa-user" label="Ejecutivos">
+              {soloLectura ? (
+                <span className={readOnlyClass}>{personasEjecutivos || "—"}</span>
+              ) : (
+                <SelectorPersonasChips
+                  personasSeleccionadas={personasEjecutivos}
+                  onChange={setPersonasEjecutivos}
+                  listaGlobal={listaEjecutivos}
+                  registrarNuevaPersona={registrarNuevaPersona}
+                  variant="minimal"
+                />
+              )}
+            </PropertyRow>
+
+            <PropertyRow icon="fa-regular fa-user" label="Diseñadores">
+              {soloLectura ? (
+                <span className={readOnlyClass}>{personasDisenadores || "—"}</span>
+              ) : (
+                <SelectorPersonasChips
+                  personasSeleccionadas={personasDisenadores}
+                  onChange={setPersonasDisenadores}
+                  listaGlobal={listaDisenadores}
+                  registrarNuevaPersona={registrarNuevaPersona}
+                  variant="minimal"
+                />
+              )}
             </PropertyRow>
 
             <PropertyRow icon="fa-solid fa-link" label="Enlace">
               <div className="flex items-center gap-2 min-w-0">
-                <input
-                  type="url"
-                  value={link}
-                  onChange={(e) => handleLinkChange(e.target.value)}
-                  placeholder="https://..."
-                  className={inputPropTextClass}
-                />
+                {soloLectura ? (
+                  <span className={`${readOnlyClass} truncate`}>{link || "—"}</span>
+                ) : (
+                  <input
+                    type="url"
+                    value={link}
+                    onChange={(e) => handleLinkChange(e.target.value)}
+                    placeholder="https://..."
+                    className={inputPropTextClass}
+                  />
+                )}
                 {normalizarUrlEnlace(link) && (
                   <a
                     href={normalizarUrlEnlace(link)}

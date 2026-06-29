@@ -58,9 +58,45 @@ function robinUsuarioAutorizado_(username) {
   if (!user) return false;
   var allowed = robinListaDesdePropiedad_(
     "ROBIN_ALLOWED_USERS",
-    "fcolmenares,ralvarez,dsalavarria,mbonilla,gnebrus,sgiucastro,admin"
+    "fcolmenares,ralvarez,dsalavarria,mbonilla,gnebrus,sgiucastro,jalfiero,arusso,arodriguez,agraterol,dmatheus,admin"
   );
   return allowed.indexOf(user) !== -1;
+}
+
+function robinEsDisenadorUsuario_(username) {
+  var user = String(username || "").trim().toLowerCase();
+  var designers = robinListaDesdePropiedad_(
+    "ROBIN_DESIGNER_USERS",
+    "jalfiero,arusso,arodriguez,agraterol,dmatheus"
+  );
+  return designers.indexOf(user) !== -1;
+}
+
+function robinAliasDisenador_(username) {
+  var map = {
+    "jalfiero": ["jalfiero", "jesus alfiero", "jesus", "alfiero"],
+    "arusso": ["arusso", "alejandro russo", "alejandro", "russo"],
+    "arodriguez": ["arodriguez", "angelo rodriguez", "angelo", "rodriguez"],
+    "agraterol": ["agraterol", "aaron graterol", "aaron", "graterol"],
+    "dmatheus": ["dmatheus", "david matheus", "david", "matheus"]
+  };
+  return map[String(username || "").trim().toLowerCase()] || [String(username || "").trim().toLowerCase()];
+}
+
+function robinNormalizarPersonasBusqueda_(raw) {
+  return String(raw || "").trim().toLowerCase()
+    .replace(/^@/g, "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+}
+
+function robinTareaAsignadaADisenador_(personasRaw, username) {
+  var personas = robinNormalizarPersonasBusqueda_(personasRaw);
+  if (!personas) return false;
+  var aliases = robinAliasDisenador_(username);
+  for (var i = 0; i < aliases.length; i++) {
+    if (personas.indexOf(aliases[i]) !== -1) return true;
+  }
+  return false;
 }
 
 function robinEsAdminUsuario_(username) {
@@ -73,11 +109,12 @@ function robinValidarSesionRobin_(e, payload) {
   var token = robinObtenerToken_(e, payload);
   var username = robinObtenerUsuario_(e, payload);
   var secret = PropertiesService.getScriptProperties().getProperty("ROBIN_API_SECRET");
+  var designerSecret = PropertiesService.getScriptProperties().getProperty("ROBIN_DESIGNER_API_SECRET") || "robin2026";
 
   if (!secret) {
     throw new Error("API no configurada: falta ROBIN_API_SECRET en propiedades del script.");
   }
-  if (!token || token !== secret) {
+  if (!token) {
     throw new Error("No autorizado: sesión inválida.");
   }
   if (!username) {
@@ -87,10 +124,40 @@ function robinValidarSesionRobin_(e, payload) {
     throw new Error("Usuario no autorizado.");
   }
 
+  var isDesigner = robinEsDisenadorUsuario_(username);
+  var tokenValido = token === secret || (isDesigner && token === designerSecret);
+  if (!tokenValido) {
+    throw new Error("No autorizado: sesión inválida.");
+  }
+
   return {
     username: username,
-    isAdmin: robinEsAdminUsuario_(username)
+    isAdmin: robinEsAdminUsuario_(username),
+    isDesigner: isDesigner
   };
+}
+
+function robinExigirOperacionDisenador_(session, payload) {
+  if (!session || !session.isDesigner) return;
+
+  var campo = payload && payload.campo ? String(payload.campo).trim() : "";
+  if (campo === "eliminar") {
+    throw new Error("No autorizado: los diseñadores no pueden eliminar entregables.");
+  }
+  if (campo === "crearMarca" || campo === "eliminarMarca") {
+    throw new Error("No autorizado: operación restringida para diseñadores.");
+  }
+  if (payload && String(payload.marca || "").trim() === "Config_Marcas") {
+    throw new Error("No autorizado: operación restringida para diseñadores.");
+  }
+  if (payload && payload.esNuevo) {
+    throw new Error("No autorizado: los diseñadores no pueden crear entregables.");
+  }
+
+  var permitidos = { "detalles": true };
+  if (!campo || !permitidos[campo]) {
+    throw new Error("No autorizado: los diseñadores solo pueden editar notas y subtareas.");
+  }
 }
 
 function robinExigirOperacionAdmin_(session, payload) {

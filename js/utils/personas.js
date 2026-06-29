@@ -15,6 +15,11 @@ const LISTA_PERSONAS_DEFECTO = [
   "@mbonilla",
   "@gnebrus",
   "@sgiucastro",
+  "@jalfiero",
+  "@arusso",
+  "@arodriguez",
+  "@agraterol",
+  "@dmatheus",
   "@David Matheus",
   "@Aaron Graterol",
   "@Angel Graterol",
@@ -101,6 +106,41 @@ const PERSONAS_ALIAS_A_CANONICO = (() => {
 
   add("admin", "admin");
   add("@admin", "admin");
+
+  add("jalfiero", "jalfiero");
+  add("jesus alfiero", "jalfiero");
+  add("jesus", "jalfiero");
+  add("alfiero", "jalfiero");
+  add("@jalfiero", "jalfiero");
+  add("@jesus alfiero", "jalfiero");
+
+  add("arusso", "arusso");
+  add("alejandro russo", "arusso");
+  add("alejandro", "arusso");
+  add("russo", "arusso");
+  add("@arusso", "arusso");
+  add("@alejandro russo", "arusso");
+
+  add("arodriguez", "arodriguez");
+  add("angelo rodriguez", "arodriguez");
+  add("angelo", "arodriguez");
+  add("rodriguez", "arodriguez");
+  add("@arodriguez", "arodriguez");
+  add("@angelo rodriguez", "arodriguez");
+
+  add("agraterol", "agraterol");
+  add("aaron graterol", "agraterol");
+  add("aaron", "agraterol");
+  add("graterol", "agraterol");
+  add("@agraterol", "agraterol");
+  add("@aaron graterol", "agraterol");
+
+  add("dmatheus", "dmatheus");
+  add("david matheus", "dmatheus");
+  add("david", "dmatheus");
+  add("matheus", "dmatheus");
+  add("@dmatheus", "dmatheus");
+  add("@david matheus", "dmatheus");
 
   return map;
 })();
@@ -453,4 +493,64 @@ function personaEstaSeleccionada(persona, seleccionadas) {
 
 function personaCoincideConFiltro(valor, filtro) {
   return tareaIncluyePersonaFiltro(valor, filtro);
+}
+
+function filtrarTareasAsignadasADisenador(tareas, username) {
+  if (!username || !Array.isArray(tareas)) return tareas || [];
+  return tareas.filter((t) => tareaIncluyePersonaFiltro(t.personas || "", username));
+}
+
+function obtenerHandlesDisenadores() {
+  return (typeof ROBIN_DESIGNER_USERNAMES !== "undefined" ? ROBIN_DESIGNER_USERNAMES : [])
+    .map((u) => normalizarClavePersona(u))
+    .filter(Boolean);
+}
+
+function esPersonaDisenador(valor) {
+  const handlesDisenador = new Set(obtenerHandlesDisenadores());
+  return obtenerHandlesDesdeCampoPersonas(valor).some((h) => handlesDisenador.has(h));
+}
+
+function obtenerListaEjecutivosActiva() {
+  return fusionarListasPersonas(
+    obtenerHandlesEquipoTrade().map(formatearHandleCanonico),
+    ["@Trade", "@Cliente"]
+  );
+}
+
+function obtenerListaDisenadoresActiva() {
+  const handlesDisenador = new Set(obtenerHandlesDisenadores());
+  const desdeDefecto = LISTA_PERSONAS_DEFECTO.filter((p) => {
+    const handle = resolverHandleCanonico(p) || normalizarClavePersona(p);
+    return handlesDisenador.has(handle);
+  });
+  return fusionarListasPersonas(
+    obtenerHandlesDisenadores().map(formatearHandleCanonico),
+    desdeDefecto
+  );
+}
+
+function dividirCampoPersonasPorRol(raw) {
+  const partes = partesCampoPersonas(raw);
+  const ejecutivos = [];
+  const disenadores = [];
+
+  partes.forEach((persona) => {
+    if (esPersonaDisenador(persona)) {
+      disenadores.push(persona);
+    } else {
+      ejecutivos.push(persona);
+    }
+  });
+
+  return {
+    ejecutivos: normalizarCampoPersonas(ejecutivos.join(", ")),
+    disenadores: normalizarCampoPersonas(disenadores.join(", "))
+  };
+}
+
+function combinarEjecutivosYDisenadores(ejecutivosRaw, disenadoresRaw) {
+  return normalizarCampoPersonas(
+    [ejecutivosRaw, disenadoresRaw].filter(Boolean).join(", ")
+  );
 }

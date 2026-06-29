@@ -191,9 +191,9 @@ function SeccionTareasHoy({ titulo, subtitulo, conteo, vacio, tareas, onSelectTa
   );
 }
 
-function BarraHoyAccesoRapido({ tareas, username, onSelectTask, getMarcaStyle }) {
+function BarraHoyAccesoRapido({ tareas, username, onSelectTask, getMarcaStyle, soloMisTareas = false }) {
   const [ahora, setAhora] = useState(() => new Date());
-  const [filtroAlcance, setFiltroAlcance] = useState("mio");
+  const [filtroAlcance, setFiltroAlcance] = useState(soloMisTareas ? "mio" : "mio");
 
   useEffect(() => {
     const tick = () => setAhora(new Date());
@@ -206,7 +206,7 @@ function BarraHoyAccesoRapido({ tareas, username, onSelectTask, getMarcaStyle })
     const tHoy = obtenerTiempoHoyLocal();
     const listaBase = tareas || [];
     const lista =
-      filtroAlcance === "mio" && username
+      (soloMisTareas || filtroAlcance === "mio") && username
         ? listaBase.filter((t) => tareaIncluyePersonaFiltro(t.personas || "", username))
         : listaBase;
 
@@ -214,9 +214,9 @@ function BarraHoyAccesoRapido({ tareas, username, onSelectTask, getMarcaStyle })
     const trabajar = ordenarTareasParaHoy(lista.filter((t) => esTrabajarHoyTarea(t, tHoy)));
 
     return { entregasHoy: entregas, trabajarHoy: trabajar };
-  }, [tareas, username, filtroAlcance]);
+  }, [tareas, username, filtroAlcance, soloMisTareas]);
 
-  const subtituloAlcance = filtroAlcance === "mio" ? "Mis tareas" : "Trabajo en equipo";
+  const subtituloAlcance = soloMisTareas || filtroAlcance === "mio" ? "Mis tareas" : "Trabajo en equipo";
 
   return (
     <aside
@@ -225,7 +225,9 @@ function BarraHoyAccesoRapido({ tareas, username, onSelectTask, getMarcaStyle })
     >
       <div className="px-3 pt-3 pb-2 shrink-0 border-b border-zinc-100">
         <div className="relative rounded-xl border border-zinc-200 bg-white px-2.5 py-2 text-center shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
-          <HoyFiltroAlcanceToggle valor={filtroAlcance} onChange={setFiltroAlcance} />
+          {!soloMisTareas && (
+            <HoyFiltroAlcanceToggle valor={filtroAlcance} onChange={setFiltroAlcance} />
+          )}
           <time
             className="block text-base font-bold text-[#37352F] tracking-tight leading-none"
             dateTime={ahora.toISOString()}

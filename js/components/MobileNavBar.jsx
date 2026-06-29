@@ -8,6 +8,7 @@ function MobileNavBar({
   setFiltroPrioridad,
   setFiltroPersona,
   usuario,
+  esDisenador = false,
   syncing,
   apiError,
   hayPendientesLocales,
@@ -45,21 +46,21 @@ function MobileNavBar({
         setFiltroPersona("TODAS");
       })
     },
-    {
+    ...(!esDisenador ? [{
       key: "agregar",
       label: "Añadir",
       icon: "fa-plus",
       highlight: true,
       active: isActive("agregar"),
       onClick: () => navegarA("agregar")
-    },
-    {
+    }] : []),
+    ...(!esDisenador ? [{
       key: "clientes",
       label: "Clientes",
       icon: "fa-layer-group",
       active: isActive("clientes"),
       onClick: () => navegarA("clientes")
-    },
+    }] : []),
     {
       key: "config",
       label: "Ajustes",

@@ -22,6 +22,40 @@ function FormularioCrearEntregable({
   registrarNuevaCategoria
 }) {
   const [subtareas, setSubtareas] = useState([]);
+  const rolesIniciales = dividirCampoPersonasPorRol(nuevaTarea.personas || "");
+  const [personasEjecutivos, setPersonasEjecutivos] = useState(rolesIniciales.ejecutivos);
+  const [personasDisenadores, setPersonasDisenadores] = useState(rolesIniciales.disenadores);
+
+  const listaEjecutivos = useMemo(
+    () => fusionarListasPersonas(obtenerListaEjecutivosActiva(), partesCampoPersonas(personasEjecutivos)),
+    [personasEjecutivos]
+  );
+  const listaDisenadores = useMemo(
+    () => fusionarListasPersonas(obtenerListaDisenadoresActiva(), partesCampoPersonas(personasDisenadores)),
+    [personasDisenadores]
+  );
+
+  const actualizarPersonasEjecutivos = (val) => {
+    setPersonasEjecutivos(val);
+    setPersonasDisenadores((disenadoresActual) => {
+      setNuevaTarea((prev) => ({
+        ...prev,
+        personas: combinarEjecutivosYDisenadores(val, disenadoresActual)
+      }));
+      return disenadoresActual;
+    });
+  };
+
+  const actualizarPersonasDisenadores = (val) => {
+    setPersonasDisenadores(val);
+    setPersonasEjecutivos((ejecutivosActual) => {
+      setNuevaTarea((prev) => ({
+        ...prev,
+        personas: combinarEjecutivosYDisenadores(ejecutivosActual, val)
+      }));
+      return ejecutivosActual;
+    });
+  };
 
   const estadoVisual = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(nuevaTarea.estado)) || ESTADOS_MAPA[0];
   const inputPropClass = "w-full bg-transparent border-0 text-ui-sm text-[#37352F] focus:outline-none cursor-pointer font-medium";
@@ -117,11 +151,21 @@ function FormularioCrearEntregable({
               />
             </PropertyRow>
 
-            <PropertyRow icon="fa-regular fa-user" label="Asignados">
+            <PropertyRow icon="fa-regular fa-user" label="Ejecutivos">
               <SelectorPersonasChips
-                personasSeleccionadas={nuevaTarea.personas}
-                onChange={(val) => setNuevaTarea({ ...nuevaTarea, personas: val })}
-                listaGlobal={listaPersonas}
+                personasSeleccionadas={personasEjecutivos}
+                onChange={actualizarPersonasEjecutivos}
+                listaGlobal={listaEjecutivos}
+                registrarNuevaPersona={registrarNuevaPersona}
+                variant="minimal"
+              />
+            </PropertyRow>
+
+            <PropertyRow icon="fa-regular fa-user" label="Diseñadores">
+              <SelectorPersonasChips
+                personasSeleccionadas={personasDisenadores}
+                onChange={actualizarPersonasDisenadores}
+                listaGlobal={listaDisenadores}
                 registrarNuevaPersona={registrarNuevaPersona}
                 variant="minimal"
               />

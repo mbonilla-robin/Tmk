@@ -150,11 +150,12 @@ async function guardarPerfilUsuario(username, datos) {
   }
 
   const remoto = await flushRemoteUserSettings(user);
+  const syncOk = remoto?.ok === true;
   return {
-    ok: true,
+    ok: syncOk,
     nombreCompleto,
-    remoto: remoto?.ok === true,
-    errorRemoto: remoto?.ok ? "" : (remoto?.detail || remoto?.reason || "sync_failed")
+    remoto: syncOk,
+    errorRemoto: syncOk ? "" : (remoto?.detail || remoto?.reason || "sync_failed")
   };
 }
 

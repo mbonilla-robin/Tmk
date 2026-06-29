@@ -173,6 +173,31 @@ async function obtenerRegistroServiceWorker() {
   return asegurarServiceWorkerRegistrado();
 }
 
+async function verificarSuscripcionRemota(username, endpoint, intentos = 3) {
+  const user = pushUsuario(username);
+  const ep = String(endpoint || "").trim();
+  if (!pushSupabaseReady() || !user || !ep) return false;
+
+  for (let i = 0; i < intentos; i += 1) {
+    try {
+      const res = await fetch(
+        `${pushSupabaseUrl()}/rest/v1/robin_push_subscriptions?recipient=eq.${encodeURIComponent(user)}&endpoint=eq.${encodeURIComponent(ep)}&select=id&limit=1`,
+        { method: "GET", headers: pushSupabaseHeaders() }
+      );
+      if (res.ok) {
+        const rows = await res.json();
+        if (Array.isArray(rows) && rows.length > 0) return true;
+      }
+    } catch (e) { /* retry */ }
+
+    if (i < intentos - 1) {
+      await new Promise((resolve) => setTimeout(resolve, 350 * (i + 1)));
+    }
+  }
+
+  return false;
+}
+
 async function guardarSuscripcionPush(username, subscription) {
   const user = pushUsuario(username);
   const json = subscription.toJSON();
@@ -194,18 +219,34 @@ async function guardarSuscripcionPush(username, subscription) {
       `${pushSupabaseUrl()}/rest/v1/robin_push_subscriptions?on_conflict=endpoint`,
       {
         method: "POST",
-        headers: pushSupabaseHeaders("resolution=merge-duplicates,return=minimal"),
+        headers: pushSupabaseHeaders("resolution=merge-duplicates,return=representation"),
         body: JSON.stringify(fila)
       }
     );
 
-    if (res.ok) return { ok: true };
-
-    const detalle = (await res.text()).slice(0, 300);
-    if (typeof registrarDiagnosticoRobin === "function") {
-      registrarDiagnosticoRobin("push", "Suscripción no guardada en Supabase", `HTTP ${res.status}: ${detalle}`);
+    if (!res.ok) {
+      const detalle = (await res.text()).slice(0, 300);
+      if (typeof registrarDiagnosticoRobin === "function") {
+        registrarDiagnosticoRobin("push", "Suscripción no guardada en Supabase", `HTTP ${res.status}: ${detalle}`);
+      }
+      return { ok: false, reason: "save_failed", status: res.status, detail: detalle };
     }
-    return { ok: false, reason: "save_failed", status: res.status, detail: detalle };
+
+    const rows = await res.json().catch(() => []);
+    if (Array.isArray(rows) && rows.length > 0 && rows[0]?.id) {
+      return { ok: true, endpoint: json.endpoint, id: rows[0].id };
+    }
+
+    const remoto = await verificarSuscripcionRemota(user, json.endpoint);
+    if (!remoto) {
+      const detalle = "El servidor no confirmó la suscripción push de este dispositivo.";
+      if (typeof registrarDiagnosticoRobin === "function") {
+        registrarDiagnosticoRobin("push", "Suscripción no verificada en Supabase", detalle);
+      }
+      return { ok: false, reason: "save_failed", detail: detalle };
+    }
+
+    return { ok: true, endpoint: json.endpoint };
   } catch (e) {
     const detalle = String(e?.message || e);
     if (typeof registrarDiagnosticoRobin === "function") {
@@ -263,7 +304,29 @@ async function suscribirPushNotificaciones(username) {
     return { ok: false, reason: guardado.reason || "save_failed", detail: guardado.detail, status: guardado.status };
   }
 
-  return { ok: true };
+  return { ok: true, endpoint: subscription.endpoint };
+}
+
+async function mantenerSuscripcionPushActiva(username) {
+  if (!pushSoportado() || !username) {
+    return { ok: false, reason: "unsupported" };
+  }
+
+  if (Notification.permission !== "granted") {
+    return { ok: false, reason: "no_permission" };
+  }
+
+  const reg = await obtenerRegistroServiceWorker();
+  if (!reg || !reg.pushManager) {
+    return { ok: false, reason: "no_sw" };
+  }
+
+  const existente = await reg.pushManager.getSubscription();
+  if (existente) {
+    return guardarSuscripcionPush(username, existente);
+  }
+
+  return suscribirPushNotificaciones(username);
 }
 
 async function inicializarPushNotificaciones(username) {
@@ -273,22 +336,19 @@ async function inicializarPushNotificaciones(username) {
   const reg = await obtenerRegistroServiceWorker();
   if (!reg) return null;
 
-  const existente = await reg.pushManager.getSubscription();
-  if (existente) {
-    const guardado = await guardarSuscripcionPush(username, existente);
-    if (guardado.ok) marcarPushPromptAtendido(user);
-    return guardado.ok ? { ok: true, reason: "existing" } : { ok: false, reason: "save_failed", detail: guardado.detail };
-  }
-
-  if (Notification.permission === "granted") {
-    const resultado = await suscribirPushNotificaciones(username);
-    if (resultado.ok) marcarPushPromptAtendido(user);
-    return resultado;
+  const resultado = await mantenerSuscripcionPushActiva(username);
+  if (resultado.ok) {
+    marcarPushPromptAtendido(user);
+    return { ok: true, reason: "registered" };
   }
 
   if (Notification.permission === "denied") {
     marcarPushPromptAtendido(user);
     return { ok: false, reason: "denied" };
+  }
+
+  if (Notification.permission === "granted") {
+    return { ok: false, reason: "save_failed", detail: resultado.detail };
   }
 
   if (!esEntornoPushMovil() || pushPromptYaAtendido(user)) {
@@ -298,7 +358,7 @@ async function inicializarPushNotificaciones(username) {
   return { ok: false, reason: "needs_prompt" };
 }
 
-function registrarListenerAperturaPush(onAbrirTarea) {
+function registrarListenersPush({ onAbrirTarea, onPushRecibido } = {}) {
   if (!("serviceWorker" in navigator)) return () => {};
 
   const handler = (event) => {
@@ -306,10 +366,17 @@ function registrarListenerAperturaPush(onAbrirTarea) {
     if (data.type === "ROBIN_OPEN_TASK" && data.taskKey && typeof onAbrirTarea === "function") {
       onAbrirTarea(data.taskKey);
     }
+    if (data.type === "ROBIN_PUSH_RECEIVED" && typeof onPushRecibido === "function") {
+      onPushRecibido(data);
+    }
   };
 
   navigator.serviceWorker.addEventListener("message", handler);
   return () => navigator.serviceWorker.removeEventListener("message", handler);
+}
+
+function registrarListenerAperturaPush(onAbrirTarea) {
+  return registrarListenersPush({ onAbrirTarea });
 }
 
 function leerTaskKeyDesdeUrl() {
@@ -376,6 +443,7 @@ function mensajeErrorPush(reason) {
     save_failed: "Permiso concedido, pero no se registró el teléfono en Supabase. Usa Configuración → API → Activar en este dispositivo.",
     needs_pwa: "En iPhone debes instalar ROBIN en la pantalla de inicio (Compartir → Añadir a inicio) antes de activar notificaciones.",
     subscribe_failed: "Cierra ROBIN, ábrela de nuevo desde el icono de Inicio y pulsa Activar otra vez.",
+    timeout: "La activación tardó demasiado. Cierra ROBIN, ábrela de nuevo e inténtalo otra vez.",
     unsupported: "Este navegador no soporta notificaciones push.",
     no_vapid: "Falta configuración VAPID en la app."
   };
@@ -486,6 +554,16 @@ function pushUsuarioActual() {
   return pushUsuario(getLocalStorageItemSafe("robin_usuario_actual", ""));
 }
 
+async function tieneSuscripcionPushLocal() {
+  try {
+    const reg = await obtenerRegistroServiceWorker();
+    const sub = reg ? await reg.pushManager.getSubscription() : null;
+    return Boolean(sub);
+  } catch (e) {
+    return false;
+  }
+}
+
 async function entregarPushParaNotificacion(notif) {
   const id = String(notif?.id || "").trim();
   if (!id || pushYaEnviadosIds().has(id)) {
@@ -494,17 +572,20 @@ async function entregarPushParaNotificacion(notif) {
 
   const destinatario = pushUsuario(notif?.recipient);
   const yo = pushUsuarioActual();
+  const suscripcionLocal = await tieneSuscripcionPushLocal();
   let local = { ok: false, reason: "skipped" };
   let remoto = { ok: false, reason: "skipped" };
 
-  if (destinatario && yo && destinatario === yo) {
+  if (destinatario && yo && destinatario === yo && !suscripcionLocal) {
     local = await mostrarPushLocal(notif);
   }
 
   if (destinatario && yo && destinatario !== yo) {
     remoto = await dispararPushRemoto(notif);
-  } else if (destinatario && yo === destinatario && !local.ok) {
+  } else if (destinatario && yo === destinatario && !local.ok && !suscripcionLocal) {
     remoto = await dispararPushRemoto(notif);
+  } else if (suscripcionLocal) {
+    remoto = { ok: true, reason: "server_push" };
   }
 
   if (local.ok || remoto.ok) {

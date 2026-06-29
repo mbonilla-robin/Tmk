@@ -1,4 +1,4 @@
-const CACHE_NAME = "robin-pwa-v82";
+const CACHE_NAME = "robin-pwa-v84";
 
 const STATIC_ASSETS = [
   "./",
@@ -173,16 +173,28 @@ self.addEventListener("push", (event) => {
   const body = data.body || "Tienes una notificación nueva";
   const taskKey = data.task_key || "";
   const tag = data.id ? `robin-notif-${data.id}` : "robin-notif";
+  const iconUrl = new URL("./icons/pwa-naranja-192.png", self.location.origin).href;
 
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
-      icon: "./icons/pwa-naranja-192.png",
-      badge: "./icons/pwa-naranja-192.png",
+      icon: iconUrl,
+      badge: iconUrl,
       tag,
       renotify: true,
-      data: { taskKey, type: data.type || "" }
-    })
+      data: { taskKey, type: data.type || "", notifId: data.id || "" }
+    }).then(() =>
+      self.clients.matchAll({ type: "window", includeUncontrolled: true })
+        .then((clientList) => {
+          clientList.forEach((client) => {
+            client.postMessage({
+              type: "ROBIN_PUSH_RECEIVED",
+              taskKey,
+              notifId: data.id || ""
+            });
+          });
+        })
+    )
   );
 });
 

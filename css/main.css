@@ -3075,8 +3075,10 @@ body {
       }
 
       .mobile-top-btn.is-ok { color: #10b981; border-color: #bbf7d0; background: #f0fdf4; }
+      .mobile-top-btn.is-pending { color: #d97706; border-color: #fde68a; background: #fffbeb; }
       .mobile-top-btn.is-syncing { color: #3b82f6; border-color: #bfdbfe; background: #eff6ff; }
       .mobile-top-btn.is-error { color: #ef4444; border-color: #fecaca; background: #fef2f2; }
+      .mobile-top-btn.is-active { color: #52525b; border-color: #a1a1aa; background: #f4f4f5; box-shadow: inset 0 0 0 1px #d4d4d8; }
 
       .mobile-nav-bar {
         position: fixed;
@@ -4189,6 +4191,95 @@ body {
         padding-top: 1.5rem;
         padding-bottom: 1.5rem;
       }
+    }
+
+    /* Panel de sincronización (subpágina centrada) */
+    .robin-sync-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      background: rgba(15, 15, 15, 0.06);
+      backdrop-filter: blur(2px);
+      animation: fade-in 0.15s ease-out;
+    }
+
+    .robin-sync-overlay__inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.75rem;
+      width: 100%;
+      max-width: 18rem;
+    }
+
+    .robin-sync-overlay__hint {
+      font-size: 10px;
+      text-align: center;
+      opacity: 0.7;
+    }
+
+    .robin-sync-card {
+      width: 100%;
+      padding: 1.75rem 1.25rem 1.5rem;
+      border-radius: 1rem;
+      text-align: center;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+    }
+
+    .robin-sync-card__icon {
+      font-size: 2.25rem;
+      line-height: 1;
+      margin-bottom: 0.85rem;
+    }
+
+    .robin-sync-card__icon.is-ok { color: #10b981; }
+    .robin-sync-card__icon.is-pending { color: #d97706; }
+    .robin-sync-card__icon.is-syncing { color: #3b82f6; }
+    .robin-sync-card__icon.is-error { color: #ef4444; }
+    .robin-sync-card__icon.is-warn { color: #d97706; }
+
+    .robin-sync-card__title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin: 0 0 0.5rem;
+      letter-spacing: -0.01em;
+    }
+
+    .robin-sync-card__message {
+      font-size: 0.8rem;
+      line-height: 1.5;
+      margin: 0 0 0.75rem;
+    }
+
+    .robin-sync-card__meta {
+      font-size: 0.7rem;
+      margin: 0 0 1rem;
+      opacity: 0.75;
+    }
+
+    .robin-sync-card__action {
+      width: 100%;
+      padding: 0.6rem 1rem;
+      border-radius: 0.5rem;
+      border: 1px solid #e4e4e7;
+      background: #fafafa;
+      color: #3f3f46;
+      font-size: 0.8rem;
+      font-weight: 600;
+      transition: background 0.15s;
+    }
+
+    .robin-sync-card__action:hover:not(:disabled) {
+      background: #f4f4f5;
+    }
+
+    .robin-sync-card__action:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
     }
 
     /* Banner de estado Sheets (fuera del flujo flex de la app) */

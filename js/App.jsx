@@ -209,8 +209,9 @@ function App() {
     return usuariosConectados.filter(u => String(u.username || "").replace(/^@/, "").toLowerCase() !== yo);
   }, [usuariosConectados, usuario]);
 
-  const refrescarNotificaciones = useCallback(async () => {
+  const refrescarNotificaciones = useCallback(async (opts) => {
     if (!usuario || isConfigOnlyAdmin) return;
+    const soloActualizarUi = opts?.soloActualizarUi === true;
     setNotifCargando(true);
     try {
       const [lista, count] = await Promise.all([
@@ -220,7 +221,7 @@ function App() {
 
       const idsPrevios = notifIdsConocidosRef.current;
       const esCargaInicial = notifPrimeraCargaRef.current || !idsPrevios;
-      if (!esCargaInicial) {
+      if (!esCargaInicial && !soloActualizarUi) {
         await procesarPushNotificacionesNuevas(lista, {
           idsConocidos: idsPrevios,
           esCargaInicial: false
@@ -241,6 +242,19 @@ function App() {
     refrescarNotificaciones();
     const interval = setInterval(refrescarNotificaciones, NOTIF_POLL_MS);
     return () => clearInterval(interval);
+  }, [usuario, isConfigOnlyAdmin, refrescarNotificaciones]);
+
+  useEffect(() => {
+    if (!usuario || isConfigOnlyAdmin) return undefined;
+
+    const alVolverVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      refrescarNotificaciones({ soloActualizarUi: true });
+      mantenerSuscripcionPushActiva(usuario).catch(() => {});
+    };
+
+    document.addEventListener("visibilitychange", alVolverVisible);
+    return () => document.removeEventListener("visibilitychange", alVolverVisible);
   }, [usuario, isConfigOnlyAdmin, refrescarNotificaciones]);
 
   useEffect(() => {
@@ -473,15 +487,7 @@ function App() {
   };
 
   const handleSyncClick = () => {
-    const esMovil = typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches;
-    setSyncDetalleVisible((prev) => {
-      const next = !prev;
-      if (esMovil && next) {
-        const tipo = apiError ? "error" : syncing ? "info" : hayPendientesLocales ? "info" : "success";
-        setTimeout(() => showToast(palabraEstadoSync, tipo), 0);
-      }
-      return next;
-    });
+    setSyncDetalleVisible((prev) => !prev);
   };
 
   const persistTareas = (updater) => {
@@ -499,6 +505,7 @@ function App() {
       return;
     }
     setPaginaActiva(pagina);
+    setSyncDetalleVisible(false);
     if (pagina !== "dashboard") {
       limpiarSeleccionTareas();
       setDashboardMobileVista("lista");
@@ -642,7 +649,7 @@ function App() {
 
     setNombreCompleto(resultado.nombreCompleto || construirNombreCompletoPerfil(perfilNombre, perfilApellido));
 
-    if (resultado.remoto === false) {
+    if (!resultado.ok || resultado.remoto === false) {
       showToast("Perfil guardado aquí, pero no se pudo sincronizar con la nube", "error");
       return;
     }
@@ -733,7 +740,7 @@ function App() {
     persistTareas(actualizadas);
     setHayPendientesLocales(true);
     limpiarSeleccionTareas();
-    showToast(`${objetivos.length} entregable(s) guardado(s). Sincronizando con el Sheet...`, "success");
+    showToast(`${objetivos.length} entregable(s) guardado(s)`, "success");
     sincronizarEnSegundoPlano();
   };
 
@@ -1217,7 +1224,6 @@ function App() {
       payload: construirPayloadSyncTarea(original, actualizada, { campoSync, valor: valorFinal })
     });
     setHayPendientesLocales(true);
-    showToast("Guardando en Google Sheets...", "success");
     sincronizarEnSegundoPlano();
   };
 
@@ -1272,8 +1278,13 @@ function App() {
 
   useEffect(() => {
     if (!usuario || isConfigOnlyAdmin) return undefined;
-    return registrarListenerAperturaPush(abrirTareaPorKey);
-  }, [usuario, isConfigOnlyAdmin, tareas]);
+    return registrarListenersPush({
+      onAbrirTarea: abrirTareaPorKey,
+      onPushRecibido: () => {
+        refrescarNotificaciones({ soloActualizarUi: true });
+      }
+    });
+  }, [usuario, isConfigOnlyAdmin, tareas, refrescarNotificaciones]);
 
   useEffect(() => {
     if (!usuario || !tareas.length) return;
@@ -1287,16 +1298,40 @@ function App() {
     if (!usuario || pushActivando) return;
     setPushActivando(true);
     try {
-      const resultado = await suscribirPushNotificaciones(usuario);
+      const resultado = await Promise.race([
+        suscribirPushNotificaciones(usuario),
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error("push_timeout")), 30000);
+        })
+      ]).catch((e) => ({
+        ok: false,
+        reason: e?.message === "push_timeout" ? "timeout" : "subscribe_failed",
+        detail: String(e?.message || e)
+      }));
+
       if (resultado.ok) {
         marcarPushPromptAtendido(usuario);
         setPushPromptVisible(false);
-        showToast("Notificaciones activadas", "success");
+        showToast("Notificaciones activadas en este dispositivo", "success");
         return;
       }
-      setPushPromptVisible(true);
-      const severidad = resultado.reason === "denied" ? "info" : "error";
-      showToast(mensajeErrorPush(resultado.reason), severidad);
+
+      const permisoOk = typeof Notification !== "undefined" && Notification.permission === "granted";
+      const tieneLocal = permisoOk && await tieneSuscripcionPushLocal();
+      if (tieneLocal) {
+        marcarPushPromptAtendido(usuario);
+        setPushPromptVisible(false);
+        mantenerSuscripcionPushActiva(usuario).catch(() => {});
+        showToast(
+          resultado.reason === "save_failed"
+            ? "Permiso concedido. Registrando este dispositivo en el servidor..."
+            : mensajeErrorPush(resultado.reason),
+          "info"
+        );
+        return;
+      }
+
+      showToast(mensajeErrorPush(resultado.reason), resultado.reason === "denied" ? "info" : "error");
     } finally {
       setPushActivando(false);
     }
@@ -1410,7 +1445,6 @@ function App() {
 
       setIsEditing(false);
       setActiveTask(null);
-      showToast("Guardando en Google Sheets...", "success");
       sincronizarEnSegundoPlano();
     } finally {
       setTimeout(() => { guardandoRef.current = false; }, 250);
@@ -1830,6 +1864,81 @@ function App() {
     );
   };
 
+  const renderPanelSyncAmigable = () => {
+    const colaPendiente = cargarColaSync().length;
+    const sincronizando = syncing || loading;
+
+    let icono = "fa-cloud";
+    let colorIcono = "is-ok";
+    let titulo = "Todo al día";
+    let mensaje = "Tus entregables están sincronizados con Google Sheets.";
+
+    if (!isApiConfigured()) {
+      icono = "fa-cloud";
+      colorIcono = "is-warn";
+      titulo = "Sin conexión a Sheets";
+      mensaje = "Esta instalación no tiene configurada la base de datos de Google Sheets.";
+    } else if (sincronizando) {
+      icono = "fa-cloud-arrow-up";
+      colorIcono = "is-syncing";
+      titulo = "Sincronizando";
+      mensaje = "Estamos actualizando la información con Google Sheets.";
+    } else if (apiError) {
+      icono = "fa-cloud-arrow-down";
+      colorIcono = "is-error";
+      titulo = "Sin conexión";
+      mensaje = "No pudimos conectar con Google Sheets. Tus cambios están guardados aquí y se reintentarán solos.";
+    } else if (colaPendiente > 0 || hayPendientesLocales) {
+      icono = "fa-cloud-arrow-up";
+      colorIcono = "is-pending";
+      titulo = "Subiendo cambios";
+      mensaje = colaPendiente === 1
+        ? "Hay 1 cambio esperando subirse a Google Sheets."
+        : `Hay ${colaPendiente} cambios esperando subirse a Google Sheets.`;
+    }
+
+    const ultimaSyncTexto = ultimaSyncOk
+      ? `Actualizado ${new Date(ultimaSyncOk).toLocaleString("es-VE", {
+          day: "numeric",
+          month: "short",
+          hour: "2-digit",
+          minute: "2-digit"
+        })}`
+      : null;
+
+    return (
+      <div className={`robin-sync-card ${currentTheme.cardBg} border ${currentTheme.border}`}>
+        <div className={`robin-sync-card__icon ${colorIcono}`}>
+          <i className={`fa-solid ${icono} ${sincronizando ? "animate-pulse" : ""}`}></i>
+        </div>
+        <h3 className={`robin-sync-card__title ${currentTheme.text}`}>{titulo}</h3>
+        <p className={`robin-sync-card__message ${currentTheme.mutedText}`}>{mensaje}</p>
+        {ultimaSyncTexto && !apiError && !hayPendientesLocales && !sincronizando ? (
+          <p className={`robin-sync-card__meta ${currentTheme.mutedText}`}>{ultimaSyncTexto}</p>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => fetchData(false)}
+          disabled={loading || syncing}
+          className="robin-sync-card__action"
+        >
+          {sincronizando ? "Actualizando..." : "Actualizar ahora"}
+        </button>
+      </div>
+    );
+  };
+
+  const renderSyncSubpage = () => (
+    <div className="robin-sync-overlay" onClick={() => setSyncDetalleVisible(false)}>
+      <div className="robin-sync-overlay__inner" onClick={(e) => e.stopPropagation()}>
+        {renderPanelSyncAmigable()}
+        <p className={`robin-sync-overlay__hint ${currentTheme.mutedText}`}>
+          Toca la nube para cerrar
+        </p>
+      </div>
+    </div>
+  );
+
   return (
     <div className={`flex h-screen w-screen overflow-hidden ${currentTheme.bg} ${currentTheme.text} select-none transition-all`}>
       
@@ -1838,24 +1947,6 @@ function App() {
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
           <span>{toast.msg}</span>
         </div>
-      )}
-
-      {!isConfigOnlyAdmin && (estadoSyncResumen.severidad === "error" || estadoSyncResumen.severidad === "warn") && (
-        <button
-          type="button"
-          onClick={() => {
-            navegarA("configuracion");
-            setConfigSeccion("api");
-          }}
-          className={`robin-sync-alert ${estadoSyncResumen.severidad === "error" ? "is-error" : "is-warn"}`}
-        >
-          <i className={`fa-solid ${estadoSyncResumen.severidad === "error" ? "fa-cloud-arrow-down" : "fa-triangle-exclamation"}`}></i>
-          <span className="robin-sync-alert__text">
-            <strong>{estadoSyncResumen.titulo}</strong>
-            {estadoSyncResumen.detalle ? ` — ${estadoSyncResumen.detalle}` : ""}
-          </span>
-          <span className="robin-sync-alert__cta">Ver detalle</span>
-        </button>
       )}
 
       {/* MENÚ LATERAL ESTILO NOTION - SOLO DESKTOP (md+); móvil usa MobileNavBar */}
@@ -2048,11 +2139,15 @@ function App() {
               type="button"
               onClick={handleSyncClick}
               className={`flex items-center gap-2 rounded border px-2 py-1.5 transition-all ${
-                syncing
+                syncDetalleVisible
+                  ? "border-zinc-400 bg-zinc-100 ring-2 ring-zinc-200"
+                  : syncing
                   ? "border-blue-200 bg-blue-50"
                   : apiError
                     ? "border-red-200 bg-red-50"
-                    : "border-zinc-200 bg-zinc-50 hover:bg-zinc-100"
+                    : hayPendientesLocales
+                      ? "border-amber-200 bg-amber-50"
+                      : "border-zinc-200 bg-zinc-50 hover:bg-zinc-100"
               }`}
               title="Estado de sincronización"
             >
@@ -2060,15 +2155,10 @@ function App() {
                 <i className="fa-solid fa-cloud-arrow-up text-blue-500 animate-pulse text-sm" />
               ) : apiError ? (
                 <i className="fa-solid fa-cloud-arrow-down text-red-400 text-sm" />
+              ) : hayPendientesLocales ? (
+                <i className="fa-solid fa-cloud-arrow-up text-amber-500 text-sm" />
               ) : (
                 <i className="fa-solid fa-cloud text-emerald-500 text-sm" />
-              )}
-              {syncDetalleVisible && (
-                <span className={`text-ui-sm font-semibold ${
-                  syncing ? "text-blue-600" : apiError ? "text-red-500" : "text-emerald-600"
-                }`}>
-                  {palabraEstadoSync}
-                </span>
               )}
             </button>
 
@@ -2085,13 +2175,14 @@ function App() {
 
         <div
           data-robin-content-main
-          className={`flex-1 overflow-y-auto overflow-x-hidden w-full min-h-0 no-scrollbar ${
+          className={`relative flex-1 overflow-y-auto overflow-x-hidden w-full min-h-0 no-scrollbar ${
           paginaActiva === "agregar"
             ? "robin-mobile-main robin-main-agregar !px-0 lg:!px-8"
             : paginaActiva === "dashboard" && filtroMarca !== "TODAS"
               ? "robin-mobile-main marca-home-main"
               : "robin-mobile-main max-w-6xl mx-auto"
         }`}>
+          {syncDetalleVisible && renderSyncSubpage()}
           
           {!isConfigOnlyAdmin && paginaActiva === "home" && (
             <LayoutHome
@@ -2463,6 +2554,8 @@ function App() {
         usuario={usuario}
         syncing={syncing}
         apiError={apiError}
+        hayPendientesLocales={hayPendientesLocales}
+        syncDetalleVisible={syncDetalleVisible}
         palabraEstadoSync={palabraEstadoSync}
         onSyncClick={handleSyncClick}
         onRefresh={() => fetchData(false)}
@@ -2575,7 +2668,7 @@ function App() {
         <div className="robin-float-above-chrome robin-push-prompt p-4 rounded-lg border border-zinc-200 bg-white shadow-lg animate-zoom-in">
           <p className="text-sm font-semibold text-zinc-800 mb-1">Notificaciones en tu teléfono</p>
           <p className="text-xs text-zinc-500 leading-relaxed mb-3">
-            Actívalas para recibir menciones y comentarios aunque no tengas ROBIN abierto.
+            Actívalas para recibir menciones y comentarios aunque no tengas ROBIN abierto. Sin activarlas, solo verás avisos al volver a entrar.
           </p>
           <div className="flex gap-2 justify-end">
             <button

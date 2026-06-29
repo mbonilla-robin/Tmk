@@ -10,6 +10,8 @@ function MobileNavBar({
   usuario,
   syncing,
   apiError,
+  hayPendientesLocales,
+  syncDetalleVisible,
   palabraEstadoSync,
   onSyncClick,
   onRefresh,
@@ -79,10 +81,28 @@ function MobileNavBar({
           <button
             type="button"
             onClick={onSyncClick}
-            className={`mobile-top-btn ${syncing ? "is-syncing" : apiError ? "is-error" : "is-ok"}`}
+            className={`mobile-top-btn ${
+              syncDetalleVisible
+                ? "is-active"
+                : syncing
+                  ? "is-syncing"
+                  : apiError
+                    ? "is-error"
+                    : hayPendientesLocales
+                      ? "is-pending"
+                      : "is-ok"
+            }`}
             title={palabraEstadoSync}
           >
-            <i className={`fa-solid ${syncing ? "fa-cloud-arrow-up" : apiError ? "fa-cloud-arrow-down" : "fa-cloud"}`}></i>
+            <i className={`fa-solid ${
+              syncing
+                ? "fa-cloud-arrow-up"
+                : apiError
+                  ? "fa-cloud-arrow-down"
+                  : hayPendientesLocales
+                    ? "fa-cloud-arrow-up"
+                    : "fa-cloud"
+            }`}></i>
           </button>
           <button
             type="button"

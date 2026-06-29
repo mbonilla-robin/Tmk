@@ -254,41 +254,47 @@ async function upsertRemoteUserSettings(username, prefs) {
   }
 
   const payload = prefsForRemote(prefs);
+  const upsertUrl = `${safeSupabaseUrl()}/rest/v1/robin_user_settings?on_conflict=username`;
+  const patchUrl = `${safeSupabaseUrl()}/rest/v1/robin_user_settings?username=eq.${encodeURIComponent(user)}`;
 
   try {
-    let res = await fetch(
-      `${safeSupabaseUrl()}/rest/v1/robin_user_settings?on_conflict=username`,
-      {
-        method: "POST",
-        headers: safeSupabaseRestHeaders("resolution=merge-duplicates,return=minimal"),
-        body: JSON.stringify({
-          username: user,
-          prefs: payload
-        })
-      }
-    );
+    let res = await fetch(upsertUrl, {
+      method: "POST",
+      headers: safeSupabaseRestHeaders("resolution=merge-duplicates,return=representation"),
+      body: JSON.stringify({ username: user, prefs: payload })
+    });
+
+    if (res.ok) return { ok: true };
+
+    const detallePost = await res.text();
+    res = await fetch(patchUrl, {
+      method: "PATCH",
+      headers: safeSupabaseRestHeaders("return=representation"),
+      body: JSON.stringify({ prefs: payload })
+    });
 
     if (!res.ok) {
-      const detallePost = await res.text();
-      res = await fetch(
-        `${safeSupabaseUrl()}/rest/v1/robin_user_settings?username=eq.${encodeURIComponent(user)}`,
-        {
-          method: "PATCH",
-          headers: safeSupabaseRestHeaders("return=minimal"),
-          body: JSON.stringify({ prefs: payload })
-        }
-      );
+      const detallePatch = await res.text();
+      console.warn("ROBIN Supabase: no se pudo guardar preferencias", res.status, detallePost || detallePatch);
+      return { ok: false, status: res.status, detail: detallePatch || detallePost };
+    }
 
+    const rows = await res.json();
+    if (!Array.isArray(rows) || rows.length === 0) {
+      res = await fetch(upsertUrl, {
+        method: "POST",
+        headers: safeSupabaseRestHeaders("return=representation"),
+        body: JSON.stringify({ username: user, prefs: payload })
+      });
       if (!res.ok) {
-        const detallePatch = await res.text();
-        console.warn("ROBIN Supabase: no se pudo guardar perfil", res.status, detallePost || detallePatch);
-        return { ok: false, status: res.status, detail: detallePatch || detallePost };
+        const detalle = await res.text();
+        return { ok: false, status: res.status, detail: detalle || detallePost };
       }
     }
 
     return { ok: true };
   } catch (e) {
-    console.warn("ROBIN Supabase: error guardando perfil", e);
+    console.warn("ROBIN Supabase: error guardando preferencias", e);
     return { ok: false, detail: String(e?.message || e) };
   }
 }

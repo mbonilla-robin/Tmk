@@ -18,6 +18,24 @@ function filtrarClientesActivosInduccion(marcas) {
     .filter(Boolean);
 }
 
+const ESCENA_TRANSICION_MS = 420;
+
+function construirEscenasBienvenida(clientes) {
+  const escenas = [
+    { id: "logo", duracion: 2000 },
+    { id: "saludo", duracion: 3000 },
+    { id: "aprende", duracion: 2800 },
+    { id: "texto1", duracion: 4500 },
+    { id: "texto2", duracion: 4500 }
+  ];
+  if (clientes.length > 0) escenas.push({ id: "clientes", duracion: 3200 });
+  escenas.push(
+    { id: "cierre", duracion: 3000 },
+    { id: "cta", duracion: null }
+  );
+  return escenas;
+}
+
 function InduccionBienvenida({
   visible,
   nombreCompleto,
@@ -27,11 +45,150 @@ function InduccionBienvenida({
   onComenzar,
   onOmitir
 }) {
-  if (!visible) return null;
+  const [escena, setEscena] = useState(0);
+  const [fase, setFase] = useState("entrada");
+  const transicionTimerRef = useRef(null);
+  const autoTimerRef = useRef(null);
 
   const primerNombre = obtenerPrimerNombreBienvenida(nombreCompleto, username);
   const rolLabel = esDisenador ? "diseñador" : "ejecutivo";
-  const clientes = filtrarClientesActivosInduccion(marcas);
+  const clientes = useMemo(() => filtrarClientesActivosInduccion(marcas), [marcas]);
+  const escenas = useMemo(() => construirEscenasBienvenida(clientes), [clientes]);
+  const escenaActual = escenas[escena] || escenas[0];
+  const esUltimaEscena = escena >= escenas.length - 1;
+
+  const limpiarTimers = useCallback(() => {
+    if (transicionTimerRef.current) {
+      clearTimeout(transicionTimerRef.current);
+      transicionTimerRef.current = null;
+    }
+    if (autoTimerRef.current) {
+      clearTimeout(autoTimerRef.current);
+      autoTimerRef.current = null;
+    }
+  }, []);
+
+  const pasarSiguienteEscena = useCallback(() => {
+    setFase("salida");
+    transicionTimerRef.current = setTimeout(() => {
+      setEscena((prev) => Math.min(prev + 1, escenas.length - 1));
+      setFase("entrada");
+      transicionTimerRef.current = null;
+    }, ESCENA_TRANSICION_MS);
+  }, [escenas.length]);
+
+  useEffect(() => {
+    if (!visible) {
+      limpiarTimers();
+      setEscena(0);
+      setFase("entrada");
+      return undefined;
+    }
+    return () => limpiarTimers();
+  }, [visible, limpiarTimers]);
+
+  useEffect(() => {
+    if (!visible || esUltimaEscena) return undefined;
+    const duracion = escenaActual?.duracion;
+    if (!duracion) return undefined;
+
+    autoTimerRef.current = setTimeout(() => {
+      pasarSiguienteEscena();
+    }, duracion);
+
+    return () => {
+      if (autoTimerRef.current) {
+        clearTimeout(autoTimerRef.current);
+        autoTimerRef.current = null;
+      }
+    };
+  }, [visible, escena, esUltimaEscena, escenaActual, pasarSiguienteEscena]);
+
+  if (!visible) return null;
+
+  const claseEscena = (index) => {
+    if (escena !== index) return "induccion-bienvenida__escena";
+    return `induccion-bienvenida__escena is-activa${fase === "salida" ? " is-saliendo" : ""}`;
+  };
+
+  const renderContenidoEscena = (id) => {
+    switch (id) {
+      case "logo":
+        return (
+          <img
+            src="logo robin blanco.png"
+            srcSet="logo robin blanco.png 1x, logo robin blanco@2x.png 2x"
+            alt="ROBIN"
+            className="induccion-bienvenida__logo induccion-bienvenida__logo--hero"
+            width="280"
+            height="92"
+            decoding="async"
+          />
+        );
+      case "saludo":
+        return (
+          <h1 id="induccion-bienvenida-title" className="induccion-bienvenida__title induccion-bienvenida__title--center">
+            <span className="induccion-bienvenida__saludo">Bienvenido,</span>
+            <span className="induccion-bienvenida__nombre">{primerNombre}</span>
+          </h1>
+        );
+      case "aprende":
+        return <p className="induccion-bienvenida__headline-aprende">Aprende a usar la aplicación</p>;
+      case "texto1":
+        return (
+          <p className="induccion-bienvenida__linea-video">
+            Te invitamos a utilizar esta plataforma para que <strong>todo el equipo</strong> estemos{" "}
+            <strong>comunicados y alineados</strong> en los entregables de cada cliente.
+          </p>
+        );
+      case "texto2":
+        return (
+          <p className="induccion-bienvenida__linea-video">
+            <strong>ROBIN</strong> fue desarrollada por el <strong>equipo interno</strong> con el plan de cumplir las{" "}
+            <strong>metas y necesidades del área</strong> en este momento.
+          </p>
+        );
+      case "clientes":
+        return (
+          <div className="induccion-bienvenida__clientes-video">
+            <span className="induccion-bienvenida__clientes-label">Clientes activos</span>
+            <div className="induccion-bienvenida__clientes-list">
+              {clientes.map((nombre) => (
+                <span key={nombre} className="induccion-bienvenida__cliente-chip induccion-bienvenida__cliente-chip--video">
+                  {nombre}
+                </span>
+              ))}
+            </div>
+          </div>
+        );
+      case "cierre":
+        return (
+          <div className="induccion-bienvenida__cierre-video">
+            <p className="induccion-bienvenida__linea-video induccion-bienvenida__linea-video--cierre">
+              <strong>Gracias por ser parte del equipo.</strong> Cualquier duda,{" "}
+              <strong>estamos a la orden.</strong>
+            </p>
+            <p className="induccion-bienvenida__rol-video">
+              Trade &amp; Shopper Marketing · <strong>{rolLabel}</strong>
+            </p>
+          </div>
+        );
+      case "cta":
+        return (
+          <div className="induccion-bienvenida__cta-video">
+            <p className="induccion-bienvenida__cta-lead">¿Listo?</p>
+            <button type="button" className="induccion-bienvenida__btn-primary" onClick={onComenzar}>
+              Empezar recorrido
+            </button>
+            <button type="button" className="induccion-bienvenida__btn-ghost" onClick={onOmitir}>
+              Omitir por ahora
+            </button>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <ModalPortal>
@@ -46,75 +203,30 @@ function InduccionBienvenida({
         </div>
 
         <div className="induccion-bienvenida__panel">
-          <div className="induccion-bienvenida__top">
-            <div className="induccion-bienvenida__brand induccion-bienvenida__reveal induccion-bienvenida__reveal--1">
-              <img
-                src="logo robin blanco.png"
-                srcSet="logo robin blanco.png 1x, logo robin blanco@2x.png 2x"
-                alt="ROBIN"
-                className="induccion-bienvenida__logo"
-                width="222"
-                height="73"
-                decoding="async"
-              />
-            </div>
-
-            <p className="induccion-bienvenida__eyebrow induccion-bienvenida__reveal induccion-bienvenida__reveal--2">
-              Trade &amp; Shopper Marketing
-            </p>
-
-            <div className="induccion-bienvenida__hero induccion-bienvenida__reveal induccion-bienvenida__reveal--3">
-              <h1 id="induccion-bienvenida-title" className="induccion-bienvenida__title">
-                <span className="induccion-bienvenida__saludo">Bienvenido,</span>
-                <span className="induccion-bienvenida__nombre">{primerNombre}</span>
-              </h1>
-              <p className="induccion-bienvenida__subtitle">
-                Sistema interno del área · como <span className="induccion-bienvenida__rol">{rolLabel}</span>
-              </p>
-            </div>
-          </div>
-
-          <div className="induccion-bienvenida__middle">
-            <div className="induccion-bienvenida__body induccion-bienvenida__reveal induccion-bienvenida__reveal--4">
-            <p>
-              Te invitamos a utilizar esta plataforma para que todo el equipo estemos comunicados
-              y alineados en los entregables de cada cliente.
-            </p>
-            <p>
-              ROBIN fue desarrollada por el equipo interno con el plan de cumplir las metas
-              y necesidades del área en este momento.
-            </p>
-          </div>
-
-          {clientes.length > 0 && (
-            <div className="induccion-bienvenida__clientes induccion-bienvenida__reveal induccion-bienvenida__reveal--5">
-              <span className="induccion-bienvenida__clientes-label">Clientes activos</span>
-              <div className="induccion-bienvenida__clientes-list">
-                {clientes.map((nombre, index) => (
-                  <span
-                    key={nombre}
-                    className="induccion-bienvenida__cliente-chip"
-                    style={{ animationDelay: `${0.55 + index * 0.07}s` }}
-                  >
-                    {nombre}
-                  </span>
-                ))}
+          <div className="induccion-bienvenida__story" aria-hidden="true">
+            {escenas.map((item, index) => (
+              <div key={item.id} className="induccion-bienvenida__story-seg">
+                <div
+                  key={index === escena ? `fill-${escena}` : `fill-${index}-done`}
+                  className={`induccion-bienvenida__story-fill${index < escena ? " is-hecha" : ""}${index === escena && !esUltimaEscena ? " is-activa" : ""}${index === escena && esUltimaEscena ? " is-hecha" : ""}`}
+                  style={index === escena && item.duracion && fase === "entrada"
+                    ? { animationDuration: `${item.duracion}ms` }
+                    : undefined}
+                />
               </div>
-            </div>
-          )}
-
-          <p className="induccion-bienvenida__cierre induccion-bienvenida__reveal induccion-bienvenida__reveal--6">
-            Gracias por ser parte del equipo. Cualquier duda, estamos a la orden.
-          </p>
+            ))}
           </div>
 
-          <div className="induccion-bienvenida__actions induccion-bienvenida__reveal induccion-bienvenida__reveal--7">
-            <button type="button" className="induccion-bienvenida__btn-primary" onClick={onComenzar}>
-              Comenzar recorrido
-            </button>
-            <button type="button" className="induccion-bienvenida__btn-ghost" onClick={onOmitir}>
-              Omitir por ahora
-            </button>
+          <div className="induccion-bienvenida__escenas">
+            {escenas.map((item, index) => (
+              <div
+                key={item.id}
+                className={`${claseEscena(index)} induccion-bienvenida__escena--${item.id}`}
+                aria-hidden={escena !== index}
+              >
+                {renderContenidoEscena(item.id)}
+              </div>
+            ))}
           </div>
         </div>
       </div>

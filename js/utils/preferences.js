@@ -68,6 +68,28 @@ function usuarioTienePrefsParaSubir(prefs) {
   return PERFIL_PREF_KEYS.some((key) => !isPrefValueEmpty(key, p[key]));
 }
 
+function fusionarCamposInduccion(merged, local, remote) {
+  const resultado = { ...merged };
+  const localVer = Number(local?.induccionVersion) || 0;
+  const remoteVer = Number(remote?.induccionVersion) || 0;
+  const maxVer = Math.max(localVer, remoteVer);
+
+  if (maxVer <= 0) {
+    delete resultado.induccionVersion;
+    delete resultado.induccionCompletadaAt;
+    return resultado;
+  }
+
+  resultado.induccionVersion = maxVer;
+  if (localVer >= remoteVer && local?.induccionCompletadaAt) {
+    resultado.induccionCompletadaAt = local.induccionCompletadaAt;
+  } else if (remote?.induccionCompletadaAt) {
+    resultado.induccionCompletadaAt = remote.induccionCompletadaAt;
+  }
+
+  return resultado;
+}
+
 function fusionarCamposPerfil(merged, local, remote, localTime, remoteTime) {
   const resultado = { ...merged };
   PERFIL_PREF_KEYS.forEach((key) => {
@@ -133,10 +155,11 @@ function mergeUserPrefRecords(local, remotePrefs, remoteTime) {
   const filler = newerIsRemote ? localSafe : remoteSafe;
   const merged = mergePrefFields(base, filler);
   const conPerfil = fusionarCamposPerfil(merged, localSafe, remoteSafe, localTime, remoteTime);
+  const conInduccion = fusionarCamposInduccion(conPerfil, localSafe, remoteSafe);
 
-  conPerfil._localUpdatedAt = Math.max(localTime, remoteTime);
-  conPerfil._v = PREFS_VERSION;
-  return conPerfil;
+  conInduccion._localUpdatedAt = Math.max(localTime, remoteTime);
+  conInduccion._v = PREFS_VERSION;
+  return conInduccion;
 }
 
 function migrateLegacyPrefs(username) {

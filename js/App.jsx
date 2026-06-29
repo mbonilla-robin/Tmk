@@ -634,10 +634,13 @@ function App() {
   }, [usuario, isConfigOnlyAdmin, limpiarFiltrosDashboardInduccion]);
 
   const comenzarRecorridoInduccion = useCallback(() => {
+    if (usuario && typeof marcarInduccionCompletada === "function") {
+      marcarInduccionCompletada(usuario);
+    }
     setInduccionBienvenidaVisible(false);
     setInduccionPaso(0);
     setInduccionActiva(true);
-  }, []);
+  }, [usuario]);
 
   const irAPasoInduccion = useCallback((index) => {
     setInduccionPaso(index);

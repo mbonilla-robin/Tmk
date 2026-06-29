@@ -152,6 +152,22 @@ function marcarPushPromptAtendido(username) {
   } catch (e) { /* ignore */ }
 }
 
+async function obtenerRegistroParaPush() {
+  if (!("serviceWorker" in navigator)) return null;
+
+  try {
+    let reg = await navigator.serviceWorker.getRegistration("./");
+    if (!reg) {
+      reg = await navigator.serviceWorker.register("./sw.js", { scope: "./" });
+    }
+    await navigator.serviceWorker.ready;
+    return reg;
+  } catch (e) {
+    console.warn("ROBIN: service worker push no disponible", e);
+    return null;
+  }
+}
+
 async function asegurarServiceWorkerRegistrado() {
   if (!("serviceWorker" in navigator)) return null;
 
@@ -205,48 +221,61 @@ async function guardarSuscripcionPush(username, subscription) {
     return { ok: false, reason: "invalid_payload" };
   }
 
-  const fila = {
-    recipient: user,
-    endpoint: json.endpoint,
-    p256dh: json.keys.p256dh,
-    auth: json.keys.auth,
-    user_agent: String(navigator.userAgent || "").slice(0, 240),
-    updated_at: new Date().toISOString()
+  const payload = {
+    p_recipient: user,
+    p_endpoint: json.endpoint,
+    p_p256dh: json.keys.p256dh,
+    p_auth: json.keys.auth,
+    p_user_agent: String(navigator.userAgent || "").slice(0, 240)
   };
 
   try {
+    const rpcRes = await fetch(
+      `${pushSupabaseUrl()}/rest/v1/rpc/robin_upsert_push_subscription`,
+      {
+        method: "POST",
+        headers: pushSupabaseHeaders(),
+        body: JSON.stringify(payload)
+      }
+    );
+
+    if (rpcRes.ok) {
+      const id = await rpcRes.json().catch(() => null);
+      if (id) return { ok: true, endpoint: json.endpoint, id };
+    } else {
+      const detalleRpc = (await rpcRes.text()).slice(0, 300);
+      if (typeof registrarDiagnosticoRobin === "function") {
+        registrarDiagnosticoRobin("push", "RPC suscripción falló", `HTTP ${rpcRes.status}: ${detalleRpc}`);
+      }
+    }
+
+    const fila = {
+      recipient: user,
+      endpoint: json.endpoint,
+      p256dh: json.keys.p256dh,
+      auth: json.keys.auth,
+      user_agent: payload.p_user_agent,
+      updated_at: new Date().toISOString()
+    };
+
     const res = await fetch(
       `${pushSupabaseUrl()}/rest/v1/robin_push_subscriptions?on_conflict=endpoint`,
       {
         method: "POST",
-        headers: pushSupabaseHeaders("resolution=merge-duplicates,return=representation"),
+        headers: pushSupabaseHeaders("resolution=merge-duplicates,return=minimal"),
         body: JSON.stringify(fila)
       }
     );
 
-    if (!res.ok) {
-      const detalle = (await res.text()).slice(0, 300);
-      if (typeof registrarDiagnosticoRobin === "function") {
-        registrarDiagnosticoRobin("push", "Suscripción no guardada en Supabase", `HTTP ${res.status}: ${detalle}`);
-      }
-      return { ok: false, reason: "save_failed", status: res.status, detail: detalle };
+    if (res.ok) {
+      return { ok: true, endpoint: json.endpoint };
     }
 
-    const rows = await res.json().catch(() => []);
-    if (Array.isArray(rows) && rows.length > 0 && rows[0]?.id) {
-      return { ok: true, endpoint: json.endpoint, id: rows[0].id };
+    const detalle = (await res.text()).slice(0, 300);
+    if (typeof registrarDiagnosticoRobin === "function") {
+      registrarDiagnosticoRobin("push", "Suscripción no guardada en Supabase", `HTTP ${res.status}: ${detalle}`);
     }
-
-    const remoto = await verificarSuscripcionRemota(user, json.endpoint);
-    if (!remoto) {
-      const detalle = "El servidor no confirmó la suscripción push de este dispositivo.";
-      if (typeof registrarDiagnosticoRobin === "function") {
-        registrarDiagnosticoRobin("push", "Suscripción no verificada en Supabase", detalle);
-      }
-      return { ok: false, reason: "save_failed", detail: detalle };
-    }
-
-    return { ok: true, endpoint: json.endpoint };
+    return { ok: false, reason: "save_failed", status: res.status, detail: detalle };
   } catch (e) {
     const detalle = String(e?.message || e);
     if (typeof registrarDiagnosticoRobin === "function") {
@@ -276,7 +305,7 @@ async function suscribirPushNotificaciones(username) {
     return { ok: false, reason: "denied" };
   }
 
-  const reg = await asegurarServiceWorkerRegistrado();
+  const reg = await obtenerRegistroParaPush();
   if (!reg || !reg.pushManager) return { ok: false, reason: "no_sw" };
 
   const vapidKey = typeof ROBIN_VAPID_PUBLIC_KEY !== "undefined" ? ROBIN_VAPID_PUBLIC_KEY : "";
@@ -316,7 +345,7 @@ async function mantenerSuscripcionPushActiva(username) {
     return { ok: false, reason: "no_permission" };
   }
 
-  const reg = await obtenerRegistroServiceWorker();
+  const reg = await obtenerRegistroParaPush();
   if (!reg || !reg.pushManager) {
     return { ok: false, reason: "no_sw" };
   }
@@ -650,6 +679,21 @@ async function obtenerEstadoPushUsuario(username) {
   }
 
   return estado;
+}
+
+async function enviarPushPruebaUsuario(username) {
+  const user = pushUsuario(username);
+  if (!user || !pushSupabaseReady()) return { ok: false, reason: "no_user" };
+
+  return dispararPushRemoto({
+    id: `test-${Date.now()}`,
+    recipient: user,
+    type: "mencion",
+    actor: user,
+    task_title: "ROBIN",
+    task_key: "",
+    payload: { excerpt: "Si ves esto, las notificaciones push ya funcionan en segundo plano." }
+  });
 }
 
 async function probarPushLocal(username) {

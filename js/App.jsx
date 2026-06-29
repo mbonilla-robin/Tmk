@@ -51,6 +51,7 @@ function App() {
   const syncTimerRef = useRef(null);
   const notifIdsConocidosRef = useRef(null);
   const notifPrimeraCargaRef = useRef(true);
+  const pushPromptDescartadoRef = useRef(false);
   const guardandoRef = useRef(false);
   
   const [filtroTiempo, setFiltroTiempo] = useState(() => initialPrefs.filtroTiempo || "TODAS"); 
@@ -1258,22 +1259,45 @@ function App() {
   };
 
   useEffect(() => {
+    pushPromptDescartadoRef.current = false;
+  }, [usuario]);
+
+  useEffect(() => {
     if (!usuario || isConfigOnlyAdmin) return undefined;
     let cancelado = false;
 
     (async () => {
       const resultado = await inicializarPushNotificaciones(usuario);
-      if (cancelado) return;
-      if (resultado && resultado.reason === "needs_prompt") {
-        setPushPromptVisible(true);
-      } else if (resultado && !resultado.ok && resultado.reason === "save_failed") {
-        limpiarPushPromptAtendido(usuario);
+      if (cancelado || pushPromptDescartadoRef.current) return;
+
+      const estado = await obtenerEstadoPushUsuario(usuario);
+      if (resultado?.ok || estado.guardadoRemoto) {
+        setPushPromptVisible(false);
+        return;
+      }
+
+      if (pushPromptYaAtendido(usuario) && estado.permiso !== "granted") return;
+
+      const necesitaActivar = (
+        resultado?.reason === "needs_prompt" ||
+        resultado?.reason === "save_failed" ||
+        (estado.permiso === "granted" && !estado.guardadoRemoto)
+      );
+
+      if (necesitaActivar && esEntornoPushMovil()) {
         setPushPromptVisible(true);
       }
     })();
 
     return () => { cancelado = true; };
   }, [usuario, isConfigOnlyAdmin]);
+
+
+  const cerrarPushPrompt = useCallback(() => {
+    pushPromptDescartadoRef.current = true;
+    if (usuario) marcarPushPromptAtendido(usuario);
+    setPushPromptVisible(false);
+  }, [usuario]);
 
 
   useEffect(() => {
@@ -1296,12 +1320,35 @@ function App() {
 
   const handleActivarPush = async () => {
     if (!usuario || pushActivando) return;
+
+    if (pushRequierePwaInstalada && pushRequierePwaInstalada()) {
+      showToast(mensajeErrorPush("needs_pwa"), "error");
+      return;
+    }
+
     setPushActivando(true);
     try {
+      if (typeof Notification === "undefined") {
+        showToast(mensajeErrorPush("unsupported"), "error");
+        return;
+      }
+
+      if (Notification.permission === "default") {
+        const permiso = await Notification.requestPermission();
+        if (permiso !== "granted") {
+          cerrarPushPrompt();
+          showToast(mensajeErrorPush("denied"), "info");
+          return;
+        }
+      } else if (Notification.permission === "denied") {
+        showToast(mensajeErrorPush("denied"), "info");
+        return;
+      }
+
       const resultado = await Promise.race([
         suscribirPushNotificaciones(usuario),
         new Promise((_, reject) => {
-          setTimeout(() => reject(new Error("push_timeout")), 30000);
+          setTimeout(() => reject(new Error("push_timeout")), 45000);
         })
       ]).catch((e) => ({
         ok: false,
@@ -1310,36 +1357,22 @@ function App() {
       }));
 
       if (resultado.ok) {
-        marcarPushPromptAtendido(usuario);
-        setPushPromptVisible(false);
+        cerrarPushPrompt();
         showToast("Notificaciones activadas en este dispositivo", "success");
+        enviarPushPruebaUsuario(usuario).catch(() => {});
         return;
       }
 
-      const permisoOk = typeof Notification !== "undefined" && Notification.permission === "granted";
-      const tieneLocal = permisoOk && await tieneSuscripcionPushLocal();
-      if (tieneLocal) {
-        marcarPushPromptAtendido(usuario);
-        setPushPromptVisible(false);
-        mantenerSuscripcionPushActiva(usuario).catch(() => {});
-        showToast(
-          resultado.reason === "save_failed"
-            ? "Permiso concedido. Registrando este dispositivo en el servidor..."
-            : mensajeErrorPush(resultado.reason),
-          "info"
-        );
-        return;
-      }
-
-      showToast(mensajeErrorPush(resultado.reason), resultado.reason === "denied" ? "info" : "error");
+      setPushPromptVisible(true);
+      const detalle = resultado.detail ? `: ${resultado.detail}` : "";
+      showToast(`${mensajeErrorPush(resultado.reason)}${detalle}`, "error");
     } finally {
       setPushActivando(false);
     }
   };
 
   const handleOmitirPush = () => {
-    marcarPushPromptAtendido(usuario);
-    setPushPromptVisible(false);
+    cerrarPushPrompt();
   };
 
   const layoutTablaProps = {

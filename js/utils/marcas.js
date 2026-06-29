@@ -6,6 +6,15 @@ const MARCAS_CANONICAS = {
   "TMK": "Trade & Shopper Marketing"
 };
 
+// Nombre exacto de la pestaña en Google Sheets (puede diferir del nombre mostrado en la UI).
+const MARCAS_SHEET_TAB = {
+  "LA SANTE": "La Santé",
+  "DIAGEO": "DIAGEO",
+  "GAMA": "GAMA",
+  "ROBIN": "ROBIN",
+  "TMK": "TMK"
+};
+
 function normalizarMarcaKey(marca) {
   if (!marca) return "";
   return String(marca)
@@ -42,6 +51,12 @@ function resolverClaveMarca(marcaName) {
   if (clean === "TRADE" || clean.startsWith("TRADE ")) return "TMK";
 
   return "";
+}
+
+function marcaParaSheet(marca) {
+  const clave = resolverClaveMarca(marca);
+  if (clave && MARCAS_SHEET_TAB[clave]) return MARCAS_SHEET_TAB[clave];
+  return String(marca || "").trim();
 }
 
 function getMarcaStyle(marcaName) {

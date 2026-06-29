@@ -44,7 +44,7 @@ function construirPayloadSyncTarea(original, actualizada, opciones = {}) {
   );
 
   const payload = {
-    marca: act.marca || orig.marca,
+    marca: marcaParaSheet(act.marca || orig.marca),
     idTarea: idTareaParaApi(orig) || idTareaParaApi(act) || "",
     info: act.info || orig.info,
     originalInfo: orig.info || act.info,

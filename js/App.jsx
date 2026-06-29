@@ -1250,7 +1250,7 @@ function App() {
         type: "delete",
         taskKey,
         payload: {
-          marca: tarea.marca,
+          marca: marcaParaSheet(tarea.marca),
           idTarea: String(tarea.idTarea || "").startsWith("STB-") ? "" : tarea.idTarea,
           info: tarea.info,
           originalInfo: tarea.info,

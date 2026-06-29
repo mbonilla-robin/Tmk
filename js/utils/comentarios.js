@@ -98,6 +98,21 @@ function extraerMencionesDeTexto(texto) {
   return Array.from(menciones);
 }
 
+function mencionYaCompleta(query, listaPersonas) {
+  const q = normalizeRobinUser(query);
+  if (!q) return false;
+
+  const candidatos = obtenerSugerenciasMencion(q, listaPersonas);
+  if (!candidatos.length) return false;
+
+  return candidatos.some((handle) => {
+    const clave = typeof normalizarClavePersona === "function"
+      ? normalizarClavePersona(handle)
+      : normalizeRobinUser(handle);
+    return clave === q || clave.replace(/\./g, "") === q.replace(/\./g, "");
+  });
+}
+
 function obtenerSugerenciasMencion(query, listaPersonas) {
   const q = normalizeRobinUser(String(query || "").replace(/[,;.:!?]+$/g, ""));
   const candidatos = new Set();
@@ -206,7 +221,7 @@ async function fetchComentariosTarea(tareaOrKey) {
   }
 }
 
-async function publicarComentario({ tarea, author, body, parentId, listaPersonas }) {
+async function publicarComentario({ tarea, author, body, parentId, parentAuthor, listaPersonas }) {
   const usuario = normalizeRobinUser(author);
   const texto = String(body || "").trim();
   if (!safeSupabaseConfigured() || !usuario || !texto) {
@@ -245,6 +260,16 @@ async function publicarComentario({ tarea, author, body, parentId, listaPersonas
     if (!comentario || !comentario.id) {
       return { ok: false, error: "El comentario no se guardó correctamente." };
     }
+
+    if (typeof notificarPushPorComentario === "function") {
+      notificarPushPorComentario({
+        comentario,
+        author: usuario,
+        tarea,
+        parentAuthor
+      }).catch((e) => console.warn("ROBIN: push por comentario", e));
+    }
+
     return { ok: true, comentario, mentions, listaPersonas };
   } catch (e) {
     console.warn("ROBIN: error publicando comentario", e);
@@ -265,6 +290,9 @@ async function insertarNotificaciones(notificaciones) {
         body: JSON.stringify(filas)
       }
     );
+    if (res.ok && typeof notificarPushPorFilas === "function") {
+      notificarPushPorFilas(filas).catch((e) => console.warn("ROBIN: push por notificación", e));
+    }
     return res.ok;
   } catch (e) {
     console.warn("ROBIN: error insertando notificaciones", e);

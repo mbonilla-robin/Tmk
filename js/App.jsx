@@ -44,9 +44,13 @@ function App() {
   const [syncing, setSyncing] = useState(false);
   const [toast, setToast] = useState(null);
   const [apiError, setApiError] = useState(null);
+  const [apiErrorDetail, setApiErrorDetail] = useState("");
+  const [ultimaSyncOk, setUltimaSyncOk] = useState(null);
   const [hayPendientesLocales, setHayPendientesLocales] = useState(() => hayPendientesSync());
   const syncMutexRef = useRef(false);
   const syncTimerRef = useRef(null);
+  const notifIdsConocidosRef = useRef(null);
+  const notifPrimeraCargaRef = useRef(true);
   const guardandoRef = useRef(false);
   
   const [filtroTiempo, setFiltroTiempo] = useState(() => initialPrefs.filtroTiempo || "TODAS"); 
@@ -185,6 +189,15 @@ function App() {
   // getMarcaStyle definido en js/utils/marcas.js
   // =========================================================================
 
+  const estadoSyncResumen = useMemo(() => resumirEstadoSyncRobin({
+    apiError,
+    apiErrorDetail,
+    hayPendientesLocales,
+    syncing,
+    loading,
+    colaPendiente: typeof cargarColaSync === "function" ? cargarColaSync().length : 0
+  }), [apiError, apiErrorDetail, hayPendientesLocales, syncing, loading]);
+
   const otrosUsuariosEnLinea = useMemo(() => {
     const yo = String(usuario || "").replace(/^@/, "").toLowerCase();
     return usuariosConectados.filter(u => String(u.username || "").replace(/^@/, "").toLowerCase() !== yo);
@@ -198,6 +211,18 @@ function App() {
         fetchNotificacionesUsuario(usuario),
         contarNotificacionesNoLeidas(usuario)
       ]);
+
+      const idsPrevios = notifIdsConocidosRef.current;
+      const esCargaInicial = notifPrimeraCargaRef.current || !idsPrevios;
+      if (!esCargaInicial) {
+        await procesarPushNotificacionesNuevas(lista, {
+          idsConocidos: idsPrevios,
+          esCargaInicial: false
+        });
+      }
+
+      notifIdsConocidosRef.current = new Set((lista || []).map((n) => n.id).filter(Boolean));
+      notifPrimeraCargaRef.current = false;
       setNotificaciones(lista);
       setUnreadNotifCount(count);
     } finally {
@@ -1006,6 +1031,9 @@ function App() {
           }
           if (!isBackground) showToast("Sincronizado", "success");
           setApiError(null);
+          setApiErrorDetail("");
+          setUltimaSyncOk(new Date().toISOString());
+          registrarDiagnosticoRobin("sheets", "Sincronización correcta", `Tareas: ${fusionadas.length}`);
           if (!isBackground) setLoading(false);
           if (!isBackground) setSyncing(false);
           return;
@@ -1022,17 +1050,23 @@ function App() {
     }
 
     console.error("Sheets sync error", ultimoError);
+    const detalleError = ultimoError?.message || String(ultimoError || "Error desconocido");
+    registrarDiagnosticoRobin("sheets", "Error de sincronización", detalleError);
+
     if (isBackground) {
-      setApiError((prev) => prev || "Sin conexión");
+      setApiError((prev) => prev || "Sin conexión con Google Sheets");
+      setApiErrorDetail((prev) => prev || detalleError);
     } else {
       const backup = cargarTareasLocales();
       if (backup.length) {
         setTareas((prev) => (prev.length ? prev : backup));
         setApiError("Sin conexión — mostrando datos guardados");
+        setApiErrorDetail(detalleError);
         showToast("Sin conexión. Se muestran los datos guardados en este dispositivo.", "info");
       } else {
-        setApiError("Error de Conexión.");
-        showToast(ultimoError?.message || "Error de conexión", "error");
+        setApiError("Error de conexión con Google Sheets");
+        setApiErrorDetail(detalleError);
+        showToast(detalleError, "error");
       }
       setLoading(false);
       setSyncing(false);
@@ -1049,6 +1083,10 @@ function App() {
         setHayPendientesLocales(hayPendientesSync() || hayTareasPendientesLocales(cargarTareasLocales()));
         if (resultado.sessionMissing) return;
         if (resultado.errores && resultado.errores.length > 0) {
+          const detalle = resultado.errores.map((e) => e.error || e.type).join(" · ");
+          registrarDiagnosticoRobin("sheets_cola", "No se pudo guardar en Google Sheets", detalle);
+          setApiError((prev) => prev || "Cambios pendientes en Google Sheets");
+          setApiErrorDetail((prev) => prev || detalle);
           showToast("No se pudo guardar en Google Sheets. Se reintentará automáticamente.", "error");
         } else if (resultado.processed > 0) {
           showToast("Cambios guardados en Google Sheets", "success");
@@ -1491,6 +1529,107 @@ function App() {
     />
   ) : null;
 
+  const renderPanelDiagnosticoApi = () => {
+    const logs = leerDiagnosticoRobin();
+    const colaPendiente = cargarColaSync().length;
+    const severidad = estadoSyncResumen.severidad;
+    const icono = severidad === "ok"
+      ? "fa-circle-check text-emerald-500"
+      : severidad === "error"
+        ? "fa-triangle-exclamation text-red-500"
+        : "fa-circle-info text-amber-500";
+
+    return (
+      <div className={`${currentTheme.cardBg} border ${currentTheme.border} p-3 rounded-md flex flex-col gap-3 text-xs`}>
+        <div className="flex items-start gap-2">
+          <i className={`fa-solid ${icono} mt-0.5`}></i>
+          <div className="min-w-0">
+            <p className={`font-bold ${currentTheme.text}`}>{estadoSyncResumen.titulo}</p>
+            {estadoSyncResumen.detalle ? (
+              <p className={`${currentTheme.mutedText} mt-1 leading-relaxed`}>{estadoSyncResumen.detalle}</p>
+            ) : null}
+            {apiErrorDetail && apiError ? (
+              <p className="mt-2 p-2 rounded bg-red-50 text-red-700 border border-red-100 font-mono text-[10px] break-words">
+                {apiErrorDetail}
+              </p>
+            ) : null}
+            <p className={`${currentTheme.mutedText} mt-2 text-[11px]`}>
+              Cola local: {colaPendiente} · Pendientes: {hayPendientesLocales ? "sí" : "no"}
+              {ultimaSyncOk ? ` · Última sync OK: ${new Date(ultimaSyncOk).toLocaleString("es-VE")}` : ""}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => fetchData(false)}
+            disabled={loading || syncing}
+            className="px-3 py-1.5 rounded border border-zinc-200 bg-white text-zinc-700 font-semibold"
+          >
+            Reintentar sync
+          </button>
+          <button
+            type="button"
+            onClick={async () => {
+              const texto = [
+                `Estado: ${estadoSyncResumen.titulo}`,
+                apiErrorDetail ? `Error: ${apiErrorDetail}` : "",
+                `Cola: ${colaPendiente}`,
+                ...logs.slice(0, 8).map((l) => `${l.at} [${l.categoria}] ${l.mensaje}${l.detalle ? ` — ${l.detalle}` : ""}`)
+              ].filter(Boolean).join("\n");
+              const ok = await copiarTextoAlPortapapeles(texto);
+              showToast(ok ? "Diagnóstico copiado" : "No se pudo copiar", ok ? "success" : "error");
+            }}
+            className="px-3 py-1.5 rounded border border-zinc-200 bg-white text-zinc-700 font-semibold"
+          >
+            Copiar diagnóstico
+          </button>
+        </div>
+
+        {logs.length > 0 && (
+          <div className={`border-t ${currentTheme.border} pt-2`}>
+            <p className={`font-semibold ${currentTheme.text} mb-1`}>Últimos eventos</p>
+            <ul className="space-y-1 max-h-40 overflow-y-auto">
+              {logs.slice(0, 6).map((log, idx) => (
+                <li key={`${log.at}-${idx}`} className={`${currentTheme.mutedText} text-[10px] leading-relaxed`}>
+                  <span className="font-mono">{new Date(log.at).toLocaleString("es-VE")}</span>
+                  {" · "}
+                  <span className="font-semibold">{log.categoria}</span>
+                  {": "}
+                  {log.mensaje}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderPanelDiagnosticoPush = () => (
+    <div className={`${currentTheme.cardBg} border ${currentTheme.border} p-3 rounded-md flex flex-col gap-2 text-xs`}>
+      <p className={`font-bold ${currentTheme.text}`}>Notificaciones push</p>
+      <p className={currentTheme.mutedText}>
+        Las menciones y comentarios pueden avisarte aunque no tengas ROBIN abierto.
+      </p>
+      <button
+        type="button"
+        onClick={async () => {
+          const resultado = await probarPushLocal(usuario);
+          if (resultado.ok) {
+            showToast("Notificación de prueba enviada", "success");
+          } else {
+            showToast(resultado.reason === "denied" ? "Permiso denegado en el navegador" : "No se pudo enviar la prueba", "error");
+          }
+        }}
+        className="self-start px-3 py-1.5 rounded border border-zinc-200 bg-white text-zinc-700 font-semibold"
+      >
+        Probar notificación
+      </button>
+    </div>
+  );
+
   return (
     <div className={`flex h-screen w-screen overflow-hidden ${currentTheme.bg} ${currentTheme.text} select-none transition-all`}>
       
@@ -1499,6 +1638,24 @@ function App() {
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
           <span>{toast.msg}</span>
         </div>
+      )}
+
+      {!isConfigOnlyAdmin && estadoSyncResumen.severidad !== "ok" && (
+        <button
+          type="button"
+          onClick={() => {
+            navegarA("configuracion");
+            setConfigMobileSeccion("api");
+          }}
+          className={`robin-sync-alert ${estadoSyncResumen.severidad === "error" ? "is-error" : "is-warn"}`}
+        >
+          <i className={`fa-solid ${estadoSyncResumen.severidad === "error" ? "fa-cloud-arrow-down" : "fa-triangle-exclamation"}`}></i>
+          <span className="robin-sync-alert__text">
+            <strong>{estadoSyncResumen.titulo}</strong>
+            {apiErrorDetail ? ` — ${apiErrorDetail}` : ""}
+          </span>
+          <span className="robin-sync-alert__cta">Ver detalle</span>
+        </button>
       )}
 
       {/* MENÚ LATERAL ESTILO NOTION - SOLO DESKTOP (md+); móvil usa MobileNavBar */}
@@ -2104,13 +2261,10 @@ function App() {
                     )}
 
                     {configMobileSeccion === "api" && (
-                      <div className={`${theme === "midnight" ? "bg-zinc-900" : "bg-[#FAF9F6]"} p-3 rounded-md border ${currentTheme.border} text-xs ${currentTheme.mutedText} flex items-start gap-2`}>
-                        <i className="fa-solid fa-circle-check text-emerald-500 mt-0.5"></i>
-                        <div className="min-w-0">
-                          <p className={`font-bold ${currentTheme.text}`}>Sheets conectado</p>
-                          <p className="text-[11px] text-zinc-400 mt-1">Conexión verificada con Google Sheets (workspace corporativo).</p>
-                        </div>
-                      </div>
+                      <>
+                        {renderPanelDiagnosticoApi()}
+                        {!isConfigOnlyAdmin && renderPanelDiagnosticoPush()}
+                      </>
                     )}
 
                     {configMobileSeccion === "usuarios" && (
@@ -2202,15 +2356,8 @@ function App() {
               {/* Integración Google Sheets Informada */}
               <div className="flex flex-col gap-2">
                 <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Base de Datos</span>
-                <div className={`${theme === "midnight" ? "bg-zinc-900" : "bg-[#FAF9F6]"} p-3 rounded border ${currentTheme.border} text-xs ${currentTheme.mutedText} flex items-start gap-2.5 font-medium leading-normal`}>
-                  <i className="fa-solid fa-circle-check text-emerald-500 mt-0.5"></i>
-                  <div className="overflow-hidden">
-                    <p className={`${currentTheme.text} font-bold`}>API de Google Sheets configurada</p>
-                    <p className="text-zinc-455 font-normal mt-0.5 text-[11px]">
-                      Conexión verificada con Google Sheets (workspace corporativo).
-                    </p>
-                  </div>
-                </div>
+                {renderPanelDiagnosticoApi()}
+                {!isConfigOnlyAdmin && renderPanelDiagnosticoPush()}
               </div>
 
               {/* Ocultar sección de datos personales para administrador global */}

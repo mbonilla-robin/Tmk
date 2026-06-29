@@ -1,4 +1,4 @@
-const CACHE_NAME = "robin-pwa-v73";
+const CACHE_NAME = "robin-pwa-v74";
 
 const STATIC_ASSETS = [
   "./",
@@ -27,6 +27,7 @@ const STATIC_ASSETS = [
   "./js/config/push.js",
   "./js/config/auth.js",
   "./js/utils/storage.js",
+  "./js/utils/diagnostics.js",
   "./js/utils/user.js",
   "./js/utils/preferences.js",
   "./js/utils/auth.js",

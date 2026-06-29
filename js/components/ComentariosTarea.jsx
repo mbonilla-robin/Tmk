@@ -92,7 +92,7 @@ function ComentariosTarea({ tarea, usuario, nombreUsuario, listaPersonas, onCome
     if (!match) return;
 
     const prefijo = antes.slice(0, match.index);
-    const mencion = `${formatearHandleCanonico(handle)}, `;
+    const mencion = formatearHandleCanonico(handle);
     const nuevo = `${prefijo}${mencion}${despues}`;
     setTexto(nuevo);
     setSugerencias([]);
@@ -125,8 +125,13 @@ function ComentariosTarea({ tarea, usuario, nombreUsuario, listaPersonas, onCome
   const handleChangeTexto = (e) => {
     const val = e.target.value;
     setTexto(val);
-    const query = detectarMencionActiva(val, e.target.selectionStart || val.length);
+    const cursor = e.target.selectionStart || val.length;
+    const query = detectarMencionActiva(val, cursor);
     if (query !== null) {
+      if (mencionYaCompleta(query, listaPersonas)) {
+        setSugerencias([]);
+        return;
+      }
       setSugerencias(obtenerSugerenciasMencion(query, listaPersonas));
       setSugerenciaIdx(0);
     } else {
@@ -144,6 +149,7 @@ function ComentariosTarea({ tarea, usuario, nombreUsuario, listaPersonas, onCome
       author: usuario,
       body,
       parentId: respondiendoA ? respondiendoA.id : null,
+      parentAuthor: respondiendoA ? respondiendoA.author : null,
       listaPersonas
     });
 
@@ -212,7 +218,7 @@ function ComentariosTarea({ tarea, usuario, nombreUsuario, listaPersonas, onCome
               onResponder={(com) => {
                 setRespondiendoA(com);
                 const mencion = formatearHandleCanonico(com.author);
-                setTexto((prev) => (prev.trim() ? prev : `${mencion}, `));
+                setTexto((prev) => (prev.trim() ? prev : mencion));
                 textareaRef.current?.focus();
               }}
             />

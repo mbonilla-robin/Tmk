@@ -218,3 +218,276 @@ function limpiarTaskKeyEnUrl() {
     }
   } catch (e) { /* ignore */ }
 }
+
+const PUSH_ENVIADOS_KEY = "robin_push_enviados_ids";
+
+function pushYaEnviadosIds() {
+  try {
+    const raw = getLocalStorageItemSafe(PUSH_ENVIADOS_KEY, "[]");
+    const lista = JSON.parse(raw || "[]");
+    return new Set(Array.isArray(lista) ? lista : []);
+  } catch (e) {
+    return new Set();
+  }
+}
+
+function marcarPushEnviado(notifId) {
+  const id = String(notifId || "").trim();
+  if (!id) return;
+  try {
+    const ids = pushYaEnviadosIds();
+    ids.add(id);
+    const lista = Array.from(ids).slice(-120);
+    setLocalStorageItemSafe(PUSH_ENVIADOS_KEY, JSON.stringify(lista));
+  } catch (e) { /* ignore */ }
+}
+
+function nombreActorPush(actor) {
+  const handle = pushUsuario(actor);
+  if (typeof obtenerNombreDisplayEquipo === "function") {
+    const nombre = obtenerNombreDisplayEquipo(handle);
+    if (nombre && !String(nombre).startsWith("@")) return nombre;
+  }
+  return formatearHandleCanonico(handle);
+}
+
+function construirPayloadPushNotificacion(notif) {
+  const actor = nombreActorPush(notif.actor);
+  const payload = notif.payload || {};
+  const excerpt = String(payload.excerpt || "").trim();
+  const taskTitle = String(notif.task_title || "Entregable").trim();
+  const type = String(notif.type || "");
+
+  let body = "";
+  if (type === "mencion") {
+    body = excerpt
+      ? `${actor} te dejó este comentario: "${excerpt}"`
+      : `${actor} te mencionó en un comentario`;
+  } else if (type === "respuesta") {
+    body = excerpt
+      ? `${actor} respondió tu comentario: "${excerpt}"`
+      : `${actor} respondió tu comentario`;
+  } else if (type === "asignacion") {
+    body = `${actor} te asignó este entregable`;
+  } else if (type === "cambio_estado") {
+    const de = payload.estadoAnterior || payload.de || "";
+    const a = payload.estadoNuevo || payload.a || "";
+    body = de && a ? `${actor}: ${de} → ${a}` : `${actor} cambió el estado`;
+  } else {
+    body = typeof resumirTextoNotificacion === "function"
+      ? resumirTextoNotificacion(notif)
+      : `${actor} te envió una notificación`;
+  }
+
+  return {
+    title: taskTitle,
+    body,
+    task_key: notif.task_key || "",
+    id: notif.id || "",
+    type
+  };
+}
+
+async function mostrarPushLocal(notif) {
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") {
+    return { ok: false, reason: "no_permission" };
+  }
+
+  const data = construirPayloadPushNotificacion(notif);
+  const opciones = {
+    body: data.body,
+    icon: "./icons/pwa-naranja-192.png",
+    badge: "./icons/pwa-naranja-192.png",
+    tag: data.id ? `robin-notif-${data.id}` : "robin-notif",
+    renotify: true,
+    data: { taskKey: data.task_key, type: data.type }
+  };
+
+  try {
+    const reg = await obtenerRegistroServiceWorker();
+    if (reg && reg.showNotification) {
+      await reg.showNotification(data.title, opciones);
+      return { ok: true, via: "sw" };
+    }
+    new Notification(data.title, opciones);
+    return { ok: true, via: "window" };
+  } catch (e) {
+    console.warn("ROBIN: push local falló", e);
+    return { ok: false, reason: "show_failed" };
+  }
+}
+
+async function dispararPushRemoto(notif) {
+  if (!pushSupabaseReady() || typeof SUPABASE_ANON_KEY === "undefined") {
+    return { ok: false, reason: "no_supabase" };
+  }
+
+  try {
+    const res = await fetch(
+      `${pushSupabaseUrl()}/functions/v1/send-push-on-notification`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({ record: notif })
+      }
+    );
+
+    if (!res.ok) {
+      const detalle = await res.text();
+      return { ok: false, reason: "http_error", status: res.status, detalle };
+    }
+
+    const json = await res.json().catch(() => ({}));
+    return { ok: true, sent: json.sent || 0 };
+  } catch (e) {
+    return { ok: false, reason: "network", error: String(e.message || e) };
+  }
+}
+
+async function entregarPushParaNotificacion(notif) {
+  const id = String(notif?.id || "").trim();
+  if (!id || pushYaEnviadosIds().has(id)) {
+    return { ok: false, reason: "already_sent" };
+  }
+
+  const local = await mostrarPushLocal(notif);
+  const remoto = await dispararPushRemoto(notif);
+
+  if (local.ok || remoto.ok) {
+    marcarPushEnviado(id);
+    return { ok: true, local, remoto };
+  }
+
+  return { ok: false, local, remoto };
+}
+
+async function procesarPushNotificacionesNuevas(lista, opts) {
+  const notificaciones = Array.isArray(lista) ? lista : [];
+  const idsConocidos = opts?.idsConocidos;
+  const esCargaInicial = opts?.esCargaInicial === true;
+
+  if (esCargaInicial || !idsConocidos) {
+    return { procesadas: 0 };
+  }
+
+  let procesadas = 0;
+  for (const notif of notificaciones) {
+    if (!notif?.id || notif.read_at) continue;
+    if (idsConocidos.has(notif.id)) continue;
+
+    const resultado = await entregarPushParaNotificacion(notif);
+    if (resultado.ok) procesadas += 1;
+  }
+
+  return { procesadas };
+}
+
+async function obtenerEstadoPushUsuario(username) {
+  const user = pushUsuario(username);
+  const estado = {
+    soportado: pushSoportado(),
+    permiso: typeof Notification !== "undefined" ? Notification.permission : "unsupported",
+    suscrito: false,
+    guardadoRemoto: false,
+    endpoint: ""
+  };
+
+  if (!estado.soportado || !user) return estado;
+
+  try {
+    const reg = await obtenerRegistroServiceWorker();
+    const sub = reg ? await reg.pushManager.getSubscription() : null;
+    estado.suscrito = Boolean(sub);
+    estado.endpoint = sub ? sub.endpoint : "";
+
+    if (pushSupabaseReady() && user) {
+      const res = await fetch(
+        `${pushSupabaseUrl()}/rest/v1/robin_push_subscriptions?recipient=eq.${encodeURIComponent(user)}&select=id,endpoint&limit=1`,
+        { method: "GET", headers: pushSupabaseHeaders() }
+      );
+      if (res.ok) {
+        const rows = await res.json();
+        estado.guardadoRemoto = Array.isArray(rows) && rows.length > 0;
+      }
+    }
+  } catch (e) {
+    estado.error = String(e.message || e);
+  }
+
+  return estado;
+}
+
+async function probarPushLocal(username) {
+  const user = pushUsuario(username);
+  if (!user) return { ok: false, reason: "no_user" };
+
+  const suscripcion = await suscribirPushNotificaciones(username);
+  if (!suscripcion.ok && Notification.permission !== "granted") {
+    return suscripcion;
+  }
+
+  return mostrarPushLocal({
+    id: `test-${Date.now()}`,
+    type: "mencion",
+    actor: user,
+    task_title: "Prueba ROBIN",
+    task_key: "",
+    payload: { excerpt: "Si ves esto, las notificaciones push están funcionando." }
+  });
+}
+
+async function notificarPushPorComentario({ comentario, author, tarea, parentAuthor }) {
+  if (!comentario?.id || typeof entregarPushParaNotificacion !== "function") return;
+
+  const ctx = construirContextoTarea(tarea);
+  const yo = normalizeRobinUser(author);
+  const excerpt = String(comentario.body || "").slice(0, 160);
+  const menciones = extraerMencionesDeTexto(comentario.body);
+  const mencionados = new Set(menciones.map((m) => normalizeRobinUser(m)));
+  const jobs = [];
+
+  menciones.forEach((recipient) => {
+    const dest = normalizeRobinUser(recipient);
+    if (!dest || dest === yo) return;
+    jobs.push(entregarPushParaNotificacion({
+      id: `m-${comentario.id}-${dest}`,
+      recipient: dest,
+      type: "mencion",
+      actor: yo,
+      task_key: ctx.taskKey,
+      marca: ctx.marca,
+      task_title: ctx.taskTitle,
+      payload: { excerpt }
+    }));
+  });
+
+  const padre = normalizeRobinUser(parentAuthor);
+  if (padre && padre !== yo && !mencionados.has(padre)) {
+    jobs.push(entregarPushParaNotificacion({
+      id: `r-${comentario.id}-${padre}`,
+      recipient: padre,
+      type: "respuesta",
+      actor: yo,
+      task_key: ctx.taskKey,
+      marca: ctx.marca,
+      task_title: ctx.taskTitle,
+      payload: { excerpt }
+    }));
+  }
+
+  await Promise.allSettled(jobs);
+}
+
+async function notificarPushPorFilas(notificaciones) {
+  const filas = Array.isArray(notificaciones) ? notificaciones : [];
+  await Promise.allSettled(
+    filas.map((notif) => entregarPushParaNotificacion({
+      ...notif,
+      id: notif.id || `n-${notif.recipient}-${notif.task_key}-${Date.now()}`
+    }))
+  );
+}

@@ -1276,24 +1276,18 @@ function App() {
       return undefined;
     }
 
-    registrarPushEnSegundoPlano(usuario).catch(() => {});
+    let cancelado = false;
 
-    const revisarEstado = () => {
-      obtenerEstadoPushUsuario(usuario).then((estado) => {
-        const pendiente = Boolean(
-          estado.soportado && (!estado.guardadoRemoto || necesitaResuscribirPorVapid(usuario))
-        );
-        setPushRegistroPendiente(pendiente);
-        if (!estado.guardadoRemoto || necesitaResuscribirPorVapid(usuario)) {
-          registrarPushEnSegundoPlano(usuario).catch(() => {});
-        }
-      }).catch(() => {});
-    };
+    registrarPushEnSegundoPlano(usuario).then((resultado) => {
+      if (resultado?.ok) marcarRegistroPushCompleto(usuario);
+    }).catch(() => {});
 
-    revisarEstado();
-    const interval = setInterval(revisarEstado, 45000);
+    evaluarBannerRegistroPush(usuario).then((evaluacion) => {
+      if (cancelado) return;
+      setPushRegistroPendiente(evaluacion.mostrar === true);
+    }).catch(() => {});
 
-    return () => clearInterval(interval);
+    return () => { cancelado = true; };
   }, [usuario, isConfigOnlyAdmin]);
 
   useEffect(() => {
@@ -1418,6 +1412,7 @@ function App() {
       if (resultado.ok) {
         setPushRegistroPendiente(false);
         setPushError("");
+        marcarRegistroPushCompleto(usuario);
         cerrarPushPrompt();
         showToast("Notificaciones activadas en este dispositivo", "success");
         const prueba = await enviarPushPruebaUsuario(usuario);
@@ -2791,6 +2786,7 @@ function App() {
             <button
               type="button"
               onClick={() => {
+                if (usuario) descartarBannerRegistroPush(usuario);
                 setPushRegistroPendiente(false);
                 setPushError("");
               }}

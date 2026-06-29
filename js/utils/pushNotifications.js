@@ -103,6 +103,72 @@ function marcarVapidKeyActual(username) {
   } catch (e) { /* ignore */ }
 }
 
+function pushRegistroOkStorageKey(username) {
+  return `robin_push_ok_${pushUsuario(username)}`;
+}
+
+function pushRegistroBannerStorageKey(username) {
+  return `robin_push_reg_banner_${pushUsuario(username)}`;
+}
+
+function registroPushCompleto(username) {
+  const user = pushUsuario(username);
+  if (!user) return false;
+  try {
+    return getLocalStorageItemSafe(pushRegistroOkStorageKey(user), "") === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
+function marcarRegistroPushCompleto(username) {
+  const user = pushUsuario(username);
+  if (!user) return;
+  try {
+    setLocalStorageItemSafe(pushRegistroOkStorageKey(user), "1");
+    marcarVapidKeyActual(user);
+  } catch (e) { /* ignore */ }
+}
+
+function pushRegistroBannerDescartado(username) {
+  const user = pushUsuario(username);
+  if (!user) return true;
+  try {
+    return getLocalStorageItemSafe(pushRegistroBannerStorageKey(user), "") === "1";
+  } catch (e) {
+    return true;
+  }
+}
+
+function descartarBannerRegistroPush(username) {
+  const user = pushUsuario(username);
+  if (!user) return;
+  try {
+    setLocalStorageItemSafe(pushRegistroBannerStorageKey(user), "1");
+  } catch (e) { /* ignore */ }
+}
+
+async function evaluarBannerRegistroPush(username) {
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") {
+    return { mostrar: false, motivo: "no_permission" };
+  }
+  if (registroPushCompleto(username) || pushRegistroBannerDescartado(username)) {
+    return { mostrar: false, motivo: "ok_or_dismissed" };
+  }
+
+  const estado = await obtenerEstadoPushUsuario(username);
+  if (estado.guardadoRemoto && estado.suscrito) {
+    marcarRegistroPushCompleto(username);
+    return { mostrar: false, motivo: "already_registered" };
+  }
+
+  if (estado.soportado && !estado.guardadoRemoto && esEntornoPushMovil()) {
+    return { mostrar: true, motivo: "needs_register" };
+  }
+
+  return { mostrar: false, motivo: "unsupported_or_desktop" };
+}
+
 async function invalidarSuscripcionPushLocal(reg) {
   if (!reg?.pushManager) return;
   try {
@@ -491,6 +557,7 @@ async function registrarPushConPaso(username, onPaso) {
       const guardado = await guardarSuscripcionPush(username, existente);
       if (guardado.ok) {
         marcarVapidKeyActual(username);
+        marcarRegistroPushCompleto(username);
         return { ok: true, endpoint: existente.endpoint };
       }
       await invalidarSuscripcionPushLocal(reg);
@@ -500,6 +567,7 @@ async function registrarPushConPaso(username, onPaso) {
     const resultado = await suscribirConRegistro(reg, username);
     if (resultado.ok) {
       marcarVapidKeyActual(username);
+      marcarRegistroPushCompleto(username);
     }
     return resultado;
   } catch (e) {
@@ -550,7 +618,11 @@ async function registrarPushEnSegundoPlano(username, intentos = 6) {
       resultado = await guardarSuscripcionPush(user, existente);
       if (resultado.ok) {
         const remoto = await verificarSuscripcionRemota(user, existente.endpoint);
-        if (remoto) return { ok: true, endpoint: existente.endpoint };
+        if (remoto) {
+          marcarVapidKeyActual(user);
+          marcarRegistroPushCompleto(user);
+          return { ok: true, endpoint: existente.endpoint };
+        }
         resultado = { ok: false, reason: "save_failed" };
       }
     } else if (esIos()) {
@@ -953,13 +1025,8 @@ async function enviarPushPruebaUsuario(username) {
 
   const remoto = await dispararPushRemoto(notif);
   if (remoto.ok && remoto.sent > 0) {
+    marcarRegistroPushCompleto(user);
     return { ok: true, sent: remoto.sent, via: "remote" };
-  }
-
-  if (Array.isArray(remoto.errors) && remoto.errors.some((e) => e.status === 403)) {
-    try {
-      removeLocalStorageItemSafe(pushVapidKeyStorageKey(user));
-    } catch (e) { /* ignore */ }
   }
 
   const local = await mostrarPushLocal(notif);

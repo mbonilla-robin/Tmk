@@ -77,7 +77,6 @@ function App() {
   const [notifCargando, setNotifCargando] = useState(false);
   const [pushPromptVisible, setPushPromptVisible] = useState(false);
   const [pushActivando, setPushActivando] = useState(false);
-  const [pushEstadoDiagnostico, setPushEstadoDiagnostico] = useState(null);
   const [tareasSeleccionadas, setTareasSeleccionadas] = useState(() => new Set());
   const [bulkDeadline, setBulkDeadline] = useState("");
 
@@ -1209,21 +1208,6 @@ function App() {
   useEffect(() => {
     if (!usuario || isConfigOnlyAdmin) return undefined;
     let cancelado = false;
-    obtenerEstadoPushUsuario(usuario).then((estado) => {
-      if (!cancelado) setPushEstadoDiagnostico(estado);
-    });
-    return () => { cancelado = true; };
-  }, [usuario, isConfigOnlyAdmin, pushActivando]);
-
-  const refrescarEstadoPushDiagnostico = useCallback(async () => {
-    if (!usuario) return;
-    const estado = await obtenerEstadoPushUsuario(usuario);
-    setPushEstadoDiagnostico(estado);
-  }, [usuario]);
-
-  useEffect(() => {
-    if (!usuario || isConfigOnlyAdmin) return undefined;
-    let cancelado = false;
 
     (async () => {
       const resultado = await inicializarPushNotificaciones(usuario);
@@ -1234,11 +1218,10 @@ function App() {
         limpiarPushPromptAtendido(usuario);
         setPushPromptVisible(true);
       }
-      await refrescarEstadoPushDiagnostico();
     })();
 
     return () => { cancelado = true; };
-  }, [usuario, isConfigOnlyAdmin, refrescarEstadoPushDiagnostico]);
+  }, [usuario, isConfigOnlyAdmin]);
 
 
   useEffect(() => {
@@ -1262,8 +1245,7 @@ function App() {
       if (resultado.ok) {
         marcarPushPromptAtendido(usuario);
         setPushPromptVisible(false);
-        showToast("Notificaciones push activadas en este dispositivo", "success");
-        await refrescarEstadoPushDiagnostico();
+        showToast("Notificaciones activadas", "success");
         return;
       }
       setPushPromptVisible(true);
@@ -1645,70 +1627,6 @@ function App() {
           </div>
         )}
       </div>
-    );
-  };
-
-  const renderPanelDiagnosticoPush = () => {
-    const permisoOk = pushEstadoDiagnostico?.permiso === "granted";
-    const suscrito = Boolean(pushEstadoDiagnostico?.suscrito);
-    const remotoOk = Boolean(pushEstadoDiagnostico?.guardadoRemoto);
-
-    return (
-    <div className={`${currentTheme.cardBg} border ${currentTheme.border} p-3 rounded-md flex flex-col gap-2 text-xs`}>
-      <p className={`font-bold ${currentTheme.text}`}>Notificaciones push</p>
-      <p className={currentTheme.mutedText}>
-        Las menciones y comentarios pueden avisarte aunque no tengas ROBIN abierto.
-      </p>
-      {pushEstadoDiagnostico && (
-        <ul className={`${currentTheme.mutedText} space-y-0.5`}>
-          <li>{permisoOk ? "✓" : "✗"} Permiso del navegador: {pushEstadoDiagnostico.permiso}</li>
-          <li>{suscrito ? "✓" : "✗"} Suscripción en este dispositivo</li>
-          <li>{remotoOk ? "✓" : "✗"} Registrado en Supabase</li>
-          {typeof pushRequierePwaInstalada === "function" && pushRequierePwaInstalada() && (
-            <li className="text-amber-700">En iPhone: instala ROBIN en Inicio antes de activar push.</li>
-          )}
-        </ul>
-      )}
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          disabled={pushActivando}
-          onClick={async () => {
-            setPushActivando(true);
-            try {
-              const resultado = await suscribirPushNotificaciones(usuario);
-              if (resultado.ok) {
-                marcarPushPromptAtendido(usuario);
-                showToast("Dispositivo registrado para push", "success");
-                await refrescarEstadoPushDiagnostico();
-                return;
-              }
-              showToast(mensajeErrorPush(resultado.reason), resultado.reason === "denied" ? "info" : "error");
-            } finally {
-              setPushActivando(false);
-            }
-          }}
-          className="px-3 py-1.5 rounded border border-zinc-200 bg-white text-zinc-700 font-semibold disabled:opacity-50"
-        >
-          {pushActivando ? "Activando…" : "Activar en este dispositivo"}
-        </button>
-        <button
-          type="button"
-          onClick={async () => {
-            const resultado = await probarPushLocal(usuario);
-            if (resultado.ok) {
-              showToast("Notificación de prueba enviada", "success");
-              await refrescarEstadoPushDiagnostico();
-              return;
-            }
-            showToast(mensajeErrorPush(resultado.reason), resultado.reason === "denied" ? "info" : "error");
-          }}
-          className="px-3 py-1.5 rounded border border-zinc-200 bg-white text-zinc-700 font-semibold"
-        >
-          Probar notificación
-        </button>
-      </div>
-    </div>
     );
   };
 
@@ -2342,12 +2260,7 @@ function App() {
                       </div>
                     )}
 
-                    {configMobileSeccion === "api" && (
-                      <>
-                        {renderPanelDiagnosticoApi()}
-                        {!isConfigOnlyAdmin && renderPanelDiagnosticoPush()}
-                      </>
-                    )}
+                    {configMobileSeccion === "api" && renderPanelDiagnosticoApi()}
 
                     {configMobileSeccion === "usuarios" && (
                       isAdmin ? (
@@ -2439,7 +2352,6 @@ function App() {
               <div className="flex flex-col gap-2">
                 <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider block">Base de Datos</span>
                 {renderPanelDiagnosticoApi()}
-                {!isConfigOnlyAdmin && renderPanelDiagnosticoPush()}
               </div>
 
               {/* Ocultar sección de datos personales para administrador global */}

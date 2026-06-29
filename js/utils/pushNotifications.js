@@ -77,19 +77,56 @@ function limpiarPushPromptAtendido(username) {
   } catch (e) { /* ignore */ }
 }
 
-async function asegurarServiceWorkerRegistrado() {
-  if (!("serviceWorker" in navigator)) return null;
+async function esperarControlServiceWorker(timeoutMs = 10000) {
+  if (navigator.serviceWorker.controller) return true;
+
+  await new Promise((resolve) => {
+    let listo = false;
+    const terminar = () => {
+      if (listo) return;
+      listo = true;
+      resolve();
+    };
+
+    const onChange = () => {
+      if (navigator.serviceWorker.controller) terminar();
+    };
+
+    navigator.serviceWorker.addEventListener("controllerchange", onChange);
+    setTimeout(() => {
+      navigator.serviceWorker.removeEventListener("controllerchange", onChange);
+      terminar();
+    }, timeoutMs);
+  });
+
+  return Boolean(navigator.serviceWorker.controller);
+}
+
+async function obtenerOCrearSuscripcionPush(reg, vapidKey) {
+  const applicationServerKey = urlBase64ToUint8Array(vapidKey);
+  let subscription = await reg.pushManager.getSubscription();
+  if (subscription) return subscription;
+
+  const intentarSubscribe = () => reg.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey
+  });
 
   try {
-    let reg = await navigator.serviceWorker.getRegistration("./");
-    if (!reg) {
-      reg = await navigator.serviceWorker.register("./sw.js", { scope: "./" });
+    return await intentarSubscribe();
+  } catch (primerError) {
+    try {
+      const stale = await reg.pushManager.getSubscription();
+      if (stale) await stale.unsubscribe();
+    } catch (e) { /* ignore */ }
+
+    try {
+      return await intentarSubscribe();
+    } catch (segundoError) {
+      const fallback = await reg.pushManager.getSubscription();
+      if (fallback) return fallback;
+      throw segundoError || primerError;
     }
-    await navigator.serviceWorker.ready;
-    return reg;
-  } catch (e) {
-    console.warn("ROBIN: service worker no disponible", e);
-    return null;
   }
 }
 
@@ -113,6 +150,23 @@ function marcarPushPromptAtendido(username) {
   try {
     setLocalStorageItemSafe(pushPromptStorageKey(user), "1");
   } catch (e) { /* ignore */ }
+}
+
+async function asegurarServiceWorkerRegistrado() {
+  if (!("serviceWorker" in navigator)) return null;
+
+  try {
+    let reg = await navigator.serviceWorker.getRegistration("./");
+    if (!reg) {
+      reg = await navigator.serviceWorker.register("./sw.js", { scope: "./" });
+    }
+    await navigator.serviceWorker.ready;
+    await esperarControlServiceWorker();
+    return reg;
+  } catch (e) {
+    console.warn("ROBIN: service worker no disponible", e);
+    return null;
+  }
 }
 
 async function obtenerRegistroServiceWorker() {
@@ -187,26 +241,21 @@ async function suscribirPushNotificaciones(username) {
   const vapidKey = typeof ROBIN_VAPID_PUBLIC_KEY !== "undefined" ? ROBIN_VAPID_PUBLIC_KEY : "";
   if (!vapidKey) return { ok: false, reason: "no_vapid" };
 
-  let subscription = await reg.pushManager.getSubscription();
-  if (!subscription) {
-    try {
-      subscription = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidKey)
-      });
-    } catch (e) {
-      const detalle = String(e?.message || e);
-      if (typeof registrarDiagnosticoRobin === "function") {
-        registrarDiagnosticoRobin("push", "No se pudo suscribir al push manager", detalle);
-      }
-      if (/not allowed|denied|permission/i.test(detalle)) {
-        return { ok: false, reason: "denied", detail: detalle };
-      }
-      if (pushRequierePwaInstalada()) {
-        return { ok: false, reason: "needs_pwa", detail: detalle };
-      }
-      return { ok: false, reason: "subscribe_failed", detail: detalle };
+  let subscription;
+  try {
+    subscription = await obtenerOCrearSuscripcionPush(reg, vapidKey);
+  } catch (e) {
+    const detalle = String(e?.message || e);
+    if (typeof registrarDiagnosticoRobin === "function") {
+      registrarDiagnosticoRobin("push", "No se pudo suscribir al push manager", detalle);
     }
+    if (/not allowed|denied|permission/i.test(detalle)) {
+      return { ok: false, reason: "denied", detail: detalle };
+    }
+    if (pushRequierePwaInstalada()) {
+      return { ok: false, reason: "needs_pwa", detail: detalle };
+    }
+    return { ok: false, reason: "subscribe_failed", detail: detalle };
   }
 
   const guardado = await guardarSuscripcionPush(user, subscription);
@@ -326,7 +375,7 @@ function mensajeErrorPush(reason) {
     no_sw: "La app aún está cargando. Espera unos segundos e inténtalo de nuevo.",
     save_failed: "Permiso concedido, pero no se registró el teléfono en Supabase. Usa Configuración → API → Activar en este dispositivo.",
     needs_pwa: "En iPhone debes instalar ROBIN en la pantalla de inicio (Compartir → Añadir a inicio) antes de activar notificaciones.",
-    subscribe_failed: "No se pudo vincular este dispositivo al servicio de push.",
+    subscribe_failed: "Cierra ROBIN, ábrela de nuevo desde el icono de Inicio y pulsa Activar otra vez.",
     unsupported: "Este navegador no soporta notificaciones push.",
     no_vapid: "Falta configuración VAPID en la app."
   };
@@ -527,9 +576,7 @@ async function probarPushLocal(username) {
   if (!user) return { ok: false, reason: "no_user" };
 
   const suscripcion = await suscribirPushNotificaciones(username);
-  if (!suscripcion.ok && Notification.permission !== "granted") {
-    return suscripcion;
-  }
+  if (!suscripcion.ok) return suscripcion;
 
   return mostrarPushLocal({
     id: `test-${Date.now()}`,

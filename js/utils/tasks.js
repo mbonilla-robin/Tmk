@@ -129,13 +129,16 @@ function getTaskSelectionKey(t) {
   return `${t.marca || ""}|${titulo}`.toLowerCase().trim();
 }
 
-const TASK_KEY_URL_PARAMS = ["task", "task_key", "tarea"];
+function getRobinTaskKeyUrlParams() {
+  return ["task", "task_key", "tarea"];
+}
 
 function leerTaskKeyDesdeUrl() {
   try {
     const params = new URLSearchParams(window.location.search || "");
-    for (let i = 0; i < TASK_KEY_URL_PARAMS.length; i += 1) {
-      const valor = String(params.get(TASK_KEY_URL_PARAMS[i]) || "").trim();
+    const keys = getRobinTaskKeyUrlParams();
+    for (let i = 0; i < keys.length; i += 1) {
+      const valor = String(params.get(keys[i]) || "").trim();
       if (valor) return valor;
     }
   } catch (e) {
@@ -148,7 +151,7 @@ function limpiarTaskKeyEnUrl() {
   try {
     const url = new URL(window.location.href);
     let changed = false;
-    TASK_KEY_URL_PARAMS.forEach((key) => {
+    getRobinTaskKeyUrlParams().forEach((key) => {
       if (url.searchParams.has(key)) {
         url.searchParams.delete(key);
         changed = true;
@@ -393,3 +396,5 @@ function agruparTareasPorMarcaOrdenadas(tareas, modoAgrupacion) {
 window.crearNuevaTareaVacia = crearNuevaTareaVacia;
 window.leerTaskKeyDesdeUrl = leerTaskKeyDesdeUrl;
 window.limpiarTaskKeyEnUrl = limpiarTaskKeyEnUrl;
+window.normalizarTareaCampos = normalizarTareaCampos;
+window.obtenerTiempoHoyLocal = obtenerTiempoHoyLocal;

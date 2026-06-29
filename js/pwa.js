@@ -130,13 +130,14 @@ function applyPwaIconVariant(variant) {
 
   if (!("serviceWorker" in navigator)) return;
 
-  window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("./sw.js", { scope: "./" })
-      .then((reg) => {
-        reg.update();
-        if (reg.waiting) reg.waiting.postMessage({ type: "SKIP_WAITING" });
-      })
-      .catch((err) => console.warn("ROBIN PWA: service worker no registrado", err));
-  });
+  // SW desactivado temporalmente: evita servir JS/HTML viejos desde caché.
+  navigator.serviceWorker.getRegistrations().then((regs) => {
+    regs.forEach((reg) => reg.unregister());
+  }).catch(() => {});
+
+  if (typeof caches !== "undefined" && caches.keys) {
+    caches.keys().then((keys) => {
+      keys.forEach((key) => caches.delete(key));
+    }).catch(() => {});
+  }
 })();

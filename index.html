@@ -2,6 +2,9 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>ROBIN - Trade & Shopper Marketing</title>
 
@@ -95,88 +98,87 @@
     })();
   </script>
 
-  <!-- Boot crítico inline: no depende de caché externa del service worker -->
+  <!-- Boot crítico inline -->
   <script>
     (function () {
-      var ROBIN_BUILD = "103";
+      var ROBIN_BUILD = "106";
       try {
-        if (localStorage.getItem("robin_build") !== ROBIN_BUILD) {
-          localStorage.setItem("robin_build", ROBIN_BUILD);
-          if ("serviceWorker" in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function (regs) {
-              regs.forEach(function (r) { r.unregister(); });
-            });
-          }
-          if (typeof caches !== "undefined" && caches.keys) {
-            caches.keys().then(function (keys) {
-              keys.forEach(function (k) { caches.delete(k); });
-            });
-          }
+        localStorage.setItem("robin_build", ROBIN_BUILD);
+        if ("serviceWorker" in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function (regs) {
+            regs.forEach(function (r) { r.unregister(); });
+          });
+        }
+        if (typeof caches !== "undefined" && caches.keys) {
+          caches.keys().then(function (keys) {
+            keys.forEach(function (k) { caches.delete(k); });
+          });
         }
       } catch (e) { /* ignore */ }
     })();
   </script>
 
   <!-- Capa base (sin JSX) -->
-  <script src="js/react/setup.js"></script>
-  <script src="js/config/api.js"></script>
-  <script src="js/config/supabase.js"></script>
-  <script src="js/config/auth.js"></script>
-  <script src="js/utils/storage.js"></script>
-  <script src="js/utils/diagnostics.js"></script>
-  <script src="js/utils/user.js"></script>
-  <script src="js/utils/preferences.js"></script>
-  <script src="js/utils/auth.js"></script>
-  <script src="js/utils/api.js"></script>
-  <script src="js/utils/personas.js"></script>
-  <script src="js/utils/strings.js"></script>
-  <script src="js/utils/dates.js"></script>
-  <script src="js/utils/categorias.js"></script>
-  <script src="js/utils/tasks.js"></script>
-  <script src="js/utils/taskBackup.js"></script>
-  <script src="js/utils/detalles.js"></script>
-  <script src="js/utils/validation.js"></script>
-  <script src="js/utils/presence.js"></script>
-  <script src="js/utils/widgets.js"></script>
-  <script src="js/utils/estatus.js"></script>
-  <script src="js/utils/equipos.js"></script>
-  <script src="js/utils/comentarios.js"></script>
-  <script src="js/utils/perfil.js"></script>
-  <script src="js/constants/index.js"></script>
-  <script src="js/utils/marcas.js"></script>
-  <script src="js/pwa.js"></script>
+  <script src="js/react/setup.js?v=106"></script>
+  <script src="js/config/api.js?v=106"></script>
+  <script src="js/config/supabase.js?v=106"></script>
+  <script src="js/config/auth.js?v=106"></script>
+  <script src="js/utils/storage.js?v=106"></script>
+  <script src="js/utils/diagnostics.js?v=106"></script>
+  <script src="js/utils/user.js?v=106"></script>
+  <script src="js/utils/preferences.js?v=106"></script>
+  <script src="js/utils/auth.js?v=106"></script>
+  <script src="js/utils/api.js?v=106"></script>
+  <script src="js/utils/personas.js?v=106"></script>
+  <script src="js/utils/strings.js?v=106"></script>
+  <script src="js/utils/dates.js?v=106"></script>
+  <script src="js/utils/categorias.js?v=106"></script>
+  <script src="js/utils/tasks.js?v=106"></script>
+  <script src="js/utils/taskBackup.js?v=106"></script>
+  <script src="js/utils/detalles.js?v=106"></script>
+  <script src="js/utils/validation.js?v=106"></script>
+  <script src="js/utils/presence.js?v=106"></script>
+  <script src="js/utils/widgets.js?v=106"></script>
+  <script src="js/utils/estatus.js?v=106"></script>
+  <script src="js/utils/equipos.js?v=106"></script>
+  <script src="js/utils/comentarios.js?v=106"></script>
+  <script src="js/utils/perfil.js?v=106"></script>
+  <script src="js/constants/index.js?v=106"></script>
+  <script src="js/utils/marcas.js?v=106"></script>
+  <script src="js/pwa.js?v=106"></script>
 
   <!-- Componentes React (JSX) -->
-  <script type="text/babel" data-presets="react" src="js/components/RobinLogo.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/WidgetIcon.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/SvgIcons.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/CalendarioNotion.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/LayoutTablaAgrupada.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/LayoutKanban.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/SelectorPersonasChips.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/SelectorCategoriasChips.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/EditorNotasRich.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/ListaSubtareas.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/InputFechaLibre.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/FormularioCrearEntregable.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/GeneradorEstatus.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/BarraAccionesMasivas.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/BarraHoyAccesoRapido.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/DesktopWidgetsPanel.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/MobileWidgetsGrid.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/LayoutHome.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/LayoutMarcaHome.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/LayoutEquipos.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/ModalPortal.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/LayoutClientes.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/ModalEdicionTarea.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/PanelPerfilUsuario.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/ComentariosTarea.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/CampanaNotificaciones.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/WidgetsAdminPanel.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/MobileSubpageBar.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/components/MobileNavBar.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/App.jsx"></script>
-  <script type="text/babel" data-presets="react" src="js/bootstrap.jsx"></script>
+  <script type="text/babel" data-presets="react" src="js/components/RobinLogo.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/WidgetIcon.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/SvgIcons.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/CalendarioNotion.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/LayoutTablaAgrupada.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/LayoutKanban.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/SelectorPersonasChips.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/SelectorCategoriasChips.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/EditorNotasRich.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/ListaSubtareas.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/InputFechaLibre.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/FormularioCrearEntregable.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/GeneradorEstatus.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/BarraAccionesMasivas.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/BarraHoyAccesoRapido.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/DesktopWidgetsPanel.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/MobileWidgetsGrid.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/LayoutHome.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/LayoutMarcaHome.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/LayoutEquipos.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/ModalPortal.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/LayoutClientes.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/ModalEdicionTarea.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/PanelPerfilUsuario.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/ComentariosTarea.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/CampanaNotificaciones.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/WidgetsAdminPanel.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/MobileSubpageBar.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/components/MobileNavBar.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/App.jsx?v=106"></script>
+  <script type="text/babel" data-presets="react" src="js/bootstrap.jsx?v=106"></script>
+
 </body>
 </html>

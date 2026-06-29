@@ -1,7 +1,7 @@
 // 🟢 DECLARACIÓN INMEDIATA DE HOOKS (Previene Temporal Dead Zone / ReferenceError en Babel)
-const useState = React.useState;
-const useEffect = React.useEffect;
-const useLayoutEffect = React.useLayoutEffect;
-const useMemo = React.useMemo;
-const useRef = React.useRef;
-const useCallback = React.useCallback;
+var useState = React.useState;
+var useEffect = React.useEffect;
+var useLayoutEffect = React.useLayoutEffect;
+var useMemo = React.useMemo;
+var useRef = React.useRef;
+var useCallback = React.useCallback;

@@ -1,39 +1,3 @@
-const TASK_KEY_URL_PARAMS = ["task", "task_key", "tarea"];
-
-function leerTaskKeyDesdeUrl() {
-  try {
-    const params = new URLSearchParams(window.location.search || "");
-    for (let i = 0; i < TASK_KEY_URL_PARAMS.length; i += 1) {
-      const valor = String(params.get(TASK_KEY_URL_PARAMS[i]) || "").trim();
-      if (valor) return valor;
-    }
-  } catch (e) {
-    /* ignore */
-  }
-  return "";
-}
-
-function limpiarTaskKeyEnUrl() {
-  try {
-    const url = new URL(window.location.href);
-    let changed = false;
-    TASK_KEY_URL_PARAMS.forEach((key) => {
-      if (url.searchParams.has(key)) {
-        url.searchParams.delete(key);
-        changed = true;
-      }
-    });
-    if (!changed) return;
-    const query = url.searchParams.toString();
-    const nextUrl = query
-      ? `${url.pathname}?${query}${url.hash}`
-      : `${url.pathname}${url.hash}`;
-    window.history.replaceState({}, "", nextUrl);
-  } catch (e) {
-    /* ignore */
-  }
-}
-
 function App() {
   const [usuario, setUsuario] = useState(() => (hasRobinApiSession() ? getInicialUsuario() : null));
   const [initialPrefs] = useState(() => {
@@ -1299,10 +1263,11 @@ function App() {
 
   useEffect(() => {
     if (!usuario || !tareas.length) return;
+    if (typeof leerTaskKeyDesdeUrl !== "function") return;
     const taskKey = leerTaskKeyDesdeUrl();
     if (!taskKey) return;
     abrirTareaPorKey(taskKey);
-    limpiarTaskKeyEnUrl();
+    if (typeof limpiarTaskKeyEnUrl === "function") limpiarTaskKeyEnUrl();
   }, [usuario, tareas]);
 
   const layoutTablaProps = {
@@ -1594,6 +1559,9 @@ function App() {
             <p className={`text-[10px] ${currentTheme.mutedText} font-semibold leading-relaxed`}>
               Acceso exclusivo de Trade & Shopper Marketing.<br />
               Socio estratégico de marca ROBIN.
+            </p>
+            <p className={`text-[10px] ${currentTheme.mutedText} font-semibold leading-relaxed mt-2 opacity-80`}>
+              Área de diseño: contraseña distinta a la del equipo trade.
             </p>
           </div>
         </div>

@@ -56,6 +56,7 @@ function robinListaDesdePropiedad_(key, fallback) {
 function robinUsuarioAutorizado_(username) {
   var user = String(username || "").trim().toLowerCase();
   if (!user) return false;
+  if (robinEsDisenadorUsuario_(user)) return true;
   var allowed = robinListaDesdePropiedad_(
     "ROBIN_ALLOWED_USERS",
     "fcolmenares,ralvarez,dsalavarria,mbonilla,gnebrus,sgiucastro,jalfiero,arusso,arodriguez,agraterol,dmatheus,admin"

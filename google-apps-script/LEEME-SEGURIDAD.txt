@@ -57,8 +57,13 @@ PASO 3 — Propiedades del script (OBLIGATORIO)
   Nombre              | Valor
   --------------------|--------------------------------------------------
   ROBIN_API_SECRET    | tmk2026
+  ROBIN_DESIGNER_API_SECRET | robin2026
   ROBIN_ALLOWED_USERS | fcolmenares,ralvarez,dsalavarria,mbonilla,gnebrus,sgiucastro,admin
+  ROBIN_DESIGNER_USERS | jalfiero,arusso,arodriguez,agraterol,dmatheus
   ROBIN_ADMIN_USERS   | admin
+
+Nota: los diseñadores pueden conectarse aunque no estén en ROBIN_ALLOWED_USERS
+(si ApiAuth.gs está actualizado). Usan contraseña robin2026, no tmk2026.
 
 Sin ROBIN_API_SECRET la API responde error y la app queda vacía.
 

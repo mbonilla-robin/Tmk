@@ -453,11 +453,36 @@ async function marcarTodasNotificacionesLeidas(username) {
 }
 
 function renderizarCuerpoComentario(texto) {
-  const escaped = escaparHtmlTexto(texto);
-  return escaped.replace(
-    MENCION_EN_TEXTO_RE,
-    (full) => `<span class="robin-mention">${full}</span>`
-  );
+  const raw = String(texto || "");
+  if (!raw) return "";
+
+  let result = "";
+  let i = 0;
+
+  while (i < raw.length) {
+    if (raw[i] !== "@") {
+      const nextAt = raw.indexOf("@", i + 1);
+      const chunk = nextAt === -1 ? raw.slice(i) : raw.slice(i, nextAt);
+      result += escaparHtmlTexto(chunk);
+      i = nextAt === -1 ? raw.length : nextAt;
+      continue;
+    }
+
+    const resolved = typeof resolverMencionEnPosicion === "function"
+      ? resolverMencionEnPosicion(raw, i + 1)
+      : null;
+
+    if (resolved && resolved.handle) {
+      const mentionText = raw.slice(i, resolved.endIndex);
+      result += `<span class="robin-mention">${escaparHtmlTexto(mentionText)}</span>`;
+      i = resolved.endIndex;
+    } else {
+      result += escaparHtmlTexto(raw[i]);
+      i += 1;
+    }
+  }
+
+  return result;
 }
 
 const AVATAR_COLORES = ["#E8DEEE", "#FADEC9", "#D3E5EF", "#DBEDDB", "#FDECC8", "#FFE2DD"];

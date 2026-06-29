@@ -148,18 +148,30 @@ function descartarBannerRegistroPush(username) {
   } catch (e) { /* ignore */ }
 }
 
+function limpiarRegistroPushCompleto(username) {
+  const user = pushUsuario(username);
+  if (!user) return;
+  try {
+    removeLocalStorageItemSafe(pushRegistroOkStorageKey(user));
+  } catch (e) { /* ignore */ }
+}
+
 async function evaluarBannerRegistroPush(username) {
   if (typeof Notification === "undefined" || Notification.permission !== "granted") {
     return { mostrar: false, motivo: "no_permission" };
   }
-  if (registroPushCompleto(username) || pushRegistroBannerDescartado(username)) {
-    return { mostrar: false, motivo: "ok_or_dismissed" };
+  if (pushRegistroBannerDescartado(username)) {
+    return { mostrar: false, motivo: "dismissed" };
   }
 
   const estado = await obtenerEstadoPushUsuario(username);
   if (estado.guardadoRemoto && estado.suscrito) {
     marcarRegistroPushCompleto(username);
     return { mostrar: false, motivo: "already_registered" };
+  }
+
+  if (registroPushCompleto(username) && !estado.guardadoRemoto) {
+    limpiarRegistroPushCompleto(username);
   }
 
   if (estado.soportado && !estado.guardadoRemoto && esEntornoPushMovil()) {
@@ -236,6 +248,19 @@ async function esperarControlServiceWorker(timeoutMs = 10000) {
 async function obtenerOCrearSuscripcionPush(reg, vapidKey) {
   const applicationServerKey = urlBase64ToUint8Array(vapidKey);
   let subscription = await reg.pushManager.getSubscription();
+
+  if (subscription) {
+    const actual = pushVapidKeyActual();
+    const guardada = getLocalStorageItemSafe(
+      pushVapidKeyStorageKey(pushUsuarioActual() || ""),
+      ""
+    );
+    if (guardada && guardada !== actual) {
+      await subscription.unsubscribe();
+      subscription = null;
+    }
+  }
+
   if (subscription) return subscription;
 
   const intentarSubscribe = () => reg.pushManager.subscribe({
@@ -1027,6 +1052,15 @@ async function enviarPushPruebaUsuario(username) {
   if (remoto.ok && remoto.sent > 0) {
     marcarRegistroPushCompleto(user);
     return { ok: true, sent: remoto.sent, via: "remote" };
+  }
+
+  if (remoto.reason === "send_failed" || remoto.errors?.[0]?.status === 403) {
+    limpiarRegistroPushCompleto(user);
+    return {
+      ok: false,
+      reason: "remote_rejected",
+      detalle: remoto.errors?.[0]?.message || remoto.detalle || "Apple rechazó el push (403)"
+    };
   }
 
   const local = await mostrarPushLocal(notif);

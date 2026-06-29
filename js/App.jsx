@@ -1412,14 +1412,21 @@ function App() {
       if (resultado.ok) {
         setPushRegistroPendiente(false);
         setPushError("");
-        marcarRegistroPushCompleto(usuario);
         cerrarPushPrompt();
-        showToast("Notificaciones activadas en este dispositivo", "success");
         const prueba = await enviarPushPruebaUsuario(usuario);
-        if (prueba.via === "local") {
-          showToast("Prueba local OK. Cierra ROBIN y pide una mención para probar en segundo plano.", "info");
-        } else if (!prueba.ok) {
-          showToast("Registrado, pero el envío remoto falló. Intenta de nuevo en unos segundos.", "error");
+        if (prueba.via === "remote" && prueba.ok) {
+          marcarRegistroPushCompleto(usuario);
+          showToast("Notificaciones activadas en este dispositivo", "success");
+        } else if (prueba.via === "local") {
+          marcarRegistroPushCompleto(usuario);
+          showToast("Registrado. Cierra ROBIN y pide una mención para probar en segundo plano.", "info");
+        } else {
+          limpiarRegistroPushCompleto(usuario);
+          setPushRegistroPendiente(true);
+          const detalle = prueba.detalle ? `: ${prueba.detalle}` : "";
+          const msg = `Registro guardado, pero Apple rechazó la prueba${detalle}. Toca Registrar de nuevo.`;
+          setPushError(msg);
+          showToast(msg, "error");
         }
         return;
       }

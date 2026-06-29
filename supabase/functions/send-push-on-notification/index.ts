@@ -1,9 +1,9 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3";
 
-const ROBIN_VAPID_PUBLIC = "BOvNxEraiCoQTA_y-h0_GEkPPshrhQIPcnlAqvT-5myMjeThoZKtLZQ4V4m9KIdEN1zz8Oz8hj-Iby4KxXRQuOo";
-const ROBIN_VAPID_PRIVATE = "8VBlyDTeoUIK-2cX6tW1d2_5MnEow1LEvtSOvXRi6uY";
-const ROBIN_VAPID_KEY_ID = "v4";
+const ROBIN_VAPID_PUBLIC = "BCXRrxFM-MiBBd4dpGxWTZwBpumTiqZfGk732b9YEEOXes0qZtgEFD550dVPtq7DVZh-XoRPTjxInWcqTsfPHqU";
+const ROBIN_VAPID_PRIVATE = "vr-cBOrtjdsS_cU3ptqlWbjzsPsz0Wmu-hK4-UA39UA";
+const ROBIN_VAPID_KEY_ID = "v5";
 const ROBIN_VAPID_SUBJECT = "mailto:robin@trade.local";
 
 const DISPLAY_NAMES: Record<string, string> = {

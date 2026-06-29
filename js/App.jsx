@@ -68,6 +68,9 @@ function App() {
   const [taskToDelete, setTaskToDelete] = useState(null);
   const [taskToComplete, setTaskToComplete] = useState(null);
   const [clientesReset, setClientesReset] = useState(0);
+  const [notificaciones, setNotificaciones] = useState([]);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+  const [notifCargando, setNotifCargando] = useState(false);
   const [tareasSeleccionadas, setTareasSeleccionadas] = useState(() => new Set());
   const [bulkDeadline, setBulkDeadline] = useState("");
 
@@ -188,6 +191,28 @@ function App() {
     const yo = String(usuario || "").replace(/^@/, "").toLowerCase();
     return usuariosConectados.filter(u => String(u.username || "").replace(/^@/, "").toLowerCase() !== yo);
   }, [usuariosConectados, usuario]);
+
+  const refrescarNotificaciones = useCallback(async () => {
+    if (!usuario || isConfigOnlyAdmin) return;
+    setNotifCargando(true);
+    try {
+      const [lista, count] = await Promise.all([
+        fetchNotificacionesUsuario(usuario),
+        contarNotificacionesNoLeidas(usuario)
+      ]);
+      setNotificaciones(lista);
+      setUnreadNotifCount(count);
+    } finally {
+      setNotifCargando(false);
+    }
+  }, [usuario, isConfigOnlyAdmin]);
+
+  useEffect(() => {
+    if (!usuario || isConfigOnlyAdmin) return undefined;
+    refrescarNotificaciones();
+    const interval = setInterval(refrescarNotificaciones, NOTIF_POLL_MS);
+    return () => clearInterval(interval);
+  }, [usuario, isConfigOnlyAdmin, refrescarNotificaciones]);
 
   useEffect(() => {
     if (!usuario) return;
@@ -610,6 +635,18 @@ function App() {
 
       return conFechas;
     });
+
+    if (campo === "estado") {
+      objetivos.forEach((t) => {
+        if (normalizarEstado(t.estado) !== normalizarEstado(valorFinal)) {
+          const actualizada = actualizadas.find((a) => getTaskSelectionKey(a) === getTaskSelectionKey(t));
+          if (actualizada) {
+            notificarCambioEstadoTarea(actualizada, usuario, t.estado, valorFinal)
+              .then(() => refrescarNotificaciones());
+          }
+        }
+      });
+    }
 
     persistTareas(actualizadas);
     setHayPendientesLocales(true);
@@ -1041,6 +1078,11 @@ function App() {
     temp[index] = actualizada;
     persistTareas(temp);
 
+    if (campo === "estado" && normalizarEstado(original.estado) !== normalizarEstado(valorFinal)) {
+      notificarCambioEstadoTarea(actualizada, usuario, original.estado, valorFinal)
+        .then(() => refrescarNotificaciones());
+    }
+
     const campoSync = (campo === "estado" || campo === "deadline" || campo === "prioridad" || campo === "fechaInicio") ? campo : "todo";
     encolarSync({
       type: "update",
@@ -1064,6 +1106,23 @@ function App() {
     const actual = normalizarTareaCampos(resolverTareaActual(tareas, t));
     setActiveTask(actual);
     setIsEditing(true);
+  };
+
+  const abrirTareaPorKey = (taskKey) => {
+    const buscada = String(taskKey || "").trim().toLowerCase();
+    if (!buscada) return;
+
+    const encontrada = tareas.find((t) => {
+      const claves = clavesBusquedaComentariosTarea(t).map((k) => String(k).toLowerCase());
+      return claves.includes(buscada);
+    });
+
+    if (encontrada) {
+      abrirEdicionTarea(encontrada);
+      return;
+    }
+
+    showToast("No se encontró el entregable", "error");
   };
 
   const layoutTablaProps = {
@@ -1151,6 +1210,15 @@ function App() {
         payload: construirPayloadSyncTarea(original, taskConHistorial, { campoSync: "todo" })
       });
       setHayPendientesLocales(true);
+
+      if (original.personas !== editedTask.personas) {
+        notificarNuevosAsignados(taskConHistorial, usuario, original.personas, editedTask.personas)
+          .then(() => refrescarNotificaciones());
+      }
+      if (normalizarEstado(original.estado) !== normalizarEstado(editedTask.estado)) {
+        notificarCambioEstadoTarea(taskConHistorial, usuario, original.estado, editedTask.estado)
+          .then(() => refrescarNotificaciones());
+      }
 
       setListaCategorias((prev) => {
         const parsed = parseCategoriasTarea(taskConHistorial.categoria);
@@ -1257,6 +1325,7 @@ function App() {
         payload: construirPayloadSyncTarea(nuevaConId, nuevaConId, { esNuevo: true, campoSync: "todo" })
       });
       setHayPendientesLocales(true);
+      notificarAsignacionTarea(nuevaConId, usuario).then(() => refrescarNotificaciones());
 
       setNuevaTarea(crearNuevaTareaVacia());
       setPaginaActiva("dashboard");
@@ -1327,6 +1396,26 @@ function App() {
     );
   }
 
+  const campanaNotificaciones = !isConfigOnlyAdmin && usuario ? (
+    <CampanaNotificaciones
+      usuario={usuario}
+      notificaciones={notificaciones}
+      unreadCount={unreadNotifCount}
+      cargando={notifCargando}
+      onRefresh={refrescarNotificaciones}
+      onAbrirTarea={abrirTareaPorKey}
+      onMarkRead={async (id) => {
+        await marcarNotificacionLeida(id);
+        refrescarNotificaciones();
+      }}
+      onMarkAllRead={async () => {
+        await marcarTodasNotificacionesLeidas(usuario);
+        refrescarNotificaciones();
+      }}
+      getMarcaStyle={getMarcaStyle}
+    />
+  ) : null;
+
   return (
     <div className={`flex h-screen w-screen overflow-hidden ${currentTheme.bg} ${currentTheme.text} select-none transition-all`}>
       
@@ -1342,6 +1431,9 @@ function App() {
       <aside className={`hidden md:flex robin-sidebar ${currentTheme.sidebarBg}`}>
           <div className="robin-sidebar__header">
             <RobinLogo className="h-8 w-auto max-w-[110px]" theme={theme} />
+            <div className="robin-notif-sidebar-slot">
+              {campanaNotificaciones}
+            </div>
           </div>
 
           <div className="robin-sidebar__top">
@@ -1518,6 +1610,8 @@ function App() {
           </div>
 
           <div className="flex items-center gap-3">
+            {campanaNotificaciones}
+
             <button
               type="button"
               onClick={handleSyncClick}
@@ -2203,6 +2297,7 @@ function App() {
         onRefresh={() => fetchData(false)}
         loading={loading}
         theme={theme}
+        notificacionesSlot={campanaNotificaciones}
       />
       )}
 
@@ -2219,6 +2314,10 @@ function App() {
             listaCategorias={listaCategorias}
             registrarNuevaCategoria={registrarNuevaCategoriaGlobal}
             marcasDisponibles={marcasDisponibles}
+            usuario={usuario}
+            nombreUsuario={nombreCompleto}
+            onComentarioPublicado={refrescarNotificaciones}
+            onToast={showToast}
           />
         </ModalPortal>
       )}

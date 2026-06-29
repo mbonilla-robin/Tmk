@@ -10,7 +10,7 @@ function PropertyRow({ icon, label, children }) {
   );
 }
 
-function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNuevaPersona, listaCategorias, registrarNuevaCategoria, marcasDisponibles }) {
+function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNuevaPersona, listaCategorias, registrarNuevaCategoria, marcasDisponibles, usuario, nombreUsuario, onComentarioPublicado, onToast }) {
   const resolverEstadoInicial = () => {
     let categoriaInicial = tarea.categoria || "";
     let infoInicial = extraerTituloLimpio(tarea.info, tarea.categoria);
@@ -280,31 +280,44 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
                 variant="minimal"
               />
             </PropertyRow>
+
+            <PropertyRow icon="fa-solid fa-link" label="Enlace">
+              <div className="flex items-center gap-2 min-w-0">
+                <input
+                  type="url"
+                  value={link}
+                  onChange={(e) => handleLinkChange(e.target.value)}
+                  placeholder="https://..."
+                  className={inputPropTextClass}
+                />
+                {normalizarUrlEnlace(link) && (
+                  <a
+                    href={normalizarUrlEnlace(link)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="task-link-open shrink-0 text-zinc-400 hover:text-blue-600 transition-colors"
+                    title="Abrir enlace"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <i className="fa-solid fa-arrow-up-right-from-square text-[11px]" />
+                  </a>
+                )}
+              </div>
+            </PropertyRow>
           </div>
 
-          <PropertyRow icon="fa-solid fa-link" label="Enlace">
-            <div className="flex items-center gap-2 min-w-0">
-              <input
-                type="url"
-                value={link}
-                onChange={(e) => handleLinkChange(e.target.value)}
-                placeholder="https://..."
-                className={inputPropTextClass}
-              />
-              {normalizarUrlEnlace(link) && (
-                <a
-                  href={normalizarUrlEnlace(link)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="task-link-open shrink-0 text-zinc-400 hover:text-blue-600 transition-colors"
-                  title="Abrir enlace"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <i className="fa-solid fa-arrow-up-right-from-square text-[11px]" />
-                </a>
-              )}
-            </div>
-          </PropertyRow>
+          {usuario && (
+            <ComentariosTarea
+              tarea={tarea}
+              usuario={usuario}
+              nombreUsuario={nombreUsuario}
+              listaPersonas={listaPersonas}
+              onComentarioPublicado={onComentarioPublicado}
+              onToast={onToast}
+            />
+          )}
+
+          <ListaSubtareas subtareas={subtareas} onChange={handleSubtareasChange} />
 
           {/* Notas */}
           <div className="py-4 border-b border-zinc-100">
@@ -317,8 +330,6 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
               onChange={handleNotasChange}
             />
           </div>
-
-          <ListaSubtareas subtareas={subtareas} onChange={handleSubtareasChange} />
 
           {parsed.historial && parsed.historial.length > 0 && (
             <div className="pb-4">

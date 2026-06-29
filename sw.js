@@ -1,4 +1,4 @@
-const CACHE_NAME = "robin-pwa-v67";
+const CACHE_NAME = "robin-pwa-v70";
 
 const STATIC_ASSETS = [
   "./",
@@ -42,6 +42,7 @@ const STATIC_ASSETS = [
   "./js/utils/widgets.js",
   "./js/utils/estatus.js",
   "./js/utils/equipos.js",
+  "./js/utils/comentarios.js",
   "./js/constants/index.js",
   "./js/utils/marcas.js",
   "./js/pwa.js",
@@ -67,6 +68,8 @@ const STATIC_ASSETS = [
   "./js/components/ListaSubtareas.jsx",
   "./js/components/InputFechaLibre.jsx",
   "./js/components/ModalEdicionTarea.jsx",
+  "./js/components/ComentariosTarea.jsx",
+  "./js/components/CampanaNotificaciones.jsx",
   "./js/components/WidgetsAdminPanel.jsx",
   "./js/components/MobileSubpageBar.jsx",
   "./js/components/MobileNavBar.jsx",

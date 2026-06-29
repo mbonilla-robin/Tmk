@@ -14,7 +14,8 @@ function MobileNavBar({
   onSyncClick,
   onRefresh,
   loading,
-  theme = "notion"
+  theme = "notion",
+  notificacionesSlot = null
 }) {
   const isActive = (pagina, extraCheck) => {
     if (paginaActiva !== pagina) return false;
@@ -74,6 +75,7 @@ function MobileNavBar({
         </div>
 
         <div className="mobile-top-actions">
+          {notificacionesSlot}
           <button
             type="button"
             onClick={onSyncClick}

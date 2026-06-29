@@ -125,6 +125,32 @@ function remotaCorrespondeATareaLocal(remota, local, cola) {
   return false;
 }
 
+function elegirFechaLocal(remota, local) {
+  const l = normalizarDeadline(local);
+  const r = normalizarDeadline(remota);
+  if (l && r && l !== r) return l;
+  return l || r || "";
+}
+
+function fusionarFechasLocales(remota, local) {
+  return {
+    deadline: elegirFechaLocal(remota?.deadline, local?.deadline),
+    fechaInicio: elegirFechaLocal(remota?.fechaInicio, local?.fechaInicio)
+  };
+}
+
+function syncConfirmadoConRemota(local, remota) {
+  if (!local || !remota) return false;
+  const dlLocal = normalizarDeadline(local.deadline);
+  const dlRemota = normalizarDeadline(remota.deadline);
+  if (dlLocal && !dlRemota) return false;
+  if (dlLocal && dlRemota && dlLocal !== dlRemota) return false;
+  const fiLocal = normalizarDeadline(local.fechaInicio || "");
+  const fiRemota = normalizarDeadline(remota.fechaInicio || "");
+  if (fiLocal && fiRemota && fiLocal !== fiRemota) return false;
+  return true;
+}
+
 function deduplicarTareasFusionadas(lista) {
   const resultado = [];
 
@@ -139,13 +165,19 @@ function deduplicarTareasFusionadas(lista) {
     const preferida = tareaEsPendienteLocal(tarea)
       ? tarea
       : (tareaEsPendienteLocal(existente) ? existente : tarea);
-
-    resultado[indice] = desmarcarTareaPendiente(normalizarTareaCampos({
+    const otra = preferida === tarea ? existente : tarea;
+    const fechas = fusionarFechasLocales(otra, preferida);
+    const fusionada = normalizarTareaCampos({
       ...existente,
       ...preferida,
+      ...fechas,
       idTarea: preferida.idTarea || existente.idTarea,
       detalles: preferida.detalles || existente.detalles
-    }));
+    });
+
+    resultado[indice] = tareaEsPendienteLocal(preferida) && !syncConfirmadoConRemota(preferida, otra)
+      ? marcarTareaPendiente(fusionada)
+      : desmarcarTareaPendiente(fusionada);
   });
 
   return resultado;
@@ -196,14 +228,20 @@ function fusionarTareasRemotasYLocales(remotas, locales) {
     if (!tareaEsPendienteLocal(local)) return;
     const remota = (remotas || []).find((r) => remotaCorrespondeATareaLocal(r, local, cola));
     if (remota) {
-      mapa.set(getTaskSelectionKey(local), desmarcarTareaPendiente(normalizarTareaCampos({
+      const fechas = fusionarFechasLocales(remota, local);
+      const fusionada = normalizarTareaCampos({
         ...remota,
         ...local,
+        ...fechas,
         idTarea: remota.idTarea || local.idTarea,
-        deadline: local.deadline || remota.deadline,
-        fechaInicio: local.fechaInicio || remota.fechaInicio,
         detalles: local.detalles || remota.detalles
-      })));
+      });
+      mapa.set(
+        getTaskSelectionKey(local),
+        tareaEsPendienteLocal(local) && !syncConfirmadoConRemota(local, remota)
+          ? marcarTareaPendiente(fusionada)
+          : desmarcarTareaPendiente(fusionada)
+      );
     }
   });
 
@@ -247,7 +285,7 @@ async function procesarColaSync() {
         json = null;
       }
 
-      if (json && json.success === false) {
+      if (!json || json.success !== true) {
         restantes.push(op);
         continue;
       }

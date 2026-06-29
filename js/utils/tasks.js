@@ -61,12 +61,6 @@ function sonLaMismaTarea(a, b, opciones = {}) {
 
   if (!marcasCoinciden(a.marca, b.marca)) return false;
 
-  if (estricto) {
-    const deadlineA = deadlineClaveTarea(a);
-    const deadlineB = deadlineClaveTarea(b);
-    if (deadlineA && deadlineB && deadlineA !== deadlineB) return false;
-  }
-
   const tituloA = tituloLimpioTarea(a);
   const tituloB = tituloLimpioTarea(b);
   if (tituloA && tituloB && tituloA === tituloB) return true;
@@ -131,9 +125,8 @@ function getTaskSelectionKey(t) {
   if (id && isValidIdTarea(id)) return id;
   const rawId = String(t.idTarea || "").trim();
   if (rawId.startsWith("STB-")) return rawId;
-  const deadlineNorm = deadlineClaveTarea(t);
   const titulo = tituloLimpioTarea(t) || String(t.info || "").trim().toLowerCase();
-  return `${t.marca || ""}|${titulo}|${deadlineNorm}`.toLowerCase().trim();
+  return `${t.marca || ""}|${titulo}`.toLowerCase().trim();
 }
 
 function resolverTareaActual(tareas, tareaRef) {

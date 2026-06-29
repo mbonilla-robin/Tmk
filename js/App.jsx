@@ -583,6 +583,7 @@ function App() {
 
     const hoy = new Date();
     const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
+    const valorFinal = normalizarValorCampoTarea(campo, nuevoValor);
 
     const actualizadas = tareas.map(t => {
       if (!keys.has(getTaskSelectionKey(t))) return t;
@@ -590,52 +591,44 @@ function App() {
       if (campo === "estado") {
         detalles += `\n• [${timestamp}] Estado cambiado a "${nuevoValor}" por @${usuario}`;
       }
-      const valorFinal = normalizarValorCampoTarea(campo, nuevoValor);
-      return {
+      const actualizada = marcarTareaPendiente({
         ...t,
         idTarea: t.idTarea || generateBrandId(t.marca),
         [campo]: valorFinal,
         detalles: campo === "estado" ? detalles : t.detalles
-      };
+      });
+
+      const taskKeyOriginal = getTaskSelectionKey(t);
+      const inicioPayload = normalizarDeadline(actualizada.fechaInicio || t.fechaInicio || resolverFechaInicioTarea(t) || "");
+      encolarSync({
+        type: "update",
+        taskKey: getTaskSelectionKey(actualizada),
+        taskKeyOriginal,
+        payload: {
+          marca: t.marca,
+          idTarea: idTareaParaApi(t) || actualizada.idTarea,
+          info: actualizada.info || t.info,
+          originalInfo: t.info,
+          categoria: actualizada.categoria || t.categoria,
+          campo: "todo",
+          valor: valorFinal,
+          personas: actualizada.personas || t.personas,
+          detalles: actualizada.detalles || detalles,
+          estado: campo === "estado" ? valorFinal : normalizarEstado(actualizada.estado || t.estado),
+          deadline: campo === "deadline" ? valorFinal : normalizarDeadline(actualizada.deadline || t.deadline),
+          ...(inicioPayload ? { fechaInicio: inicioPayload } : {}),
+          prioridad: campo === "prioridad" ? valorFinal : normalizarPrioridad(actualizada.prioridad || t.prioridad)
+        }
+      });
+
+      return actualizada;
     });
+
     persistTareas(actualizadas);
-
-    const effectiveUrl = getConfiguredApiUrl();
-    if (!effectiveUrl || apiError) {
-      limpiarSeleccionTareas();
-      showToast(`${objetivos.length} entregable(s) actualizado(s) localmente`, "success");
-      return;
-    }
-
-    setSyncing(true);
-    try {
-      const valorFinal = normalizarValorCampoTarea(campo, nuevoValor);
-      for (const tarea of objetivos) {
-        const actualizada = actualizadas.find(t => getTaskSelectionKey(t) === getTaskSelectionKey(tarea));
-        const taskTargetId = actualizada.idTarea;
-        const inicioPayload = normalizarDeadline(actualizada?.fechaInicio || tarea.fechaInicio || "");
-        await fetchRobinApi(effectiveUrl, {
-          method: "POST", mode: "cors", redirect: "follow",
-          headers: { "Content-Type": "text/plain; charset=utf-8" },
-          body: JSON.stringify({
-            marca: tarea.marca, idTarea: taskTargetId, info: tarea.info, categoria: tarea.categoria,
-            campo: "todo", valor: valorFinal, personas: tarea.personas,
-            detalles: actualizada.detalles,
-            estado: campo === "estado" ? valorFinal : normalizarEstado(tarea.estado),
-            deadline: campo === "deadline" ? valorFinal : normalizarDeadline(tarea.deadline),
-            ...(inicioPayload ? { fechaInicio: inicioPayload } : {}),
-            prioridad: campo === "prioridad" ? valorFinal : normalizarPrioridad(tarea.prioridad)
-          })
-        });
-      }
-      limpiarSeleccionTareas();
-      showToast(`${objetivos.length} entregable(s) actualizado(s)`, "success");
-      await fetchData(true);
-    } catch (e) {
-      showToast("Error al sincronizar cambios masivos", "error");
-    } finally {
-      setSyncing(false);
-    }
+    setHayPendientesLocales(true);
+    limpiarSeleccionTareas();
+    showToast(`${objetivos.length} entregable(s) actualizado(s)`, "success");
+    sincronizarEnSegundoPlano();
   };
 
   const handleSaveBrandMetadata = async (brand, newMeta) => {
@@ -1008,8 +1001,11 @@ function App() {
       if (syncMutexRef.current || !isApiConfigured()) return;
       syncMutexRef.current = true;
       try {
-        await procesarColaSync();
+        const resultado = await procesarColaSync();
         setHayPendientesLocales(hayPendientesSync() || hayTareasPendientesLocales(cargarTareasLocales()));
+        if (resultado.processed > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 600));
+        }
         await fetchData(true);
       } catch (e) {
         console.warn("ROBIN: sync en segundo plano", e);

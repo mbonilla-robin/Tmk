@@ -104,7 +104,7 @@ function App() {
   const [induccionActiva, setInduccionActiva] = useState(false);
   const [induccionBienvenidaVisible, setInduccionBienvenidaVisible] = useState(false);
   const [induccionPaso, setInduccionPaso] = useState(0);
-  const induccionPendienteRef = useRef(false);
+  const [induccionPendiente, setInduccionPendiente] = useState(false);
   const induccionReplayRef = useRef(false);
 
   const [listaPersonas, setListaPersonas] = useState(() => cargarListaPersonas());
@@ -624,7 +624,7 @@ function App() {
       reiniciarInduccionUsuario(usuario);
     }
     induccionReplayRef.current = reiniciarPrefs;
-    induccionPendienteRef.current = false;
+    setInduccionPendiente(false);
     setInduccionPaso(0);
     setInduccionActiva(false);
     setInduccionBienvenidaVisible(true);
@@ -675,22 +675,29 @@ function App() {
   }, [finalizarInduccion]);
 
   useEffect(() => {
-    if (!usuario || isConfigOnlyAdmin || !prefsReady) return;
-    const prefs = loadUserDataLocal(usuario);
-    if (typeof usuarioDebeVerInduccion === "function" && usuarioDebeVerInduccion(prefs)) {
-      induccionPendienteRef.current = true;
+    if (!usuario || isConfigOnlyAdmin || !prefsReady) {
+      setInduccionPendiente(false);
+      return;
     }
+    const prefs = loadUserDataLocal(usuario);
+    const debeVer = typeof usuarioDebeVerInduccion === "function" && usuarioDebeVerInduccion(prefs);
+    setInduccionPendiente(debeVer);
   }, [usuario, prefsReady, isConfigOnlyAdmin]);
 
   useEffect(() => {
-    if (!usuario || isConfigOnlyAdmin || !induccionPendienteRef.current || induccionActiva || induccionBienvenidaVisible) return;
+    if (!usuario || isConfigOnlyAdmin || !prefsReady || !induccionPendiente || induccionActiva || induccionBienvenidaVisible) return;
     const timer = setTimeout(() => {
-      if (!induccionPendienteRef.current) return;
-      induccionPendienteRef.current = false;
+      setInduccionPendiente(false);
       iniciarInduccion(false);
-    }, 1400);
+    }, 400);
     return () => clearTimeout(timer);
-  }, [usuario, isConfigOnlyAdmin, induccionActiva, induccionBienvenidaVisible, iniciarInduccion]);
+  }, [usuario, isConfigOnlyAdmin, prefsReady, induccionPendiente, induccionActiva, induccionBienvenidaVisible, iniciarInduccion]);
+
+  useEffect(() => {
+    if (!induccionBienvenidaVisible && !induccionActiva) return undefined;
+    document.body.classList.add("induccion-bloqueada");
+    return () => document.body.classList.remove("induccion-bloqueada");
+  }, [induccionBienvenidaVisible, induccionActiva]);
 
   useEffect(() => {
     if (!induccionActiva) return;

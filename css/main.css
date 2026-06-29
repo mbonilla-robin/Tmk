@@ -5658,6 +5658,12 @@ body {
       color: #e4e4e7;
     }
 
+    body.induccion-bloqueada {
+      overflow: hidden !important;
+      overscroll-behavior: none;
+      touch-action: none;
+    }
+
     /* ── Inducción / tour guiado — Linear / Notion + glassmorphism ── */
     .induccion-tour {
       position: fixed;
@@ -6259,12 +6265,16 @@ body {
     .induccion-bienvenida {
       position: fixed;
       inset: 0;
-      z-index: 520;
+      width: 100vw;
+      height: 100dvh;
+      height: 100svh;
+      z-index: 9999;
       display: flex;
       align-items: stretch;
       justify-content: center;
       overflow: hidden;
       background: #c2410c;
+      pointer-events: auto;
       animation: induccion-bienvenida-in 0.5s ease-out;
     }
 
@@ -6408,7 +6418,7 @@ body {
       position: relative;
       z-index: 1;
       width: 100%;
-      max-width: 28rem;
+      max-width: min(100%, 36rem);
       margin: 0 auto;
       min-height: 100dvh;
       min-height: 100svh;
@@ -6426,11 +6436,21 @@ body {
 
     @media (min-width: 768px) {
       .induccion-bienvenida__panel {
-        max-width: 32rem;
+        max-width: 40rem;
         padding:
           max(2rem, env(safe-area-inset-top))
-          2rem
+          2.5rem
           max(1.25rem, env(safe-area-inset-bottom));
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .induccion-bienvenida__panel {
+        max-width: 44rem;
+        padding:
+          max(2.5rem, env(safe-area-inset-top))
+          3rem
+          max(1.5rem, env(safe-area-inset-bottom));
       }
     }
 

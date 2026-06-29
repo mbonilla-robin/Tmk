@@ -1,4 +1,4 @@
-const INDUCCION_VERSION = 2;
+const INDUCCION_VERSION = 3;
 const INDUCCION_HABILITADA = true;
 
 function usuarioDebeVerInduccion(prefs) {

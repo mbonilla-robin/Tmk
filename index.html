@@ -54,14 +54,6 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <!-- Babel CDN for JSX -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script>
-    (function configureRobinBabel() {
-      if (typeof Babel === "undefined" || !Babel.registerPreset) return;
-      Babel.registerPreset("react", {
-        presets: [[Babel.availablePresets.react, { runtime: "classic" }]],
-      });
-    })();
-  </script>
 
   <link rel="stylesheet" href="css/main.css">
 </head>
@@ -106,7 +98,7 @@
   <!-- Boot crítico inline: no depende de caché externa del service worker -->
   <script>
     (function () {
-      var ROBIN_BUILD = "102";
+      var ROBIN_BUILD = "103";
       try {
         if (localStorage.getItem("robin_build") !== ROBIN_BUILD) {
           localStorage.setItem("robin_build", ROBIN_BUILD);
@@ -122,49 +114,6 @@
           }
         }
       } catch (e) { /* ignore */ }
-
-      var TASK_KEY_URL_PARAMS = ["task", "task_key", "tarea"];
-
-      window.leerTaskKeyDesdeUrl = function () {
-        try {
-          var params = new URLSearchParams(window.location.search || "");
-          for (var i = 0; i < TASK_KEY_URL_PARAMS.length; i++) {
-            var valor = String(params.get(TASK_KEY_URL_PARAMS[i]) || "").trim();
-            if (valor) return valor;
-          }
-        } catch (e) { /* ignore */ }
-        return "";
-      };
-
-      window.limpiarTaskKeyEnUrl = function () {
-        try {
-          var url = new URL(window.location.href);
-          var changed = false;
-          TASK_KEY_URL_PARAMS.forEach(function (key) {
-            if (url.searchParams.has(key)) { url.searchParams.delete(key); changed = true; }
-          });
-          if (!changed) return;
-          var query = url.searchParams.toString();
-          var nextUrl = query ? url.pathname + "?" + query + url.hash : url.pathname + url.hash;
-          window.history.replaceState({}, "", nextUrl);
-        } catch (e) { /* ignore */ }
-      };
-
-      window.crearNuevaTareaVacia = function () {
-        var hoy = new Date();
-        return {
-          marca: "La Santé",
-          categoria: "",
-          info: "",
-          personas: "",
-          detalles: "",
-          link: "",
-          estado: "Pendiente",
-          deadline: "",
-          fechaInicio: hoy.getDate() + "/" + (hoy.getMonth() + 1) + "/" + hoy.getFullYear(),
-          prioridad: "Media"
-        };
-      };
     })();
   </script>
 

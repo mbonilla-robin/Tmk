@@ -389,3 +389,7 @@ function agruparTareasPorMarcaOrdenadas(tareas, modoAgrupacion) {
 
   return agrupamiento;
 }
+
+window.crearNuevaTareaVacia = crearNuevaTareaVacia;
+window.leerTaskKeyDesdeUrl = leerTaskKeyDesdeUrl;
+window.limpiarTaskKeyEnUrl = limpiarTaskKeyEnUrl;

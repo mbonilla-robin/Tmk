@@ -49,10 +49,6 @@ function App() {
   const [hayPendientesLocales, setHayPendientesLocales] = useState(() => hayPendientesSync());
   const syncMutexRef = useRef(false);
   const syncTimerRef = useRef(null);
-  const notifIdsConocidosRef = useRef(null);
-  const notifPrimeraCargaRef = useRef(true);
-  const pushPromptDescartadoRef = useRef(false);
-  const pushOpRef = useRef(0);
   const guardandoRef = useRef(false);
   
   const [filtroTiempo, setFiltroTiempo] = useState(() => initialPrefs.filtroTiempo || "TODAS"); 
@@ -77,11 +73,6 @@ function App() {
   const [notificaciones, setNotificaciones] = useState([]);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [notifCargando, setNotifCargando] = useState(false);
-  const [pushPromptVisible, setPushPromptVisible] = useState(false);
-  const [pushActivando, setPushActivando] = useState(false);
-  const [pushRegistroPendiente, setPushRegistroPendiente] = useState(false);
-  const [pushPaso, setPushPaso] = useState("");
-  const [pushError, setPushError] = useState("");
   const [tareasSeleccionadas, setTareasSeleccionadas] = useState(() => new Set());
   const [bulkDeadline, setBulkDeadline] = useState("");
 
@@ -224,17 +215,6 @@ function App() {
         contarNotificacionesNoLeidas(usuario)
       ]);
 
-      const idsPrevios = notifIdsConocidosRef.current;
-      const esCargaInicial = notifPrimeraCargaRef.current || !idsPrevios;
-      if (!esCargaInicial && !soloActualizarUi) {
-        await procesarPushNotificacionesNuevas(lista, {
-          idsConocidos: idsPrevios,
-          esCargaInicial: false
-        });
-      }
-
-      notifIdsConocidosRef.current = new Set((lista || []).map((n) => n.id).filter(Boolean));
-      notifPrimeraCargaRef.current = false;
       setNotificaciones(lista);
       setUnreadNotifCount(count);
     } finally {
@@ -255,9 +235,6 @@ function App() {
     const alVolverVisible = () => {
       if (document.visibilityState !== "visible") return;
       refrescarNotificaciones({ soloActualizarUi: true });
-      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-        registrarPushEnSegundoPlano(usuario).catch(() => {});
-      }
     };
 
     document.addEventListener("visibilitychange", alVolverVisible);
@@ -1265,195 +1242,12 @@ function App() {
   };
 
   useEffect(() => {
-    if (!usuario || isConfigOnlyAdmin) return undefined;
-    precalentarPushServiceWorker();
-  }, [usuario, isConfigOnlyAdmin]);
-
-  useEffect(() => {
-    if (!usuario || isConfigOnlyAdmin) return undefined;
-    if (typeof Notification === "undefined" || Notification.permission !== "granted") {
-      setPushRegistroPendiente(false);
-      return undefined;
-    }
-
-    let cancelado = false;
-
-    registrarPushEnSegundoPlano(usuario).then((resultado) => {
-      if (resultado?.ok) marcarRegistroPushCompleto(usuario);
-    }).catch(() => {});
-
-    evaluarBannerRegistroPush(usuario).then((evaluacion) => {
-      if (cancelado) return;
-      setPushRegistroPendiente(evaluacion.mostrar === true);
-    }).catch(() => {});
-
-    return () => { cancelado = true; };
-  }, [usuario, isConfigOnlyAdmin]);
-
-  useEffect(() => {
-    pushPromptDescartadoRef.current = Boolean(usuario && pushPromptYaAtendido(usuario));
-  }, [usuario]);
-
-  useEffect(() => {
-    if (!usuario || isConfigOnlyAdmin) return undefined;
-    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-      setPushPromptVisible(false);
-      registrarPushEnSegundoPlano(usuario).catch(() => {});
-      return undefined;
-    }
-
-    let cancelado = false;
-
-    (async () => {
-      if (pushPromptDescartadoRef.current || pushPromptYaAtendido(usuario)) return;
-
-      const resultado = await inicializarPushNotificaciones(usuario);
-      if (cancelado || pushPromptDescartadoRef.current || pushPromptYaAtendido(usuario)) return;
-      if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-        setPushPromptVisible(false);
-        return;
-      }
-
-      if (resultado?.ok || resultado?.reason === "denied") {
-        setPushPromptVisible(false);
-        return;
-      }
-
-      if (resultado?.reason === "needs_prompt" && esEntornoPushMovil()) {
-        setPushPromptVisible(true);
-      }
-    })();
-
-    return () => { cancelado = true; };
-  }, [usuario, isConfigOnlyAdmin]);
-
-
-  const cerrarPushPrompt = useCallback(() => {
-    pushPromptDescartadoRef.current = true;
-    if (usuario) marcarPushPromptAtendido(usuario);
-    setPushPromptVisible(false);
-  }, [usuario]);
-
-
-  useEffect(() => {
-    if (!usuario || isConfigOnlyAdmin) return undefined;
-    return registrarListenersPush({
-      onAbrirTarea: abrirTareaPorKey,
-      onPushRecibido: () => {
-        refrescarNotificaciones({ soloActualizarUi: true });
-      }
-    });
-  }, [usuario, isConfigOnlyAdmin, tareas, refrescarNotificaciones]);
-
-  useEffect(() => {
     if (!usuario || !tareas.length) return;
     const taskKey = leerTaskKeyDesdeUrl();
     if (!taskKey) return;
     abrirTareaPorKey(taskKey);
     limpiarTaskKeyEnUrl();
   }, [usuario, tareas]);
-
-  const handleActivarPush = async () => {
-    if (!usuario || isConfigOnlyAdmin || pushActivando) return;
-
-    if (typeof Notification === "undefined") {
-      setPushError("Este navegador no soporta notificaciones");
-      showToast("Este navegador no soporta notificaciones", "error");
-      cerrarPushPrompt();
-      return;
-    }
-
-    if (pushRequierePwaInstalada()) {
-      const msg = mensajeErrorPush("needs_pwa");
-      setPushError(msg);
-      showToast(msg, "error");
-      return;
-    }
-
-    if (Notification.permission === "denied") {
-      const msg = mensajeErrorPush("denied");
-      setPushError(msg);
-      showToast(msg, "error");
-      cerrarPushPrompt();
-      return;
-    }
-
-    setPushActivando(true);
-    setPushError("");
-    setPushPaso("Iniciando…");
-
-    const opId = pushOpRef.current + 1;
-    pushOpRef.current = opId;
-
-    const safetyTimer = setTimeout(() => {
-      if (pushOpRef.current !== opId) return;
-      setPushActivando(false);
-      setPushPaso("");
-      const msg = mensajeErrorPush("timeout");
-      setPushError(msg);
-      showToast(msg, "error");
-    }, 18000);
-
-    try {
-      if (Notification.permission === "default") {
-        setPushPaso("Pidiendo permiso…");
-        const permiso = await Notification.requestPermission();
-        if (permiso !== "granted") {
-          const msg = mensajeErrorPush("denied");
-          setPushError(msg);
-          showToast(msg, "error");
-          cerrarPushPrompt();
-          return;
-        }
-      }
-
-      const resultado = await registrarPushConPaso(usuario, setPushPaso);
-
-      if (resultado.ok) {
-        setPushRegistroPendiente(false);
-        setPushError("");
-        cerrarPushPrompt();
-        const prueba = await enviarPushPruebaUsuario(usuario);
-        if (prueba.via === "remote" && prueba.ok) {
-          marcarRegistroPushCompleto(usuario);
-          showToast("Notificaciones activadas en este dispositivo", "success");
-        } else if (prueba.via === "local") {
-          marcarRegistroPushCompleto(usuario);
-          showToast("Registrado. Cierra ROBIN y pide una mención para probar en segundo plano.", "info");
-        } else {
-          limpiarRegistroPushCompleto(usuario);
-          setPushRegistroPendiente(true);
-          const detalle = prueba.detalle ? `: ${prueba.detalle}` : "";
-          const msg = `Registro guardado, pero Apple rechazó la prueba${detalle}. Toca Registrar de nuevo.`;
-          setPushError(msg);
-          showToast(msg, "error");
-        }
-        return;
-      }
-
-      const msg = mensajeErrorPush(resultado.reason);
-      setPushRegistroPendiente(true);
-      setPushError(resultado.detail ? `${msg} (${resultado.detail})` : msg);
-      showToast(msg, "error");
-      if (typeof registrarDiagnosticoRobin === "function") {
-        registrarDiagnosticoRobin("push", "Activación fallida", resultado.detail || resultado.reason || "");
-      }
-    } catch (e) {
-      const msg = mensajeErrorPush("timeout");
-      setPushError(String(e?.message || msg));
-      showToast(msg, "error");
-    } finally {
-      clearTimeout(safetyTimer);
-      if (pushOpRef.current === opId) {
-        setPushActivando(false);
-        setPushPaso("");
-      }
-    }
-  };
-
-  const handleOmitirPush = () => {
-    cerrarPushPrompt();
-  };
 
   const layoutTablaProps = {
     tareas: tareasFiltradas,
@@ -2775,68 +2569,6 @@ function App() {
           registrarNuevaPersona={registrarNuevaPersonaGlobal}
           onClose={() => setShowGeneradorEstatus(false)}
         />
-      )}
-
-      {!isConfigOnlyAdmin && pushRegistroPendiente && esEntornoPushMovil() && typeof Notification !== "undefined" && Notification.permission === "granted" && (
-        <div className="robin-float-above-chrome robin-push-prompt p-4 rounded-lg border border-amber-200 bg-amber-50 shadow-lg animate-zoom-in">
-          <p className="text-sm font-semibold text-zinc-800 mb-1">Actualiza las notificaciones push</p>
-          <p className="text-xs text-zinc-600 leading-relaxed mb-3">
-            Hay una nueva versión del registro push. Pulsa abajo para que las alertas lleguen fuera de la app.
-          </p>
-          {pushPaso && (
-            <p className="text-xs text-amber-800 mb-2">{pushPaso}</p>
-          )}
-          {pushError && (
-            <p className="text-xs text-red-600 mb-2 leading-relaxed">{pushError}</p>
-          )}
-          <div className="flex gap-2 justify-end">
-            <button
-              type="button"
-              onClick={() => {
-                if (usuario) descartarBannerRegistroPush(usuario);
-                setPushRegistroPendiente(false);
-                setPushError("");
-              }}
-              disabled={pushActivando}
-              className="px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-800 disabled:opacity-50"
-            >
-              Después
-            </button>
-            <button
-              type="button"
-              onClick={handleActivarPush}
-              disabled={pushActivando}
-              className="px-3 py-1.5 text-xs font-semibold rounded bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-60"
-            >
-              {pushActivando ? (pushPaso || "Registrando…") : "Registrar dispositivo"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {!isConfigOnlyAdmin && pushPromptVisible && esEntornoPushMovil() && typeof Notification !== "undefined" && Notification.permission !== "granted" && (
-        <div className="robin-float-above-chrome robin-push-prompt p-4 rounded-lg border border-zinc-200 bg-white shadow-lg animate-zoom-in">
-          <p className="text-sm font-semibold text-zinc-800 mb-1">Notificaciones en tu teléfono</p>
-          <p className="text-xs text-zinc-500 leading-relaxed mb-3">
-            Recibe menciones y comentarios aunque no tengas ROBIN abierto.
-          </p>
-          <div className="flex gap-2 justify-end">
-            <button
-              type="button"
-              onClick={handleOmitirPush}
-              className="px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-800"
-            >
-              Ahora no
-            </button>
-            <button
-              type="button"
-              onClick={handleActivarPush}
-              className="px-3 py-1.5 text-xs font-semibold rounded bg-zinc-900 text-white hover:bg-zinc-800"
-            >
-              {pushActivando ? "Activando…" : "Activar"}
-            </button>
-          </div>
-        </div>
       )}
 
     </div>

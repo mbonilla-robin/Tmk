@@ -271,15 +271,6 @@ async function publicarComentario({ tarea, author, body, parentId, parentAuthor,
       return { ok: false, error: "El comentario no se guardó correctamente." };
     }
 
-    if (typeof notificarPushPorComentario === "function") {
-      notificarPushPorComentario({
-        comentario,
-        author: usuario,
-        tarea,
-        parentAuthor
-      }).catch((e) => console.warn("ROBIN: push por comentario", e));
-    }
-
     return { ok: true, comentario, mentions, listaPersonas };
   } catch (e) {
     console.warn("ROBIN: error publicando comentario", e);
@@ -300,9 +291,6 @@ async function insertarNotificaciones(notificaciones) {
         body: JSON.stringify(filas)
       }
     );
-    if (res.ok && typeof notificarPushPorFilas === "function") {
-      notificarPushPorFilas(filas).catch((e) => console.warn("ROBIN: push por notificación", e));
-    }
     return res.ok;
   } catch (e) {
     console.warn("ROBIN: error insertando notificaciones", e);

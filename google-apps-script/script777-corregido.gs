@@ -1288,15 +1288,14 @@ function doPost(e) {
 
     if (campo) {
       if (targetRow === -1) {
-        if (payload.esActualizacion) {
-          throw new Error("No se encontró el entregable en el Sheet para actualizar.");
-        }
+        payload.esActualizacion = false;
+        payload.esNuevo = true;
         targetRow = lastRow + 1;
-        var limitRow = (marca === "Config_Marcas") ? 2 : 3;
-        if (targetRow < limitRow) targetRow = limitRow;
-        
-        var prefijo = (marca === "Config_Marcas") ? "WID" : marca.substring(0, 3).toUpperCase();
-        idTarea = prefijo + "-" + Math.floor(100 + Math.random() * 900);
+        var limitRowNuevo = (marca === "Config_Marcas") ? 2 : 3;
+        if (targetRow < limitRowNuevo) targetRow = limitRowNuevo;
+
+        var prefijoNuevo = (marca === "Config_Marcas") ? "WID" : marca.substring(0, 3).toUpperCase();
+        idTarea = prefijoNuevo + "-" + Math.floor(100 + Math.random() * 900);
       }
 
       if (campo === "estado") {

@@ -192,11 +192,10 @@ function App() {
   const estadoSyncResumen = useMemo(() => resumirEstadoSyncRobin({
     apiError,
     apiErrorDetail,
-    hayPendientesLocales: calcularHayPendientesLocales(tareas),
     syncing,
     loading,
     colaPendiente: typeof cargarColaSync === "function" ? cargarColaSync().length : 0
-  }), [apiError, apiErrorDetail, tareas, syncing, loading]);
+  }), [apiError, apiErrorDetail, syncing, loading, hayPendientesLocales, tareas.length]);
 
   const otrosUsuariosEnLinea = useMemo(() => {
     const yo = String(usuario || "").replace(/^@/, "").toLowerCase();
@@ -276,6 +275,7 @@ function App() {
     const stored = getInicialUsuario();
     if (stored && hasRobinApiSession()) {
       repararColaSyncMarcas();
+      repararColaSyncActualizacionesFantasma();
       setUsuario(stored);
       return;
     }
@@ -867,6 +867,7 @@ function App() {
     }
     setRobinApiSession(validation.username, claveInput);
     repararColaSyncMarcas();
+    repararColaSyncActualizacionesFantasma();
     setUsuario(validation.username);
     setLoginError("");
     setClaveInput("");
@@ -1013,14 +1014,23 @@ function App() {
 
           const remotas = normalizarTareasDesdeApi(json.data);
           reconciliarTareasLocalesConRemotas(remotas);
-          let fusionadas = [];
+          repararColaSyncActualizacionesFantasma();
           setTareas((prevTareas) => {
             const base = combinarLocalesParaFusion(prevTareas, cargarTareasLocales());
-            fusionadas = fusionarTareasRemotasYLocales(remotas, base);
+            const fusionadas = limpiarListaFlagsSyncObsoletos(
+              fusionarTareasRemotasYLocales(remotas, base),
+              remotas
+            );
             guardarTareasLocales(fusionadas);
             return fusionadas;
           });
-          setHayPendientesLocales(calcularHayPendientesLocales(fusionadas));
+          const fusionadas = cargarTareasLocales();
+          const colaVacia = cargarColaSync().length === 0;
+          setHayPendientesLocales(!colaVacia);
+          if (colaVacia) {
+            setApiError(null);
+            setApiErrorDetail("");
+          }
 
           if (json.marcasMetadata) {
             const normalizado = {};
@@ -1086,7 +1096,7 @@ function App() {
       try {
         const resultado = await procesarColaSync();
         reconciliarTareasLocalesConRemotas([]);
-        setHayPendientesLocales(calcularHayPendientesLocales(cargarTareasLocales()));
+        setHayPendientesLocales(cargarColaSync().length > 0);
         if (resultado.sessionMissing) return;
         if (resultado.errores && resultado.errores.length > 0) {
           const detalle = resultado.errores.map((e) => e.error || e.type).join(" · ");
@@ -1108,7 +1118,7 @@ function App() {
         registrarDiagnosticoRobin("sheets", "Error de sincronización en segundo plano", e?.message || String(e));
       } finally {
         syncMutexRef.current = false;
-        setHayPendientesLocales(calcularHayPendientesLocales(cargarTareasLocales()));
+        setHayPendientesLocales(cargarColaSync().length > 0);
       }
     }, 350);
   };
@@ -1565,7 +1575,7 @@ function App() {
               </p>
             ) : null}
             <p className={`${currentTheme.mutedText} mt-2 text-[11px]`}>
-              Cola local: {colaPendiente} · Pendientes: {calcularHayPendientesLocales(tareas) ? "sí" : "no"}
+              Cola local: {colaPendiente} · Pendientes: {colaPendiente > 0 ? "sí" : "no"}
               {ultimaSyncOk ? ` · Última sync OK: ${new Date(ultimaSyncOk).toLocaleString("es-VE")}` : ""}
             </p>
           </div>

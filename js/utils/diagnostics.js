@@ -78,13 +78,11 @@ function resumirEstadoSyncRobin(opts) {
     };
   }
 
-  if (pendientes > 0 || hayPendientesLocales) {
+  if (pendientes > 0) {
     return {
       estado: "pendiente",
       titulo: "Cambios pendientes de subir a Sheets",
-      detalle: pendientes > 0
-        ? `${pendientes} operación(es) en cola local. Se reintentará automáticamente.`
-        : "Hay cambios locales esperando sincronización.",
+      detalle: `${pendientes} operación(es) en cola local. Se reintentará automáticamente.`,
       severidad: "warn"
     };
   }

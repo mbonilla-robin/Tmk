@@ -10,14 +10,13 @@ function InputFechaLibre({ value, onChange, className, required, placeholder, on
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
   ];
-  const dayNames = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"];
+  const dayNames = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
 
   const parsed = useMemo(() => parsearFechaLibre(value), [value]);
   const hoy = useMemo(() => new Date(), []);
 
   const gridCells = useMemo(() => {
-    const firstDay = new Date(viewYear, viewMonth, 1).getDay();
-    const offset = firstDay === 0 ? 6 : firstDay - 1;
+    const offset = new Date(viewYear, viewMonth, 1).getDay();
     const daysCount = new Date(viewYear, viewMonth + 1, 0).getDate();
     const cells = [];
     const prevMonthDays = new Date(viewYear, viewMonth, 0).getDate();
@@ -214,8 +213,13 @@ function InputFechaLibre({ value, onChange, className, required, placeholder, on
       </div>
 
       <div className="grid grid-cols-7 gap-0.5 mb-1">
-        {dayNames.map((d) => (
-          <div key={d} className="text-center text-[10px] font-semibold text-zinc-400 py-1">
+        {dayNames.map((d, idx) => (
+          <div
+            key={d}
+            className={`text-center text-[10px] font-semibold py-1 ${
+              idx === 0 || idx === 6 ? "fecha-picker-weekday is-weekend" : "fecha-picker-weekday"
+            }`}
+          >
             {d}
           </div>
         ))}
@@ -225,6 +229,8 @@ function InputFechaLibre({ value, onChange, className, required, placeholder, on
         {gridCells.map((cell, idx) => {
           const esHoy = isSameDay(cell.day, cell.month, cell.year, hoy);
           const esSeleccionado = isSelected(cell.day, cell.month, cell.year);
+          const diaSemana = new Date(cell.year, cell.month, cell.day).getDay();
+          const esFinDeSemana = diaSemana === 0 || diaSemana === 6;
 
           return (
             <button
@@ -233,7 +239,7 @@ function InputFechaLibre({ value, onChange, className, required, placeholder, on
               onClick={() => selectDate(cell.day, cell.month, cell.year)}
               className={`fecha-picker-day ${
                 !cell.isCurrentMonth ? "is-other-month" : ""
-              } ${esHoy ? "is-today" : ""} ${esSeleccionado ? "is-selected" : ""}`}
+              } ${esFinDeSemana ? "is-weekend" : ""} ${esHoy ? "is-today" : ""} ${esSeleccionado ? "is-selected" : ""}`}
             >
               {cell.day}
             </button>

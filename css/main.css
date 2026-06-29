@@ -1551,6 +1551,10 @@ body {
       padding: 0.25rem 0 0.125rem;
     }
 
+    .cal-month-weekday.is-weekend {
+      color: #b4b4b8;
+    }
+
     .cal-month-day {
       display: flex;
       flex-direction: column;
@@ -1569,11 +1573,18 @@ body {
     .cal-month-day.is-other-month {
       background: var(--robin-bg);
       border-color: var(--robin-border);
-      opacity: 0.65;
     }
 
     .cal-month-day.is-other-month .cal-month-day-num {
-      color: var(--robin-text-muted);
+      color: #9ca3af;
+    }
+
+    .cal-month-day.is-other-month.is-weekend .cal-month-day-num {
+      color: #b4b4b8;
+    }
+
+    .cal-month-day.is-weekend:not(.is-other-month) .cal-month-day-num {
+      color: #a8a8ae;
     }
 
     .cal-month-day.is-today {
@@ -1824,8 +1835,20 @@ body {
     .fecha-picker-day:hover {
       background-color: #f4f4f5;
     }
+    .fecha-picker-weekday {
+      color: #a1a1aa;
+    }
+    .fecha-picker-weekday.is-weekend {
+      color: #c4c4c8;
+    }
+    .fecha-picker-day.is-weekend:not(.is-other-month):not(.is-selected) {
+      color: #a8a8ae;
+    }
     .fecha-picker-day.is-other-month {
-      color: #d4d4d8;
+      color: #9ca3af;
+    }
+    .fecha-picker-day.is-other-month.is-weekend:not(.is-selected) {
+      color: #b4b4b8;
     }
     .fecha-picker-day.is-today:not(.is-selected) {
       font-weight: 700;
@@ -4106,6 +4129,204 @@ body {
         padding: 1.5rem;
         padding-top: 1.5rem;
         padding-bottom: 1.5rem;
+      }
+    }
+
+    /* ── Barra flotante de acciones masivas (estilo Notion/Linear) ── */
+    @keyframes bulk-bar-enter {
+      from {
+        opacity: 0;
+        transform: translateY(0.75rem);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .bulk-action-bar-anchor {
+      position: fixed;
+      bottom: calc(var(--mobile-chrome-bottom, 4rem) + 0.75rem);
+      z-index: 70;
+      display: flex;
+      justify-content: center;
+      pointer-events: none;
+      box-sizing: border-box;
+    }
+
+    .bulk-action-bar {
+      position: relative;
+      pointer-events: auto;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.45rem 0.5rem 0.45rem 0.875rem;
+      background: var(--robin-card);
+      border: 1px solid var(--robin-border);
+      border-radius: 9999px;
+      box-shadow:
+        0 8px 30px rgba(0, 0, 0, 0.1),
+        0 2px 8px rgba(0, 0, 0, 0.05);
+      max-width: 100%;
+      animation: bulk-bar-enter 0.2s ease-out;
+    }
+
+    .bulk-action-count {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--robin-text);
+      white-space: nowrap;
+      padding-right: 0.25rem;
+      flex-shrink: 0;
+    }
+
+    .bulk-action-buttons {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      min-width: 0;
+    }
+
+    .bulk-action-btn-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .bulk-action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.35rem 0.7rem;
+      border-radius: 9999px;
+      border: 1px solid var(--robin-border);
+      background: var(--robin-bg);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--robin-text);
+      white-space: nowrap;
+      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+      cursor: pointer;
+    }
+
+    .bulk-action-btn i {
+      font-size: 10px;
+      color: var(--robin-text-muted);
+    }
+
+    .bulk-action-btn:hover,
+    .bulk-action-btn.is-open {
+      background: var(--robin-card);
+      border-color: var(--robin-border-muted, #d4d4d8);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    .bulk-action-menu {
+      position: absolute;
+      bottom: calc(100% + 0.5rem);
+      left: 50%;
+      transform: translateX(-50%);
+      min-width: 9.5rem;
+      background: var(--robin-card);
+      border: 1px solid var(--robin-border);
+      border-radius: 0.625rem;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      padding: 0.25rem;
+      max-height: 14rem;
+      overflow-y: auto;
+      z-index: 1;
+      animation: bulk-menu-enter 0.15s ease-out;
+    }
+
+    @keyframes bulk-menu-enter {
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(0.25rem);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+    }
+
+    .bulk-action-menu--fecha {
+      min-width: 11rem;
+      padding: 0.5rem;
+    }
+
+    .bulk-action-menu-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      padding: 0.4rem 0.625rem;
+      border-radius: 0.375rem;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--robin-text);
+      border: none;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    .bulk-action-menu-item:hover {
+      background: var(--robin-bg);
+    }
+
+    .bulk-action-date-input {
+      width: 100%;
+      font-size: 12px;
+      border: 1px solid var(--robin-border);
+      border-radius: 0.375rem;
+      padding: 0.4rem 0.5rem;
+      background: var(--robin-bg);
+      color: var(--robin-text);
+    }
+
+    .bulk-action-clear {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.75rem;
+      height: 1.75rem;
+      border-radius: 9999px;
+      border: none;
+      background: transparent;
+      color: var(--robin-text-muted);
+      font-size: 0.8rem;
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .bulk-action-clear:hover {
+      background: var(--robin-bg);
+      color: var(--robin-text);
+    }
+
+    html.robin-app[data-theme="midnight"] .bulk-action-bar {
+      box-shadow:
+        0 8px 30px rgba(0, 0, 0, 0.35),
+        0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    @media (min-width: 1024px) {
+      .bulk-action-bar-anchor {
+        bottom: 1.5rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .bulk-action-count {
+        display: none;
+      }
+
+      .bulk-action-bar {
+        gap: 0.35rem;
+        padding: 0.4rem 0.4rem 0.4rem 0.5rem;
+      }
+
+      .bulk-action-btn {
+        padding: 0.35rem 0.55rem;
+        font-size: 11px;
       }
     }
 

@@ -114,15 +114,6 @@ function LayoutMarcaHome({
   setSearchQuery,
   listaPersonas,
   layoutTablaProps,
-  tareasSeleccionadas,
-  bulkEstado,
-  setBulkEstado,
-  bulkPrioridad,
-  setBulkPrioridad,
-  bulkDeadline,
-  setBulkDeadline,
-  handleBulkUpdate,
-  limpiarSeleccionTareas,
   dashboardMobileVista,
   setDashboardMobileVista,
   kanbanOrdenPrioridadActivo,
@@ -478,32 +469,6 @@ function LayoutMarcaHome({
                     <button type="button" onClick={() => cambiarListaAgrupacion("fecha")} className={`lista-agrupacion-pill ${listaAgrupacion === "fecha" ? "is-active" : ""}`}>Fecha</button>
                   </div>
                 )}
-                {tareasSeleccionadas.size > 0 && (
-                  <div className="border border-zinc-200 rounded-md p-2.5 bg-[#FAF9F6] flex flex-col gap-2">
-                    <span className="text-ui-sm font-semibold text-zinc-700">{tareasSeleccionadas.size} seleccionado{tareasSeleccionadas.size !== 1 ? "s" : ""}</span>
-                    <div className="grid grid-cols-2 gap-2">
-                      <select value={bulkEstado} onChange={(e) => { const val = e.target.value; setBulkEstado(val); if (val) handleBulkUpdate("estado", val); }} className="text-ui-sm border border-zinc-200 rounded px-2 py-1.5 bg-white">
-                        <option value="">Estado...</option>
-                        {LISTA_ESTADOS_VALIDOS.map(opt => (<option key={opt} value={opt}>{opt}</option>))}
-                      </select>
-                      <select value={bulkPrioridad} onChange={(e) => { const val = e.target.value; setBulkPrioridad(val); if (val) handleBulkUpdate("prioridad", val); }} className="text-ui-sm border border-zinc-200 rounded px-2 py-1.5 bg-white">
-                        <option value="">Prioridad...</option>
-                        {PRIORIDADES_MAPA.map(p => (<option key={p.id} value={p.id}>{p.label}</option>))}
-                      </select>
-                      <InputFechaLibre
-                        value={bulkDeadline}
-                        onChange={setBulkDeadline}
-                        onBlurExtra={(val) => {
-                          const norm = normalizarDeadline(val);
-                          if (norm) handleBulkUpdate("deadline", norm);
-                        }}
-                        className="col-span-2 text-ui-sm border border-zinc-200 rounded px-2 py-1.5 bg-white w-full"
-                        placeholder="Fecha límite (dd/mm/aaaa)"
-                      />
-                    </div>
-                    <button type="button" onClick={limpiarSeleccionTareas} className="text-ui-sm text-zinc-500 text-left">Limpiar selección</button>
-                  </div>
-                )}
                 {vistaModo === "TABLE" ? (
                   <LayoutTablaAgrupada {...layoutTablaProps} />
                 ) : (
@@ -515,30 +480,6 @@ function LayoutMarcaHome({
 
           <div className="robin-desktop-only flex-col gap-4">
             {entregablesToolbar}
-            {tareasSeleccionadas.size > 0 && (
-              <div className="flex flex-wrap items-center gap-2 py-2 px-1 border-b border-zinc-100">
-                <span className="text-ui font-semibold text-zinc-700">{tareasSeleccionadas.size} seleccionado{tareasSeleccionadas.size !== 1 ? "s" : ""}</span>
-                <select value={bulkEstado} onChange={(e) => { const val = e.target.value; setBulkEstado(val); if (val) handleBulkUpdate("estado", val); }} className="text-ui-sm border border-zinc-200 rounded px-2 py-1 bg-white">
-                  <option value="">Cambiar estado...</option>
-                  {LISTA_ESTADOS_VALIDOS.map(opt => (<option key={opt} value={opt}>{opt}</option>))}
-                </select>
-                <select value={bulkPrioridad} onChange={(e) => { const val = e.target.value; setBulkPrioridad(val); if (val) handleBulkUpdate("prioridad", val); }} className="text-ui-sm border border-zinc-200 rounded px-2 py-1 bg-white">
-                  <option value="">Cambiar prioridad...</option>
-                  {PRIORIDADES_MAPA.map(p => (<option key={p.id} value={p.id}>{p.label}</option>))}
-                </select>
-                <InputFechaLibre
-                  value={bulkDeadline}
-                  onChange={setBulkDeadline}
-                  onBlurExtra={(val) => {
-                    const norm = normalizarDeadline(val);
-                    if (norm) handleBulkUpdate("deadline", norm);
-                  }}
-                  className="text-ui-sm border border-zinc-200 rounded px-2 py-1 bg-white"
-                  placeholder="Fecha límite"
-                />
-                <button type="button" onClick={limpiarSeleccionTareas} className="text-ui-sm text-zinc-500 hover:text-zinc-800 ml-auto">Limpiar selección</button>
-              </div>
-            )}
             {vistaModo === "TABLE" ? (
               <LayoutTablaAgrupada {...layoutTablaProps} />
             ) : (

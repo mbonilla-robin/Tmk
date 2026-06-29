@@ -69,8 +69,6 @@ function App() {
   const [taskToComplete, setTaskToComplete] = useState(null);
   const [clientesReset, setClientesReset] = useState(0);
   const [tareasSeleccionadas, setTareasSeleccionadas] = useState(() => new Set());
-  const [bulkEstado, setBulkEstado] = useState("");
-  const [bulkPrioridad, setBulkPrioridad] = useState("");
   const [bulkDeadline, setBulkDeadline] = useState("");
 
   const [nombreCompleto, setNombreCompleto] = useState(() => initialPrefs.nombreCompleto || "");
@@ -557,8 +555,6 @@ function App() {
 
   const limpiarSeleccionTareas = () => {
     setTareasSeleccionadas(new Set());
-    setBulkEstado("");
-    setBulkPrioridad("");
     setBulkDeadline("");
   };
 
@@ -1561,7 +1557,9 @@ function App() {
           </div>
         </header>
 
-        <div className={`flex-1 overflow-y-auto overflow-x-hidden w-full min-h-0 no-scrollbar ${
+        <div
+          data-robin-content-main
+          className={`flex-1 overflow-y-auto overflow-x-hidden w-full min-h-0 no-scrollbar ${
           paginaActiva === "agregar"
             ? "robin-mobile-main robin-main-agregar !px-0 lg:!px-8"
             : paginaActiva === "dashboard" && filtroMarca !== "TODAS"
@@ -1629,15 +1627,6 @@ function App() {
               setSearchQuery={setSearchQuery}
               listaPersonas={listaPersonas}
               layoutTablaProps={layoutTablaProps}
-              tareasSeleccionadas={tareasSeleccionadas}
-              bulkEstado={bulkEstado}
-              setBulkEstado={setBulkEstado}
-              bulkPrioridad={bulkPrioridad}
-              setBulkPrioridad={setBulkPrioridad}
-              bulkDeadline={bulkDeadline}
-              setBulkDeadline={setBulkDeadline}
-              handleBulkUpdate={handleBulkUpdate}
-              limpiarSeleccionTareas={limpiarSeleccionTareas}
               dashboardMobileVista={dashboardMobileVista}
               setDashboardMobileVista={setDashboardMobileVista}
               kanbanOrdenPrioridadActivo={kanbanOrdenPrioridadActivo}
@@ -1762,33 +1751,6 @@ function App() {
                       </div>
                     )}
 
-                    {tareasSeleccionadas.size > 0 && (
-                      <div className="border border-zinc-200 rounded-md p-2.5 bg-[#FAF9F6] flex flex-col gap-2">
-                        <span className="text-ui-sm font-semibold text-zinc-700">{tareasSeleccionadas.size} seleccionado{tareasSeleccionadas.size !== 1 ? "s" : ""}</span>
-                        <div className="grid grid-cols-2 gap-2">
-                          <select value={bulkEstado} onChange={(e) => { const val = e.target.value; setBulkEstado(val); if (val) handleBulkUpdate("estado", val); }} className="text-ui-sm border border-zinc-200 rounded px-2 py-1.5 bg-white">
-                            <option value="">Estado...</option>
-                            {LISTA_ESTADOS_VALIDOS.map(opt => (<option key={opt} value={opt}>{opt}</option>))}
-                          </select>
-                          <select value={bulkPrioridad} onChange={(e) => { const val = e.target.value; setBulkPrioridad(val); if (val) handleBulkUpdate("prioridad", val); }} className="text-ui-sm border border-zinc-200 rounded px-2 py-1.5 bg-white">
-                            <option value="">Prioridad...</option>
-                            {PRIORIDADES_MAPA.map(p => (<option key={p.id} value={p.id}>{p.label}</option>))}
-                          </select>
-                          <InputFechaLibre
-                            value={bulkDeadline}
-                            onChange={setBulkDeadline}
-                            onBlurExtra={(val) => {
-                              const norm = normalizarDeadline(val);
-                              if (norm) handleBulkUpdate("deadline", norm);
-                            }}
-                            className="col-span-2 text-ui-sm border border-zinc-200 rounded px-2 py-1.5 bg-white w-full"
-                            placeholder="Fecha límite (dd/mm/aaaa)"
-                          />
-                        </div>
-                        <button type="button" onClick={limpiarSeleccionTareas} className="text-ui-sm text-zinc-500 text-left">Limpiar selección</button>
-                      </div>
-                    )}
-
                     {vistaModo === "TABLE" ? (
                       <LayoutTablaAgrupada {...layoutTablaProps} />
                     ) : (
@@ -1886,31 +1848,6 @@ function App() {
                   >
                     Fecha
                   </button>
-                </div>
-              )}
-
-              {tareasSeleccionadas.size > 0 && (
-                <div className="flex flex-wrap items-center gap-2 py-2 px-1 border-b border-zinc-100">
-                  <span className="text-ui font-semibold text-zinc-700">{tareasSeleccionadas.size} seleccionado{tareasSeleccionadas.size !== 1 ? "s" : ""}</span>
-                  <select value={bulkEstado} onChange={(e) => { const val = e.target.value; setBulkEstado(val); if (val) handleBulkUpdate("estado", val); }} className="text-ui-sm border border-zinc-200 rounded px-2 py-1 bg-white">
-                    <option value="">Cambiar estado...</option>
-                    {LISTA_ESTADOS_VALIDOS.map(opt => (<option key={opt} value={opt}>{opt}</option>))}
-                  </select>
-                  <select value={bulkPrioridad} onChange={(e) => { const val = e.target.value; setBulkPrioridad(val); if (val) handleBulkUpdate("prioridad", val); }} className="text-ui-sm border border-zinc-200 rounded px-2 py-1 bg-white">
-                    <option value="">Cambiar prioridad...</option>
-                    {PRIORIDADES_MAPA.map(p => (<option key={p.id} value={p.id}>{p.label}</option>))}
-                  </select>
-                  <InputFechaLibre
-                    value={bulkDeadline}
-                    onChange={setBulkDeadline}
-                    onBlurExtra={(val) => {
-                      const norm = normalizarDeadline(val);
-                      if (norm) handleBulkUpdate("deadline", norm);
-                    }}
-                    className="text-ui-sm border border-zinc-200 rounded px-2 py-1 bg-white"
-                    placeholder="Fecha límite"
-                  />
-                  <button type="button" onClick={limpiarSeleccionTareas} className="text-ui-sm text-zinc-500 hover:text-zinc-800 ml-auto">Limpiar selección</button>
                 </div>
               )}
 
@@ -2284,6 +2221,16 @@ function App() {
             marcasDisponibles={marcasDisponibles}
           />
         </ModalPortal>
+      )}
+
+      {!isConfigOnlyAdmin && paginaActiva === "dashboard" && tareasSeleccionadas.size > 0 && (
+        <BarraAccionesMasivas
+          count={tareasSeleccionadas.size}
+          bulkDeadline={bulkDeadline}
+          setBulkDeadline={setBulkDeadline}
+          onBulkUpdate={handleBulkUpdate}
+          onClear={limpiarSeleccionTareas}
+        />
       )}
 
       {!isConfigOnlyAdmin && taskToComplete && (

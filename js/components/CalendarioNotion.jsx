@@ -46,7 +46,7 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
   ];
 
-  const dayNames = ["Lun", "Mar", "Mie", "Jue", "Vie", "Sab", "Dom"];
+  const dayNames = ["Dom", "Lun", "Mar", "Mie", "Jue", "Vie", "Sab"];
 
   const cambiarVista = (nueva) => {
     const vistaValida = normalizarVistaCalendario(nueva);
@@ -139,8 +139,7 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
     : `${monthNames[currentMonth].slice(0, 3)} ${currentYear}`;
 
   const gridCells = useMemo(() => {
-    const firstDay = new Date(currentYear, currentMonth, 1).getDay();
-    const offset = firstDay === 0 ? 6 : firstDay - 1;
+    const offset = new Date(currentYear, currentMonth, 1).getDay();
     const daysCount = new Date(currentYear, currentMonth + 1, 0).getDate();
 
     const cells = [];
@@ -465,7 +464,7 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
     );
   };
 
-  const indiceNombreDia = (date) => (date.getDay() + 6) % 7;
+  const indiceNombreDia = (date) => date.getDay();
 
   const renderModalActivityRow = (act, idx) => (
     <button
@@ -610,8 +609,11 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
       {vista === "mes" && (
         <div className="p-2 md:p-3">
           <div className="cal-month-grid">
-            {dayNames.map((d) => (
-              <div key={d} className="cal-month-weekday">
+            {dayNames.map((d, idx) => (
+              <div
+                key={d}
+                className={`cal-month-weekday ${idx === 0 || idx === 6 ? "is-weekend" : ""}`}
+              >
                 {d}
               </div>
             ))}
@@ -624,13 +626,15 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
               const marcasVisibles = marcasDia.slice(0, 3);
               const marcasOcultas = marcasDia.length - marcasVisibles.length;
               const esHoy = isSameDay(cellDate, hoy);
+              const diaSemana = cellDate.getDay();
+              const esFinDeSemana = diaSemana === 0 || diaSemana === 6;
 
               return (
                 <button
                   key={idx}
                   type="button"
                   onClick={() => openDayDetail(cellDate, dayTasks, dayActivities)}
-                  className={`cal-month-day ${cell.isCurrentMonth ? "is-current-month" : "is-other-month"} ${esHoy ? "is-today" : ""} ${dayTasks.length > 0 ? "has-tasks" : ""} ${dayActivities.length > 0 ? "has-activity" : ""}`}
+                  className={`cal-month-day ${cell.isCurrentMonth ? "is-current-month" : "is-other-month"} ${esFinDeSemana ? "is-weekend" : ""} ${esHoy ? "is-today" : ""} ${dayTasks.length > 0 ? "has-tasks" : ""} ${dayActivities.length > 0 ? "has-activity" : ""}`}
                   aria-label={`${cell.day} ${monthNames[cell.month]} ${cell.year}${dayTasks.length ? `, ${dayTasks.length} entregable${dayTasks.length !== 1 ? "s" : ""}` : ""}${dayActivities.length ? `, ${dayActivities.length} actividad${dayActivities.length !== 1 ? "es" : ""}` : ", sin entregables ni actividad"}`}
                 >
                   <span className={`cal-month-day-num ${esHoy ? "is-today-num" : ""}`}>

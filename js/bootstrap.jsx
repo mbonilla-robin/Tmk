@@ -3,6 +3,10 @@
   const container = document.getElementById("root");
   if (!container) return;
 
+  const MIN_SPLASH_MS = 2000;
+  const SPLASH_EXIT_MS = 280;
+  const bootStartedAt = Number(window.__robinBootStartedAt) || Date.now();
+
   const showBootError = (message) => {
     container.innerHTML = `
       <div style="font-family:Inter,sans-serif;padding:24px;max-width:420px;margin:40px auto;color:#37352F;">
@@ -71,12 +75,29 @@
         showBootError("No cargó el módulo de tareas. Borra la caché del sitio (Application → Clear site data) y recarga.");
         return;
       }
-      const root = ReactDOM.createRoot(container);
-      root.render(
-        <RobinErrorBoundary>
-          <App />
-        </RobinErrorBoundary>
-      );
+
+      const renderApp = () => {
+        const root = ReactDOM.createRoot(container);
+        root.render(
+          <RobinErrorBoundary>
+            <App />
+          </RobinErrorBoundary>
+        );
+      };
+
+      const exitSplashThenRender = () => {
+        const splash = document.getElementById("robin-boot-splash");
+        if (!splash) {
+          renderApp();
+          return;
+        }
+        splash.classList.add("is-leaving");
+        window.setTimeout(renderApp, SPLASH_EXIT_MS);
+      };
+
+      const elapsed = Date.now() - bootStartedAt;
+      const remaining = Math.max(0, MIN_SPLASH_MS - elapsed);
+      window.setTimeout(exitSplashThenRender, remaining);
     } catch (err) {
       console.error("ROBIN boot error", err);
       showBootError(String(err && err.message ? err.message : err));

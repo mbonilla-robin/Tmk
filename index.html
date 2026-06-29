@@ -66,38 +66,31 @@
     })();
   </script>
 
-  <link rel="stylesheet" href="css/main.css?v=141">
+  <link rel="stylesheet" href="css/main.css?v=148">
 </head>
 <body class="overflow-hidden">
 
   <div id="root" class="h-screen w-screen overflow-hidden">
     <div id="robin-boot-splash" class="robin-boot-splash" data-robin-boot aria-live="polite">
-      <div class="robin-boot-splash__bg" aria-hidden="true">
-        <div class="robin-boot-splash__orb robin-boot-splash__orb--1"></div>
-        <div class="robin-boot-splash__orb robin-boot-splash__orb--2"></div>
-        <div class="robin-boot-splash__orb robin-boot-splash__orb--3"></div>
-      </div>
+      <img
+        src="logo robin negro.png"
+        alt="ROBIN"
+        class="robin-boot-splash__logo"
+        width="96"
+        height="32"
+        decoding="async"
+      />
       <div class="robin-boot-splash__content">
-        <div class="robin-boot-splash__logo-wrap">
-          <img
-            src="logo robin negro.png"
-            alt="ROBIN"
-            class="robin-boot-splash__logo"
-            width="240"
-            height="80"
-            decoding="async"
-          />
-        </div>
         <p id="robin-boot-greeting" class="robin-boot-splash__greeting">Hola</p>
-        <p class="robin-boot-splash__tagline">Trade &amp; Shopper Marketing</p>
-        <div class="robin-boot-splash__loader" aria-hidden="true">
-          <span></span><span></span><span></span>
+        <div class="robin-boot-splash__progress" aria-hidden="true">
+          <div class="robin-boot-splash__progress-bar"></div>
         </div>
       </div>
     </div>
   </div>
 
   <script>
+    window.__robinBootStartedAt = Date.now();
     (function robinBootPersonalize() {
       function safeGet(key) {
         try { return localStorage.getItem(key); } catch (e) { return null; }
@@ -229,7 +222,7 @@
   <script src="js/utils/equipos.js?v=107"></script>
   <script src="js/utils/comentarios.js?v=135"></script>
   <script src="js/utils/perfil.js?v=107"></script>
-  <script src="js/utils/induccion.js?v=127"></script>
+  <script src="js/utils/induccion.js?v=128"></script>
   <script src="js/constants/index.js?v=109"></script>
   <script src="js/utils/marcas.js?v=134"></script>
   <script src="js/pwa.js?v=107"></script>
@@ -263,11 +256,12 @@
   <script type="text/babel" data-presets="robin-react" src="js/components/CampanaNotificaciones.jsx?v=135"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/WidgetsAdminPanel.jsx?v=107"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/MobileSubpageBar.jsx?v=107"></script>
-  <script type="text/babel" data-presets="robin-react" src="js/components/MobileNavBar.jsx?v=110"></script>
+  <script type="text/babel" data-presets="robin-react" src="js/components/MobileNavBar.jsx?v=111"></script>
+  <script type="text/babel" data-presets="robin-react" src="js/components/PullToRefresh.jsx?v=1"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/InduccionBienvenida.jsx?v=123"></script>
-  <script type="text/babel" data-presets="robin-react" src="js/components/InduccionTour.jsx?v=125"></script>
-  <script type="text/babel" data-presets="robin-react" src="js/App.jsx?v=138"></script>
-  <script type="text/babel" data-presets="robin-react" src="js/bootstrap.jsx?v=111"></script>
+  <script type="text/babel" data-presets="robin-react" src="js/components/InduccionTour.jsx?v=126"></script>
+  <script type="text/babel" data-presets="robin-react" src="js/App.jsx?v=139"></script>
+  <script type="text/babel" data-presets="robin-react" src="js/bootstrap.jsx?v=113"></script>
 
 </body>
 </html>

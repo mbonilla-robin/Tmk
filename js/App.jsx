@@ -2397,7 +2397,10 @@ function App() {
           </div>
         </header>
 
-        <div
+        <PullToRefresh
+          onRefresh={() => fetchData(false)}
+          loading={loading}
+          disabled={syncDetalleVisible || isEditing}
           data-robin-content-main
           className={`relative flex-1 overflow-y-auto overflow-x-hidden w-full min-h-0 no-scrollbar ${
           paginaActiva === "agregar"
@@ -2767,7 +2770,7 @@ function App() {
             </>
           )}
 
-        </div>
+        </PullToRefresh>
       </main>
 
       {/* BARRA ACCESO RÁPIDO — entregables de hoy (solo Home, desktop md+) */}

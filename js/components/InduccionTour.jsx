@@ -104,7 +104,7 @@ function InduccionTour({
     const vh = viewport.height;
     const margin = mobile ? 10 : 10;
     const gap = mobile ? 8 : 10;
-    const headerReserve = mobile ? 52 : 0;
+    const headerReserve = mobile ? 64 : 0;
     const maxCutoutW = viewport.width - margin * 2;
     const maxCutoutH = Math.floor(vh * (mobile ? 0.52 : 0.62));
 

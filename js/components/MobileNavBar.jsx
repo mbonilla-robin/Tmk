@@ -82,7 +82,7 @@ function MobileNavBar({
     <>
       <header className="mobile-top-bar md:hidden">
         <div className="mobile-top-brand">
-          <RobinLogo className="h-8 w-auto max-w-[110px]" theme={theme} />
+          <RobinLogo className="mobile-top-brand__logo" theme={theme} />
         </div>
 
         <div className="mobile-top-actions">

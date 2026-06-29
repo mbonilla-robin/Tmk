@@ -1,6 +1,6 @@
 // Rollout actual de la inducción. Súbelo solo si quieres mostrarla otra vez a todo el equipo.
 // Usuarios con induccionVersion >= este número no la ven automáticamente (solo usuarios nuevos o quien reinicie desde Ajustes).
-const INDUCCION_VERSION = 3;
+const INDUCCION_VERSION = 4;
 const INDUCCION_HABILITADA = true;
 
 function usuarioDebeVerInduccion(prefs) {

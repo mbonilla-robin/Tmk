@@ -1,9 +1,9 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import webpush from "npm:web-push@3";
 
-const ROBIN_VAPID_PUBLIC = "BCXRrxFM-MiBBd4dpGxWTZwBpumTiqZfGk732b9YEEOXes0qZtgEFD550dVPtq7DVZh-XoRPTjxInWcqTsfPHqU";
-const ROBIN_VAPID_PRIVATE = "vr-cBOrtjdsS_cU3ptqlWbjzsPsz0Wmu-hK4-UA39UA";
-const ROBIN_VAPID_KEY_ID = "v3";
+const ROBIN_VAPID_PUBLIC = "BOvNxEraiCoQTA_y-h0_GEkPPshrhQIPcnlAqvT-5myMjeThoZKtLZQ4V4m9KIdEN1zz8Oz8hj-Iby4KxXRQuOo";
+const ROBIN_VAPID_PRIVATE = "8VBlyDTeoUIK-2cX6tW1d2_5MnEow1LEvtSOvXRi6uY";
+const ROBIN_VAPID_KEY_ID = "v4";
 const ROBIN_VAPID_SUBJECT = "mailto:robin@trade.local";
 
 const DISPLAY_NAMES: Record<string, string> = {
@@ -40,22 +40,12 @@ type PushSendError = {
 };
 
 function resolveVapidKeys() {
-  const envPub = (Deno.env.get("VAPID_PUBLIC_KEY") || "").trim();
-  const envPriv = (Deno.env.get("VAPID_PRIVATE_KEY") || "").trim();
-  const subject = (Deno.env.get("VAPID_SUBJECT") || ROBIN_VAPID_SUBJECT).trim();
-
-  if (envPub === ROBIN_VAPID_PUBLIC && envPriv) {
-    return { publicKey: envPub, privateKey: envPriv, subject };
-  }
-
-  if (envPub && envPub !== ROBIN_VAPID_PUBLIC) {
-    console.warn("ROBIN push: ignoring stale VAPID secrets, using app defaults");
-  }
-
+  // Nunca usar secrets de Supabase para VAPID: si el public en secret coincide pero
+  // el private es viejo, Apple responde 403 y el push nunca llega al iPhone.
   return {
     publicKey: ROBIN_VAPID_PUBLIC,
     privateKey: ROBIN_VAPID_PRIVATE,
-    subject
+    subject: ROBIN_VAPID_SUBJECT
   };
 }
 
@@ -247,6 +237,7 @@ Deno.serve(async (req) => {
     failed: errors.length,
     stale: staleIds.length,
     errors,
+    vapid_key_id: ROBIN_VAPID_KEY_ID,
     reason: sent > 0 ? "delivered" : (errors.length ? "send_failed" : "no_subscriptions")
   }), {
     status: 200,

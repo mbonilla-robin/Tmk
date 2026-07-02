@@ -191,11 +191,11 @@ body {
     }
 
     .pull-to-refresh-bar {
-      position: fixed;
-      top: var(--mobile-chrome-top, 0px);
+      position: absolute;
+      top: 0;
       left: 0;
       right: 0;
-      z-index: 59;
+      z-index: 12;
       height: 5px;
       pointer-events: none;
       opacity: 0;
@@ -247,24 +247,6 @@ body {
     @keyframes pull-to-refresh-shimmer {
       0% { background-position: 100% 0; }
       100% { background-position: -100% 0; }
-    }
-
-    @media (min-width: 768px) {
-      .pull-to-refresh-bar {
-        left: 15rem;
-      }
-    }
-
-    @media (min-width: 768px) and (max-width: 1023px) {
-      .pull-to-refresh-bar {
-        top: var(--safe-top, 0px);
-      }
-    }
-
-    @media (min-width: 1024px) {
-      .pull-to-refresh-bar {
-        top: 4rem;
-      }
     }
 
     /* Sidebar desktop — Notion-style */

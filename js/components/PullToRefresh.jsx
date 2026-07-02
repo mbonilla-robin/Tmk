@@ -117,7 +117,8 @@ function PullToRefresh({
 
       if (resisted >= PULL_THRESHOLD_PX) {
         if (!thresholdVibratedRef.current && typeof robinHaptic === "function") {
-          robinHaptic("threshold");
+          const touch = event.touches[0];
+          robinHaptic("threshold", { x: touch.clientX, y: touch.clientY });
           thresholdVibratedRef.current = true;
         }
       } else {
@@ -125,10 +126,12 @@ function PullToRefresh({
       }
     };
 
-    const finishPull = () => {
+    const finishPull = (event) => {
       if (!activePullRef.current) return;
       activePullRef.current = false;
       setIsDragging(false);
+
+      const touch = event?.changedTouches?.[0];
 
       if (
         pullYRef.current >= PULL_THRESHOLD_PX &&
@@ -139,7 +142,9 @@ function PullToRefresh({
         setAwaitingRefresh(true);
         setIsReleasing(true);
         setPull(PULL_THRESHOLD_PX);
-        if (typeof robinHaptic === "function") robinHaptic("refresh");
+        if (typeof robinHaptic === "function") {
+          robinHaptic("refresh", touch ? { x: touch.clientX, y: touch.clientY } : undefined);
+        }
         if (typeof onRefreshRef.current === "function") {
           onRefreshRef.current();
         }

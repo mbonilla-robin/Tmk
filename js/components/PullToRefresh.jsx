@@ -3,6 +3,10 @@ const PULL_MAX_PX = 220;
 const PULL_RESISTANCE = 0.52;
 const PULL_VISUAL_MAX_PX = 48;
 
+function pullRefreshHabilitado() {
+  return typeof esPlataformaPullRefresh === "function" && esPlataformaPullRefresh();
+}
+
 function PullToRefresh({
   onRefresh,
   loading = false,
@@ -15,6 +19,7 @@ function PullToRefresh({
   const touchStartYRef = useRef(0);
   const activePullRef = useRef(false);
   const pullYRef = useRef(0);
+  const thresholdVibratedRef = useRef(false);
   const disabledRef = useRef(disabled);
   const loadingRef = useRef(loading);
   const awaitingRefreshRef = useRef(false);
@@ -23,9 +28,7 @@ function PullToRefresh({
   const [isReleasing, setIsReleasing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [awaitingRefresh, setAwaitingRefresh] = useState(false);
-  const [isMobile, setIsMobile] = useState(
-    () => typeof esPlataformaMobile === "function" && esPlataformaMobile()
-  );
+  const [pullRefreshActivo, setPullRefreshActivo] = useState(pullRefreshHabilitado);
 
   disabledRef.current = disabled;
   loadingRef.current = loading;
@@ -34,7 +37,7 @@ function PullToRefresh({
 
   const thresholdMet = pullY >= PULL_THRESHOLD_PX || awaitingRefresh;
   const progress = awaitingRefresh ? 1 : Math.min(1, pullY / PULL_THRESHOLD_PX);
-  const showBar = isMobile && (pullY > 0 || awaitingRefresh);
+  const showBar = pullRefreshActivo && (pullY > 0 || awaitingRefresh);
   const visualOffset = awaitingRefresh
     ? PULL_VISUAL_MAX_PX * 0.7
     : Math.min(pullY, PULL_VISUAL_MAX_PX);
@@ -53,22 +56,29 @@ function PullToRefresh({
   };
 
   useEffect(() => {
-    const mq = window.matchMedia("(max-width: 767px)");
-    const sync = () => setIsMobile(mq.matches);
+    const sync = () => setPullRefreshActivo(pullRefreshHabilitado());
     sync();
+    const mq = window.matchMedia("(max-width: 1023px)");
     mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
+    window.addEventListener("resize", sync);
+    window.addEventListener("orientationchange", sync);
+    return () => {
+      mq.removeEventListener("change", sync);
+      window.removeEventListener("resize", sync);
+      window.removeEventListener("orientationchange", sync);
+    };
   }, []);
 
   useEffect(() => {
     if (!loading && awaitingRefresh) {
+      if (typeof robinHaptic === "function") robinHaptic("success");
       setAwaitingRefresh(false);
       resetPull();
     }
   }, [loading, awaitingRefresh]);
 
   useEffect(() => {
-    if (!isMobile) return undefined;
+    if (!pullRefreshActivo) return undefined;
     const el = scrollRef.current;
     if (!el) return undefined;
 
@@ -78,6 +88,7 @@ function PullToRefresh({
 
       touchStartYRef.current = event.touches[0].clientY;
       activePullRef.current = true;
+      thresholdVibratedRef.current = false;
       setIsDragging(true);
       setIsReleasing(false);
     };
@@ -87,6 +98,7 @@ function PullToRefresh({
 
       if (el.scrollTop > 1) {
         activePullRef.current = false;
+        thresholdVibratedRef.current = false;
         setIsDragging(false);
         setPull(0);
         return;
@@ -94,6 +106,7 @@ function PullToRefresh({
 
       const delta = event.touches[0].clientY - touchStartYRef.current;
       if (delta <= 0) {
+        thresholdVibratedRef.current = false;
         setPull(0);
         return;
       }
@@ -101,6 +114,15 @@ function PullToRefresh({
       event.preventDefault();
       const resisted = Math.min(PULL_MAX_PX, delta * PULL_RESISTANCE);
       setPull(resisted);
+
+      if (resisted >= PULL_THRESHOLD_PX) {
+        if (!thresholdVibratedRef.current && typeof robinHaptic === "function") {
+          robinHaptic("threshold");
+          thresholdVibratedRef.current = true;
+        }
+      } else {
+        thresholdVibratedRef.current = false;
+      }
     };
 
     const finishPull = () => {
@@ -117,6 +139,7 @@ function PullToRefresh({
         setAwaitingRefresh(true);
         setIsReleasing(true);
         setPull(PULL_THRESHOLD_PX);
+        if (typeof robinHaptic === "function") robinHaptic("refresh");
         if (typeof onRefreshRef.current === "function") {
           onRefreshRef.current();
         }
@@ -137,16 +160,16 @@ function PullToRefresh({
       el.removeEventListener("touchend", finishPull);
       el.removeEventListener("touchcancel", finishPull);
     };
-  }, [isMobile]);
+  }, [pullRefreshActivo]);
 
-  const contentStyle = isMobile && (visualOffset > 0 || isReleasing)
+  const contentStyle = pullRefreshActivo && (visualOffset > 0 || isReleasing)
     ? {
         transform: `translateY(${visualOffset}px)`,
         transition: isDragging ? "none" : "transform 0.24s ease"
       }
     : undefined;
 
-  if (!isMobile) {
+  if (!pullRefreshActivo) {
     return (
       <div ref={scrollRef} className={className} {...rest}>
         {children}

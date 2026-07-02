@@ -32,6 +32,22 @@ function esPlataformaMobile() {
   return typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
 }
 
+function esDispositivoTactil() {
+  if (typeof window === "undefined") return false;
+  return (
+    navigator.maxTouchPoints > 0 ||
+    window.matchMedia("(pointer: coarse)").matches ||
+    "ontouchstart" in window
+  );
+}
+
+/** Móvil, tablet, iPad y pantallas táctiles con layout desktop. */
+function esPlataformaPullRefresh() {
+  if (typeof window === "undefined") return false;
+  if (window.matchMedia("(max-width: 1023px)").matches) return true;
+  return esDispositivoTactil();
+}
+
 function construirPasosInduccion({ esDisenador = false } = {}) {
   const pasos = [
     {

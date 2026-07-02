@@ -78,6 +78,11 @@ function MobileNavBar({
     config: "nav-config"
   };
 
+  const tapConHaptic = (fn) => () => {
+    if (typeof robinHaptic === "function") robinHaptic("selection");
+    fn();
+  };
+
   return (
     <>
       <header className="mobile-top-bar md:hidden">
@@ -89,7 +94,7 @@ function MobileNavBar({
           {notificacionesSlot}
           <button
             type="button"
-            onClick={onSyncClick}
+            onClick={tapConHaptic(onSyncClick)}
             data-induccion="sync"
             className={`mobile-top-btn ${
               syncDetalleVisible
@@ -116,7 +121,7 @@ function MobileNavBar({
           </button>
           <button
             type="button"
-            onClick={onRefresh}
+            onClick={tapConHaptic(onRefresh)}
             disabled={loading}
             className="mobile-top-btn"
             title="Actualizar"
@@ -135,7 +140,7 @@ function MobileNavBar({
             <button
               key={item.key}
               type="button"
-              onClick={item.onClick}
+              onClick={tapConHaptic(item.onClick)}
               data-induccion={induccionTargetByKey[item.key] || undefined}
               className={`mobile-nav-item ${item.active ? "is-active" : ""} ${item.highlight ? "is-highlight" : ""}`}
             >

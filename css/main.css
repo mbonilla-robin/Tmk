@@ -186,25 +186,27 @@ body {
     }
 
     .pull-to-refresh-scroll {
+      position: relative;
+      z-index: 1;
       flex: 1;
       min-height: 0;
-    }
-
-    .pull-to-refresh-gap {
-      flex-shrink: 0;
-      width: 100%;
-      overflow: hidden;
-      display: flex;
-      align-items: flex-end;
-      height: 0;
+      will-change: transform;
     }
 
     .pull-to-refresh-bar {
-      position: relative;
-      flex-shrink: 0;
-      width: 100%;
+      position: absolute;
+      left: 0;
+      right: 0;
+      z-index: 12;
       height: 5px;
+      pointer-events: none;
+      opacity: 0;
       overflow: hidden;
+      transition: top 0.05s linear, opacity 0.1s ease;
+    }
+
+    .pull-to-refresh-bar.is-visible {
+      opacity: 1;
     }
 
     .pull-to-refresh-bar__track {
@@ -224,7 +226,6 @@ body {
       bottom: 0;
       width: 0;
       background: #71717a;
-      transition: width 0.05s linear;
     }
 
     .pull-to-refresh-bar.is-ready .pull-to-refresh-bar__fill {
@@ -248,12 +249,6 @@ body {
     @keyframes pull-to-refresh-shimmer {
       0% { background-position: 100% 0; }
       100% { background-position: -100% 0; }
-    }
-
-    @media (max-width: 1023px) {
-      .robin-mobile-main:not(.marca-home-main) > .pull-to-refresh-gap.is-active {
-        margin-top: calc(-1 * (var(--mobile-chrome-top, 4rem) + 0.75rem));
-      }
     }
 
     /* Sidebar desktop — Notion-style */

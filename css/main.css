@@ -3497,123 +3497,53 @@ body {
         will-change: transform;
       }
 
-      .pull-to-refresh-indicator {
+      .pull-to-refresh-bar {
         position: absolute;
         top: 0;
         left: 0;
         right: 0;
-        z-index: 8;
-        display: flex;
-        align-items: flex-end;
-        justify-content: center;
+        z-index: 12;
+        height: 3px;
         pointer-events: none;
         opacity: 0;
+        background: var(--robin-border-muted);
         overflow: hidden;
-        transition: opacity 0.15s ease;
+        transition: opacity 0.12s ease;
       }
 
-      .pull-to-refresh-indicator.is-visible {
+      .pull-to-refresh-bar.is-visible {
         opacity: 1;
       }
 
-      .pull-to-refresh-indicator__inner {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.35rem;
-        width: min(100%, 16rem);
-        padding: 0 1rem 0.5rem;
-      }
-
-      .pull-to-refresh-ring {
-        width: 2rem;
-        height: 2rem;
-        border-radius: 999px;
-        border: 2px solid var(--robin-border);
-        background: var(--robin-card);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 1px 3px var(--robin-shadow);
-        position: relative;
-      }
-
-      .pull-to-refresh-ring::before {
-        content: "";
-        position: absolute;
-        inset: -2px;
-        border-radius: inherit;
-        background: conic-gradient(
-          #10b981 calc(var(--pull-progress, 0) * 360deg),
-          var(--robin-border-muted) 0
-        );
-        mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
-        -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
-      }
-
-      .pull-to-refresh-indicator.is-ready .pull-to-refresh-ring {
-        border-color: #86efac;
-      }
-
-      .pull-to-refresh-ring__icon {
-        position: relative;
-        z-index: 1;
-        font-size: 0.75rem;
-        color: var(--robin-text-muted);
-        transition: transform 0.12s ease, color 0.12s ease;
-      }
-
-      .pull-to-refresh-indicator.is-ready .pull-to-refresh-ring__icon {
-        color: #059669;
-      }
-
-      .pull-to-refresh-meta {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.1rem;
-        text-align: center;
-      }
-
-      .pull-to-refresh-px {
-        font-size: 0.6875rem;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-        color: var(--robin-text);
-        font-variant-numeric: tabular-nums;
-      }
-
-      .pull-to-refresh-px__sep {
-        margin: 0 0.15rem;
-        color: var(--robin-text-muted);
-        font-weight: 600;
-      }
-
-      .pull-to-refresh-hint {
-        font-size: 0.625rem;
-        font-weight: 600;
-        color: var(--robin-text-muted);
-        letter-spacing: 0.01em;
-      }
-
-      .pull-to-refresh-indicator.is-ready .pull-to-refresh-hint {
-        color: #059669;
-      }
-
-      .pull-to-refresh-track {
-        width: 100%;
-        height: 3px;
-        border-radius: 999px;
-        background: var(--robin-border-muted);
-        overflow: hidden;
-      }
-
-      .pull-to-refresh-track__fill {
+      .pull-to-refresh-bar__fill {
         display: block;
         height: 100%;
-        border-radius: inherit;
+        width: 0;
+        background: #a1a1aa;
+        transition: width 0.06s linear;
+      }
+
+      .pull-to-refresh-bar.is-ready .pull-to-refresh-bar__fill {
         background: linear-gradient(90deg, #34d399, #10b981);
-        transition: width 0.08s linear;
+      }
+
+      .pull-to-refresh-bar.is-loading .pull-to-refresh-bar__fill {
+        width: 100% !important;
+        background: linear-gradient(
+          90deg,
+          #34d399 0%,
+          #10b981 40%,
+          #6ee7b7 50%,
+          #10b981 60%,
+          #34d399 100%
+        );
+        background-size: 200% 100%;
+        animation: pull-to-refresh-shimmer 0.9s linear infinite;
+      }
+
+      @keyframes pull-to-refresh-shimmer {
+        0% { background-position: 100% 0; }
+        100% { background-position: -100% 0; }
       }
 
       /* Toasts, prompts y barras flotantes: siempre por encima del chrome inferior */

@@ -1,6 +1,7 @@
 const PULL_THRESHOLD_PX = 96;
 const PULL_MAX_PX = 132;
 const PULL_RESISTANCE = 0.52;
+const PULL_VISUAL_MAX_PX = 40;
 
 function PullToRefresh({
   onRefresh,
@@ -22,7 +23,10 @@ function PullToRefresh({
   const isMobile = typeof esPlataformaMobile === "function" && esPlataformaMobile();
   const thresholdMet = pullY >= PULL_THRESHOLD_PX || awaitingRefresh;
   const progress = awaitingRefresh ? 1 : Math.min(1, pullY / PULL_THRESHOLD_PX);
-  const showIndicator = isMobile && (pullY > 0 || awaitingRefresh);
+  const showBar = isMobile && (pullY > 0 || awaitingRefresh);
+  const visualOffset = awaitingRefresh
+    ? PULL_VISUAL_MAX_PX * 0.65
+    : Math.min(pullY, PULL_VISUAL_MAX_PX);
 
   const setPull = (value) => {
     pullYRef.current = value;
@@ -85,7 +89,7 @@ function PullToRefresh({
     if (pullYRef.current >= PULL_THRESHOLD_PX && !disabled && !loading && !awaitingRefresh) {
       setAwaitingRefresh(true);
       setIsReleasing(true);
-      setPull(PULL_THRESHOLD_PX * 0.55);
+      setPull(PULL_THRESHOLD_PX);
       if (typeof onRefresh === "function") {
         onRefresh();
       }
@@ -95,9 +99,9 @@ function PullToRefresh({
     resetPull();
   };
 
-  const contentStyle = isMobile && (pullY > 0 || isReleasing)
+  const contentStyle = isMobile && (visualOffset > 0 || isReleasing)
     ? {
-        transform: `translateY(${pullY}px)`,
+        transform: `translateY(${visualOffset}px)`,
         transition: isDragging ? "none" : "transform 0.24s ease"
       }
     : undefined;
@@ -113,39 +117,15 @@ function PullToRefresh({
   return (
     <div className="pull-to-refresh-host">
       <div
-        className={`pull-to-refresh-indicator ${showIndicator ? "is-visible" : ""} ${thresholdMet || awaitingRefresh ? "is-ready" : ""}`}
-        style={{ height: Math.max(pullY, awaitingRefresh ? PULL_THRESHOLD_PX * 0.55 : 0) }}
+        className={`pull-to-refresh-bar ${showBar ? "is-visible" : ""} ${thresholdMet ? "is-ready" : ""} ${loading && awaitingRefresh ? "is-loading" : ""}`}
         aria-live="polite"
-        aria-hidden={!showIndicator}
+        aria-hidden={!showBar}
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(progress * 100)}
       >
-        <div className="pull-to-refresh-indicator__inner">
-          <div
-            className="pull-to-refresh-ring"
-            style={{ "--pull-progress": progress }}
-          >
-            <i
-              className={`fa-solid ${
-                loading && awaitingRefresh ? "fa-arrows-rotate fa-spin" : "fa-arrow-down"
-              } pull-to-refresh-ring__icon`}
-              style={{ transform: `rotate(${Math.min(180, progress * 180)}deg)` }}
-            />
-          </div>
-          <div className="pull-to-refresh-meta">
-            <span className="pull-to-refresh-px">
-              {Math.round(awaitingRefresh ? PULL_THRESHOLD_PX : pullY)}<span className="pull-to-refresh-px__sep">/</span>{PULL_THRESHOLD_PX} px
-            </span>
-            <span className="pull-to-refresh-hint">
-              {loading && awaitingRefresh
-                ? "Actualizando…"
-                : thresholdMet
-                  ? "Suelta para actualizar"
-                  : "Desliza hacia abajo"}
-            </span>
-          </div>
-          <div className="pull-to-refresh-track" aria-hidden="true">
-            <span className="pull-to-refresh-track__fill" style={{ width: `${progress * 100}%` }} />
-          </div>
-        </div>
+        <span className="pull-to-refresh-bar__fill" style={{ width: `${progress * 100}%` }} />
       </div>
 
       <div

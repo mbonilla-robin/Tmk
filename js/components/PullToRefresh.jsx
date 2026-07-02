@@ -1,7 +1,8 @@
 const PULL_THRESHOLD_PX = 160;
 const PULL_MAX_PX = 220;
 const PULL_RESISTANCE = 0.58;
-const PULL_VISUAL_CAP_PX = 104;
+const PULL_VISUAL_RATIO = 0.48;
+const PULL_VISUAL_CAP_PX = 72;
 
 function pullRefreshHabilitado() {
   return typeof esPlataformaPullRefresh === "function" && esPlataformaPullRefresh();
@@ -19,11 +20,15 @@ function PullToRefresh({
   const touchStartYRef = useRef(0);
   const activePullRef = useRef(false);
   const pullYRef = useRef(0);
+  const fingerDeltaRef = useRef(0);
+  const contentInsetRef = useRef(0);
   const disabledRef = useRef(disabled);
   const loadingRef = useRef(loading);
   const awaitingRefreshRef = useRef(false);
   const onRefreshRef = useRef(onRefresh);
   const [pullY, setPullY] = useState(0);
+  const [fingerDelta, setFingerDelta] = useState(0);
+  const [contentInset, setContentInset] = useState(0);
   const [holdOffset, setHoldOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [awaitingRefresh, setAwaitingRefresh] = useState(false);
@@ -38,12 +43,26 @@ function PullToRefresh({
   const showBar = pullRefreshActivo && (pullY > 0 || awaitingRefresh);
   const visualOffset = awaitingRefresh
     ? holdOffset
-    : Math.min(pullY * 1.08, PULL_VISUAL_CAP_PX);
+    : Math.min(fingerDelta * PULL_VISUAL_RATIO, PULL_VISUAL_CAP_PX);
   const thresholdMet = progress >= 1 || awaitingRefresh;
+  const motionTransition = isDragging ? "none" : "transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)";
 
   const setPull = (value) => {
     pullYRef.current = value;
     setPullY(value);
+  };
+
+  const setFinger = (value) => {
+    fingerDeltaRef.current = value;
+    setFingerDelta(value);
+  };
+
+  const measureContentInset = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const next = Math.max(0, parseFloat(window.getComputedStyle(el).paddingTop) || 0);
+    contentInsetRef.current = next;
+    setContentInset(next);
   };
 
   const resetPull = () => {
@@ -52,6 +71,7 @@ function PullToRefresh({
     setAwaitingRefresh(false);
     setHoldOffset(0);
     setPull(0);
+    setFinger(0);
   };
 
   useEffect(() => {
@@ -69,10 +89,18 @@ function PullToRefresh({
   }, []);
 
   useEffect(() => {
+    if (!pullRefreshActivo) return undefined;
+    measureContentInset();
+    window.addEventListener("resize", measureContentInset);
+    return () => window.removeEventListener("resize", measureContentInset);
+  }, [pullRefreshActivo, className]);
+
+  useEffect(() => {
     if (!loading && awaitingRefresh) {
       setAwaitingRefresh(false);
       setHoldOffset(0);
       setPull(0);
+      setFinger(0);
       setIsDragging(false);
     }
   }, [loading, awaitingRefresh]);
@@ -86,6 +114,7 @@ function PullToRefresh({
       if (disabledRef.current || loadingRef.current || awaitingRefreshRef.current) return;
       if (el.scrollTop > 1) return;
 
+      measureContentInset();
       touchStartYRef.current = event.touches[0].clientY;
       activePullRef.current = true;
       setIsDragging(true);
@@ -98,16 +127,19 @@ function PullToRefresh({
         activePullRef.current = false;
         setIsDragging(false);
         setPull(0);
+        setFinger(0);
         return;
       }
 
       const delta = event.touches[0].clientY - touchStartYRef.current;
       if (delta <= 0) {
         setPull(0);
+        setFinger(0);
         return;
       }
 
       event.preventDefault();
+      setFinger(delta);
       setPull(Math.min(PULL_MAX_PX, delta * PULL_RESISTANCE));
     };
 
@@ -122,7 +154,7 @@ function PullToRefresh({
         !loadingRef.current &&
         !awaitingRefreshRef.current
       ) {
-        const offset = Math.min(pullYRef.current * 1.08, PULL_VISUAL_CAP_PX);
+        const offset = Math.min(fingerDeltaRef.current * PULL_VISUAL_RATIO, PULL_VISUAL_CAP_PX);
         setHoldOffset(offset);
         setAwaitingRefresh(true);
         if (typeof onRefreshRef.current === "function") {
@@ -147,10 +179,10 @@ function PullToRefresh({
     };
   }, [pullRefreshActivo]);
 
-  const scrollStyle = visualOffset > 0 || awaitingRefresh
+  const bodyStyle = visualOffset > 0 || awaitingRefresh
     ? {
         transform: `translate3d(0, ${visualOffset}px, 0)`,
-        transition: isDragging ? "none" : "transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)"
+        transition: motionTransition
       }
     : undefined;
 
@@ -159,10 +191,11 @@ function PullToRefresh({
     transition: isDragging ? "none" : "width 0.12s ease-out"
   };
 
+  const barTop = contentInset;
   const barStyle = showBar
     ? {
-        top: `${Math.max(0, visualOffset - 5)}px`,
-        transition: isDragging ? "none" : "top 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.1s ease"
+        top: `${Math.max(0, barTop)}px`,
+        transition: isDragging ? "none" : "opacity 0.1s ease"
       }
     : undefined;
 
@@ -193,10 +226,11 @@ function PullToRefresh({
       <div
         ref={scrollRef}
         className={`pull-to-refresh-scroll ${className}`}
-        style={scrollStyle}
         {...rest}
       >
-        {children}
+        <div className="pull-to-refresh-body" style={bodyStyle}>
+          {children}
+        </div>
       </div>
     </div>
   );

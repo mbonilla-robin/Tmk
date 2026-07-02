@@ -190,6 +190,9 @@ body {
       z-index: 1;
       flex: 1;
       min-height: 0;
+    }
+
+    .pull-to-refresh-body {
       will-change: transform;
     }
 

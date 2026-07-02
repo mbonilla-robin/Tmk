@@ -3498,29 +3498,39 @@ body {
       }
 
       .pull-to-refresh-bar {
-        position: absolute;
-        top: 0;
+        position: fixed;
+        top: var(--mobile-chrome-top);
         left: 0;
         right: 0;
-        z-index: 12;
-        height: 3px;
+        z-index: 59;
+        height: 5px;
         pointer-events: none;
         opacity: 0;
-        background: var(--robin-border-muted);
         overflow: hidden;
-        transition: opacity 0.12s ease;
+        transition: opacity 0.1s ease;
       }
 
       .pull-to-refresh-bar.is-visible {
         opacity: 1;
       }
 
+      .pull-to-refresh-bar__track {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.08);
+      }
+
+      html.robin-app[data-theme="midnight"] .pull-to-refresh-bar__track {
+        background: rgba(255, 255, 255, 0.12);
+      }
+
       .pull-to-refresh-bar__fill {
-        display: block;
-        height: 100%;
-        width: 0;
-        background: #a1a1aa;
-        transition: width 0.06s linear;
+        position: absolute;
+        inset: 0;
+        transform-origin: left center;
+        transform: scaleX(0);
+        background: #71717a;
+        will-change: transform;
       }
 
       .pull-to-refresh-bar.is-ready .pull-to-refresh-bar__fill {
@@ -3528,7 +3538,7 @@ body {
       }
 
       .pull-to-refresh-bar.is-loading .pull-to-refresh-bar__fill {
-        width: 100% !important;
+        transform: scaleX(1) !important;
         background: linear-gradient(
           90deg,
           #34d399 0%,

@@ -1,5 +1,5 @@
-const PULL_THRESHOLD_PX = 96;
-const PULL_MAX_PX = 132;
+const PULL_THRESHOLD_PX = 160;
+const PULL_MAX_PX = 220;
 const PULL_RESISTANCE = 0.52;
 const PULL_VISUAL_MAX_PX = 48;
 

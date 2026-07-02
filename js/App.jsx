@@ -2152,7 +2152,7 @@ function App() {
   );
 
   return (
-    <div className={`flex h-screen w-screen overflow-hidden ${currentTheme.bg} ${currentTheme.text} select-none transition-all`}>
+    <div className={`flex h-full w-screen overflow-hidden ${currentTheme.bg} ${currentTheme.text} select-none transition-all`}>
       
       {toast && (
         <div className="robin-float-above-chrome robin-toast-stack px-4 py-2.5 rounded shadow text-xs font-semibold flex items-center gap-2 border bg-zinc-900 text-white border-zinc-800 animate-zoom-in">

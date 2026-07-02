@@ -1,8 +1,8 @@
 const PULL_THRESHOLD_PX = 160;
 const PULL_MAX_PX = 220;
 const PULL_RESISTANCE = 0.52;
-const PULL_VISUAL_MAX_PX = 56;
-const PULL_HOLD_PX = 28;
+const PULL_VISUAL_MAX_PX = 72;
+const PULL_HOLD_PX = 32;
 
 function pullRefreshHabilitado() {
   return typeof esPlataformaPullRefresh === "function" && esPlataformaPullRefresh();
@@ -39,7 +39,7 @@ function PullToRefresh({
   const showBar = pullRefreshActivo && (pullY > 0 || awaitingRefresh);
   const visualOffset = awaitingRefresh
     ? PULL_HOLD_PX
-    : Math.min(pullY * 0.34, PULL_VISUAL_MAX_PX);
+    : Math.min(pullY * 0.45, PULL_VISUAL_MAX_PX);
 
   const setPull = (value) => {
     pullYRef.current = value;
@@ -142,7 +142,7 @@ function PullToRefresh({
     };
   }, [pullRefreshActivo]);
 
-  const scrollStyle = pullRefreshActivo && (visualOffset > 0 || awaitingRefresh)
+  const moverStyle = pullRefreshActivo && (visualOffset > 0 || awaitingRefresh)
     ? {
         transform: `translate3d(0, ${visualOffset}px, 0)`,
         transition: isDragging ? "none" : "transform 0.28s ease"
@@ -159,26 +159,27 @@ function PullToRefresh({
 
   return (
     <div className="pull-to-refresh-host">
-      <div
-        className={`pull-to-refresh-bar ${showBar ? "is-visible" : ""} ${thresholdMet ? "is-ready" : ""} ${loading && awaitingRefresh ? "is-loading" : ""}`}
-        aria-live="polite"
-        aria-hidden={!showBar}
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={Math.round(progress * 100)}
-      >
-        <span className="pull-to-refresh-bar__track" />
-        <span className="pull-to-refresh-bar__fill" style={{ transform: `scaleX(${progress})` }} />
-      </div>
+      <div className="pull-to-refresh-mover" style={moverStyle}>
+        <div
+          className={`pull-to-refresh-bar ${showBar ? "is-visible" : ""} ${thresholdMet ? "is-ready" : ""} ${loading && awaitingRefresh ? "is-loading" : ""}`}
+          aria-live="polite"
+          aria-hidden={!showBar}
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(progress * 100)}
+        >
+          <span className="pull-to-refresh-bar__track" />
+          <span className="pull-to-refresh-bar__fill" style={{ transform: `scaleX(${progress})` }} />
+        </div>
 
-      <div
-        ref={scrollRef}
-        className={`pull-to-refresh-scroll ${className}`}
-        style={scrollStyle}
-        {...rest}
-      >
-        {children}
+        <div
+          ref={scrollRef}
+          className={`pull-to-refresh-scroll ${className}`}
+          {...rest}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );

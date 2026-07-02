@@ -1,7 +1,6 @@
 const PULL_THRESHOLD_PX = 160;
 const PULL_MAX_PX = 220;
 const PULL_RESISTANCE = 0.52;
-const PULL_VISUAL_MAX_PX = 48;
 
 function pullRefreshHabilitado() {
   return typeof esPlataformaPullRefresh === "function" && esPlataformaPullRefresh();
@@ -25,7 +24,6 @@ function PullToRefresh({
   const awaitingRefreshRef = useRef(false);
   const onRefreshRef = useRef(onRefresh);
   const [pullY, setPullY] = useState(0);
-  const [isReleasing, setIsReleasing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [awaitingRefresh, setAwaitingRefresh] = useState(false);
   const [pullRefreshActivo, setPullRefreshActivo] = useState(pullRefreshHabilitado);
@@ -38,9 +36,9 @@ function PullToRefresh({
   const thresholdMet = pullY >= PULL_THRESHOLD_PX || awaitingRefresh;
   const progress = awaitingRefresh ? 1 : Math.min(1, pullY / PULL_THRESHOLD_PX);
   const showBar = pullRefreshActivo && (pullY > 0 || awaitingRefresh);
-  const visualOffset = awaitingRefresh
-    ? PULL_VISUAL_MAX_PX * 0.7
-    : Math.min(pullY, PULL_VISUAL_MAX_PX);
+  const indicatorHeight = showBar
+    ? (awaitingRefresh ? 28 : Math.max(6, Math.min(40, pullY * 0.24)))
+    : 0;
 
   const setPull = (value) => {
     pullYRef.current = value;
@@ -50,9 +48,7 @@ function PullToRefresh({
   const resetPull = () => {
     activePullRef.current = false;
     setIsDragging(false);
-    setIsReleasing(true);
     setPull(0);
-    window.setTimeout(() => setIsReleasing(false), 260);
   };
 
   useEffect(() => {
@@ -90,7 +86,6 @@ function PullToRefresh({
       activePullRef.current = true;
       thresholdVibratedRef.current = false;
       setIsDragging(true);
-      setIsReleasing(false);
     };
 
     const handleTouchMove = (event) => {
@@ -140,7 +135,6 @@ function PullToRefresh({
         !awaitingRefreshRef.current
       ) {
         setAwaitingRefresh(true);
-        setIsReleasing(true);
         setPull(PULL_THRESHOLD_PX);
         if (typeof robinHaptic === "function") {
           robinHaptic("refresh", touch ? { x: touch.clientX, y: touch.clientY } : undefined);
@@ -167,12 +161,10 @@ function PullToRefresh({
     };
   }, [pullRefreshActivo]);
 
-  const contentStyle = pullRefreshActivo && (visualOffset > 0 || isReleasing)
-    ? {
-        transform: `translateY(${visualOffset}px)`,
-        transition: isDragging ? "none" : "transform 0.24s ease"
-      }
-    : undefined;
+  const indicatorStyle = {
+    height: `${indicatorHeight}px`,
+    transition: isDragging ? "none" : "height 0.22s ease"
+  };
 
   if (!pullRefreshActivo) {
     return (
@@ -185,24 +177,25 @@ function PullToRefresh({
   return (
     <div className="pull-to-refresh-host">
       <div
-        className={`pull-to-refresh-bar ${showBar ? "is-visible" : ""} ${thresholdMet ? "is-ready" : ""} ${loading && awaitingRefresh ? "is-loading" : ""}`}
-        aria-live="polite"
-        aria-hidden={!showBar}
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={Math.round(progress * 100)}
-      >
-        <span className="pull-to-refresh-bar__track" />
-        <span className="pull-to-refresh-bar__fill" style={{ transform: `scaleX(${progress})` }} />
-      </div>
-
-      <div
         ref={scrollRef}
         className={`pull-to-refresh-scroll ${className}`}
-        style={contentStyle}
         {...rest}
       >
+        <div
+          className={`pull-to-refresh-indicator ${showBar ? "is-visible" : ""} ${thresholdMet ? "is-ready" : ""} ${loading && awaitingRefresh ? "is-loading" : ""}`}
+          style={indicatorStyle}
+          aria-live="polite"
+          aria-hidden={!showBar}
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(progress * 100)}
+        >
+          <div className="pull-to-refresh-bar">
+            <span className="pull-to-refresh-bar__track" />
+            <span className="pull-to-refresh-bar__fill" style={{ transform: `scaleX(${progress})` }} />
+          </div>
+        </div>
         {children}
       </div>
     </div>

@@ -181,40 +181,43 @@ body {
       width: 100%;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
     }
 
     .pull-to-refresh-scroll {
       flex: 1;
       min-height: 0;
-      will-change: transform;
+    }
+
+    .pull-to-refresh-indicator {
+      flex-shrink: 0;
+      width: 100%;
+      overflow: hidden;
+      display: flex;
+      align-items: flex-end;
+      opacity: 0;
+      transition: opacity 0.12s ease;
+    }
+
+    .pull-to-refresh-indicator.is-visible {
+      opacity: 1;
     }
 
     .pull-to-refresh-bar {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: 12;
-      height: 5px;
-      pointer-events: none;
-      opacity: 0;
+      position: relative;
+      width: 100%;
+      height: 4px;
+      flex-shrink: 0;
       overflow: hidden;
-      transition: opacity 0.1s ease;
-    }
-
-    .pull-to-refresh-bar.is-visible {
-      opacity: 1;
     }
 
     .pull-to-refresh-bar__track {
       position: absolute;
       inset: 0;
-      background: rgba(0, 0, 0, 0.08);
+      background: rgba(0, 0, 0, 0.1);
     }
 
     html.robin-app[data-theme="midnight"] .pull-to-refresh-bar__track {
-      background: rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.14);
     }
 
     .pull-to-refresh-bar__fill {
@@ -226,11 +229,11 @@ body {
       will-change: transform;
     }
 
-    .pull-to-refresh-bar.is-ready .pull-to-refresh-bar__fill {
+    .pull-to-refresh-indicator.is-ready .pull-to-refresh-bar__fill {
       background: linear-gradient(90deg, #34d399, #10b981);
     }
 
-    .pull-to-refresh-bar.is-loading .pull-to-refresh-bar__fill {
+    .pull-to-refresh-indicator.is-loading .pull-to-refresh-bar__fill {
       transform: scaleX(1) !important;
       background: linear-gradient(
         90deg,
@@ -247,6 +250,12 @@ body {
     @keyframes pull-to-refresh-shimmer {
       0% { background-position: 100% 0; }
       100% { background-position: -100% 0; }
+    }
+
+    @media (max-width: 1023px) {
+      .robin-mobile-main:not(.marca-home-main) > .pull-to-refresh-indicator.is-visible {
+        margin-top: calc(-1 * (var(--mobile-chrome-top, 4rem) + 0.75rem));
+      }
     }
 
     /* Sidebar desktop — Notion-style */

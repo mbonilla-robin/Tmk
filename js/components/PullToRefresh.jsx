@@ -1,6 +1,8 @@
 const PULL_THRESHOLD_PX = 160;
 const PULL_MAX_PX = 220;
 const PULL_RESISTANCE = 0.52;
+const PULL_VISUAL_MAX_PX = 56;
+const PULL_HOLD_PX = 28;
 
 function pullRefreshHabilitado() {
   return typeof esPlataformaPullRefresh === "function" && esPlataformaPullRefresh();
@@ -18,7 +20,6 @@ function PullToRefresh({
   const touchStartYRef = useRef(0);
   const activePullRef = useRef(false);
   const pullYRef = useRef(0);
-  const thresholdVibratedRef = useRef(false);
   const disabledRef = useRef(disabled);
   const loadingRef = useRef(loading);
   const awaitingRefreshRef = useRef(false);
@@ -36,9 +37,9 @@ function PullToRefresh({
   const thresholdMet = pullY >= PULL_THRESHOLD_PX || awaitingRefresh;
   const progress = awaitingRefresh ? 1 : Math.min(1, pullY / PULL_THRESHOLD_PX);
   const showBar = pullRefreshActivo && (pullY > 0 || awaitingRefresh);
-  const indicatorHeight = showBar
-    ? (awaitingRefresh ? 28 : Math.max(6, Math.min(40, pullY * 0.24)))
-    : 0;
+  const visualOffset = awaitingRefresh
+    ? PULL_HOLD_PX
+    : Math.min(pullY * 0.34, PULL_VISUAL_MAX_PX);
 
   const setPull = (value) => {
     pullYRef.current = value;
@@ -48,6 +49,7 @@ function PullToRefresh({
   const resetPull = () => {
     activePullRef.current = false;
     setIsDragging(false);
+    setAwaitingRefresh(false);
     setPull(0);
   };
 
@@ -67,8 +69,6 @@ function PullToRefresh({
 
   useEffect(() => {
     if (!loading && awaitingRefresh) {
-      if (typeof robinHaptic === "function") robinHaptic("success");
-      setAwaitingRefresh(false);
       resetPull();
     }
   }, [loading, awaitingRefresh]);
@@ -84,7 +84,6 @@ function PullToRefresh({
 
       touchStartYRef.current = event.touches[0].clientY;
       activePullRef.current = true;
-      thresholdVibratedRef.current = false;
       setIsDragging(true);
     };
 
@@ -93,7 +92,6 @@ function PullToRefresh({
 
       if (el.scrollTop > 1) {
         activePullRef.current = false;
-        thresholdVibratedRef.current = false;
         setIsDragging(false);
         setPull(0);
         return;
@@ -101,32 +99,18 @@ function PullToRefresh({
 
       const delta = event.touches[0].clientY - touchStartYRef.current;
       if (delta <= 0) {
-        thresholdVibratedRef.current = false;
         setPull(0);
         return;
       }
 
       event.preventDefault();
-      const resisted = Math.min(PULL_MAX_PX, delta * PULL_RESISTANCE);
-      setPull(resisted);
-
-      if (resisted >= PULL_THRESHOLD_PX) {
-        if (!thresholdVibratedRef.current && typeof robinHaptic === "function") {
-          const touch = event.touches[0];
-          robinHaptic("threshold", { x: touch.clientX, y: touch.clientY });
-          thresholdVibratedRef.current = true;
-        }
-      } else {
-        thresholdVibratedRef.current = false;
-      }
+      setPull(Math.min(PULL_MAX_PX, delta * PULL_RESISTANCE));
     };
 
-    const finishPull = (event) => {
+    const finishPull = () => {
       if (!activePullRef.current) return;
       activePullRef.current = false;
       setIsDragging(false);
-
-      const touch = event?.changedTouches?.[0];
 
       if (
         pullYRef.current >= PULL_THRESHOLD_PX &&
@@ -135,10 +119,7 @@ function PullToRefresh({
         !awaitingRefreshRef.current
       ) {
         setAwaitingRefresh(true);
-        setPull(PULL_THRESHOLD_PX);
-        if (typeof robinHaptic === "function") {
-          robinHaptic("refresh", touch ? { x: touch.clientX, y: touch.clientY } : undefined);
-        }
+        setPull(0);
         if (typeof onRefreshRef.current === "function") {
           onRefreshRef.current();
         }
@@ -161,10 +142,12 @@ function PullToRefresh({
     };
   }, [pullRefreshActivo]);
 
-  const indicatorStyle = {
-    height: `${indicatorHeight}px`,
-    transition: isDragging ? "none" : "height 0.22s ease"
-  };
+  const scrollStyle = pullRefreshActivo && (visualOffset > 0 || awaitingRefresh)
+    ? {
+        transform: `translate3d(0, ${visualOffset}px, 0)`,
+        transition: isDragging ? "none" : "transform 0.28s ease"
+      }
+    : undefined;
 
   if (!pullRefreshActivo) {
     return (
@@ -177,25 +160,24 @@ function PullToRefresh({
   return (
     <div className="pull-to-refresh-host">
       <div
+        className={`pull-to-refresh-bar ${showBar ? "is-visible" : ""} ${thresholdMet ? "is-ready" : ""} ${loading && awaitingRefresh ? "is-loading" : ""}`}
+        aria-live="polite"
+        aria-hidden={!showBar}
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(progress * 100)}
+      >
+        <span className="pull-to-refresh-bar__track" />
+        <span className="pull-to-refresh-bar__fill" style={{ transform: `scaleX(${progress})` }} />
+      </div>
+
+      <div
         ref={scrollRef}
         className={`pull-to-refresh-scroll ${className}`}
+        style={scrollStyle}
         {...rest}
       >
-        <div
-          className={`pull-to-refresh-indicator ${showBar ? "is-visible" : ""} ${thresholdMet ? "is-ready" : ""} ${loading && awaitingRefresh ? "is-loading" : ""}`}
-          style={indicatorStyle}
-          aria-live="polite"
-          aria-hidden={!showBar}
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.round(progress * 100)}
-        >
-          <div className="pull-to-refresh-bar">
-            <span className="pull-to-refresh-bar__track" />
-            <span className="pull-to-refresh-bar__fill" style={{ transform: `scaleX(${progress})` }} />
-          </div>
-        </div>
         {children}
       </div>
     </div>

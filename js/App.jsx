@@ -259,20 +259,6 @@ function App() {
     return () => clearInterval(interval);
   }, [usuario, isConfigOnlyAdmin, refrescarNotificaciones]);
 
-  const notifHapticInitRef = useRef(false);
-  const notifHapticPrevRef = useRef(0);
-  useEffect(() => {
-    if (!notifHapticInitRef.current) {
-      notifHapticInitRef.current = true;
-      notifHapticPrevRef.current = unreadNotifCount;
-      return;
-    }
-    if (unreadNotifCount > notifHapticPrevRef.current && typeof robinHaptic === "function") {
-      robinHaptic("notify");
-    }
-    notifHapticPrevRef.current = unreadNotifCount;
-  }, [unreadNotifCount]);
-
   useEffect(() => {
     if (!usuario || isConfigOnlyAdmin) return undefined;
 
@@ -525,11 +511,6 @@ function App() {
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
-    if (typeof robinHaptic === "function") {
-      if (type === "error") robinHaptic("error");
-      else if (type === "info") robinHaptic("medium");
-      else robinHaptic("success");
-    }
     setTimeout(() => setToast(null), 3000);
   };
 

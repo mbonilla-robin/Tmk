@@ -78,16 +78,6 @@ function MobileNavBar({
     config: "nav-config"
   };
 
-  const dispararHapticToque = (event) => {
-    if (typeof robinHaptic !== "function") return;
-    const touch = event?.touches?.[0];
-    if (touch) {
-      robinHaptic("selection", { x: touch.clientX, y: touch.clientY });
-    } else {
-      robinHaptic("selection");
-    }
-  };
-
   return (
     <>
       <header className="mobile-top-bar md:hidden">
@@ -99,7 +89,6 @@ function MobileNavBar({
           {notificacionesSlot}
           <button
             type="button"
-            onTouchStart={dispararHapticToque}
             onClick={onSyncClick}
             data-induccion="sync"
             className={`mobile-top-btn ${
@@ -127,7 +116,6 @@ function MobileNavBar({
           </button>
           <button
             type="button"
-            onTouchStart={dispararHapticToque}
             onClick={onRefresh}
             disabled={loading}
             className="mobile-top-btn"
@@ -147,7 +135,6 @@ function MobileNavBar({
             <button
               key={item.key}
               type="button"
-              onTouchStart={dispararHapticToque}
               onClick={item.onClick}
               data-induccion={induccionTargetByKey[item.key] || undefined}
               className={`mobile-nav-item ${item.active ? "is-active" : ""} ${item.highlight ? "is-highlight" : ""}`}

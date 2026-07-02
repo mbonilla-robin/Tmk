@@ -181,33 +181,31 @@ body {
       width: 100%;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
+      background-color: var(--robin-bg);
     }
 
     .pull-to-refresh-scroll {
       flex: 1;
       min-height: 0;
-    }
-
-    .pull-to-refresh-indicator {
-      flex-shrink: 0;
-      width: 100%;
-      overflow: hidden;
-      display: flex;
-      align-items: flex-end;
-      opacity: 0;
-      transition: opacity 0.12s ease;
-    }
-
-    .pull-to-refresh-indicator.is-visible {
-      opacity: 1;
+      will-change: transform;
     }
 
     .pull-to-refresh-bar {
-      position: relative;
-      width: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 15;
       height: 4px;
-      flex-shrink: 0;
+      pointer-events: none;
+      opacity: 0;
       overflow: hidden;
+      transition: opacity 0.1s ease;
+    }
+
+    .pull-to-refresh-bar.is-visible {
+      opacity: 1;
     }
 
     .pull-to-refresh-bar__track {
@@ -226,14 +224,13 @@ body {
       transform-origin: left center;
       transform: scaleX(0);
       background: #71717a;
-      will-change: transform;
     }
 
-    .pull-to-refresh-indicator.is-ready .pull-to-refresh-bar__fill {
+    .pull-to-refresh-bar.is-ready .pull-to-refresh-bar__fill {
       background: linear-gradient(90deg, #34d399, #10b981);
     }
 
-    .pull-to-refresh-indicator.is-loading .pull-to-refresh-bar__fill {
+    .pull-to-refresh-bar.is-loading .pull-to-refresh-bar__fill {
       transform: scaleX(1) !important;
       background: linear-gradient(
         90deg,
@@ -250,12 +247,6 @@ body {
     @keyframes pull-to-refresh-shimmer {
       0% { background-position: 100% 0; }
       100% { background-position: -100% 0; }
-    }
-
-    @media (max-width: 1023px) {
-      .robin-mobile-main:not(.marca-home-main) > .pull-to-refresh-indicator.is-visible {
-        margin-top: calc(-1 * (var(--mobile-chrome-top, 4rem) + 0.75rem));
-      }
     }
 
     /* Sidebar desktop — Notion-style */

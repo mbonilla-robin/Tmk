@@ -2547,7 +2547,7 @@ function App() {
 
       {/* CONTENEDOR PRINCIPAL */}
       <main className={`flex-1 flex flex-col overflow-hidden ${currentTheme.bg}`}>
-        <header className={`app-header-bar ${currentTheme.bg} px-6 justify-between robin-desktop-only${paginaActiva === "home" ? " app-header-bar--home" : ""}`}>
+        <header className={`app-header-bar ${currentTheme.bg} px-6 justify-between robin-desktop-only`}>
           <div className="flex items-center gap-3 min-w-0">
             {paginaActiva !== "home" && (
               <h1 className="text-ui font-semibold text-zinc-500">

@@ -137,10 +137,6 @@ function LayoutHome({
 
   return (
     <div className="flex flex-col gap-4 md:gap-4 animate-fade-in home-layout">
-      <div className="hidden md:block home-layout__header border-b border-zinc-150">
-        <h2 className="text-xl font-extrabold text-[#37352F] tracking-tight">Home</h2>
-      </div>
-
       {widgetsMobileVista === "todos" && (
         <div className="md:hidden flex flex-col gap-3 px-4">
           <MobileSubpageBar

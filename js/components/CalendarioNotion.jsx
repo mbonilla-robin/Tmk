@@ -23,7 +23,7 @@ function CalIconoVistaMes({ className = "w-3.5 h-3.5" }) {
   );
 }
 
-function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
+function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username, modoHomeCompacto = false }) {
   const normalizarVistaCalendario = (valor) => (valor === "semana" ? "semana" : "mes");
 
   const [vista, setVista] = useState(() =>
@@ -33,6 +33,7 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
   const [currentMonth, setCurrentMonth] = useState(() => new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(() => new Date().getFullYear());
   const [selectedDayDetail, setSelectedDayDetail] = useState(null);
+  const [homeExpandido, setHomeExpandido] = useState(false);
   const hoy = new Date();
 
   useEffect(() => {
@@ -109,6 +110,26 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
 
     return dias;
   }, [weekAnchor, tareas, actividadesPorDia]);
+
+  const compactWeekDays = useMemo(() => {
+    const lunes = obtenerLunesSemana(weekAnchor);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(lunes);
+      d.setDate(lunes.getDate() + i);
+      return d;
+    });
+  }, [weekAnchor]);
+
+  const compactWeekLabelShort = useMemo(() => {
+    const start = compactWeekDays[0];
+    const end = compactWeekDays[6];
+    const mes = monthNames[start.getMonth()].slice(0, 3);
+    if (start.getMonth() === end.getMonth()) {
+      return `${start.getDate()}–${end.getDate()} ${mes}`;
+    }
+    const mesFin = monthNames[end.getMonth()].slice(0, 3);
+    return `${start.getDate()} ${mes} – ${end.getDate()} ${mesFin}`;
+  }, [compactWeekDays]);
 
   const weekLabel = useMemo(() => {
     const start = weekDays[0];
@@ -509,8 +530,156 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
     );
   };
 
+  const renderCompactHome = () => (
+    <section className="home-cal-compact" data-induccion="calendario">
+      <div className="home-section__head">
+        <div className="home-section__head-left">
+          <span className="home-section__title">Cronograma</span>
+          <span className="home-section__subtitle">{compactWeekLabelShort}</span>
+        </div>
+        <div className="home-cal-compact__nav">
+          <button type="button" onClick={handlePrev} className="home-cal-compact__nav-btn" aria-label="Semana anterior">
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M10 4L6 8l4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <button type="button" onClick={irAHoy} className="home-cal-compact__today">Hoy</button>
+          <button type="button" onClick={handleNext} className="home-cal-compact__nav-btn" aria-label="Semana siguiente">
+            <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div className="home-cal-compact__week">
+        {compactWeekDays.map((date) => {
+          const entregas = tasksForDate(date);
+          const actividades = actividadesForDate(date);
+          const total = entregas.length + actividades.length;
+          const esHoy = isSameDay(date, hoy);
+
+          return (
+            <button
+              key={date.toISOString()}
+              type="button"
+              className={`home-cal-compact__day ${esHoy ? "is-today" : ""}`}
+              onClick={() => openDayDetail(date, tasksForDate(date), actividadesForDate(date))}
+            >
+              <span className="home-cal-compact__dow">{dayNames[date.getDay()]}</span>
+              <span className="home-cal-compact__num">{date.getDate()}</span>
+              <span className="home-cal-compact__dots" aria-hidden="true">
+                {total > 0 && Array.from({ length: Math.min(total, 3) }).map((_, i) => (
+                  <span key={i} className="home-cal-compact__dot" />
+                ))}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        className="home-cal-compact__expand"
+        onClick={() => {
+          setHomeExpandido(true);
+          setVista("mes");
+        }}
+      >
+        <svg viewBox="0 0 16 16" fill="none" aria-hidden="true" className="home-cal-compact__expand-icon">
+          <rect x="2" y="3" width="12" height="10.5" rx="1.2" stroke="currentColor" strokeWidth="1.2" />
+          <path d="M2 6h12" stroke="currentColor" strokeWidth="1.2" />
+        </svg>
+        Ver calendario completo
+        <SVGIcon.ChevronRight className="w-3 h-3" />
+      </button>
+    </section>
+  );
+
+  const renderDayDetailModal = () => (
+    selectedDayDetail && (
+      <div className="cal-day-modal-overlay animate-fade-in">
+        <div className="cal-day-modal">
+          <div className="cal-day-modal-header">
+            <div>
+              <span className="text-section">Resumen del día</span>
+              <p className="cal-day-modal-date">
+                {selectedDayDetail.day} {monthNames[selectedDayDetail.month]} {selectedDayDetail.year}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedDayDetail(null)}
+              className="cal-day-modal-close"
+            >
+              &times;
+            </button>
+          </div>
+          <div className="cal-day-modal-body">
+            {selectedDayDetail.tasks.length === 0 && (selectedDayDetail.activities || []).length === 0 ? (
+              <p className="cal-day-modal-empty">Sin entregables ni actividad</p>
+            ) : (
+              <>
+                {selectedDayDetail.tasks.length > 0 && (
+                  <>
+                    <p className="cal-day-modal-section-title">Entregas</p>
+                    {selectedDayDetail.tasks.map((t, i) => renderModalTaskRow(t, i))}
+                  </>
+                )}
+                {(selectedDayDetail.activities || []).length > 0 && (
+                  <div className="cal-activity-panel cal-activity-panel--modal">
+                    <div className="cal-activity-panel-head">
+                      <i className="fa-regular fa-clock" aria-hidden="true" />
+                      <span>Actividad del día</span>
+                    </div>
+                    <p className="cal-activity-panel-note">
+                      Lo que se trabajó o cambió. No es fecha de entrega.
+                    </p>
+                    <div className="cal-activity-panel-list">
+                      {(selectedDayDetail.activities || []).map((act, i) => renderModalActivityRow(act, i))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  );
+
+  const shellClass = modoHomeCompacto && homeExpandido
+    ? "cal-shell cal-shell--home-expanded rounded-lg border overflow-hidden shadow-sm w-full"
+    : "cal-shell rounded-lg border overflow-hidden shadow-sm w-full";
+
+  if (modoHomeCompacto && !homeExpandido) {
+    return (
+      <>
+        {renderCompactHome()}
+        {renderDayDetailModal()}
+      </>
+    );
+  }
+
   return (
-    <div className="cal-shell rounded-lg border overflow-hidden shadow-sm w-full">
+    <>
+    <div className={shellClass}>
+      {modoHomeCompacto && homeExpandido && (
+        <button
+          type="button"
+          className="home-cal-compact__collapse"
+          onClick={() => {
+            setHomeExpandido(false);
+            setVista("semana");
+          }}
+        >
+          <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Semana compacta
+        </button>
+      )}
+
       {/* Header móvil — limpio */}
       <div className="md:hidden cal-mobile-toolbar" data-induccion="calendario">
         <div className="cal-mobile-toolbar-nav">
@@ -672,55 +841,8 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username }) {
         </div>
       )}
 
-      {selectedDayDetail && (
-        <div className="cal-day-modal-overlay animate-fade-in">
-          <div className="cal-day-modal">
-            <div className="cal-day-modal-header">
-              <div>
-                <span className="text-section">Resumen del día</span>
-                <p className="cal-day-modal-date">
-                  {selectedDayDetail.day} {monthNames[selectedDayDetail.month]} {selectedDayDetail.year}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedDayDetail(null)}
-                className="cal-day-modal-close"
-              >
-                &times;
-              </button>
-            </div>
-            <div className="cal-day-modal-body">
-              {selectedDayDetail.tasks.length === 0 && (selectedDayDetail.activities || []).length === 0 ? (
-                <p className="cal-day-modal-empty">Sin entregables ni actividad</p>
-              ) : (
-                <>
-                  {selectedDayDetail.tasks.length > 0 && (
-                    <>
-                      <p className="cal-day-modal-section-title">Entregas</p>
-                      {selectedDayDetail.tasks.map((t, i) => renderModalTaskRow(t, i))}
-                    </>
-                  )}
-                  {(selectedDayDetail.activities || []).length > 0 && (
-                    <div className="cal-activity-panel cal-activity-panel--modal">
-                      <div className="cal-activity-panel-head">
-                        <i className="fa-regular fa-clock" aria-hidden="true" />
-                        <span>Actividad del día</span>
-                      </div>
-                      <p className="cal-activity-panel-note">
-                        Lo que se trabajó o cambió. No es fecha de entrega.
-                      </p>
-                      <div className="cal-activity-panel-list">
-                        {(selectedDayDetail.activities || []).map((act, i) => renderModalActivityRow(act, i))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
+    {renderDayDetailModal()}
+    </>
   );
 }

@@ -10,7 +10,7 @@ function PropertyRow({ icon, label, children }) {
   );
 }
 
-function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNuevaPersona, listaCategorias, registrarNuevaCategoria, marcasDisponibles, usuario, nombreUsuario, onComentarioPublicado, onToast, soloLectura = false }) {
+function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNuevaPersona, listaCategorias, registrarNuevaCategoria, marcasDisponibles, usuario, nombreUsuario, onComentarioPublicado, onToast, soloLectura = false, modoDisenador = false }) {
   const resolverEstadoInicial = () => {
     let categoriaInicial = tarea.categoria || "";
     let infoInicial = extraerTituloLimpio(tarea.info, tarea.categoria);
@@ -42,6 +42,18 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   const [personasDisenadores, setPersonasDisenadores] = useState(rolesIniciales.disenadores);
   const [rawDetalles, setRawDetalles] = useState(tarea.detalles || "");
   const [guardando, setGuardando] = useState(false);
+  const [copiadoEnlace, setCopiadoEnlace] = useState(false);
+
+  const metadatosSoloLectura = soloLectura || modoDisenador;
+  const estadosDisponibles = useMemo(() => {
+    if (!modoDisenador) return LISTA_ESTADOS_VALIDOS;
+    const base = [...ESTADOS_DISENADOR_PERMITIDOS];
+    const actual = normalizarEstado(estado);
+    if (actual && !base.some((e) => cleanEstado(e) === cleanEstado(actual))) {
+      base.unshift(actual);
+    }
+    return base;
+  }, [modoDisenador, estado]);
 
   const listaEjecutivos = useMemo(
     () => fusionarListasPersonas(obtenerListaEjecutivosActiva(), partesCampoPersonas(personasEjecutivos)),
@@ -135,10 +147,11 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (soloLectura) {
+    if (soloLectura || modoDisenador) {
       const tFinal = serializeDetalles(notes, subtareas, parsed.historial, link);
       const tareaPreparada = prepararTareaConCategoria({
         ...tarea,
+        ...(modoDisenador ? { estado: normalizarEstado(estado) } : {}),
         detalles: tFinal
       });
       setGuardando(true);
@@ -194,6 +207,35 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   const inputPropTextClass = "w-full bg-transparent border-0 text-ui-sm text-[#37352F] focus:outline-none font-medium placeholder-zinc-400";
   const readOnlyClass = "w-full text-ui-sm text-[#37352F] font-medium";
 
+  const aplicarEstadoRapido = async (nuevoEstado) => {
+    if (!modoDisenador || guardando) return;
+    setEstado(nuevoEstado);
+    const tFinal = serializeDetalles(notes, subtareas, parsed.historial, link);
+    const tareaPreparada = prepararTareaConCategoria({
+      ...tarea,
+      estado: normalizarEstado(nuevoEstado),
+      detalles: tFinal
+    });
+    setGuardando(true);
+    try {
+      await Promise.resolve(onSave(tareaPreparada));
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const handleCompartirEnlace = async () => {
+    const enlace = construirEnlaceTarea(tarea);
+    try {
+      await navigator.clipboard.writeText(enlace);
+      setCopiadoEnlace(true);
+      if (onToast) onToast("Enlace copiado", "success");
+      setTimeout(() => setCopiadoEnlace(false), 2000);
+    } catch {
+      if (onToast) onToast("No se pudo copiar el enlace", "error");
+    }
+  };
+
   return (
     <div className="task-sheet-overlay">
       <button
@@ -220,7 +262,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
 
           {/* Encabezado estilo Notion */}
           <div className="relative px-6 md:px-10 pb-4 max-w-3xl mx-auto w-full">
-            {soloLectura ? (
+            {metadatosSoloLectura ? (
               <h2 className="task-form-title w-full pr-8 text-2xl md:text-[1.75rem] font-bold text-[#37352F] leading-snug">
                 {info || "Sin título"}
               </h2>
@@ -245,7 +287,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
           {/* Propiedades lineales */}
           <div className="pb-2 flex flex-col gap-0.5 border-b border-zinc-100">
             <PropertyRow icon="fa-regular fa-building" label="Cliente">
-              {soloLectura ? (
+              {metadatosSoloLectura ? (
                 <span className={readOnlyClass}>{formatearMarca(marca)}</span>
               ) : (
                 <select value={marca} onChange={(e) => setMarca(e.target.value)} className={inputPropClass}>
@@ -259,11 +301,11 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
             <PropertyRow icon="fa-regular fa-circle-dot" label="Estado">
               <div className="flex items-center gap-2">
                 <span className={`w-2 h-2 rounded-full shrink-0 ${estadoVisual.dot}`} />
-                {soloLectura ? (
+                {metadatosSoloLectura && !modoDisenador ? (
                   <span className={readOnlyClass}>{estado || "—"}</span>
                 ) : (
                   <select value={estado} onChange={(e) => setEstado(e.target.value)} className={inputPropClass}>
-                    {LISTA_ESTADOS_VALIDOS.map(opt => (
+                    {estadosDisponibles.map(opt => (
                       <option key={opt} value={opt}>{opt}</option>
                     ))}
                   </select>
@@ -272,7 +314,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
             </PropertyRow>
 
             <PropertyRow icon="fa-solid fa-signal" label="Prioridad">
-              {soloLectura ? (
+              {metadatosSoloLectura ? (
                 <span className={readOnlyClass}>
                   {PRIORIDADES_MAPA.find(p => p.id === prioridad)?.label || prioridad || "—"}
                 </span>
@@ -286,7 +328,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
             </PropertyRow>
 
             <PropertyRow icon="fa-regular fa-calendar-check" label="Inicio">
-              {soloLectura ? (
+              {metadatosSoloLectura ? (
                 <span className={readOnlyClass}>{fechaInicio || "—"}</span>
               ) : (
                 <div className="flex flex-col gap-0.5">
@@ -303,7 +345,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
             </PropertyRow>
 
             <PropertyRow icon="fa-regular fa-calendar" label="Entrega">
-              {soloLectura ? (
+              {metadatosSoloLectura ? (
                 <span className={readOnlyClass}>{deadline || "—"}</span>
               ) : (
                 <div className="flex flex-col gap-0.5">
@@ -321,7 +363,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
             </PropertyRow>
 
             <PropertyRow icon="fa-regular fa-folder" label="Categoría">
-              {soloLectura ? (
+              {metadatosSoloLectura ? (
                 <span className={readOnlyClass}>{parseCategoriasTarea(categoria).principal || categoria || "—"}</span>
               ) : (
                 <SelectorCategoriasChips
@@ -335,7 +377,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
             </PropertyRow>
 
             <PropertyRow icon="fa-regular fa-user" label="Ejecutivos">
-              {soloLectura ? (
+              {metadatosSoloLectura ? (
                 <span className={readOnlyClass}>{personasEjecutivos || "—"}</span>
               ) : (
                 <SelectorPersonasChips
@@ -349,7 +391,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
             </PropertyRow>
 
             <PropertyRow icon="fa-regular fa-user" label="Diseñadores">
-              {soloLectura ? (
+              {metadatosSoloLectura ? (
                 <span className={readOnlyClass}>{personasDisenadores || "—"}</span>
               ) : (
                 <SelectorPersonasChips
@@ -364,7 +406,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
 
             <PropertyRow icon="fa-solid fa-link" label="Enlace">
               <div className="flex items-center gap-2 min-w-0">
-                {soloLectura ? (
+                {metadatosSoloLectura ? (
                   <span className={`${readOnlyClass} truncate`}>{link || "—"}</span>
                 ) : (
                   <input
@@ -390,6 +432,42 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
               </div>
             </PropertyRow>
           </div>
+
+          {modoDisenador && cleanEstado(estado) !== "completada" && (
+            <div className="px-6 md:px-10 py-3 flex flex-wrap gap-2 border-b border-zinc-100 max-w-3xl mx-auto w-full">
+              {cleanEstado(estado) !== "en revision" && (
+                <button
+                  type="button"
+                  disabled={guardando}
+                  onClick={() => aplicarEstadoRapido("En revision")}
+                  className="task-accion-rapida task-accion-rapida--review"
+                >
+                  <i className="fa-solid fa-paper-plane" aria-hidden="true" />
+                  Enviar a revisión
+                </button>
+              )}
+              {cleanEstado(estado) !== "en progreso" && cleanEstado(estado) !== "en revision" && (
+                <button
+                  type="button"
+                  disabled={guardando}
+                  onClick={() => aplicarEstadoRapido("En progreso")}
+                  className="task-accion-rapida task-accion-rapida--progress"
+                >
+                  <i className="fa-solid fa-play" aria-hidden="true" />
+                  En progreso
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={guardando}
+                onClick={() => aplicarEstadoRapido("Completada")}
+                className="task-accion-rapida task-accion-rapida--done"
+              >
+                <i className="fa-solid fa-check" aria-hidden="true" />
+                Completar
+              </button>
+            </div>
+          )}
 
           {usuario && (
             <ComentariosTarea
@@ -435,7 +513,19 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
           </div>
           </div>
 
-          <div className="task-form-actions px-6 md:px-10 py-3 flex justify-end gap-2 max-w-3xl mx-auto w-full">
+          <div className="task-form-actions px-6 md:px-10 py-3 flex justify-between gap-2 max-w-3xl mx-auto w-full">
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={handleCompartirEnlace}
+                className="task-form-secondary-btn"
+                title="Copiar enlace"
+              >
+                <i className={`fa-solid ${copiadoEnlace ? "fa-check" : "fa-link"}`} aria-hidden="true" />
+                {copiadoEnlace ? "Copiado" : "Compartir"}
+              </button>
+            </div>
+            <div className="flex gap-2">
             <button
               type="button"
               onClick={onClose}
@@ -450,6 +540,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
             >
               {guardando ? "Guardando…" : "Guardar"}
             </button>
+            </div>
           </div>
         </form>
       </div>

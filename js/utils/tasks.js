@@ -399,7 +399,37 @@ function agruparTareasPorMarcaOrdenadas(tareas, modoAgrupacion) {
   return agrupamiento;
 }
 
+function tareaSinDisenadorAsignado(tarea) {
+  const roles = dividirCampoPersonasPorRol(tarea?.personas || "");
+  return !String(roles.disenadores || "").trim();
+}
+
+function resumirSubtareasTarea(tarea) {
+  const parsed = parseDetalles(tarea?.detalles || "");
+  const total = parsed.subtareas.length;
+  const done = parsed.subtareas.filter((s) => s.completed).length;
+  return { total, done, pendientes: total - done };
+}
+
+function construirEnlaceTarea(tarea) {
+  const key = getTaskSelectionKey(tarea);
+  if (!key) return window.location.href;
+  try {
+    const url = new URL(window.location.href);
+    url.searchParams.set("task", key);
+    return url.toString();
+  } catch {
+    return `${window.location.origin}${window.location.pathname}?task=${encodeURIComponent(key)}`;
+  }
+}
+
+const ESTADOS_DISENADOR_PERMITIDOS = ["En progreso", "En revision", "Completada"];
+
 window.crearNuevaTareaVacia = crearNuevaTareaVacia;
+window.ESTADOS_DISENADOR_PERMITIDOS = ESTADOS_DISENADOR_PERMITIDOS;
+window.tareaSinDisenadorAsignado = tareaSinDisenadorAsignado;
+window.resumirSubtareasTarea = resumirSubtareasTarea;
+window.construirEnlaceTarea = construirEnlaceTarea;
 window.leerTaskKeyDesdeUrl = leerTaskKeyDesdeUrl;
 window.limpiarTaskKeyEnUrl = limpiarTaskKeyEnUrl;
 window.normalizarTareaCampos = normalizarTareaCampos;

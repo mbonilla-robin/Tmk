@@ -9,6 +9,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
   const [ordenarPor, setOrdenarPor] = useState("estado");
   const [textoGenerado, setTextoGenerado] = useState("");
   const [copiado, setCopiado] = useState(false);
+  const [compartido, setCompartido] = useState(false);
 
   const personasDisponibles = useMemo(() => listaPersonas, [listaPersonas]);
 
@@ -48,6 +49,14 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
     setTextoGenerado(texto || "No hay tareas que coincidan con los filtros seleccionados.");
     setVista("resultado");
     setCopiado(false);
+  };
+
+  const handleCompartir = async () => {
+    const resultado = await compartirTexto(textoGenerado, { titulo: "Estatus ROBIN" });
+    if (resultado.ok) {
+      setCompartido(true);
+      setTimeout(() => setCompartido(false), 2000);
+    }
   };
 
   const handleCopiar = async () => {
@@ -223,9 +232,17 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                 <button
                   type="button"
                   onClick={handleCopiar}
-                  className="px-4 py-2 bg-[#37352F] text-white text-xs font-semibold rounded-lg hover:bg-[#2c2a26]"
+                  className="px-3 py-2 text-xs font-semibold text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50"
                 >
                   {copiado ? "¡Copiado!" : "Copiar"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCompartir}
+                  className="px-4 py-2 bg-[#37352F] text-white text-xs font-semibold rounded-lg hover:bg-[#2c2a26] inline-flex items-center gap-1.5"
+                >
+                  <i className="fa-solid fa-share-nodes" aria-hidden="true" />
+                  {compartido ? "¡Listo!" : "Compartir"}
                 </button>
               </div>
             </div>

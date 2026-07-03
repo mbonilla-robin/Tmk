@@ -1,4 +1,4 @@
-function BarraHoyAccesoRapido({ tareas, username, onSelectTask, getMarcaStyle, soloMisTareas = false }) {
+function HomeMiDiaMobile({ tareas, username, onSelectTask, getMarcaStyle, soloMisTareas = false, onVerTodasHoy }) {
   const [filtroAlcance, setFiltroAlcance] = useState(soloMisTareas ? "mio" : "mio");
   const ahora = useRelojHoy();
   const { entregasHoy, trabajarHoy } = useTareasHoyPanel({
@@ -11,12 +11,8 @@ function BarraHoyAccesoRapido({ tareas, username, onSelectTask, getMarcaStyle, s
   const subtituloAlcance = soloMisTareas || filtroAlcance === "mio" ? "Mis tareas" : "Trabajo en equipo";
 
   return (
-    <aside
-      className="hidden md:flex flex-col shrink-0 w-56 min-w-[14rem] h-full bg-white border-l border-zinc-200 overflow-hidden"
-      aria-label="Panel de hoy"
-      data-induccion="panel-hoy"
-    >
-      <div className="px-3 pt-3 pb-2 shrink-0 border-b border-zinc-100">
+    <section className="home-hoy-mobile md:hidden" data-induccion="mi-dia-mobile" aria-label="Panel de hoy">
+      <div className="home-hoy-mobile__top">
         <HoyRelojCompacto
           ahora={ahora}
           soloMisTareas={soloMisTareas}
@@ -25,7 +21,7 @@ function BarraHoyAccesoRapido({ tareas, username, onSelectTask, getMarcaStyle, s
         />
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto py-3 no-scrollbar">
+      <div className="home-hoy-mobile__body">
         <SeccionTareasHoy
           titulo="Entregas hoy"
           subtitulo={subtituloAlcance}
@@ -37,7 +33,7 @@ function BarraHoyAccesoRapido({ tareas, username, onSelectTask, getMarcaStyle, s
           pieFechaFn={(t) => (t.deadline ? `Entrega ${formatearFecha(t.deadline)}` : "Entrega —")}
         />
 
-        <div className="mx-3 my-3 border-t border-zinc-100" aria-hidden="true" />
+        <div className="home-hoy-mobile__divider" aria-hidden="true" />
 
         <SeccionTareasHoy
           titulo="¿Qué trabajar hoy?"
@@ -50,6 +46,15 @@ function BarraHoyAccesoRapido({ tareas, username, onSelectTask, getMarcaStyle, s
           pieFechaFn={(t) => (t.deadline ? `Entrega ${formatearFecha(t.deadline)}` : "Entrega —")}
         />
       </div>
-    </aside>
+
+      {onVerTodasHoy && (
+        <div className="home-hoy-mobile__footer">
+          <button type="button" onClick={onVerTodasHoy} className="home-section__link">
+            Ver todas
+            <SVGIcon.ChevronRight className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+    </section>
   );
 }

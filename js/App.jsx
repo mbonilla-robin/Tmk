@@ -96,8 +96,14 @@ function App() {
   const [syncDetalleVisible, setSyncDetalleVisible] = useState(false);
   const [dashboardMobileVista, setDashboardMobileVista] = useState(() => initialPrefs.dashboardMobileVista || "lista");
   const [configSeccion, setConfigSeccion] = useState(null);
+  const [configOrigenSeccion, setConfigOrigenSeccion] = useState(null);
   const [configUiBump, setConfigUiBump] = useState(0);
   const [showGeneradorEstatus, setShowGeneradorEstatus] = useState(false);
+  const [formularioRapidoVisible, setFormularioRapidoVisible] = useState(false);
+  const [noticiasTmk, setNoticiasTmk] = useState([]);
+  const [cargandoNoticiasTmk, setCargandoNoticiasTmk] = useState(false);
+  const [noticiaTmkAbierta, setNoticiaTmkAbierta] = useState(null);
+  const [panelTmkNewsVisible, setPanelTmkNewsVisible] = useState(false);
   const [sidebarMarcasAbierto, setSidebarMarcasAbierto] = useState(true);
   const [sidebarEnLineaAbierto, setSidebarEnLineaAbierto] = useState(true);
   const [prefsReady, setPrefsReady] = useState(() => !getInicialUsuario());
@@ -189,7 +195,9 @@ function App() {
         return false;
       }
       if (filtroPrioridad !== "TODAS" && normalizarPrioridad(t.prioridad) !== normalizarPrioridad(filtroPrioridad)) return false;
-      if (filtroPersona !== "TODAS" && !tareaIncluyePersonaFiltro(t.personas || "", filtroPersona)) return false;
+      if (filtroPersona === "SIN_DISENADOR") {
+        if (!tareaSinDisenadorAsignado(t)) return false;
+      } else if (filtroPersona !== "TODAS" && !tareaIncluyePersonaFiltro(t.personas || "", filtroPersona)) return false;
 
       if (searchQuery.trim() !== "") {
         const q = searchQuery.toLowerCase();
@@ -218,6 +226,19 @@ function App() {
     
     return { activasHoy, entregasHoy, trabajarHoy, atrasadas };
   }, [tareasVisibles]);
+
+  const atajoFiltroActivo = useMemo(() => {
+    if (filtroMarca !== "TODAS") return null;
+    if (filtroTiempo === "HOY" && filtroEstado === "TODOS" && filtroPersona === "TODAS") return "hoy";
+    if (filtroTiempo === "ATRASADAS" && filtroEstado === "TODOS" && filtroPersona === "TODAS") return "atrasadas";
+    if (filtroTiempo === "TODAS" && cleanEstado(filtroEstado) === "en revision" && filtroPersona === "TODAS") return "revision";
+    if (filtroPersona === "SIN_DISENADOR") return "sin-disenador";
+    if (isDesigner && usuario) {
+      const handle = usuario.startsWith("@") ? usuario : `@${usuario}`;
+      if (filtroPersona === handle && filtroTiempo === "TODAS" && filtroEstado === "TODOS") return "mias";
+    }
+    return null;
+  }, [filtroMarca, filtroTiempo, filtroEstado, filtroPersona, isDesigner, usuario]);
 
   // getMarcaStyle definido en js/utils/marcas.js
   // =========================================================================
@@ -251,6 +272,55 @@ function App() {
       setNotifCargando(false);
     }
   }, [usuario, isConfigOnlyAdmin]);
+
+  const cargarNoticiasTmk = useCallback(async () => {
+    setCargandoNoticiasTmk(true);
+    try {
+      const lista = await fetchNoticiasTmk({ dias: TMK_NEWS_DIAS_HOME });
+      setNoticiasTmk(lista);
+    } finally {
+      setCargandoNoticiasTmk(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!usuario) return undefined;
+    if (paginaActiva !== "home" && !(paginaActiva === "configuracion" && configSeccion === "news")) {
+      return undefined;
+    }
+    cargarNoticiasTmk();
+    return undefined;
+  }, [usuario, paginaActiva, configSeccion, cargarNoticiasTmk]);
+
+  const abrirPanelTmkNews = useCallback(() => {
+    let esDesktop = false;
+    try {
+      esDesktop = window.matchMedia("(min-width: 768px)").matches;
+    } catch (e) {
+      esDesktop = false;
+    }
+
+    if (esDesktop) {
+      setPanelTmkNewsVisible(true);
+      return;
+    }
+
+    setConfigOrigenSeccion("home");
+    setPaginaActiva("configuracion");
+    setSyncDetalleVisible(false);
+    setConfigSeccion("news");
+  }, []);
+
+  const handleConfigSubpageBack = useCallback(() => {
+    if (configSeccion === "news" && configOrigenSeccion === "home") {
+      setConfigOrigenSeccion(null);
+      setConfigSeccion(null);
+      setPaginaActiva("home");
+      setSyncDetalleVisible(false);
+      return;
+    }
+    setConfigSeccion(null);
+  }, [configSeccion, configOrigenSeccion]);
 
   useEffect(() => {
     if (!usuario || isConfigOnlyAdmin) return undefined;
@@ -542,7 +612,10 @@ function App() {
       limpiarSeleccionTareas();
       setDashboardMobileVista("lista");
     }
-    if (pagina !== "configuracion") setConfigSeccion(null);
+    if (pagina !== "configuracion") {
+      setConfigSeccion(null);
+      setConfigOrigenSeccion(null);
+    }
     if (pagina === "clientes") setClientesReset(n => n + 1);
     if (extraFn) extraFn();
   };
@@ -579,6 +652,60 @@ function App() {
     setSearchQuery("");
     setDashboardMobileVista("lista");
   }, []);
+
+  const aplicarAtajoFiltro = useCallback((atajo) => {
+    const aplicar = () => {
+      setFiltroMarca("TODAS");
+      setFiltroPrioridad("TODAS");
+      setSearchQuery("");
+      setDashboardMobileVista("lista");
+
+      if (atajo === "hoy") {
+        setFiltroTiempo("HOY");
+        setFiltroEstado("TODOS");
+        setFiltroPersona("TODAS");
+      } else if (atajo === "atrasadas") {
+        setFiltroTiempo("ATRASADAS");
+        setFiltroEstado("TODOS");
+        setFiltroPersona("TODAS");
+      } else if (atajo === "revision") {
+        setFiltroTiempo("TODAS");
+        setFiltroEstado("En revision");
+        setFiltroPersona("TODAS");
+      } else if (atajo === "sin-disenador") {
+        setFiltroTiempo("TODAS");
+        setFiltroEstado("TODOS");
+        setFiltroPersona("SIN_DISENADOR");
+      } else if (atajo === "mias" && usuario) {
+        setFiltroTiempo("TODAS");
+        setFiltroEstado("TODOS");
+        setFiltroPersona(usuario.startsWith("@") ? usuario : `@${usuario}`);
+      } else if (atajo === "activos") {
+        setFiltroTiempo("TODAS");
+        setFiltroEstado("En progreso");
+        setFiltroPersona("TODAS");
+      } else if (atajo === "listos") {
+        setFiltroTiempo("TODAS");
+        setFiltroEstado("Completada");
+        setFiltroPersona("TODAS");
+      } else if (atajo === "urgentes") {
+        setFiltroTiempo("TODAS");
+        setFiltroEstado("TODOS");
+        setFiltroPersona("TODAS");
+        setFiltroPrioridad("Alta");
+      } else if (atajo === "total") {
+        setFiltroTiempo("TODAS");
+        setFiltroEstado("TODOS");
+        setFiltroPersona("TODAS");
+      }
+    };
+
+    if (paginaActiva === "dashboard") {
+      aplicar();
+    } else {
+      navegarA("dashboard", aplicar);
+    }
+  }, [usuario, paginaActiva]);
 
   const aplicarEntradaPasoInduccion = useCallback((paso) => {
     if (!paso) return;
@@ -1417,6 +1544,38 @@ function App() {
     if (!taskToComplete) return;
     const tarea = taskToComplete;
     setTaskToComplete(null);
+
+    if (isDesigner) {
+      const original = resolverTareaActual(tareas, tarea);
+      if (!original) return;
+      const hoy = new Date();
+      const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, "0")}`;
+      let detalles = original.detalles || "";
+      detalles += `\n• [${timestamp}] Estado cambiado a "Completada" por @${usuario}`;
+      const actualizada = marcarTareaPendiente(normalizarTareaCampos({
+        ...original,
+        estado: "Completada",
+        detalles
+      }));
+      const index = encontrarIndiceTarea(tareas, original);
+      if (index === -1) return;
+      const copiaTareas = [...tareas];
+      copiaTareas[index] = actualizada;
+      persistTareas(copiaTareas);
+      encolarSync({
+        type: "update",
+        taskKey: getTaskSelectionKey(actualizada),
+        taskKeyOriginal: getTaskSelectionKey(original),
+        payload: construirPayloadSyncTarea(original, actualizada, { campoSync: "todo" })
+      });
+      setHayPendientesLocales(true);
+      notificarCambioEstadoTarea(actualizada, usuario, original.estado, "Completada")
+        .then(() => refrescarNotificaciones());
+      showToast("Entregable completado", "success");
+      sincronizarEnSegundoPlano();
+      return;
+    }
+
     await handleUpdateField(tarea, "estado", "Completada");
   };
 
@@ -1459,7 +1618,7 @@ function App() {
     onUpdateField: isDesigner ? undefined : handleUpdateField,
     onSelectTask: abrirEdicionTarea,
     onDeleteTask: isDesigner ? undefined : (t) => setTaskToDelete(t),
-    onSolicitarCompletar: isDesigner ? undefined : (t) => setTaskToComplete(t),
+    onSolicitarCompletar: (t) => setTaskToComplete(t),
     getMarcaStyle,
     currentTheme,
     modoAgrupacion: listaAgrupacion,
@@ -1492,9 +1651,17 @@ function App() {
       }
 
       if (isDesigner) {
+        const estadoCambio = normalizarEstado(original.estado) !== normalizarEstado(editedTask.estado);
+        const hoy = new Date();
+        const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, "0")}`;
+        let detallesFinal = editedTask.detalles || original.detalles || "";
+        if (estadoCambio) {
+          detallesFinal += `\n• [${timestamp}] Estado cambiado a "${normalizarEstado(editedTask.estado)}" por @${usuario}`;
+        }
         const taskConDetalles = marcarTareaPendiente(normalizarTareaCampos({
           ...original,
-          detalles: editedTask.detalles || original.detalles
+          ...(estadoCambio ? { estado: normalizarEstado(editedTask.estado) } : {}),
+          detalles: detallesFinal
         }));
         const taskKeyOriginal = getTaskSelectionKey(original);
         const copiaTareas = [...tareas];
@@ -1505,12 +1672,18 @@ function App() {
           type: "update",
           taskKey: getTaskSelectionKey(taskConDetalles),
           taskKeyOriginal,
-          payload: construirPayloadSyncTarea(original, taskConDetalles, { campoSync: "detalles" })
+          payload: construirPayloadSyncTarea(original, taskConDetalles, {
+            campoSync: estadoCambio ? "todo" : "detalles"
+          })
         });
         setHayPendientesLocales(true);
+        if (estadoCambio) {
+          notificarCambioEstadoTarea(taskConDetalles, usuario, original.estado, editedTask.estado)
+            .then(() => refrescarNotificaciones());
+        }
         setIsEditing(false);
         setActiveTask(null);
-        showToast("Notas guardadas", "success");
+        showToast(estadoCambio ? "Estado actualizado" : "Notas guardadas", "success");
         sincronizarEnSegundoPlano();
         return;
       }
@@ -1697,6 +1870,14 @@ function App() {
     }
   };
 
+  const handleCreateTaskRapido = async (tareaPreparada) => {
+    if (isDesigner) return;
+    const fakeEvent = { preventDefault: () => {} };
+    const detallesSerializados = serializeDetalles("", [], [], "");
+    await handleCreateTask(fakeEvent, detallesSerializados, tareaPreparada);
+    setFormularioRapidoVisible(false);
+  };
+
   if (!usuario) {
     return (
       <div className={`h-screen w-screen ${currentTheme.bg} ${currentTheme.text} flex items-center justify-center p-4 select-none animate-fade-in`}>
@@ -1783,7 +1964,8 @@ function App() {
     avanzadas: "Opciones avanzadas",
     api: "Base de datos",
     widgets: "Enlaces",
-    clientes: "Fichas clientes"
+    clientes: "Fichas clientes",
+    news: "TMK News"
   }[seccion] || "Ajustes");
 
   const renderConfigAvanzadas = () => {
@@ -1933,6 +2115,19 @@ function App() {
 
     if (seccion === "api") return renderPanelDiagnosticoApi();
 
+    if (seccion === "news") {
+      return (
+        <PanelTmkNews
+          usuario={usuario}
+          nombreUsuario={nombreCompleto}
+          currentTheme={currentTheme}
+          theme={theme}
+          onPublicado={() => cargarNoticiasTmk()}
+          showToast={showToast}
+        />
+      );
+    }
+
     if (seccion === "widgets" && isConfigOnlyAdmin) {
       return (
         <WidgetsAdminPanel
@@ -1969,7 +2164,10 @@ function App() {
     const Item = ({ seccion, icon, label }) => (
       <button
         type="button"
-        onClick={() => setConfigSeccion(seccion)}
+        onClick={() => {
+          setConfigOrigenSeccion(null);
+          setConfigSeccion(seccion);
+        }}
         className={`${itemClass} ${esDesktop && configSeccion === seccion ? "is-active" : ""}`}
       >
         <span><i className={`fa-solid ${icon}`}></i> {label}</span>
@@ -1981,6 +2179,7 @@ function App() {
       <div className={`flex flex-col gap-2 ${esDesktop ? "robin-config-nav" : ""}`}>
         {!esDesktop && <h2 className={`text-base font-bold mb-1 ${currentTheme.text}`}>Ajustes</h2>}
         {!isConfigOnlyAdmin && <Item seccion="perfil" icon="fa-user" label="Perfil" />}
+        <Item seccion="news" icon="fa-newspaper" label="TMK News" />
         <Item seccion="api" icon="fa-database" label="Base de datos" />
         <Item seccion="avanzadas" icon="fa-gear" label="Opciones avanzadas" />
         {isConfigOnlyAdmin && (
@@ -2348,11 +2547,13 @@ function App() {
 
       {/* CONTENEDOR PRINCIPAL */}
       <main className={`flex-1 flex flex-col overflow-hidden ${currentTheme.bg}`}>
-        <header className={`app-header-bar ${currentTheme.bg} px-6 justify-between robin-desktop-only`}>
-          <div className="flex items-center gap-3">
-            <h1 className="text-ui font-semibold text-zinc-500">
-              Trade & Shopper Marketing{isConfigOnlyAdmin ? " · Admin" : isDesigner ? " · Diseño" : ""}
-            </h1>
+        <header className={`app-header-bar ${currentTheme.bg} px-6 justify-between robin-desktop-only${paginaActiva === "home" ? " app-header-bar--home" : ""}`}>
+          <div className="flex items-center gap-3 min-w-0">
+            {paginaActiva !== "home" && (
+              <h1 className="text-ui font-semibold text-zinc-500">
+                Trade & Shopper Marketing{isConfigOnlyAdmin ? " · Admin" : isDesigner ? " · Diseño" : ""}
+              </h1>
+            )}
           </div>
 
           <div className="flex items-center gap-3">
@@ -2409,7 +2610,9 @@ function App() {
               ? "robin-mobile-main marca-home-main"
               : paginaActiva === "configuracion"
                 ? "robin-mobile-main robin-main-config max-w-6xl mx-auto"
-                : "robin-mobile-main max-w-6xl mx-auto"
+                : paginaActiva === "home"
+                  ? "robin-mobile-main robin-main-home max-w-6xl mx-auto"
+                  : "robin-mobile-main max-w-6xl mx-auto"
         }`}>
           {syncDetalleVisible && renderSyncSubpage()}
           
@@ -2423,10 +2626,18 @@ function App() {
               widgets={widgets}
               onAbrirEstatus={isDesigner ? undefined : () => setShowGeneradorEstatus(true)}
               onAbrirEquipos={isDesigner ? undefined : () => navegarA("equipos")}
+              onVerTodasHoy={() => aplicarAtajoFiltro("hoy")}
+              onCrearRapido={isDesigner ? undefined : () => setFormularioRapidoVisible(true)}
+              onAtajoFiltro={aplicarAtajoFiltro}
+              soloMisTareas={isDesigner}
               currentTheme={currentTheme}
               getMarcaStyle={getMarcaStyle}
               otrosUsuariosEnLinea={otrosUsuariosEnLinea}
               presenceEstado={presenceEstado}
+              noticiasTmk={noticiasTmk}
+              cargandoNoticiasTmk={cargandoNoticiasTmk}
+              onSelectNoticiaTmk={setNoticiaTmkAbierta}
+              onAbrirPublicarTmkNews={abrirPanelTmkNews}
             />
           )}
 
@@ -2515,6 +2726,7 @@ function App() {
                         </select>
                         <select value={filtroPersona} onChange={(e) => setFiltroPersona(e.target.value)} className="w-full bg-white border border-zinc-200 p-2 text-ui rounded text-zinc-600">
                           <option value="TODAS">Todas las personas</option>
+                          {!isDesigner && <option value="SIN_DISENADOR">Sin diseñador asignado</option>}
                           {listaPersonas.map(p => (<option key={p} value={p}>{p}</option>))}
                         </select>
                       </div>
@@ -2574,6 +2786,14 @@ function App() {
                         )}
                       </div>
                     </div>
+
+                    <ListaAtajosRapidos
+                      tareas={tareasVisibles}
+                      username={usuario}
+                      onAtajo={aplicarAtajoFiltro}
+                      soloMisTareas={isDesigner}
+                      filtroActivo={atajoFiltroActivo}
+                    />
 
                     <div className="notion-dash-search" data-induccion="dashboard-buscar">
                       <i className="fa-solid fa-magnifying-glass notion-dash-search-icon" />
@@ -2660,6 +2880,7 @@ function App() {
                   </select>
                   <select value={filtroPersona} onChange={(e) => setFiltroPersona(e.target.value)} className="notion-filter-select">
                     <option value="TODAS">Persona</option>
+                    {!isDesigner && <option value="SIN_DISENADOR">Sin diseñador</option>}
                     {listaPersonas.map(p => (<option key={p} value={p}>{p}</option>))}
                   </select>
                 </div>
@@ -2667,6 +2888,15 @@ function App() {
                   <button type="button" onClick={() => setFiltroTiempo("TODAS")} className={`notion-time-pill ${filtroTiempo === "TODAS" ? "is-active" : ""}`}>Todo</button>
                   <button type="button" onClick={() => setFiltroTiempo("HOY")} className={`notion-time-pill ${filtroTiempo === "HOY" ? "is-active-blue" : ""}`}>Hoy{metricaCounters.activasHoy > 0 ? ` (${metricaCounters.activasHoy})` : ""}</button>
                   <button type="button" onClick={() => setFiltroTiempo("ATRASADAS")} className={`notion-time-pill ${filtroTiempo === "ATRASADAS" ? "is-active-red" : ""}`}>Atrasados{metricaCounters.atrasadas > 0 ? ` (${metricaCounters.atrasadas})` : ""}</button>
+                  {!isDesigner && (
+                    <button
+                      type="button"
+                      onClick={() => setFiltroPersona(filtroPersona === "SIN_DISENADOR" ? "TODAS" : "SIN_DISENADOR")}
+                      className={`notion-time-pill ${filtroPersona === "SIN_DISENADOR" ? "is-active" : ""}`}
+                    >
+                      Sin diseñador
+                    </button>
+                  )}
                   {vistaModo === "KANBAN" && filtroTiempo === "HOY" && (
                     <button
                       type="button"
@@ -2739,7 +2969,8 @@ function App() {
                   <div className="robin-config-subpage flex flex-col gap-3">
                     <MobileSubpageBar
                       title={tituloConfigSeccion(configSeccion)}
-                      onBack={() => setConfigSeccion(null)}
+                      onBack={handleConfigSubpageBack}
+                      backLabel={configSeccion === "news" && configOrigenSeccion === "home" ? "Home" : "Volver"}
                     />
                     <div className="robin-config-subpage__body">
                       {renderConfigSeccionContenido(configSeccion)}
@@ -2796,10 +3027,12 @@ function App() {
         syncDetalleVisible={syncDetalleVisible}
         palabraEstadoSync={palabraEstadoSync}
         onSyncClick={handleSyncClick}
-        onRefresh={() => fetchData(false)}
-        loading={loading}
         theme={theme}
         notificacionesSlot={campanaNotificaciones}
+        onAtajoFiltro={aplicarAtajoFiltro}
+        onAbrirEquipos={isDesigner ? undefined : () => navegarA("equipos")}
+        onAbrirEstatus={isDesigner ? undefined : () => setShowGeneradorEstatus(true)}
+        onCrearRapido={isDesigner ? undefined : () => setFormularioRapidoVisible(true)}
       />
       )}
 
@@ -2820,8 +3053,66 @@ function App() {
             nombreUsuario={nombreCompleto}
             onComentarioPublicado={refrescarNotificaciones}
             onToast={showToast}
-            soloLectura={isDesigner}
+            soloLectura={false}
+            modoDisenador={isDesigner}
           />
+        </ModalPortal>
+      )}
+
+      {!isConfigOnlyAdmin && !isDesigner && formularioRapidoVisible && (
+        <ModalPortal>
+          <FormularioRapidoEntregable
+            onSubmit={handleCreateTaskRapido}
+            onClose={() => setFormularioRapidoVisible(false)}
+            marcasDisponibles={marcasDisponibles}
+            listaPersonas={listaPersonas}
+            registrarNuevaPersona={registrarNuevaPersonaGlobal}
+            marcaDefault={filtroMarca !== "TODAS" ? filtroMarca : "La Santé"}
+          />
+        </ModalPortal>
+      )}
+
+      {noticiaTmkAbierta && (
+        <ModalTmkNews
+          noticia={noticiaTmkAbierta}
+          onClose={() => setNoticiaTmkAbierta(null)}
+          theme={theme}
+        />
+      )}
+
+      {!isConfigOnlyAdmin && panelTmkNewsVisible && (
+        <ModalPortal>
+          <div className="tmk-news-publish-overlay" role="dialog" aria-modal="true" aria-label="Publicar en TMK News">
+            <button
+              type="button"
+              className="tmk-news-publish-backdrop"
+              onClick={() => setPanelTmkNewsVisible(false)}
+              aria-label="Cerrar"
+            />
+            <div className={`tmk-news-publish-panel${theme === "midnight" ? " tmk-news-publish-panel--dark" : ""}`}>
+              <button
+                type="button"
+                className="tmk-news-publish-close"
+                onClick={() => setPanelTmkNewsVisible(false)}
+                aria-label="Cerrar"
+              >
+                <i className="fa-solid fa-xmark" aria-hidden="true" />
+              </button>
+              <div className="tmk-news-publish-scroll">
+                <PanelTmkNews
+                  usuario={usuario}
+                  nombreUsuario={nombreCompleto}
+                  currentTheme={currentTheme}
+                  theme={theme}
+                  onPublicado={() => {
+                    cargarNoticiasTmk();
+                    setPanelTmkNewsVisible(false);
+                  }}
+                  showToast={showToast}
+                />
+              </div>
+            </div>
+          </div>
         </ModalPortal>
       )}
 

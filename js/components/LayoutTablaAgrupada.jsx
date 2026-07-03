@@ -15,6 +15,8 @@ function NotionTaskRow({
     ? t.personas.split(/[\s,]+/).filter(Boolean).slice(0, 2).join(", ")
     : null;
   const esCompletada = cleanEstado(t.estado) === "completada";
+  const subtareasResumen = useMemo(() => resumirSubtareasTarea(t), [t.detalles]);
+  const sinDisenador = useMemo(() => tareaSinDisenadorAsignado(t), [t.personas]);
   const cats = parseCategoriasTarea(t.categoria);
 
   const [offsetX, setOffsetX] = useState(0);
@@ -145,6 +147,19 @@ function NotionTaskRow({
           <span className={`notion-task-prio-tag ${cPrioridad.color}`}>
             {normalizarPrioridad(t.prioridad)}
           </span>
+
+          {subtareasResumen.total > 0 && (
+            <span className="notion-task-badge notion-task-badge--sub" title="Subtareas">
+              <i className="fa-regular fa-square-check text-[9px]" aria-hidden="true" />
+              {subtareasResumen.done}/{subtareasResumen.total}
+            </span>
+          )}
+
+          {sinDisenador && !esCompletada && (
+            <span className="notion-task-badge notion-task-badge--warn" title="Sin diseñador asignado">
+              Sin diseñador
+            </span>
+          )}
         </div>
       </div>
 

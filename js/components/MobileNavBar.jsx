@@ -1,3 +1,64 @@
+function MobileNavQuickMenu({ acciones, onClose, anchorKey }) {
+  if (!acciones || acciones.length === 0) return null;
+
+  return (
+    <>
+      <button type="button" className="mobile-quick-menu-backdrop" onClick={onClose} aria-label="Cerrar menú" />
+      <div className={`mobile-quick-menu mobile-quick-menu--${anchorKey}`} role="menu">
+        <p className="mobile-quick-menu__hint">Mantén presionado para accesos rápidos</p>
+        {acciones.map((accion) => (
+          <button
+            key={accion.id}
+            type="button"
+            role="menuitem"
+            className="mobile-quick-menu__item"
+            onClick={() => {
+              onClose();
+              accion.onClick();
+            }}
+          >
+            <i className={`fa-solid ${accion.icon}`} aria-hidden="true" />
+            <span>{accion.label}</span>
+          </button>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function MobileNavItem({ item, induccionTarget, quickActions, onQuickOpen }) {
+  const skipClickRef = useRef(false);
+
+  const longPress = useLongPress(() => {
+    if (quickActions && quickActions.length > 0) {
+      skipClickRef.current = true;
+      onQuickOpen(item.key, quickActions);
+    }
+  });
+
+  return (
+    <button
+      key={item.key}
+      type="button"
+      onClick={() => {
+        if (skipClickRef.current) {
+          skipClickRef.current = false;
+          return;
+        }
+        item.onClick();
+      }}
+      data-induccion={induccionTarget || undefined}
+      className={`mobile-nav-item ${item.active ? "is-active" : ""} ${item.highlight ? "is-highlight" : ""}`}
+      {...longPress}
+    >
+      <span className="mobile-nav-icon">
+        <i className={`fa-solid ${item.icon}`}></i>
+      </span>
+      <span className="mobile-nav-label">{item.label}</span>
+    </button>
+  );
+}
+
 function MobileNavBar({
   paginaActiva,
   navegarA,
@@ -15,15 +76,62 @@ function MobileNavBar({
   syncDetalleVisible,
   palabraEstadoSync,
   onSyncClick,
-  onRefresh,
-  loading,
   theme = "notion",
-  notificacionesSlot = null
+  notificacionesSlot = null,
+  onAtajoFiltro,
+  onAbrirEquipos,
+  onAbrirEstatus,
+  onCrearRapido
 }) {
+  const [quickMenu, setQuickMenu] = useState(null);
+
   const isActive = (pagina, extraCheck) => {
     if (paginaActiva !== pagina) return false;
     return extraCheck ? extraCheck() : true;
   };
+
+  const quickActionsByKey = useMemo(() => {
+    const map = {};
+
+    if (!esDisenador) {
+      map.home = [
+        ...(onAbrirEquipos ? [{ id: "equipos", label: "Ver equipos", icon: "fa-users", onClick: onAbrirEquipos }] : []),
+        ...(onAbrirEstatus ? [{ id: "estatus", label: "Generar estatus", icon: "fa-file-lines", onClick: onAbrirEstatus }] : [])
+      ];
+    }
+
+    if (onAtajoFiltro) {
+      map["dashboard-all"] = [
+        { id: "hoy", label: "Hoy", icon: "fa-calendar-day", onClick: () => onAtajoFiltro("hoy") },
+        { id: "atrasadas", label: "Atrasadas", icon: "fa-clock", onClick: () => onAtajoFiltro("atrasadas") },
+        { id: "revision", label: "En revisión", icon: "fa-eye", onClick: () => onAtajoFiltro("revision") }
+      ];
+      if (!esDisenador) {
+        map["dashboard-all"].push({
+          id: "sin-disenador",
+          label: "Sin diseñador",
+          icon: "fa-user-slash",
+          onClick: () => onAtajoFiltro("sin-disenador")
+        });
+      } else {
+        map["dashboard-all"].unshift({
+          id: "mias",
+          label: "Mis tareas",
+          icon: "fa-user",
+          onClick: () => onAtajoFiltro("mias")
+        });
+      }
+    }
+
+    if (!esDisenador) {
+      map.agregar = [
+        ...(onCrearRapido ? [{ id: "rapido", label: "Crear rápido", icon: "fa-bolt", onClick: onCrearRapido }] : []),
+        { id: "completo", label: "Formulario completo", icon: "fa-file-circle-plus", onClick: () => navegarA("agregar") }
+      ];
+    }
+
+    return map;
+  }, [esDisenador, onAtajoFiltro, onAbrirEquipos, onAbrirEstatus, onCrearRapido, navegarA]);
 
   const navItems = [
     {
@@ -114,15 +222,6 @@ function MobileNavBar({
                     : "fa-cloud"
             }`}></i>
           </button>
-          <button
-            type="button"
-            onClick={onRefresh}
-            disabled={loading}
-            className="mobile-top-btn"
-            title="Actualizar"
-          >
-            <i className={`fa-solid fa-arrows-rotate ${loading ? "animate-spin" : ""}`}></i>
-          </button>
         </div>
       </header>
 
@@ -132,21 +231,24 @@ function MobileNavBar({
           style={{ "--mobile-nav-cols": navItems.length }}
         >
           {navItems.map((item) => (
-            <button
+            <MobileNavItem
               key={item.key}
-              type="button"
-              onClick={item.onClick}
-              data-induccion={induccionTargetByKey[item.key] || undefined}
-              className={`mobile-nav-item ${item.active ? "is-active" : ""} ${item.highlight ? "is-highlight" : ""}`}
-            >
-              <span className="mobile-nav-icon">
-                <i className={`fa-solid ${item.icon}`}></i>
-              </span>
-              <span className="mobile-nav-label">{item.label}</span>
-            </button>
+              item={item}
+              induccionTarget={induccionTargetByKey[item.key]}
+              quickActions={quickActionsByKey[item.key]}
+              onQuickOpen={(key, acciones) => setQuickMenu({ key, acciones })}
+            />
           ))}
         </div>
       </nav>
+
+      {quickMenu && (
+        <MobileNavQuickMenu
+          acciones={quickMenu.acciones}
+          anchorKey={quickMenu.key}
+          onClose={() => setQuickMenu(null)}
+        />
+      )}
     </>
   );
 }

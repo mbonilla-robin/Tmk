@@ -348,7 +348,7 @@ function LayoutMarcaHome({
         <div className="marca-glass-panel marca-urgentes-panel overflow-hidden">
           <div className="home-priority-panel__header px-3 py-2.5 md:p-4 md:pb-3 flex items-center justify-between gap-2">
             <span className="mobile-section-label md:hidden">Urgentes</span>
-            <span className="hidden md:block text-[10px] font-semibold text-zinc-500">Prioridad alta</span>
+            <span className="hidden md:block text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">Prioridad alta</span>
             {highPriorityTasks.length > 0 && (
               <span className="text-[10px] font-semibold text-red-600 bg-red-50 border border-red-100 rounded-full px-2 py-0.5">
                 {highPriorityTasks.length}

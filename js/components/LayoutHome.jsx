@@ -157,6 +157,13 @@ function LayoutHome({
       <div className={`flex flex-col gap-4 md:gap-5 ${widgetsMobileVista === "todos" ? "hidden md:flex" : ""}`}>
         {/* —— Móvil: nuevo layout —— */}
         <div className="home-mobile-stack md:hidden">
+          <HomeTmkNews
+            noticias={noticiasTmk}
+            loading={cargandoNoticiasTmk}
+            onSelectNoticia={onSelectNoticiaTmk}
+            onAbrirPublicar={onAbrirPublicarTmkNews}
+          />
+
           <HomeMobileCommandCenter
             fechaLabel={fechaLabel}
             primerNombre={primerNombre}
@@ -169,13 +176,6 @@ function LayoutHome({
           />
 
           <HomeAreaStats stats={stats} onStatTap={handleStatTap} className="md:hidden" />
-
-          <HomeTmkNews
-            noticias={noticiasTmk}
-            loading={cargandoNoticiasTmk}
-            onSelectNoticia={onSelectNoticiaTmk}
-            onAbrirPublicar={onAbrirPublicarTmkNews}
-          />
 
           {onVerTodasHoy !== undefined && (
             <HomeMiDiaMobile

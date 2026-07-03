@@ -10,9 +10,17 @@ function HomeAreaStatTile({ label, value, tone, onClick }) {
   );
 }
 
-function HomeAreaStats({ stats, onStatTap }) {
+function HomeAreaStats({ stats, onStatTap, variant = "mobile", className = "" }) {
+  const esDesktop = variant === "desktop";
+  const sectionClass = [
+    "home-section",
+    "home-area-stats",
+    esDesktop ? "home-area-stats--desktop" : "",
+    className
+  ].filter(Boolean).join(" ");
+
   return (
-    <section className="home-section home-area-stats md:hidden" data-induccion="resumen-area">
+    <section className={sectionClass} data-induccion="resumen-area">
       <div className="home-section__head">
         <span className="home-section__title">Resumen del área</span>
       </div>

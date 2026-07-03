@@ -168,7 +168,7 @@ function LayoutHome({
             presenceEstado={presenceEstado}
           />
 
-          <HomeAreaStats stats={stats} onStatTap={handleStatTap} />
+          <HomeAreaStats stats={stats} onStatTap={handleStatTap} className="md:hidden" />
 
           <HomeTmkNews
             noticias={noticiasTmk}
@@ -232,29 +232,12 @@ function LayoutHome({
 
           {renderUrgentesDesktop()}
 
-          <div className="area-stat-card">
-            <div className="area-stat-header" data-induccion="resumen-area">
-              <span>Resumen del área</span>
-            </div>
-            <div className="area-stat-grid">
-              <div className="area-stat-item">
-                <span className="area-stat-label">Total</span>
-                <span className="area-stat-value area-stat-value--total">{stats.total}</span>
-              </div>
-              <div className="area-stat-item">
-                <span className="area-stat-label">Activos</span>
-                <span className="area-stat-value area-stat-value--active">{stats.enProgreso}</span>
-              </div>
-              <div className="area-stat-item">
-                <span className="area-stat-label">Listos</span>
-                <span className="area-stat-value area-stat-value--done">{stats.completadas}</span>
-              </div>
-              <div className="area-stat-item">
-                <span className="area-stat-label">Atraso</span>
-                <span className="area-stat-value area-stat-value--late">{stats.atrasadas}</span>
-              </div>
-            </div>
-          </div>
+          <HomeAreaStats
+            stats={stats}
+            onStatTap={handleStatTap}
+            variant="desktop"
+            className="hidden md:block"
+          />
 
           <div className="w-full">
             <CalendarioNotion

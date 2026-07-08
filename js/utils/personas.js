@@ -501,9 +501,20 @@ function filtrarTareasAsignadasADisenador(tareas, username) {
 }
 
 function obtenerHandlesDisenadores() {
-  return (typeof ROBIN_DESIGNER_USERNAMES !== "undefined" ? ROBIN_DESIGNER_USERNAMES : [])
-    .map((u) => normalizarClavePersona(u))
-    .filter(Boolean);
+  const base = (typeof ROBIN_DESIGNER_USERNAMES !== "undefined" ? ROBIN_DESIGNER_USERNAMES : []);
+  const raw = getLocalStorageItemSafe("robin_lista_disenadores", null);
+  let local = [];
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      local = Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      local = [];
+    }
+  }
+
+  const set = new Set([...base, ...local].map((u) => normalizarClavePersona(u)).filter(Boolean));
+  return Array.from(set);
 }
 
 function esPersonaDisenador(valor) {

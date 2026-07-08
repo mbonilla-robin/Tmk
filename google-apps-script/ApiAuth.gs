@@ -4,7 +4,8 @@
 
 var ROBIN_OPERACIONES_ADMIN = {
   "crearMarca": true,
-  "eliminarMarca": true
+  "eliminarMarca": true,
+  "actualizarUsuarios": true
 };
 
 function robinJsonResponse_(obj) {
@@ -178,6 +179,68 @@ function robinExigirOperacionAdmin_(session, payload) {
       throw new Error("No autorizado: solo administradores pueden gestionar enlaces.");
     }
   }
+}
+
+function robinActualizarUsuarios_(payload) {
+  var usuario = robinNormalizarPersonasBusqueda_(payload.usuario);
+  var rol = String(payload.rol || "").trim().toLowerCase();
+  var accion = String(payload.accion || "").trim().toLowerCase();
+
+  if (!usuario) throw new Error("Usuario requerido.");
+  if (!rol) throw new Error("Rol requerido.");
+  if (!accion) throw new Error("Acción requerida.");
+
+  if (rol === "designer" || rol === "disenadores" || rol === "disenador") rol = "disenador";
+  if (rol === "executive" || rol === "ejecutivos" || rol === "ejecutivo") rol = "ejecutivo";
+
+  if (rol !== "disenador" && rol !== "ejecutivo") {
+    throw new Error("Rol inválido. Usa 'ejecutivo' o 'disenador'.");
+  }
+
+  if (usuario === "admin" && accion === "remove") {
+    throw new Error("No se puede modificar el usuario 'admin'.");
+  }
+
+  var allowed = robinListaDesdePropiedad_(
+    "ROBIN_ALLOWED_USERS",
+    "fcolmenares,ralvarez,dsalavarria,mbonilla,gnebrus,sgiucastro,admin"
+  );
+  var designers = robinListaDesdePropiedad_(
+    "ROBIN_DESIGNER_USERS",
+    "jalfiero,arusso,arodriguez,agraterol,dmatheus"
+  );
+
+  var has = function (arr, v) { return arr.indexOf(v) !== -1; };
+  var uniq = function (arr) { return Array.from(new Set(arr)); };
+  var removeVal = function (arr, v) { return arr.filter(function (x) { return x !== v; }); };
+
+  if (accion === "add") {
+    if (rol === "disenador") {
+      if (usuario === "admin") throw new Error("admin no puede ser diseñador.");
+      if (!has(designers, usuario)) designers.push(usuario);
+      allowed = removeVal(allowed, usuario);
+    } else {
+      if (!has(allowed, usuario)) allowed.push(usuario);
+      designers = removeVal(designers, usuario);
+    }
+  } else if (accion === "remove") {
+    if (rol === "disenador") {
+      designers = removeVal(designers, usuario);
+    } else {
+      allowed = removeVal(allowed, usuario);
+    }
+  } else {
+    throw new Error("Acción inválida. Usa 'add' o 'remove'.");
+  }
+
+  allowed = uniq(allowed);
+  designers = uniq(designers);
+
+  var props = PropertiesService.getScriptProperties();
+  props.setProperty("ROBIN_ALLOWED_USERS", allowed.join(","));
+  props.setProperty("ROBIN_DESIGNER_USERS", designers.join(","));
+
+  return robinJsonResponse_({ success: true });
 }
 
 /** Ejecutar desde el editor: Probar → robinProbarConfiguracion */

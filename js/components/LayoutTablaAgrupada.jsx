@@ -233,7 +233,7 @@ function LayoutTablaAgrupada({
 
   return (
     <div className={`notion-task-list ${currentTheme.text}`}>
-      {Object.keys(tareasAgrupadasPorMarca).sort((a, b) => a.localeCompare(b, "es")).map(marca => {
+      {Object.keys(tareasAgrupadasPorMarca).sort((a, b) => a.localeCompare(b, "es")).map((marca, marcaIndex) => {
         const tareasDeMarca = tareasAgrupadasPorMarca[marca];
         const badgeStyle = getMarcaStyle(marca);
         const todoGrupo = grupoCompletamenteSeleccionado(tareasDeMarca);
@@ -244,6 +244,7 @@ function LayoutTablaAgrupada({
             <header
               className={`notion-group-header ${badgeStyle.surface}`}
               style={{ borderLeftColor: badgeStyle.accent }}
+              data-induccion={onToggleSeleccion && marcaIndex === 0 ? "seleccion-masiva" : undefined}
             >
               <input
                 type="checkbox"

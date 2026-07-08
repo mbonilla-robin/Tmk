@@ -1016,13 +1016,34 @@ function doGet(e) {
       }
     }
 
+    // Listas de autorización por rol (para sembrar en el cliente).
+    var allowed = robinListaDesdePropiedad_(
+      "ROBIN_ALLOWED_USERS",
+      "fcolmenares,ralvarez,dsalavarria,mbonilla,gnebrus,sgiucastro,admin"
+    );
+    var designers = robinListaDesdePropiedad_(
+      "ROBIN_DESIGNER_USERS",
+      "jalfiero,arusso,arodriguez,agraterol,dmatheus"
+    );
+    var executives = allowed.filter(function (u) {
+      return designers.indexOf(u) === -1;
+    });
+    if (executives.indexOf("admin") === -1) executives.push("admin");
+
     var response = {
       success: true,
       data: todasLasTareas,
       marcasMetadata: marcasMetadata,
       widgets: widgets,
       marcasConfig: COLORES_MARCAS,
-      estadosConfig: COLORES_ESTADOS
+      estadosConfig: COLORES_ESTADOS,
+      auth: {
+        username: session.username,
+        isDesigner: session.isDesigner,
+        isAdmin: session.isAdmin,
+        executives: executives,
+        designers: designers
+      }
     };
 
     if (session.isDesigner) {
@@ -1151,6 +1172,10 @@ function doPost(e) {
 
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var campo = payload.campo ? String(payload.campo).trim() : null;
+
+    if (campo === "actualizarUsuarios") {
+      return robinActualizarUsuarios_(payload);
+    }
 
     if (campo === "crearMarca") {
       var nuevaMarcaName = String(payload.nuevaMarca || "").trim();

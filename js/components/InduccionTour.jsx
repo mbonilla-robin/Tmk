@@ -1,23 +1,27 @@
-function obtenerViewportInduccion() {
-  const vv = window.visualViewport;
-  return {
-    width: vv?.width || window.innerWidth,
-    height: vv?.height || window.innerHeight,
-    offsetTop: vv?.offsetTop || 0
-  };
-}
-
 function obtenerChromeInferiorPx() {
   const nav = document.querySelector(".mobile-nav-bar");
   if (nav) {
     const rect = nav.getBoundingClientRect();
-    if (rect.height > 0) {
-      return Math.max(0, window.innerHeight - rect.top);
-    }
+    if (rect.height > 0) return Math.max(rect.height, window.innerHeight - rect.top);
   }
 
   const probe = document.createElement("div");
   probe.style.cssText = "position:fixed;left:-9999px;height:var(--mobile-chrome-bottom,4rem);pointer-events:none;visibility:hidden;";
+  document.body.appendChild(probe);
+  const measured = probe.offsetHeight;
+  probe.remove();
+  return measured > 0 ? measured : 64;
+}
+
+function obtenerHeaderSuperiorPx() {
+  const header = document.querySelector(".mobile-top-bar, header.robin-mobile-chrome");
+  if (header) {
+    const rect = header.getBoundingClientRect();
+    if (rect.height > 0) return Math.max(rect.bottom, 0);
+  }
+
+  const probe = document.createElement("div");
+  probe.style.cssText = "position:fixed;left:-9999px;height:var(--mobile-chrome-top,4rem);pointer-events:none;visibility:hidden;";
   document.body.appendChild(probe);
   const measured = probe.offsetHeight;
   probe.remove();
@@ -36,6 +40,44 @@ function obtenerRadioHighlight(el) {
   return Math.max(...valores, 8);
 }
 
+function rectsIguales(a, b) {
+  if (!a || !b) return false;
+  return Math.abs(a.top - b.top) < 1
+    && Math.abs(a.left - b.left) < 1
+    && Math.abs(a.width - b.width) < 1
+    && Math.abs(a.height - b.height) < 1;
+}
+
+function InduccionTourShade({ rect }) {
+  if (!rect) {
+    return <div className="induccion-tour__shade induccion-tour__shade--full" aria-hidden="true" />;
+  }
+
+  const bottom = rect.top + rect.height;
+  const right = rect.left + rect.width;
+
+  return (
+    <>
+      <div className="induccion-tour__shade" style={{ top: 0, left: 0, right: 0, height: Math.max(0, rect.top) }} aria-hidden="true" />
+      <div
+        className="induccion-tour__shade"
+        style={{ top: rect.top, left: 0, width: Math.max(0, rect.left), height: rect.height }}
+        aria-hidden="true"
+      />
+      <div
+        className="induccion-tour__shade"
+        style={{ top: rect.top, left: right, right: 0, height: rect.height }}
+        aria-hidden="true"
+      />
+      <div
+        className="induccion-tour__shade"
+        style={{ top: bottom, left: 0, right: 0, bottom: 0 }}
+        aria-hidden="true"
+      />
+    </>
+  );
+}
+
 function InduccionTour({
   activo,
   pasos,
@@ -50,63 +92,102 @@ function InduccionTour({
   const [tooltipStyle, setTooltipStyle] = useState({});
   const [pointer, setPointer] = useState(null);
   const [esMobile, setEsMobile] = useState(false);
+  const [fallbackCentro, setFallbackCentro] = useState(false);
   const tooltipRef = useRef(null);
   const litRef = useRef(null);
+  const rectPersistenteRef = useRef(null);
+  const recalcFrameRef = useRef(null);
+  const recalcTimersRef = useRef([]);
+  const fallbackActivoRef = useRef(false);
+  const esCentroRef = useRef(false);
 
-  const esCentro = !paso?.target || paso.placement === "center";
+  const targetId = typeof obtenerTargetIdInduccion === "function"
+    ? obtenerTargetIdInduccion(paso)
+    : (paso?.target || null);
+  const esEstiloIntro = !!paso?.estiloIntro;
+  const esCentro = esEstiloIntro || !targetId || paso?.placement === "center";
+  esCentroRef.current = esCentro;
+  const esTarjetaCentrada = esCentro || fallbackCentro;
   const total = pasos.length;
   const esPrimero = pasoIndex === 0;
   const esUltimo = pasoIndex >= total - 1;
+  const esPasoFinal = esUltimo && esCentro && !esEstiloIntro;
+
+  const resolverElementoTarget = useCallback(() => {
+    if (!targetId) return null;
+    return typeof encontrarElementoInduccion === "function"
+      ? encontrarElementoInduccion(targetId)
+      : document.querySelector(`[data-induccion="${targetId}"]`);
+  }, [targetId]);
+
+  const limpiarRecalcProgramado = useCallback(() => {
+    if (recalcFrameRef.current) {
+      cancelAnimationFrame(recalcFrameRef.current);
+      recalcFrameRef.current = null;
+    }
+    recalcTimersRef.current.forEach(clearTimeout);
+    recalcTimersRef.current = [];
+  }, []);
 
   const actualizarPosicion = useCallback(() => {
     const mobile = window.innerWidth < 1024;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
     setEsMobile(mobile);
 
-    if (!activo || !paso || esCentro) {
-      setRect(null);
-      setTooltipStyle({});
-      setPointer(null);
+    if (!activo || !paso || esCentroRef.current || fallbackActivoRef.current) {
       return;
     }
 
-    const el = typeof encontrarElementoInduccion === "function"
-      ? encontrarElementoInduccion(paso.target)
-      : document.querySelector(`[data-induccion="${paso.target}"]`);
-
+    const el = resolverElementoTarget();
     if (!el) {
-      setRect(null);
-      setTooltipStyle({});
-      setPointer(null);
+      if (rectPersistenteRef.current) {
+        rectPersistenteRef.current = null;
+        setRect(null);
+      }
       return;
     }
 
-    const rawProbe = el.getBoundingClientRect();
-    const chromeBottomEarly = mobile ? obtenerChromeInferiorPx() : 0;
-    const targetNearBottom = mobile && rawProbe.bottom > window.innerHeight - chromeBottomEarly - 24;
+    const nodoHighlight = typeof obtenerElementoHighlightInduccion === "function"
+      ? obtenerElementoHighlightInduccion(el, targetId)
+      : el;
+    const rawCheck = nodoHighlight?.getBoundingClientRect();
+    const headerReserve = mobile ? obtenerHeaderSuperiorPx() : 0;
+    const chromeBottom = mobile ? obtenerChromeInferiorPx() : 0;
 
-    el.scrollIntoView({
-      block: targetNearBottom ? "end" : (mobile ? "nearest" : "center"),
-      behavior: "smooth",
-      inline: "nearest"
-    });
+    const visibleEnViewport = typeof elementoEstaEnViewportInduccion === "function"
+      ? elementoEstaEnViewportInduccion(nodoHighlight, headerReserve, chromeBottom)
+      : true;
 
-    const padding = mobile ? 4 : 6;
-    const raw = el.getBoundingClientRect();
-    let highlight = {
-      top: Math.max(8, raw.top - padding),
-      left: Math.max(8, raw.left - padding),
-      width: raw.width + padding * 2,
-      height: raw.height + padding * 2,
-      radius: obtenerRadioHighlight(el) + 2
-    };
+    if (!visibleEnViewport) {
+      nodoHighlight.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
+      if (rectPersistenteRef.current) {
+        rectPersistenteRef.current = null;
+        setRect(null);
+      }
+      return;
+    }
 
-    const viewport = obtenerViewportInduccion();
-    const vh = viewport.height;
-    const margin = mobile ? 10 : 10;
-    const gap = mobile ? 8 : 10;
-    const headerReserve = mobile ? 64 : 0;
-    const maxCutoutW = viewport.width - margin * 2;
-    const maxCutoutH = Math.floor(vh * (mobile ? 0.52 : 0.62));
+    const padding = mobile ? 5 : 6;
+    let highlight = typeof obtenerRectHighlightInduccion === "function"
+      ? obtenerRectHighlightInduccion(el, targetId, padding)
+      : null;
+
+    if (!highlight) {
+      const raw = el.getBoundingClientRect();
+      highlight = {
+        top: raw.top - padding,
+        left: raw.left - padding,
+        width: raw.width + padding * 2,
+        height: raw.height + padding * 2,
+        radius: obtenerRadioHighlight(el) + 2
+      };
+    }
+
+    const margin = 8;
+    const gap = mobile ? 10 : 10;
+    const maxCutoutW = vw - margin * 2;
+    const maxCutoutH = Math.floor(vh * (mobile ? 0.55 : 0.62));
 
     if (highlight.width > maxCutoutW || highlight.height > maxCutoutH) {
       const radius = highlight.radius;
@@ -114,64 +195,65 @@ function InduccionTour({
         ? acotarRectInduccionDesdeArriba
         : acotarRectInduccion;
       if (typeof acotar === "function") {
-        highlight = acotar(highlight, maxCutoutW, maxCutoutH);
+        highlight = acotar(highlight, maxCutoutW, maxCutoutH, vw, vh, margin);
         highlight.radius = radius;
       }
     }
 
-    highlight.left = Math.min(highlight.left, viewport.width - highlight.width - margin);
-    highlight.top = Math.min(highlight.top, vh - highlight.height - margin);
-    setRect(highlight);
+    if (!rectsIguales(rectPersistenteRef.current, highlight)) {
+      rectPersistenteRef.current = highlight;
+      setRect(highlight);
+    }
 
-    const tooltipW = mobile ? viewport.width - margin * 2 : 248;
-    const tooltipH = tooltipRef.current?.offsetHeight || (mobile ? 132 : 140);
-    const chromeBottom = mobile ? obtenerChromeInferiorPx() : 0;
-    const dockGap = mobile ? 8 : 0;
+    if (fallbackActivoRef.current) {
+      fallbackActivoRef.current = false;
+      setFallbackCentro(false);
+    }
+
+    const tooltipW = mobile ? vw - margin * 2 : 248;
+    const tooltipH = tooltipRef.current?.offsetHeight || (mobile ? 136 : 140);
     const placement = paso.placement || "bottom";
     const highlightBottom = highlight.top + highlight.height;
-    const highlightNearBottom = highlightBottom > vh - chromeBottom - 20;
+    const highlightNearBottom = highlightBottom > vh - chromeBottom - 16;
     const targetCx = highlight.left + highlight.width / 2;
 
     let top = 0;
     let left = 0;
-    let mobileBottom = chromeBottom + dockGap;
+    let mobileBottom = null;
     let nextPointer = null;
+    let nextTooltipStyle = {};
 
     if (mobile) {
-      left = margin;
-      const cardWidth = viewport.width - margin * 2;
+      const cardWidth = vw - margin * 2;
+      const cardLeft = margin;
 
       if (highlightNearBottom) {
-        mobileBottom = Math.max(dockGap, vh - highlight.top + gap);
+        mobileBottom = Math.max(10, vh - highlight.top + gap);
       } else {
         const spaceAbove = highlight.top - headerReserve - margin;
-        const spaceBelow = vh - chromeBottom - dockGap - highlightBottom - gap;
+        const spaceBelow = vh - chromeBottom - highlightBottom - gap;
 
         if (spaceBelow >= tooltipH + gap) {
           top = highlightBottom + gap;
-          mobileBottom = null;
         } else if (spaceAbove >= tooltipH + gap) {
           top = Math.max(headerReserve + margin, highlight.top - gap - tooltipH);
-          mobileBottom = null;
         } else {
-          mobileBottom = chromeBottom + dockGap;
+          mobileBottom = chromeBottom + 10;
         }
       }
 
       if (mobileBottom != null) {
         const cardTop = vh - mobileBottom - tooltipH;
         if (cardTop < headerReserve + margin) {
-          mobileBottom = Math.max(dockGap, vh - headerReserve - margin - tooltipH);
+          mobileBottom = Math.max(10, vh - headerReserve - margin - tooltipH);
         }
-      } else if (top > 0) {
-        const maxTop = vh - chromeBottom - dockGap - tooltipH - gap;
-        top = Math.min(top, maxTop);
+      } else {
+        top = Math.min(top, vh - chromeBottom - tooltipH - 10);
         top = Math.max(headerReserve + margin, top);
       }
 
       const cardTop = mobileBottom != null ? vh - mobileBottom - tooltipH : top;
       const cardBottom = cardTop + tooltipH;
-      const cardLeft = margin;
 
       if (cardTop >= highlightBottom + 4) {
         nextPointer = {
@@ -189,6 +271,10 @@ function InduccionTour({
           offset: Math.min(Math.max(28, targetCx - cardLeft), cardWidth - 28)
         };
       }
+
+      nextTooltipStyle = mobileBottom != null
+        ? { left: margin, right: margin, width: "auto", bottom: mobileBottom }
+        : { left: margin, right: margin, width: "auto", top };
     } else {
       const placements = [placement, "bottom", "top", "right", "left"];
       let placed = false;
@@ -212,9 +298,9 @@ function InduccionTour({
           l = highlight.left + highlight.width / 2 - tooltipW / 2;
         }
 
-        const maxLeft = window.innerWidth - tooltipW - margin;
+        const maxLeft = vw - tooltipW - margin;
         l = Math.min(Math.max(margin, l), maxLeft);
-        t = Math.min(Math.max(margin, t), window.innerHeight - tooltipH - margin);
+        t = Math.min(Math.max(margin, t), vh - tooltipH - margin);
 
         const overlapsTarget = !(
           l + tooltipW < highlight.left ||
@@ -228,7 +314,6 @@ function InduccionTour({
           left = l;
           placed = true;
 
-          const cardBottom = t + tooltipH;
           const cardRight = l + tooltipW;
           const overlapsX = targetCx >= l && targetCx <= cardRight;
 
@@ -243,20 +328,88 @@ function InduccionTour({
           }
         }
       }
+
+      nextTooltipStyle = { top, left, width: tooltipW };
     }
 
-    setTooltipStyle(
-      mobile
-        ? (mobileBottom != null
-          ? { left: margin, right: margin, width: "auto", bottom: mobileBottom }
-          : { left: margin, right: margin, width: "auto", top })
-        : { top, left, width: tooltipW }
-    );
+    setTooltipStyle((prev) => {
+      const keys = Object.keys(nextTooltipStyle);
+      if (keys.length !== Object.keys(prev).length) return nextTooltipStyle;
+      for (let i = 0; i < keys.length; i++) {
+        const key = keys[i];
+        if (prev[key] !== nextTooltipStyle[key]) return nextTooltipStyle;
+      }
+      return prev;
+    });
     setPointer(nextPointer);
-  }, [activo, paso, esCentro]);
+  }, [activo, paso, targetId, resolverElementoTarget]);
+
+  const programarActualizacion = useCallback(() => {
+    limpiarRecalcProgramado();
+    recalcFrameRef.current = requestAnimationFrame(() => {
+      actualizarPosicion();
+    });
+  }, [actualizarPosicion, limpiarRecalcProgramado]);
+
+  const scrollAlTarget = useCallback(() => {
+    if (!activo || esCentroRef.current || fallbackActivoRef.current || !targetId) return;
+
+    const el = resolverElementoTarget();
+    if (!el) return;
+
+    const nodoHighlight = typeof obtenerElementoHighlightInduccion === "function"
+      ? obtenerElementoHighlightInduccion(el, targetId)
+      : el;
+
+    const mobile = window.innerWidth < 1024;
+    const raw = nodoHighlight.getBoundingClientRect();
+    const chromeBottom = mobile ? obtenerChromeInferiorPx() : 0;
+    const headerReserve = mobile ? obtenerHeaderSuperiorPx() : 0;
+    const vh = window.innerHeight;
+    const enVista = raw.top >= headerReserve - 4
+      && raw.bottom <= vh - chromeBottom + 4
+      && raw.left >= 0
+      && raw.right <= window.innerWidth;
+
+    if (enVista && !paso?.scrollTarget) return;
+
+    const targetNearBottom = mobile && raw.bottom > vh - chromeBottom - 24;
+    nodoHighlight.scrollIntoView({
+      block: paso?.scrollTarget ? "center" : (targetNearBottom ? "end" : (mobile ? "nearest" : "center")),
+      behavior: "auto",
+      inline: "nearest"
+    });
+  }, [activo, targetId, resolverElementoTarget, paso]);
+
+  useLayoutEffect(() => {
+    rectPersistenteRef.current = null;
+    fallbackActivoRef.current = false;
+    setRect(null);
+    setFallbackCentro(false);
+    setTooltipStyle({});
+    setPointer(null);
+    limpiarRecalcProgramado();
+
+    if (!activo || esEstiloIntro) return undefined;
+
+    scrollAlTarget();
+    programarActualizacion();
+    recalcTimersRef.current = [220, 520, 900, 1300].map((ms) => setTimeout(programarActualizacion, ms));
+
+    if (targetId) {
+      const fallbackTimer = setTimeout(() => {
+        if (rectPersistenteRef.current) return;
+        fallbackActivoRef.current = true;
+        setFallbackCentro(true);
+      }, 1500);
+      recalcTimersRef.current.push(fallbackTimer);
+    }
+
+    return limpiarRecalcProgramado;
+  }, [activo, pasoIndex, targetId, esEstiloIntro, limpiarRecalcProgramado]);
 
   useEffect(() => {
-    if (!activo || esCentro || !paso?.target) {
+    if (!activo || esTarjetaCentrada || !targetId) {
       if (litRef.current) {
         litRef.current.classList.remove("is-induccion-lit");
         litRef.current = null;
@@ -264,10 +417,7 @@ function InduccionTour({
       return undefined;
     }
 
-    const el = typeof encontrarElementoInduccion === "function"
-      ? encontrarElementoInduccion(paso.target)
-      : document.querySelector(`[data-induccion="${paso.target}"]`);
-
+    const el = resolverElementoTarget();
     if (litRef.current && litRef.current !== el) {
       litRef.current.classList.remove("is-induccion-lit");
     }
@@ -283,37 +433,28 @@ function InduccionTour({
         litRef.current = null;
       }
     };
-  }, [activo, pasoIndex, paso, esCentro]);
+  }, [activo, pasoIndex, esTarjetaCentrada, targetId, resolverElementoTarget]);
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (!activo) return undefined;
-    const tick = () => requestAnimationFrame(actualizarPosicion);
-    tick();
-    const t1 = setTimeout(tick, 120);
-    const t2 = setTimeout(tick, 420);
-    window.addEventListener("resize", tick);
-    window.addEventListener("scroll", tick, true);
-    window.visualViewport?.addEventListener("resize", tick);
-    window.visualViewport?.addEventListener("scroll", tick);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      window.removeEventListener("resize", tick);
-      window.removeEventListener("scroll", tick, true);
-      window.visualViewport?.removeEventListener("resize", tick);
-      window.visualViewport?.removeEventListener("scroll", tick);
-    };
-  }, [activo, pasoIndex, actualizarPosicion]);
 
-  useLayoutEffect(() => {
-    if (!activo || !tooltipRef.current) return undefined;
-    const node = tooltipRef.current;
-    const ro = typeof ResizeObserver !== "undefined"
-      ? new ResizeObserver(() => requestAnimationFrame(actualizarPosicion))
-      : null;
-    ro?.observe(node);
-    return () => ro?.disconnect();
-  }, [activo, pasoIndex, actualizarPosicion]);
+    const onResize = () => programarActualizacion();
+    window.addEventListener("resize", onResize);
+    window.visualViewport?.addEventListener("resize", onResize);
+
+    const onRecalc = () => {
+      scrollAlTarget();
+      programarActualizacion();
+    };
+    window.addEventListener("induccion-recalc", onRecalc);
+
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.visualViewport?.removeEventListener("resize", onResize);
+      window.removeEventListener("induccion-recalc", onRecalc);
+      limpiarRecalcProgramado();
+    };
+  }, [activo, scrollAlTarget, programarActualizacion, limpiarRecalcProgramado]);
 
   useEffect(() => {
     if (!activo) return undefined;
@@ -338,80 +479,115 @@ function InduccionTour({
     }
   };
 
-  return (
-    <ModalPortal>
-      <div className="induccion-tour" role="dialog" aria-modal="true" aria-labelledby="induccion-tour-title">
-        {!esCentro && rect ? (
-          <svg className="induccion-tour__mask" aria-hidden="true">
-            <defs>
-              <mask id={`induccion-cutout-${pasoIndex}`}>
-                <rect x="0" y="0" width="100%" height="100%" fill="white" />
-                <rect
-                  x={rect.left}
-                  y={rect.top}
-                  width={rect.width}
-                  height={rect.height}
-                  rx={rect.radius}
-                  ry={rect.radius}
-                  fill="black"
-                />
-              </mask>
-            </defs>
-            <rect
-              x="0"
-              y="0"
-              width="100%"
-              height="100%"
-              className="induccion-tour__mask-fill"
-              mask={`url(#induccion-cutout-${pasoIndex})`}
-            />
-          </svg>
-        ) : (
-          <div className="induccion-tour__shade induccion-tour__shade--full" />
-        )}
+  const estiloTarjetaPorDefecto = esMobile && !esTarjetaCentrada && !rect
+    ? { left: 8, right: 8, width: "auto", bottom: obtenerChromeInferiorPx() + 10 }
+    : undefined;
 
-        <div
-          ref={tooltipRef}
-          className={[
-            "induccion-tour__card",
-            esCentro ? "is-centered" : "",
-            esMobile && !esCentro ? "is-mobile-dock" : "",
-            pointer ? `has-pointer-${pointer.side}` : ""
-          ].filter(Boolean).join(" ")}
-          style={{
-            ...(esCentro ? undefined : tooltipStyle),
-            ...(pointer ? { "--induccion-pointer-x": `${pointer.offset}px` } : {})
-          }}
-        >
-          <div className="induccion-tour__progress" aria-hidden="true">
-            <span className="induccion-tour__progress-fill" style={{ width: `${((pasoIndex + 1) / total) * 100}%` }} />
-          </div>
-          <div className="induccion-tour__card-head">
-            <span className="induccion-tour__step-badge">{pasoIndex + 1}/{total}</span>
-            <button type="button" className="induccion-tour__close" onClick={handleSaltar} aria-label="Cerrar inducción">
+  const renderTarjeta = (clasesExtra = "") => (
+    <div
+      ref={tooltipRef}
+      className={[
+        "induccion-tour__card",
+        esTarjetaCentrada ? "is-centered" : "",
+        esPasoFinal ? "is-final-step" : "",
+        esMobile && !esTarjetaCentrada ? "is-mobile-dock" : "",
+        pointer ? `has-pointer-${pointer.side}` : "",
+        clasesExtra
+      ].filter(Boolean).join(" ")}
+      style={{
+        ...(esTarjetaCentrada ? undefined : (Object.keys(tooltipStyle).length ? tooltipStyle : estiloTarjetaPorDefecto)),
+        ...(pointer ? { "--induccion-pointer-x": `${pointer.offset}px` } : {})
+      }}
+    >
+      <div className="induccion-tour__progress" aria-hidden="true">
+        <span className="induccion-tour__progress-fill" style={{ width: `${((pasoIndex + 1) / total) * 100}%` }} />
+      </div>
+      <div className="induccion-tour__card-head">
+        <span className="induccion-tour__step-badge">{pasoIndex + 1}/{total}</span>
+        <button type="button" className="induccion-tour__close" onClick={handleSaltar} aria-label="Cerrar inducción">
+          <i className="fa-solid fa-xmark" />
+        </button>
+      </div>
+      <h2 id="induccion-tour-title" className="induccion-tour__title">{paso.titulo}</h2>
+      <div className={`induccion-tour__body${esEstiloIntro ? " induccion-tour__body--final" : ""}`}>
+        <p className="induccion-tour__text">{paso.texto}</p>
+      </div>
+
+      <div className="induccion-tour__actions">
+        {!esUltimo && !esEstiloIntro && (
+          <button type="button" className="induccion-tour__btn induccion-tour__btn--ghost" onClick={handleSaltar}>
+            Saltar
+          </button>
+        )}
+        <div className="induccion-tour__actions-main">
+          {!esPrimero && (
+            <button type="button" className="induccion-tour__btn induccion-tour__btn--secondary" onClick={onAnterior}>
+              Anterior
+            </button>
+          )}
+          <button
+            type="button"
+            className="induccion-tour__btn induccion-tour__btn--primary"
+            onClick={esUltimo ? onCerrar : onSiguiente}
+          >
+            {esUltimo ? "Empezar" : "Siguiente"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderIntroPantalla = () => (
+    <ModalPortal>
+      <div
+        className={`induccion-bienvenida induccion-bienvenida--tour-intro${paso.introFinal ? " induccion-bienvenida--tour-final" : ""}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="induccion-tour-title"
+      >
+        <div className="induccion-bienvenida__bg" aria-hidden="true">
+          <div className="induccion-bienvenida__gradient" />
+          <div className="induccion-bienvenida__blob induccion-bienvenida__blob--1" />
+          <div className="induccion-bienvenida__blob induccion-bienvenida__blob--2" />
+          <div className="induccion-bienvenida__blob induccion-bienvenida__blob--3" />
+          <div className="induccion-bienvenida__blob induccion-bienvenida__blob--4" />
+          <div className="induccion-bienvenida__grain" />
+        </div>
+
+        <div className="induccion-bienvenida__panel induccion-tour-intro__panel">
+          <div className="induccion-tour-intro__head">
+            <span className="induccion-tour-intro__badge">{pasoIndex + 1}/{total}</span>
+            <button type="button" className="induccion-tour-intro__close" onClick={handleSaltar} aria-label="Cerrar inducción">
               <i className="fa-solid fa-xmark" />
             </button>
           </div>
-          <h2 id="induccion-tour-title" className="induccion-tour__title">{paso.titulo}</h2>
-          <div className="induccion-tour__body">
-            <p className="induccion-tour__text">{paso.texto}</p>
+
+          <div className="induccion-tour-intro__content">
+            <h2 id="induccion-tour-title" className={`induccion-bienvenida__title induccion-bienvenida__title--center${paso.introFinal ? " induccion-bienvenida__title--hero" : ""}`}>
+              {paso.titulo}
+            </h2>
+            <p className={`induccion-bienvenida__linea-video induccion-tour-intro__texto${paso.introFinal ? " induccion-bienvenida__linea-video--cierre" : ""}`}>
+              {(paso.texto || "").split("\n").map((linea, i, arr) => (
+                <span key={i}>{linea}{i < arr.length - 1 ? <br /> : null}</span>
+              ))}
+            </p>
           </div>
 
-          <div className="induccion-tour__actions">
-            {!esUltimo && (
-              <button type="button" className="induccion-tour__btn induccion-tour__btn--ghost" onClick={handleSaltar}>
+          <div className="induccion-tour-intro__actions">
+            {!esUltimo && !paso.introFinal && (
+              <button type="button" className="induccion-bienvenida__btn-ghost" onClick={handleSaltar}>
                 Saltar
               </button>
             )}
-            <div className="induccion-tour__actions-main">
+            <div className="induccion-tour-intro__actions-main">
               {!esPrimero && (
-                <button type="button" className="induccion-tour__btn induccion-tour__btn--secondary" onClick={onAnterior}>
+                <button type="button" className="induccion-bienvenida__btn-ghost" onClick={onAnterior}>
                   Anterior
                 </button>
               )}
               <button
                 type="button"
-                className="induccion-tour__btn induccion-tour__btn--primary"
+                className="induccion-bienvenida__btn-primary"
                 onClick={esUltimo ? onCerrar : onSiguiente}
               >
                 {esUltimo ? "Empezar" : "Siguiente"}
@@ -419,6 +595,19 @@ function InduccionTour({
             </div>
           </div>
         </div>
+      </div>
+    </ModalPortal>
+  );
+
+  if (esEstiloIntro) {
+    return renderIntroPantalla();
+  }
+
+  return (
+    <ModalPortal>
+      <div className="induccion-tour" role="dialog" aria-modal="true" aria-labelledby="induccion-tour-title">
+        <InduccionTourShade rect={!esTarjetaCentrada ? rect : null} />
+        {renderTarjeta()}
       </div>
     </ModalPortal>
   );

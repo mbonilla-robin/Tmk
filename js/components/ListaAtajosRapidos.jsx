@@ -50,7 +50,7 @@ function ListaAtajosRapidos({ tareas, username, onAtajo, soloMisTareas = false, 
   }
 
   return (
-    <div className="lista-atajos-scroll" data-induccion="atajos-lista">
+    <div className="lista-atajos-scroll" data-induccion="dashboard-tiempo-mobile">
       {atajos.map((a) => (
         <button
           key={a.id}

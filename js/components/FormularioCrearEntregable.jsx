@@ -1,6 +1,9 @@
-function PropertyRow({ icon, label, children }) {
+function PropertyRow({ icon, label, children, induccionTarget }) {
   return (
-    <div className="task-prop-row group flex items-center min-h-[34px] py-0.5 px-1 -mx-1 rounded hover:bg-zinc-50/80 transition-colors">
+    <div
+      className="task-prop-row group flex items-center min-h-[34px] py-0.5 px-1 -mx-1 rounded hover:bg-zinc-50/80 transition-colors"
+      data-induccion={induccionTarget || undefined}
+    >
       <div className="task-prop-label flex items-center gap-2 w-[128px] shrink-0 text-ui-sm text-zinc-500">
         <i className={`${icon} w-3.5 text-center text-zinc-400 text-[11px]`} />
         <span>{label}</span>
@@ -81,10 +84,8 @@ function FormularioCrearEntregable({
             placeholder="Sin título"
             className="task-form-title w-full mt-2 text-2xl md:text-[1.75rem] font-bold text-[#37352F] bg-transparent border-0 focus:outline-none placeholder-zinc-300 leading-snug"
           />
-        </div>
 
-        <div className="px-5 md:px-12 lg:px-10">
-          <div className="pb-2 flex flex-col gap-0.5 border-b border-zinc-100">
+          <div className="pb-2 mt-4 flex flex-col gap-0.5 border-b border-zinc-100">
             <PropertyRow icon="fa-regular fa-building" label="Cliente">
               <select
                 value={nuevaTarea.marca}
@@ -150,17 +151,19 @@ function FormularioCrearEntregable({
                 required
               />
             </PropertyRow>
+          </div>
+        </div>
 
+        <div className="px-5 md:px-12 lg:px-10">
+          <div className="pb-2 flex flex-col gap-0.5 border-b border-zinc-100" data-induccion="form-personas">
             <PropertyRow icon="fa-regular fa-user" label="Ejecutivos">
-              <div data-induccion="form-personas">
-                <SelectorPersonasChips
-                  personasSeleccionadas={personasEjecutivos}
-                  onChange={actualizarPersonasEjecutivos}
-                  listaGlobal={listaEjecutivos}
-                  registrarNuevaPersona={registrarNuevaPersona}
-                  variant="minimal"
-                />
-              </div>
+              <SelectorPersonasChips
+                personasSeleccionadas={personasEjecutivos}
+                onChange={actualizarPersonasEjecutivos}
+                listaGlobal={listaEjecutivos}
+                registrarNuevaPersona={registrarNuevaPersona}
+                variant="minimal"
+              />
             </PropertyRow>
 
             <PropertyRow icon="fa-regular fa-user" label="Diseñadores">
@@ -170,6 +173,7 @@ function FormularioCrearEntregable({
                 listaGlobal={listaDisenadores}
                 registrarNuevaPersona={registrarNuevaPersona}
                 variant="minimal"
+                mostrarBotonTrade={true}
               />
             </PropertyRow>
           </div>

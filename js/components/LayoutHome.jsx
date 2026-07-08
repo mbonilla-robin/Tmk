@@ -28,6 +28,17 @@ function LayoutHome({
   );
   const [widgetsMobileVista, setWidgetsMobileVista] = useState("inicio");
 
+  useEffect(() => {
+    const abrirAccesos = () => setWidgetsMobileVista("todos");
+    const cerrarAccesos = () => setWidgetsMobileVista("inicio");
+    window.addEventListener("induccion-abrir-accesos", abrirAccesos);
+    window.addEventListener("induccion-cerrar-accesos", cerrarAccesos);
+    return () => {
+      window.removeEventListener("induccion-abrir-accesos", abrirAccesos);
+      window.removeEventListener("induccion-cerrar-accesos", cerrarAccesos);
+    };
+  }, []);
+
   const stats = useMemo(() => {
     const total = tareas.length;
     const completadas = tareas.filter(t => cleanEstado(t.estado) === "completada").length;

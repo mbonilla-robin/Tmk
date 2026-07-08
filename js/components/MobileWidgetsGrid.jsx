@@ -72,7 +72,7 @@ function MobileWidgetsGrid({
         {onEstatus && (
           <div className="flex flex-col gap-2">
             <span className="mobile-section-label">Más opciones</span>
-            <div className="mobile-widget-grid">
+            <div className="mobile-widget-grid" data-induccion="estatus-equipos-mobile">
               <button
                 type="button"
                 onClick={onEstatus}

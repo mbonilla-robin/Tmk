@@ -48,6 +48,17 @@ function esPlataformaPullRefresh() {
   return esDispositivoTactil();
 }
 
+function obtenerViewportInduccion() {
+  const vv = window.visualViewport;
+  return {
+    width: vv?.width || window.innerWidth,
+    height: vv?.height || window.innerHeight,
+    offsetTop: vv?.offsetTop || 0,
+    offsetLeft: vv?.offsetLeft || 0,
+    scale: vv?.scale || 1
+  };
+}
+
 function construirPasosInduccion({ esDisenador = false } = {}) {
   const pasos = [
     {
@@ -81,7 +92,8 @@ function construirPasosInduccion({ esDisenador = false } = {}) {
       titulo: "Resumen del área",
       texto: "Totales de activos, completados y atrasados de un vistazo.",
       placement: "bottom",
-      pagina: "home"
+      pagina: "home",
+      scrollTarget: true
     },
     {
       id: "calendario",
@@ -94,6 +106,7 @@ function construirPasosInduccion({ esDisenador = false } = {}) {
     {
       id: "calendario-vistas",
       target: "calendario-vistas",
+      targetMobile: "calendario-vistas-mobile",
       titulo: "Semana o mes",
       texto: "Alterna la vista y usa las flechas para navegar.",
       placement: "bottom",
@@ -115,9 +128,10 @@ function construirPasosInduccion({ esDisenador = false } = {}) {
       target: "presencia",
       titulo: "En línea",
       texto: "Quién está conectado ahora en ROBIN.",
-      placement: "right",
+      placement: "bottom",
       pagina: "home",
-      opcional: true
+      opcional: true,
+      scrollTarget: true
     },
     {
       id: "nav-lista",
@@ -144,6 +158,7 @@ function construirPasosInduccion({ esDisenador = false } = {}) {
     {
       id: "nav-marcas",
       target: "nav-marcas",
+      targetMobile: "nav-clientes",
       titulo: "Por cliente",
       texto: "Filtra entregables de una marca o cliente.",
       placement: "right",
@@ -173,11 +188,13 @@ function construirPasosInduccion({ esDisenador = false } = {}) {
       {
         id: "estatus-equipos",
         target: "estatus-equipos",
+        targetMobile: "estatus-equipos-mobile",
         titulo: "Estatus y equipos",
         texto: "Genera estatus para clientes y revisa carga por persona.",
         placement: "right",
         pagina: "home",
-        opcional: true
+        opcional: true,
+        mobileAbrirAccesos: true
       },
       {
         id: "nav-clientes",
@@ -186,7 +203,8 @@ function construirPasosInduccion({ esDisenador = false } = {}) {
         texto: "Fichas e información de cada cliente.",
         placement: "right",
         pagina: "home",
-        opcional: true
+        opcional: true,
+        soloDesktop: true
       }
     );
   }
@@ -195,11 +213,13 @@ function construirPasosInduccion({ esDisenador = false } = {}) {
     {
       id: "dashboard-filtros",
       target: "dashboard-filtros",
+      targetMobile: "dashboard-filtros-mobile",
       titulo: "Filtros",
       texto: "Por cliente, estado, prioridad y persona. En móvil: icono de embudo.",
       placement: "bottom",
       pagina: "dashboard",
-      onEntrar: "limpiarFiltrosDashboard"
+      onEntrar: "limpiarFiltrosDashboard",
+      mobileVistaLista: true
     },
     {
       id: "dashboard-buscar",
@@ -207,25 +227,29 @@ function construirPasosInduccion({ esDisenador = false } = {}) {
       titulo: "Buscar",
       texto: "Encuentra entregables por título o detalle.",
       placement: "bottom",
-      pagina: "dashboard"
+      pagina: "dashboard",
+      mobileVistaLista: true
     },
     {
       id: "dashboard-vistas",
       target: "dashboard-vistas",
+      targetMobile: "dashboard-vistas-mobile",
       titulo: "Lista o tablero",
       texto: "Lista agrupada o tablero Kanban por estado.",
       placement: "bottom",
-      pagina: "dashboard"
+      pagina: "dashboard",
+      mobileVistaLista: true
     },
     {
       id: "dashboard-tiempo",
       target: "dashboard-tiempo",
+      targetMobile: "dashboard-tiempo-mobile",
       titulo: "Hoy y atrasados",
       texto: "«Hoy» filtra lo del día. «Atrasados» lo vencido sin completar.",
       placement: "bottom",
       pagina: "dashboard",
       onEntrar: "limpiarFiltrosDashboard",
-      mobileAbrirFiltros: true
+      mobileVistaLista: true
     }
   );
 
@@ -245,7 +269,8 @@ function construirPasosInduccion({ esDisenador = false } = {}) {
         titulo: "Asignar personas",
         texto: "Ejecutivos y diseñadores reciben la tarea en sus filtros y notificaciones.",
         placement: "top",
-        pagina: "agregar"
+        pagina: "agregar",
+        scrollTarget: true
       },
       {
         id: "form-notas",
@@ -261,18 +286,23 @@ function construirPasosInduccion({ esDisenador = false } = {}) {
   pasos.push(
     {
       id: "comentarios",
+      target: "comentarios-demo",
       titulo: "Comentarios",
       texto: "Al abrir una tarea, comenta abajo para coordinar con el equipo.",
-      placement: "center",
-      pagina: "home"
+      placement: "top",
+      pagina: "home",
+      demoComentarios: true
     },
     {
       id: "seleccion-masiva",
+      target: "seleccion-masiva",
       titulo: "Selección múltiple",
-      texto: "Marca varias tareas en la lista para cambiar la fecha de entrega en lote.",
-      placement: "center",
+      texto: "Marca el cuadrito a la izquierda de cada tarea. Con varias seleccionadas, cambia la fecha de entrega en lote.",
+      placement: "bottom",
       pagina: "dashboard",
-      onEntrar: "limpiarFiltrosDashboard"
+      onEntrar: "limpiarFiltrosDashboard",
+      mobileVistaLista: true,
+      scrollTarget: true
     },
     {
       id: "nav-config",
@@ -285,8 +315,10 @@ function construirPasosInduccion({ esDisenador = false } = {}) {
     {
       id: "fin",
       titulo: "¡Listo!",
-      texto: "Ya puedes usar ROBIN. Para repasar: Ajustes → Opciones avanzadas → Ver inducción.",
+      texto: "Ya puedes usar ROBIN con tu equipo.\nPara repasar: Ajustes → Ver inducción.",
       placement: "center",
+      estiloIntro: true,
+      introFinal: true,
       pagina: "home"
     }
   );
@@ -294,44 +326,242 @@ function construirPasosInduccion({ esDisenador = false } = {}) {
   return pasos;
 }
 
+let induccionRecalcToken = 0;
+
+function programarRecalculoInduccion() {
+  if (typeof window === "undefined") return;
+  const token = ++induccionRecalcToken;
+  const emitir = () => {
+    if (token !== induccionRecalcToken) return;
+    window.dispatchEvent(new CustomEvent("induccion-recalc"));
+  };
+  requestAnimationFrame(emitir);
+  setTimeout(emitir, 280);
+  setTimeout(emitir, 650);
+}
+
+function esLayoutMobileInduccion() {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches;
+}
+
+function obtenerTargetIdInduccion(paso) {
+  if (!paso) return null;
+  if (esLayoutMobileInduccion() && paso.targetMobile) return paso.targetMobile;
+  return paso.target || null;
+}
+
+function areaVisibleElemento(el) {
+  const rect = el.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const visibleW = Math.max(0, Math.min(rect.right, vw) - Math.max(rect.left, 0));
+  const visibleH = Math.max(0, Math.min(rect.bottom, vh) - Math.max(rect.top, 0));
+  return visibleW * visibleH;
+}
+
+function elementoInduccionEnDom(el, minArea = 144) {
+  if (!el || typeof window === "undefined") return false;
+  const style = window.getComputedStyle(el);
+  if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) {
+    return false;
+  }
+
+  let parent = el.parentElement;
+  while (parent) {
+    const ps = window.getComputedStyle(parent);
+    if (ps.display === "none" || ps.visibility === "hidden") return false;
+    parent = parent.parentElement;
+  }
+
+  const rect = el.getBoundingClientRect();
+  if (rect.width < 12 || rect.height < 12) return false;
+  return rect.width * rect.height >= minArea;
+}
+
+function elementoInduccionVisible(el, minArea = 144) {
+  if (!elementoInduccionEnDom(el, minArea)) return false;
+  return areaVisibleElemento(el) >= Math.min(minArea, 400);
+}
+
+function puntuarElementoInduccion(el, targetId) {
+  const mobile = esLayoutMobileInduccion();
+  let score = areaVisibleElemento(el);
+
+  if (mobile) {
+    if (el.closest(".md\\:hidden, .mobile-nav-bar, .mobile-top-bar, .mobile-top-actions, .home-mobile-stack, .home-cronograma, .home-presence-chip, .home-area-stats, .cal-mobile-toolbar, .mobile-dash-toolbar, .notion-dash-search, .notion-task-list, .notion-group-header, .induccion-demo-comentarios")) {
+      score += 1e6;
+    }
+    if (el.closest(".mobile-dash-toolbar")) {
+      score += 5e6;
+    }
+    if (
+      targetId === "dashboard-filtros-mobile" &&
+      el.matches('[data-induccion="dashboard-filtros-mobile"]')
+    ) {
+      score += 5e7;
+    }
+    if (
+      targetId === "dashboard-vistas-mobile" &&
+      el.matches('[data-induccion="dashboard-vistas-mobile"]')
+    ) {
+      score += 5e7;
+    }
+    if (el.closest(".robin-sidebar, .robin-desktop-only, .hidden.md\\:flex, .hidden.md\\:block, .cal-header-desktop")) {
+      score -= 1e7;
+    }
+  } else if (el.closest(".robin-sidebar, .app-header-bar, .robin-desktop-only, .cal-header-desktop")) {
+    score += 1e6;
+  }
+
+  if (el.closest(".md\\:hidden") && !mobile) score -= 5e5;
+  return score;
+}
+
 function encontrarElementoInduccion(targetId) {
   if (!targetId || typeof document === "undefined") return null;
   const nodes = document.querySelectorAll(`[data-induccion="${targetId}"]`);
+  const requiereMobile = targetId.endsWith("-mobile");
+  let mejor = null;
+  let mejorScore = -Infinity;
+
   for (let i = 0; i < nodes.length; i++) {
     const el = nodes[i];
-    const style = window.getComputedStyle(el);
-    if (style.display === "none" || style.visibility === "hidden") continue;
-    const rect = el.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) return el;
+    if (requiereMobile && !el.closest(".robin-mobile-only, .md\\:hidden")) continue;
+    if (!elementoInduccionEnDom(el)) continue;
+    const score = puntuarElementoInduccion(el, targetId);
+    if (score > mejorScore) {
+      mejorScore = score;
+      mejor = el;
+    }
   }
-  return nodes[0] || null;
+
+  return mejor;
 }
 
-function acotarRectInduccion(rect, maxW, maxH) {
+function elementoEstaEnViewportInduccion(el, headerReserve = 0, chromeBottom = 0) {
+  if (!el) return false;
+  const raw = el.getBoundingClientRect();
+  const vh = window.innerHeight;
+  const vw = window.innerWidth;
+  if (raw.width < 8 || raw.height < 8) return false;
+  const visibleW = Math.max(0, Math.min(raw.right, vw) - Math.max(raw.left, 0));
+  const visibleH = Math.max(0, Math.min(raw.bottom, vh - chromeBottom) - Math.max(raw.top, headerReserve));
+  return visibleW >= 18 && visibleH >= 18;
+}
+
+function scrollContenedorPrincipalInduccion() {
+  if (typeof document === "undefined") return;
+  const main = document.querySelector(".robin-mobile-main");
+  if (main) main.scrollTo({ top: 0, behavior: "auto" });
+}
+
+function scrollTargetInduccion(targetId) {
+  if (!targetId || typeof document === "undefined") return;
+  if (targetId.includes("dashboard-") && targetId.endsWith("-mobile")) {
+    scrollContenedorPrincipalInduccion();
+  }
+  const el = encontrarElementoInduccion(targetId);
+  if (!el) return;
+  const nodo = obtenerElementoHighlightInduccion(el, targetId) || el;
+  nodo.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
+}
+
+function unionarRects(rects) {
+  const validos = rects.filter((r) => r && r.width > 0 && r.height > 0);
+  if (!validos.length) return null;
+  const top = Math.min(...validos.map((r) => r.top));
+  const left = Math.min(...validos.map((r) => r.left));
+  const bottom = Math.max(...validos.map((r) => r.bottom));
+  const right = Math.max(...validos.map((r) => r.right));
+  return {
+    top,
+    left,
+    width: right - left,
+    height: bottom - top
+  };
+}
+
+function obtenerElementoHighlightInduccion(el, targetId) {
+  if (!el) return null;
+  if (targetId === "form-personas") {
+    return el;
+  }
+  if (targetId === "dashboard-filtros-mobile" || targetId === "dashboard-filtros") {
+    return el.matches("[data-induccion]") ? el : el.querySelector("[data-induccion], .mobile-icon-btn") || el;
+  }
+  if (targetId === "dashboard-vistas-mobile" || targetId === "dashboard-vistas") {
+    return el;
+  }
+  if (targetId === "dashboard-buscar") {
+    return el.closest(".notion-dash-search") || el;
+  }
+  if (targetId === "seleccion-masiva") {
+    return el.closest(".notion-group-header") || el.closest(".notion-task-row") || el;
+  }
+  if (targetId === "comentarios-demo") {
+    return el.closest(".induccion-demo-comentarios") || el;
+  }
+  return el;
+}
+
+function obtenerRectHighlightInduccion(el, targetId, padding = 5) {
+  const nodo = obtenerElementoHighlightInduccion(el, targetId);
+  if (!nodo) return null;
+  const raw = nodo.getBoundingClientRect();
+  if (raw.width < 8 || raw.height < 8) return null;
+
+  const style = window.getComputedStyle(nodo);
+  const valores = [
+    style.borderTopLeftRadius,
+    style.borderTopRightRadius,
+    style.borderBottomRightRadius,
+    style.borderBottomLeftRadius
+  ].map((v) => parseFloat(v) || 0);
+
+  return {
+    top: raw.top - padding,
+    left: raw.left - padding,
+    width: raw.width + padding * 2,
+    height: raw.height + padding * 2,
+    radius: Math.max(...valores, 8) + 2
+  };
+}
+
+function acotarRectInduccion(rect, maxW, maxH, viewportW, viewportH, margin = 10) {
   if (!rect) return rect;
   if (rect.width <= maxW && rect.height <= maxH) return rect;
   const cx = rect.left + rect.width / 2;
   const cy = rect.top + rect.height / 2;
   const w = Math.min(rect.width, maxW);
   const h = Math.min(rect.height, maxH);
-  return {
+  const resultado = {
     top: cy - h / 2,
     left: cx - w / 2,
     width: w,
     height: h
   };
+  if (viewportW && viewportH) {
+    resultado.left = Math.min(Math.max(margin, resultado.left), viewportW - w - margin);
+    resultado.top = Math.min(Math.max(margin, resultado.top), viewportH - h - margin);
+  }
+  return resultado;
 }
 
-function acotarRectInduccionDesdeArriba(rect, maxW, maxH) {
+function acotarRectInduccionDesdeArriba(rect, maxW, maxH, viewportW, viewportH, margin = 10) {
   if (!rect) return rect;
   if (rect.width <= maxW && rect.height <= maxH) return rect;
   const w = Math.min(rect.width, maxW);
   const h = Math.min(rect.height, maxH);
   const cx = rect.left + rect.width / 2;
-  return {
+  const resultado = {
     top: rect.top,
     left: cx - w / 2,
     width: w,
     height: h
   };
+  if (viewportW && viewportH) {
+    resultado.left = Math.min(Math.max(margin, resultado.left), viewportW - w - margin);
+    resultado.top = Math.min(Math.max(margin, resultado.top), viewportH - h - margin);
+  }
+  return resultado;
 }

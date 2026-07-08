@@ -5981,11 +5981,11 @@
       inset: 0;
       z-index: 500;
       pointer-events: none;
+      box-sizing: border-box;
     }
 
     .induccion-tour__shade {
       position: fixed;
-      left: 0;
       background: rgba(10, 10, 12, 0.58);
       backdrop-filter: blur(4px);
       -webkit-backdrop-filter: blur(4px);
@@ -5994,21 +5994,6 @@
 
     .induccion-tour__shade--full {
       inset: 0;
-      width: 100%;
-      height: 100%;
-    }
-
-    .induccion-tour__mask {
-      position: fixed;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 501;
-      pointer-events: auto;
-    }
-
-    .induccion-tour__mask-fill {
-      fill: rgba(10, 10, 12, 0.58);
     }
 
     /* Iluminación directa sobre el elemento real — sin caja encima */
@@ -6069,6 +6054,7 @@
       top: auto;
       left: 10px !important;
       right: 10px !important;
+      bottom: auto;
       width: auto !important;
       max-width: none;
       max-height: min(34dvh, 210px);
@@ -6088,9 +6074,21 @@
     .induccion-tour__card.is-centered {
       top: 50%;
       left: 50%;
+      right: auto;
+      bottom: auto;
       transform: translate(-50%, -50%);
-      width: min(20rem, calc(100vw - 2rem));
+      width: min(20rem, calc(100% - 2rem));
       max-width: 20rem;
+    }
+
+    .induccion-tour__card--final {
+      width: min(22rem, calc(100% - 2rem));
+      max-width: 22rem;
+      background: rgba(255, 255, 255, 0.76);
+    }
+
+    .induccion-tour__body--final {
+      overflow: hidden;
     }
 
     .induccion-tour__card.has-pointer-top::before,
@@ -6598,7 +6596,7 @@
     .induccion-bienvenida {
       position: fixed;
       inset: 0;
-      width: 100vw;
+      width: 100%;
       height: 100dvh;
       height: 100svh;
       z-index: 9999;
@@ -6609,6 +6607,7 @@
       background: #c2410c;
       pointer-events: auto;
       animation: induccion-bienvenida-in 0.5s ease-out;
+      box-sizing: border-box;
     }
 
     @keyframes induccion-bienvenida-in {
@@ -6753,10 +6752,8 @@
       width: 100%;
       max-width: min(100%, 36rem);
       margin: 0 auto;
-      min-height: 100dvh;
-      min-height: 100svh;
-      max-height: 100dvh;
-      max-height: 100svh;
+      min-height: 100%;
+      max-height: 100%;
       overflow: hidden;
       padding:
         max(1.25rem, env(safe-area-inset-top))
@@ -6765,6 +6762,251 @@
       display: flex;
       flex-direction: column;
       box-sizing: border-box;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .induccion-bienvenida__touch-zones {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      display: flex;
+      pointer-events: none;
+    }
+
+    .induccion-bienvenida__touch-zone {
+      flex: 1 1 0;
+    }
+
+    .induccion-bienvenida__touch-zone--back {
+      max-width: 28%;
+    }
+
+    .induccion-bienvenida__touch-hint {
+      flex-shrink: 0;
+      margin: 0.75rem 0 0;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      color: rgba(255, 255, 255, 0.62);
+    }
+
+    .induccion-bienvenida--final-tour .induccion-bienvenida__panel {
+      justify-content: center;
+      align-items: center;
+      cursor: default;
+    }
+
+    .induccion-bienvenida--final-tour .induccion-tour__card.is-centered {
+      position: relative;
+      top: auto;
+      left: auto;
+      right: auto;
+      bottom: auto;
+      transform: none;
+      margin: 0 auto;
+      animation-name: induccion-card-in;
+    }
+
+    .induccion-bienvenida--tour-intro .induccion-bienvenida__panel {
+      justify-content: space-between;
+      align-items: stretch;
+      cursor: default;
+      padding-top: calc(env(safe-area-inset-top, 0px) + 1rem);
+      padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 1rem);
+    }
+
+    .induccion-tour-intro__panel {
+      gap: 1.25rem;
+    }
+
+    .induccion-tour-intro__head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 0 0.25rem;
+    }
+
+    .induccion-tour-intro__badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 3rem;
+      padding: 0.25rem 0.625rem;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      color: rgba(255, 255, 255, 0.88);
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+    }
+
+    .induccion-tour-intro__close {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2rem;
+      height: 2rem;
+      border-radius: 999px;
+      color: rgba(255, 255, 255, 0.78);
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+
+    .induccion-tour-intro__content {
+      flex: 1 1 auto;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      width: 100%;
+      max-width: 34rem;
+      margin: 0 auto;
+      text-align: center;
+      padding: 0 1rem;
+    }
+
+    .induccion-tour-intro__texto {
+      max-width: 28rem;
+      margin: 0 auto;
+    }
+
+    .induccion-tour-intro__actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      width: 100%;
+      max-width: 34rem;
+      margin: 0 auto;
+      padding: 0 1rem;
+    }
+
+    .induccion-tour-intro__actions-main {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.5rem;
+      margin-left: auto;
+    }
+
+    .induccion-bienvenida--tour-final .induccion-bienvenida__panel {
+      justify-content: center;
+      gap: 2rem;
+    }
+
+    .induccion-bienvenida--tour-final .induccion-bienvenida__title--hero {
+      font-size: clamp(2.4rem, 10vw, 3.25rem);
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+
+    .induccion-bienvenida--tour-final .induccion-bienvenida__linea-video--cierre {
+      font-size: clamp(1rem, 4.2vw, 1.2rem);
+      line-height: 1.55;
+      max-width: 22rem;
+      margin: 0 auto;
+      opacity: 0.95;
+    }
+
+    .induccion-bienvenida--tour-final .induccion-tour-intro__actions {
+      justify-content: center;
+    }
+
+    .induccion-bienvenida--tour-final .induccion-tour-intro__actions-main {
+      margin-left: 0;
+      justify-content: center;
+      width: 100%;
+    }
+
+    .induccion-bienvenida--tour-final .induccion-bienvenida__btn-primary {
+      min-width: 10rem;
+      font-size: 1rem;
+      padding: 0.9rem 1.5rem;
+    }
+
+    .induccion-demo-comentarios {
+      position: fixed;
+      left: 0.75rem;
+      right: 0.75rem;
+      bottom: calc(var(--mobile-chrome-bottom, 4rem) + 0.5rem);
+      z-index: 10040;
+      pointer-events: none;
+    }
+
+    .induccion-demo-comentarios__sheet {
+      border-radius: 1rem;
+      border: 1px solid rgba(255, 255, 255, 0.72);
+      background: rgba(255, 255, 255, 0.97);
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.18);
+      padding: 0.875rem 0.875rem 0.75rem;
+      backdrop-filter: blur(10px);
+    }
+
+    .induccion-demo-comentarios__task {
+      margin: 0 0 0.625rem;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: #71717a;
+    }
+
+    .induccion-demo-comentarios__comment {
+      margin-bottom: 0.625rem;
+    }
+
+    .induccion-demo-comentarios__body {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.45;
+      color: #3f3f46;
+    }
+
+    .induccion-demo-comentarios__composer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      margin-top: 0.25rem;
+      padding: 0.625rem 0.75rem;
+      border-radius: 0.75rem;
+      background: #f4f4f5;
+      border: 1px dashed #d4d4d8;
+    }
+
+    .induccion-demo-comentarios__composer-hint {
+      font-size: 12px;
+      color: #a1a1aa;
+    }
+
+    .induccion-demo-comentarios__composer-send {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.75rem;
+      height: 1.75rem;
+      border-radius: 999px;
+      background: #18181b;
+      color: #fff;
+      font-size: 11px;
+    }
+
+    .induccion-tour__card.is-centered.is-final-step {
+      max-width: 22rem;
+      text-align: center;
+    }
+
+    .induccion-tour__card.is-centered.is-final-step .induccion-tour__title {
+      font-size: 1.35rem;
+    }
+
+    .induccion-tour__card.is-centered.is-final-step .induccion-tour__body {
+      justify-content: center;
     }
 
     .induccion-bienvenida__escenas {
@@ -6947,6 +7189,8 @@
     .induccion-bienvenida__logo--hero {
       width: min(68vw, 280px);
       max-width: 280px;
+      margin-left: auto;
+      margin-right: auto;
     }
 
     .induccion-bienvenida__logo--compact {

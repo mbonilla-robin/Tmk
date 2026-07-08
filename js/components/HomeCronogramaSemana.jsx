@@ -216,7 +216,28 @@ function HomeCronogramaSemana({ tareas, onSelectTask, getMarcaStyle }) {
             {vista === "semana" ? weekLabel : monthLabel}
           </span>
         </div>
-        <div className="home-cronograma__nav">
+        <div className="home-cronograma__head-tools">
+          <div className="home-cronograma__vistas" data-induccion="calendario-vistas-mobile" role="tablist" aria-label="Vista del cronograma">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={vista === "semana"}
+              className={`home-cronograma__vista-btn ${vista === "semana" ? "is-active" : ""}`}
+              onClick={volverASemana}
+            >
+              Semana
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={vista === "mes"}
+              className={`home-cronograma__vista-btn ${vista === "mes" ? "is-active" : ""}`}
+              onClick={abrirVistaMes}
+            >
+              Mes
+            </button>
+          </div>
+          <div className="home-cronograma__nav">
           <button type="button" onClick={handlePrev} className="home-cronograma__nav-btn" aria-label="Anterior">
             <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <path d="M10 4L6 8l4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
@@ -228,6 +249,7 @@ function HomeCronogramaSemana({ tareas, onSelectTask, getMarcaStyle }) {
               <path d="M6 4l4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
+        </div>
         </div>
       </div>
 

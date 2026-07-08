@@ -1,4 +1,11 @@
-function SelectorPersonasChips({ personasSeleccionadas, onChange, listaGlobal, registrarNuevaPersona, variant = "default" }) {
+function SelectorPersonasChips({
+  personasSeleccionadas,
+  onChange,
+  listaGlobal,
+  registrarNuevaPersona,
+  variant = "default",
+  mostrarBotonTrade = false
+}) {
   const [buscar, setBuscar] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const containerRef = useRef(null);
@@ -41,6 +48,22 @@ function SelectorPersonasChips({ personasSeleccionadas, onChange, listaGlobal, r
       aplicarCambio([...seleccionadasArray, entrada]);
       setBuscar("");
     }
+  };
+
+  const handleAgregarTrade = () => {
+    const base = Array.isArray(listaGlobal) ? listaGlobal : [];
+    const disenadores = base
+      .filter((persona) => {
+        const entrada = String(persona || "").trim();
+        if (!entrada) return false;
+        if (normalizarClavePersona(entrada) === "cliente") return false;
+        if (typeof esPersonaDisenador === "function") return esPersonaDisenador(entrada);
+        return normalizarClavePersona(entrada) !== "trade";
+      })
+      .map((persona) => formatearEntradaListaPersona(persona))
+      .filter(Boolean);
+
+    aplicarCambio(["@Trade", ...disenadores, ...seleccionadasArray]);
   };
 
   useEffect(() => {
@@ -99,6 +122,15 @@ function SelectorPersonasChips({ personasSeleccionadas, onChange, listaGlobal, r
             >
               Añadir
             </button>
+            {mostrarBotonTrade && (
+              <button
+                type="button"
+                onClick={handleAgregarTrade}
+                className="bg-amber-500/90 text-white text-[11px] font-medium px-2.5 py-1 rounded hover:bg-amber-500 transition-colors"
+              >
+                Trade
+              </button>
+            )}
           </div>
           <div className="flex flex-col gap-0.5">
             {listaGlobal

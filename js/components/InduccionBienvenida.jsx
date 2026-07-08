@@ -19,6 +19,7 @@ function filtrarClientesActivosInduccion(marcas) {
 }
 
 const ESCENA_TRANSICION_MS = 420;
+const TOUCH_AVANCE_MIN_MS = 280;
 
 function construirEscenasBienvenida(clientes) {
   const escenas = [
@@ -49,6 +50,8 @@ function InduccionBienvenida({
   const [fase, setFase] = useState("entrada");
   const transicionTimerRef = useRef(null);
   const autoTimerRef = useRef(null);
+  const ultimoTapRef = useRef(0);
+  const touchStartRef = useRef(null);
 
   const primerNombre = obtenerPrimerNombreBienvenida(nombreCompleto, username);
   const rolLabel = esDisenador ? "diseñador" : "ejecutivo";
@@ -56,6 +59,7 @@ function InduccionBienvenida({
   const escenas = useMemo(() => construirEscenasBienvenida(clientes), [clientes]);
   const escenaActual = escenas[escena] || escenas[0];
   const esUltimaEscena = escena >= escenas.length - 1;
+  const esEscenaCta = escenaActual?.id === "cta";
 
   const limpiarTimers = useCallback(() => {
     if (transicionTimerRef.current) {
@@ -68,14 +72,66 @@ function InduccionBienvenida({
     }
   }, []);
 
-  const pasarSiguienteEscena = useCallback(() => {
+  const irAEscena = useCallback((index) => {
+    const destino = Math.min(Math.max(index, 0), escenas.length - 1);
+    if (destino === escena) return;
     setFase("salida");
     transicionTimerRef.current = setTimeout(() => {
-      setEscena((prev) => Math.min(prev + 1, escenas.length - 1));
+      setEscena(destino);
       setFase("entrada");
       transicionTimerRef.current = null;
     }, ESCENA_TRANSICION_MS);
-  }, [escenas.length]);
+  }, [escena, escenas.length]);
+
+  const pasarSiguienteEscena = useCallback(() => {
+    if (fase !== "entrada" || esUltimaEscena) return;
+    irAEscena(escena + 1);
+  }, [fase, esUltimaEscena, irAEscena, escena]);
+
+  const pasarAnteriorEscena = useCallback(() => {
+    if (fase !== "entrada" || escena <= 0) return;
+    irAEscena(escena - 1);
+  }, [fase, escena, irAEscena]);
+
+  const manejarTapZona = useCallback((clientX) => {
+    if (!visible || fase !== "entrada" || esEscenaCta) return;
+    const ahora = Date.now();
+    if (ahora - ultimoTapRef.current < TOUCH_AVANCE_MIN_MS) return;
+    ultimoTapRef.current = ahora;
+
+    const w = window.innerWidth;
+    if (clientX < w * 0.28 && escena > 0) {
+      pasarAnteriorEscena();
+      return;
+    }
+    pasarSiguienteEscena();
+  }, [visible, fase, esEscenaCta, escena, pasarAnteriorEscena, pasarSiguienteEscena]);
+
+  const onPointerDown = useCallback((e) => {
+    if (e.target.closest("button, a, input, textarea, select, label")) return;
+    touchStartRef.current = { x: e.clientX, y: e.clientY, t: Date.now() };
+  }, []);
+
+  const onPointerUp = useCallback((e) => {
+    if (!touchStartRef.current) return;
+    if (e.target.closest("button, a, input, textarea, select, label")) {
+      touchStartRef.current = null;
+      return;
+    }
+
+    const dx = Math.abs(e.clientX - touchStartRef.current.x);
+    const dy = Math.abs(e.clientY - touchStartRef.current.y);
+    const dt = Date.now() - touchStartRef.current.t;
+    touchStartRef.current = null;
+
+    if (dx > 18 || dy > 18 || dt > 600) return;
+    manejarTapZona(e.clientX);
+  }, [manejarTapZona]);
+
+  const onClickPanel = useCallback((e) => {
+    if (e.target.closest("button, a")) return;
+    manejarTapZona(e.clientX);
+  }, [manejarTapZona]);
 
   useEffect(() => {
     if (!visible) {
@@ -192,7 +248,12 @@ function InduccionBienvenida({
 
   return (
     <ModalPortal>
-      <div className="induccion-bienvenida" role="dialog" aria-modal="true" aria-labelledby="induccion-bienvenida-title">
+      <div
+        className="induccion-bienvenida"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="induccion-bienvenida-title"
+      >
         <div className="induccion-bienvenida__bg" aria-hidden="true">
           <div className="induccion-bienvenida__gradient" />
           <div className="induccion-bienvenida__blob induccion-bienvenida__blob--1" />
@@ -202,7 +263,19 @@ function InduccionBienvenida({
           <div className="induccion-bienvenida__grain" />
         </div>
 
-        <div className="induccion-bienvenida__panel">
+        <div
+          className="induccion-bienvenida__panel"
+          onClick={onClickPanel}
+          onPointerDown={onPointerDown}
+          onPointerUp={onPointerUp}
+        >
+          {!esEscenaCta && (
+            <div className="induccion-bienvenida__touch-zones" aria-hidden="true">
+              <span className="induccion-bienvenida__touch-zone induccion-bienvenida__touch-zone--back" />
+              <span className="induccion-bienvenida__touch-zone induccion-bienvenida__touch-zone--next" />
+            </div>
+          )}
+
           <div className="induccion-bienvenida__story" aria-hidden="true">
             {escenas.map((item, index) => (
               <div key={item.id} className="induccion-bienvenida__story-seg">
@@ -228,6 +301,7 @@ function InduccionBienvenida({
               </div>
             ))}
           </div>
+
         </div>
       </div>
     </ModalPortal>

@@ -15,18 +15,91 @@ function App() {
   const isAdmin = useMemo(() => isRobinAdmin(usuario), [usuario]);
   const canEditFichas = useMemo(() => isRobinConfigOnlyAdmin(usuario), [usuario]);
   const isConfigOnlyAdmin = useMemo(() => isRobinConfigOnlyAdmin(usuario), [usuario]);
-  const isDesigner = useMemo(() => isRobinDesigner(usuario), [usuario]);
-
-  const [listaUsuarios, setListaUsuarios] = useState(() => {
+  
+  const [listaEjecutivos, setListaEjecutivos] = useState(() => {
+    const DEFAULT_EXECUTIVOS = getDefaultAllowedUsers();
+    const setDisDefault = new Set((Array.isArray(ROBIN_DESIGNER_USERNAMES) ? ROBIN_DESIGNER_USERNAMES : []).map(normalizeRobinUsername));
     try {
-      const guardados = getLocalStorageItemSafe("robin_lista_usuarios", null);
-      return guardados ? JSON.parse(guardados) : getDefaultAllowedUsers();
+      const guardadosEjecutivos = getLocalStorageItemSafe("robin_lista_ejecutivos", null);
+      const guardadosDisenadores = getLocalStorageItemSafe("robin_lista_disenadores", null);
+
+      // Si existe la llave nueva, úsala. Solo limpiamos exclusividad si ya existe la lista de diseñadores.
+      if (guardadosEjecutivos) {
+        const ejecutivos = (JSON.parse(guardadosEjecutivos) || [])
+          .map(normalizeRobinUsername)
+          .filter(Boolean);
+        const disenadores = guardadosDisenadores ? (JSON.parse(guardadosDisenadores) || []).map(normalizeRobinUsername).filter(Boolean) : [];
+        const setDisLocal = new Set(disenadores);
+
+        const limpios = Array.from(new Set(ejecutivos))
+          .filter((u) => u === "admin" || (!setDisDefault.has(u) && !setDisLocal.has(u)));
+
+        return limpios.length ? limpios : DEFAULT_EXECUTIVOS;
+      }
+
+      // Migración desde el esquema anterior: robin_lista_usuarios.
+      const legado = getLocalStorageItemSafe("robin_lista_usuarios", null);
+      if (legado) {
+        const arr = JSON.parse(legado) || [];
+        const exec = [];
+        arr.forEach((u) => {
+          const user = normalizeRobinUsername(u);
+          if (!user) return;
+          if (user === "admin") {
+            exec.push(user);
+            return;
+          }
+          if (setDisDefault.has(user)) return;
+          exec.push(user);
+        });
+        const finalExec = Array.from(new Set(exec));
+        setLocalStorageItemSafe("robin_lista_ejecutivos", JSON.stringify(finalExec));
+        return finalExec.length ? finalExec : DEFAULT_EXECUTIVOS;
+      }
+
+      return DEFAULT_EXECUTIVOS;
     } catch (e) {
-      return getDefaultAllowedUsers();
+      return DEFAULT_EXECUTIVOS;
     }
   });
 
-  const [nuevoUsuarioInput, setNuevoUsuarioInput] = useState("");
+  const [listaDisenadores, setListaDisenadores] = useState(() => {
+    const setDisDefault = new Set((Array.isArray(ROBIN_DESIGNER_USERNAMES) ? ROBIN_DESIGNER_USERNAMES : []).map(normalizeRobinUsername));
+    try {
+      const guardadosDisenadores = getLocalStorageItemSafe("robin_lista_disenadores", null);
+      if (guardadosDisenadores) {
+        const disenadores = (JSON.parse(guardadosDisenadores) || [])
+          .map(normalizeRobinUsername)
+          .filter(Boolean)
+          .filter((u) => u !== "admin");
+        return Array.from(new Set(disenadores));
+      }
+
+      // Migración desde el esquema anterior: robin_lista_usuarios.
+      const legado = getLocalStorageItemSafe("robin_lista_usuarios", null);
+      if (legado) {
+        const arr = JSON.parse(legado) || [];
+        const dis = [];
+        arr.forEach((u) => {
+          const user = normalizeRobinUsername(u);
+          if (!user || user === "admin") return;
+          if (setDisDefault.has(user)) dis.push(user);
+        });
+        const finalDis = Array.from(new Set(dis));
+        setLocalStorageItemSafe("robin_lista_disenadores", JSON.stringify(finalDis));
+        return finalDis.length ? finalDis : (Array.isArray(ROBIN_DESIGNER_USERNAMES) ? ROBIN_DESIGNER_USERNAMES.slice() : []);
+      }
+
+      return Array.isArray(ROBIN_DESIGNER_USERNAMES) ? ROBIN_DESIGNER_USERNAMES.slice() : [];
+    } catch (e) {
+      return Array.isArray(ROBIN_DESIGNER_USERNAMES) ? ROBIN_DESIGNER_USERNAMES.slice() : [];
+    }
+  });
+
+  const isDesigner = useMemo(() => isRobinDesigner(usuario, listaDisenadores), [usuario, listaDisenadores]);
+
+  const [nuevoEjecutivoInput, setNuevoEjecutivoInput] = useState("");
+  const [nuevoDisenadorInput, setNuevoDisenadorInput] = useState("");
 
   const [theme, setTheme] = useState(() => {
     try {
@@ -716,28 +789,68 @@ function App() {
     if (paso.mobileAbrirFiltros && typeof esPlataformaMobile === "function" && esPlataformaMobile()) {
       setDashboardMobileVista("filtros");
     }
+    if (paso.mobileVistaLista && typeof esPlataformaMobile === "function" && esPlataformaMobile()) {
+      setDashboardMobileVista("lista");
+    }
+    if (
+      typeof esPlataformaMobile === "function" &&
+      esPlataformaMobile() &&
+      typeof obtenerTargetIdInduccion === "function" &&
+      typeof scrollTargetInduccion === "function"
+    ) {
+      const targetScroll = obtenerTargetIdInduccion(paso);
+      if (targetScroll && (paso.pagina === "dashboard" || paso.scrollTarget)) {
+        requestAnimationFrame(() => {
+          scrollTargetInduccion(targetScroll);
+          if (typeof programarRecalculoInduccion === "function") {
+            programarRecalculoInduccion();
+            setTimeout(programarRecalculoInduccion, 420);
+          }
+        });
+      }
+    }
+    if (paso.mobileAbrirAccesos && typeof esPlataformaMobile === "function" && esPlataformaMobile()) {
+      window.dispatchEvent(new CustomEvent("induccion-abrir-accesos"));
+    }
+    if (
+      paso.pagina === "home" &&
+      !paso.mobileAbrirAccesos &&
+      typeof esPlataformaMobile === "function" &&
+      esPlataformaMobile()
+    ) {
+      window.dispatchEvent(new CustomEvent("induccion-cerrar-accesos"));
+    }
 
-    if (!paso.pagina) return;
+    if (paso.demoComentarios) {
+      window.dispatchEvent(new CustomEvent("induccion-demo-comentarios", { detail: { activo: true } }));
+    } else {
+      window.dispatchEvent(new CustomEvent("induccion-demo-comentarios", { detail: { activo: false } }));
+    }
+
+    if (!paso.pagina) {
+      if (typeof programarRecalculoInduccion === "function") {
+        programarRecalculoInduccion();
+      }
+      return;
+    }
 
     if (paso.pagina === "dashboard") {
       navegarA("dashboard", limpiarFiltrosDashboardInduccion);
-      return;
-    }
-    if (paginaActiva !== paso.pagina) {
+    } else if (paginaActiva !== paso.pagina) {
       navegarA(paso.pagina);
     }
-  }, [limpiarFiltrosDashboardInduccion, paginaActiva]);
 
-  const pasoInduccionTieneTarget = useCallback((paso) => {
-    if (!paso?.target) return true;
-    return typeof encontrarElementoInduccion === "function" && !!encontrarElementoInduccion(paso.target);
-  }, []);
+    if (typeof programarRecalculoInduccion === "function") {
+      programarRecalculoInduccion();
+    }
+  }, [limpiarFiltrosDashboardInduccion, paginaActiva]);
 
   const finalizarInduccion = useCallback(() => {
     setInduccionActiva(false);
     setInduccionBienvenidaVisible(false);
     setInduccionPaso(0);
     induccionReplayRef.current = false;
+    window.dispatchEvent(new CustomEvent("induccion-demo-comentarios", { detail: { activo: false } }));
     if (usuario && typeof marcarInduccionCompletada === "function") {
       marcarInduccionCompletada(usuario);
     }
@@ -773,32 +886,18 @@ function App() {
     setInduccionPaso(index);
   }, []);
 
-  const buscarSiguientePasoInduccion = useCallback((desde, direccion = 1) => {
-    let i = desde;
-    while (i >= 0 && i < pasosInduccionFiltrados.length) {
-      const paso = pasosInduccionFiltrados[i];
-      if (!paso.opcional || pasoInduccionTieneTarget(paso)) {
-        return i;
-      }
-      i += direccion;
-    }
-    return direccion > 0 ? pasosInduccionFiltrados.length : -1;
-  }, [pasosInduccionFiltrados, pasoInduccionTieneTarget]);
-
   const avanzarInduccion = useCallback(() => {
-    const siguiente = buscarSiguientePasoInduccion(induccionPaso + 1, 1);
-    if (siguiente >= pasosInduccionFiltrados.length) {
+    if (induccionPaso + 1 >= pasosInduccionFiltrados.length) {
       finalizarInduccion();
       return;
     }
-    irAPasoInduccion(siguiente);
-  }, [induccionPaso, buscarSiguientePasoInduccion, pasosInduccionFiltrados.length, finalizarInduccion, irAPasoInduccion]);
+    irAPasoInduccion(induccionPaso + 1);
+  }, [induccionPaso, pasosInduccionFiltrados.length, finalizarInduccion, irAPasoInduccion]);
 
   const retrocederInduccion = useCallback(() => {
-    const anterior = buscarSiguientePasoInduccion(induccionPaso - 1, -1);
-    if (anterior < 0) return;
-    irAPasoInduccion(anterior);
-  }, [induccionPaso, buscarSiguientePasoInduccion, irAPasoInduccion]);
+    if (induccionPaso <= 0) return;
+    irAPasoInduccion(induccionPaso - 1);
+  }, [induccionPaso, irAPasoInduccion]);
 
   const saltarInduccion = useCallback(() => {
     finalizarInduccion();
@@ -833,8 +932,7 @@ function App() {
     if (!induccionActiva) return;
     const paso = pasosInduccionFiltrados[induccionPaso];
     if (!paso) return;
-    const timer = setTimeout(() => aplicarEntradaPasoInduccion(paso), induccionPaso === 0 ? 0 : 320);
-    return () => clearTimeout(timer);
+    aplicarEntradaPasoInduccion(paso);
   }, [induccionActiva, induccionPaso, pasosInduccionFiltrados, aplicarEntradaPasoInduccion]);
 
   const handleAddWidget = async (nuevoWidget) => {
@@ -1225,7 +1323,7 @@ function App() {
   const handleLogin = async (e) => {
     e.preventDefault();
     const userClean = e.target.username.value.trim().toLowerCase();
-    const validation = validateLocalLogin(userClean, claveInput, listaUsuarios);
+    const validation = validateLocalLogin(userClean, claveInput, listaEjecutivos);
     if (!validation.ok) {
       setLoginError(validation.error);
       return;
@@ -1269,28 +1367,170 @@ function App() {
     showToast("Sesión cerrada", "info");
   };
 
-  const handleAddUser = (e) => {
-    e.preventDefault();
-    const nuevo = nuevoUsuarioInput.trim().toLowerCase();
-    if (!nuevo) return;
-    if (listaUsuarios.includes(nuevo)) {
-      showToast("El usuario ya está registrado", "error");
-      return;
-    }
-    const comb = Array.from(new Set([...listaUsuarios, nuevo]));
-    setListaUsuarios(comb);
-    setLocalStorageItemSafe("robin_lista_usuarios", JSON.stringify(comb));
-    registrarNuevaPersonaGlobal("@" + nuevo);
-    setNuevoUsuarioInput("");
-    showToast("Usuario autorizado", "success");
+  const esErrorBackendUsuariosDesactualizado = (mensaje) => {
+    const txt = String(mensaje || "").toLowerCase();
+    return txt.includes("marca es requerida") || txt.includes("hoja de destino");
   };
 
-  const handleRemoveUser = (usernameToRemove) => {
-    if (normalizeRobinUsername(usernameToRemove) === "admin") return;
-    const filtered = listaUsuarios.filter((item) => item !== usernameToRemove);
-    setListaUsuarios(filtered);
-    setLocalStorageItemSafe("robin_lista_usuarios", JSON.stringify(filtered));
-    showToast("Usuario desautorizado", "info");
+  const actualizarUsuariosRemotos = async ({ usuario, rol, accion }) => {
+    const effectiveUrl = getConfiguredApiUrl();
+    if (!isApiConfigured() || apiError) return { ok: false, skipped: true };
+
+    try {
+      const res = await fetchRobinApi(effectiveUrl, {
+        method: "POST",
+        mode: "cors",
+        redirect: "follow",
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+        body: JSON.stringify({
+          campo: "actualizarUsuarios",
+          usuario,
+          rol,
+          accion
+        })
+      });
+
+      const rawText = await res.text();
+      let json;
+      try {
+        json = JSON.parse(rawText);
+      } catch (parseErr) {
+        throw new Error("Respuesta inválida del servidor al actualizar usuarios.");
+      }
+
+      if (!json || json.success !== true) {
+        throw new Error(json?.error || "No se pudo actualizar usuarios en el backend");
+      }
+      return { ok: true };
+    } catch (err) {
+      const mensaje = err?.message || String(err || "");
+      if (esErrorBackendUsuariosDesactualizado(mensaje)) {
+        return { ok: false, backendDesactualizado: true };
+      }
+      throw err;
+    }
+  };
+
+  const sincronizarUsuarioAdmin = async ({ usuario, rol, accion, onExitoLocal }) => {
+    try {
+      const remoto = await actualizarUsuariosRemotos({ usuario, rol, accion });
+      onExitoLocal();
+      if (remoto.backendDesactualizado) {
+        showToast(
+          "Usuario guardado aquí. Falta actualizar Google Apps Script (ver instrucciones abajo).",
+          "info"
+        );
+        return;
+      }
+      if (remoto.skipped) {
+        showToast("Usuario guardado en este dispositivo (sin conexión al backend).", "info");
+        return;
+      }
+      showToast(accion === "remove" ? "Usuario actualizado" : "Usuario autorizado", "success");
+    } catch (err) {
+      showToast(err?.message || "Error al actualizar backend", "error");
+    }
+  };
+
+  const persistirListasUsuariosLocal = ({ ejecutivos, disenadores }) => {
+    setListaEjecutivos(ejecutivos);
+    setListaDisenadores(disenadores);
+    setLocalStorageItemSafe("robin_lista_ejecutivos", JSON.stringify(ejecutivos));
+    setLocalStorageItemSafe("robin_lista_disenadores", JSON.stringify(disenadores));
+  };
+
+  const handleAddExecutive = async (e) => {
+    e.preventDefault();
+    const nuevo = nuevoEjecutivoInput.trim().toLowerCase();
+    if (!nuevo) return;
+    if (nuevo === "admin") {
+      showToast("admin ya tiene acceso de configuración", "info");
+      setNuevoEjecutivoInput("");
+      return;
+    }
+    if (listaEjecutivos.includes(nuevo)) {
+      showToast("El ejecutivo ya está registrado", "error");
+      return;
+    }
+
+    const nextEjecutivos = Array.from(new Set([...listaEjecutivos, nuevo]));
+    const nextDisenadores = listaDisenadores.filter((u) => u !== nuevo);
+
+    await sincronizarUsuarioAdmin({
+      usuario: nuevo,
+      rol: "ejecutivo",
+      accion: "add",
+      onExitoLocal: () => {
+        persistirListasUsuariosLocal({ ejecutivos: nextEjecutivos, disenadores: nextDisenadores });
+        registrarNuevaPersonaGlobal("@" + nuevo);
+        setNuevoEjecutivoInput("");
+      }
+    });
+  };
+
+  const handleRemoveExecutive = async (usernameToRemove) => {
+    const user = normalizeRobinUsername(usernameToRemove);
+    if (!user || user === "admin") return;
+    if (!listaEjecutivos.includes(user)) return;
+
+    const nextEjecutivos = listaEjecutivos.filter((u) => u !== user);
+    const nextDisenadores = listaDisenadores.filter(Boolean);
+
+    await sincronizarUsuarioAdmin({
+      usuario: user,
+      rol: "ejecutivo",
+      accion: "remove",
+      onExitoLocal: () => {
+        persistirListasUsuariosLocal({ ejecutivos: nextEjecutivos, disenadores: nextDisenadores });
+      }
+    });
+  };
+
+  const handleAddDesigner = async (e) => {
+    e.preventDefault();
+    const nuevo = nuevoDisenadorInput.trim().toLowerCase();
+    if (!nuevo) return;
+    if (nuevo === "admin") {
+      showToast("admin no puede ser diseñador", "error");
+      setNuevoDisenadorInput("");
+      return;
+    }
+    if (listaDisenadores.includes(nuevo)) {
+      showToast("El diseñador ya está registrado", "error");
+      return;
+    }
+
+    const nextDisenadores = Array.from(new Set([...listaDisenadores, nuevo]));
+    const nextEjecutivos = listaEjecutivos.filter((u) => u !== nuevo);
+
+    await sincronizarUsuarioAdmin({
+      usuario: nuevo,
+      rol: "disenador",
+      accion: "add",
+      onExitoLocal: () => {
+        persistirListasUsuariosLocal({ ejecutivos: nextEjecutivos, disenadores: nextDisenadores });
+        registrarNuevaPersonaGlobal("@" + nuevo);
+        setNuevoDisenadorInput("");
+      }
+    });
+  };
+
+  const handleRemoveDesigner = async (usernameToRemove) => {
+    const user = normalizeRobinUsername(usernameToRemove);
+    if (!user || user === "admin") return;
+    if (!listaDisenadores.includes(user)) return;
+
+    const nextDisenadores = listaDisenadores.filter((u) => u !== user);
+    const nextEjecutivos = listaEjecutivos.filter(Boolean);
+
+    await sincronizarUsuarioAdmin({
+      usuario: user,
+      rol: "disenador",
+      accion: "remove",
+      onExitoLocal: () => {
+        persistirListasUsuariosLocal({ ejecutivos: nextEjecutivos, disenadores: nextDisenadores });
+      }
+    });
   };
 
   const registrarNuevaPersonaGlobal = (nombreCompleto) => {
@@ -1366,6 +1606,23 @@ function App() {
         if (json.success && json.data) {
           const widgetsLimpios = filtrarWidgetsReales(json.widgets || []).map(normalizarWidgetDesdeApi).filter(Boolean);
           setWidgets(widgetsLimpios);
+
+          // Seed de roles desde backend (PropertiesService).
+          if (json.auth) {
+            const execs = Array.isArray(json.auth.executives) ? json.auth.executives : null;
+            const dis = Array.isArray(json.auth.designers) ? json.auth.designers : null;
+
+            if (execs) {
+              const normalizados = execs.map(normalizeRobinUsername).filter(Boolean);
+              setListaEjecutivos(normalizados);
+              setLocalStorageItemSafe("robin_lista_ejecutivos", JSON.stringify(normalizados));
+            }
+            if (dis) {
+              const normalizados = dis.map(normalizeRobinUsername).filter(Boolean);
+              setListaDisenadores(normalizados);
+              setLocalStorageItemSafe("robin_lista_disenadores", JSON.stringify(normalizados));
+            }
+          }
 
           setUsuariosConectados(obtenerUsuariosEnLinea(json.data, json.widgets, json.presencia));
           setPresenceEstado("ready");
@@ -2055,19 +2312,62 @@ function App() {
             <p className="robin-config-advanced__hint">Personas con acceso a ROBIN.</p>
             {isAdmin ? (
               <div className={`${currentTheme.cardBg} border ${currentTheme.border} p-3 rounded-md flex flex-col gap-3`}>
-                <form onSubmit={handleAddUser} className="flex gap-2">
-                  <input type="text" placeholder="Usuario (ej: ralvarez)" value={nuevoUsuarioInput} onChange={(e) => setNuevoUsuarioInput(e.target.value)} className="flex-1 bg-zinc-50 border border-zinc-200 px-3 py-2 text-sm rounded font-semibold" />
-                  <button type="submit" className="px-3 py-2 bg-[#37352F] text-white text-ui font-semibold rounded-md">+</button>
-                </form>
-                <div className="flex flex-wrap gap-1.5">
-                  {listaUsuarios.map((u) => (
-                    <span key={u} className="inline-flex items-center gap-1 bg-zinc-50 border border-zinc-200 text-zinc-800 text-[11px] font-semibold px-2 py-1 rounded-full">
-                      @{u}
-                      {u !== "admin" && (
-                        <button type="button" onClick={() => handleRemoveUser(u)} className="text-zinc-400 font-bold">&times;</button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-2">
+                    <h4 className={`text-sm font-bold ${currentTheme.text}`}>Ejecutivos</h4>
+                    <form onSubmit={handleAddExecutive} className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Usuario ejecutivo (ej: ralvarez)"
+                        value={nuevoEjecutivoInput}
+                        onChange={(e) => setNuevoEjecutivoInput(e.target.value)}
+                        className="flex-1 bg-zinc-50 border border-zinc-200 px-3 py-2 text-sm rounded font-semibold"
+                      />
+                      <button type="submit" className="px-3 py-2 bg-[#37352F] text-white text-ui font-semibold rounded-md">+</button>
+                    </form>
+                    <div className="flex flex-wrap gap-1.5">
+                      {listaEjecutivos.length ? listaEjecutivos.map((u) => (
+                        <span
+                          key={u}
+                          className="inline-flex items-center gap-1 bg-zinc-50 border border-zinc-200 text-zinc-800 text-[11px] font-semibold px-2 py-1 rounded-full"
+                        >
+                          @{u}
+                          {u !== "admin" && (
+                            <button type="button" onClick={() => handleRemoveExecutive(u)} className="text-zinc-400 font-bold">&times;</button>
+                          )}
+                        </span>
+                      )) : (
+                        <span className="text-ui-sm text-zinc-400">Sin ejecutivos</span>
                       )}
-                    </span>
-                  ))}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <h4 className={`text-sm font-bold ${currentTheme.text}`}>Diseñadores</h4>
+                    <form onSubmit={handleAddDesigner} className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Usuario diseñador (ej: jalfiero)"
+                        value={nuevoDisenadorInput}
+                        onChange={(e) => setNuevoDisenadorInput(e.target.value)}
+                        className="flex-1 bg-zinc-50 border border-zinc-200 px-3 py-2 text-sm rounded font-semibold"
+                      />
+                      <button type="submit" className="px-3 py-2 bg-[#37352F] text-white text-ui font-semibold rounded-md">+</button>
+                    </form>
+                    <div className="flex flex-wrap gap-1.5">
+                      {listaDisenadores.length ? listaDisenadores.map((u) => (
+                        <span
+                          key={u}
+                          className="inline-flex items-center gap-1 bg-zinc-50 border border-zinc-200 text-zinc-800 text-[11px] font-semibold px-2 py-1 rounded-full"
+                        >
+                          @{u}
+                          <button type="button" onClick={() => handleRemoveDesigner(u)} className="text-zinc-400 font-bold">&times;</button>
+                        </span>
+                      )) : (
+                        <span className="text-ui-sm text-zinc-400">Sin diseñadores</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -2764,26 +3064,28 @@ function App() {
                           {filtrosDashboardActivos ? " · filtros activos" : ""}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1 shrink-0" data-induccion="dashboard-vistas">
-                        <button type="button" onClick={() => setDashboardMobileVista("filtros")} className={`mobile-icon-btn ${filtrosDashboardActivos ? "has-badge" : ""}`} title="Filtros" data-induccion="dashboard-filtros">
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button type="button" onClick={() => setDashboardMobileVista("filtros")} className={`mobile-icon-btn ${filtrosDashboardActivos ? "has-badge" : ""}`} title="Filtros" data-induccion="dashboard-filtros-mobile">
                           <i className="fa-solid fa-filter"></i>
                         </button>
-                        <button type="button" onClick={() => { setVistaModo("TABLE"); setUserPreference("vistaModo", "TABLE"); }} className={`mobile-icon-btn ${vistaModo === "TABLE" ? "is-active" : ""}`} title="Lista">
-                          <i className="fa-solid fa-list"></i>
-                        </button>
-                        <button type="button" onClick={() => { setVistaModo("KANBAN"); setUserPreference("vistaModo", "KANBAN"); }} className={`mobile-icon-btn ${vistaModo === "KANBAN" ? "is-active" : ""}`} title="Tablero">
-                          <i className="fa-solid fa-chart-simple"></i>
-                        </button>
-                        {vistaModo === "KANBAN" && filtroTiempo === "HOY" && (
-                          <button
-                            type="button"
-                            onClick={alternarKanbanOrdenPrioridad}
-                            className="mobile-icon-btn is-active"
-                            title={kanbanOrdenPrioridad === "desc" ? "Prioridad: alta → media → baja" : "Prioridad: baja → media → alta"}
-                          >
-                            <i className={`fa-solid ${kanbanOrdenPrioridad === "desc" ? "fa-arrow-up" : "fa-arrow-down"}`}></i>
+                        <div className="flex items-center gap-1" data-induccion="dashboard-vistas-mobile">
+                          <button type="button" onClick={() => { setVistaModo("TABLE"); setUserPreference("vistaModo", "TABLE"); }} className={`mobile-icon-btn ${vistaModo === "TABLE" ? "is-active" : ""}`} title="Lista">
+                            <i className="fa-solid fa-list"></i>
                           </button>
-                        )}
+                          <button type="button" onClick={() => { setVistaModo("KANBAN"); setUserPreference("vistaModo", "KANBAN"); }} className={`mobile-icon-btn ${vistaModo === "KANBAN" ? "is-active" : ""}`} title="Tablero">
+                            <i className="fa-solid fa-chart-simple"></i>
+                          </button>
+                          {vistaModo === "KANBAN" && filtroTiempo === "HOY" && (
+                            <button
+                              type="button"
+                              onClick={alternarKanbanOrdenPrioridad}
+                              className="mobile-icon-btn is-active"
+                              title={kanbanOrdenPrioridad === "desc" ? "Prioridad: alta → media → baja" : "Prioridad: baja → media → alta"}
+                            >
+                              <i className={`fa-solid ${kanbanOrdenPrioridad === "desc" ? "fa-arrow-up" : "fa-arrow-down"}`}></i>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -3216,6 +3518,10 @@ function App() {
           onSaltar={saltarInduccion}
           onCerrar={finalizarInduccion}
         />
+      )}
+
+      {!isConfigOnlyAdmin && induccionActiva && pasosInduccionFiltrados[induccionPaso]?.demoComentarios && (
+        <InduccionDemoComentarios />
       )}
 
     </div>

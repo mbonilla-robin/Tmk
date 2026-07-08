@@ -10,13 +10,43 @@ function isDesignerPasswordValid(password) {
   return String(password || "") === ROBIN_DESIGNER_PASSWORD;
 }
 
-function isRobinDesigner(username) {
-  return ROBIN_DESIGNER_USERNAMES.includes(normalizeRobinUsername(username));
+function leerListaLocalDisenadores() {
+  const raw = getLocalStorageItemSafe("robin_lista_disenadores", null);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+/**
+ * Determina si el usuario actúa como diseñador.
+ * - Default: lista estática `ROBIN_DESIGNER_USERNAMES`
+ * - Override: opcional `disenadoresOverride` (para que React se actualice con estado)
+ * - Persistencia: `robin_lista_disenadores` (local)
+ */
+function isRobinDesigner(username, disenadoresOverride = null) {
+  const user = normalizeRobinUsername(username);
+  if (!user) return false;
+
+  if (ROBIN_DESIGNER_USERNAMES.includes(user)) return true;
+
+  const overrideList = Array.isArray(disenadoresOverride) ? disenadoresOverride : null;
+  if (overrideList) {
+    const set = new Set(overrideList.map(normalizeRobinUsername).filter(Boolean));
+    return set.has(user);
+  }
+
+  const localList = leerListaLocalDisenadores();
+  return localList.map(normalizeRobinUsername).includes(user);
 }
 
 function isPasswordValidForUser(username, password) {
-  if (isRobinDesigner(username)) return isDesignerPasswordValid(password);
-  return isWorkspacePasswordValid(password);
+  // El backend valida que el usuario pertenezca realmente al rol,
+  // así que del lado del frontend aceptamos cualquiera de los dos secrets.
+  return isWorkspacePasswordValid(password) || isDesignerPasswordValid(password);
 }
 
 function setRobinApiSession(username, password) {
@@ -73,13 +103,26 @@ function validateLocalLogin(username, password, allowedUsers) {
   if (!user) {
     return { ok: false, error: "Usuario requerido." };
   }
-  if (!Array.isArray(allowedUsers) || (!allowedUsers.map(normalizeRobinUsername).includes(user) && !isRobinDesigner(user))) {
-    return { ok: false, error: "Usuario no autorizado." };
-  }
-  if (!isPasswordValidForUser(user, password)) {
+
+  const isDesignerPwd = isDesignerPasswordValid(password);
+  const isWorkspacePwd = isWorkspacePasswordValid(password);
+  if (!isDesignerPwd && !isWorkspacePwd) {
     return { ok: false, error: "Contraseña incorrecta." };
   }
-  return { ok: true, username: user };
+
+  // Permite login con contraseña de diseñador para usuarios recién añadidos
+  // desde admin (el backend confirmará pertenencia en `ROBIN_DESIGNER_USERS`).
+  if (isDesignerPwd) {
+    return { ok: true, username: user };
+  }
+
+  // Igual que con diseñadores: la autorización final la hace el backend con
+  // `ROBIN_ALLOWED_USERS`/`ROBIN_DESIGNER_USERS`.
+  if (isWorkspacePwd) {
+    return { ok: true, username: user };
+  }
+
+  return { ok: false, error: "Usuario no autorizado." };
 }
 
 function isRobinConfigOnlyAdmin(username) {
@@ -94,7 +137,6 @@ function isRobinAdmin(username) {
 function getDefaultAllowedUsers() {
   return [
     "fcolmenares", "ralvarez", "dsalavarria", "mbonilla", "gnebrus", "sgiucastro",
-    "jalfiero", "arusso", "arodriguez", "agraterol", "dmatheus",
     "admin"
   ];
 }

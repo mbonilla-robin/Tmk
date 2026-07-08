@@ -400,6 +400,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
                   listaGlobal={listaDisenadores}
                   registrarNuevaPersona={registrarNuevaPersona}
                   variant="minimal"
+                  mostrarBotonTrade={true}
                 />
               )}
             </PropertyRow>

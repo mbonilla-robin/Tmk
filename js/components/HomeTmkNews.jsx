@@ -306,6 +306,32 @@ function TmkNewsCarousel({ noticias, onSelectNoticia, variant = "mobile" }) {
     );
   }
 
+  // Cuando hay 2 elementos, el carrusel visualmente puede quedar “vacío” en
+  // un lado. Agregamos un tercer ghost (no real) para que siempre se vea
+  // balanceado, alternando el lado en función del elemento activo.
+  let ghostSlide = null;
+  if (total === 2) {
+    const offset0 = obtenerOffsetCircularTmkNews(0, activo, total);
+    const offset1 = obtenerOffsetCircularTmkNews(1, activo, total);
+    const leftOccupied = offset0 === -1 || offset1 === -1;
+
+    const missingSide = leftOccupied ? "right" : "left";
+    const centralIndex = offset0 === 0 ? 0 : 1;
+    const metaCentral = resolverEtiquetaCategoriaNoticia(lista[centralIndex].category);
+    const fantasmas = resolverTonosFantasmaTmkNews(metaCentral.tone);
+    const ghostTone = missingSide === "left" ? fantasmas.izq : fantasmas.der;
+
+    ghostSlide = (
+      <div
+        key={`ghost-${missingSide}-${activo}`}
+        className={`tmk-news-carousel__slide tmk-news-carousel__slide--${missingSide} tmk-news-carousel__slide--static`}
+        aria-hidden="true"
+      >
+        <TmkNewsCardGhost tone={ghostTone} desktop={esDesktop} />
+      </div>
+    );
+  }
+
   return (
     <div
       className={carouselClase}
@@ -340,6 +366,7 @@ function TmkNewsCarousel({ noticias, onSelectNoticia, variant = "mobile" }) {
             </div>
           );
         })}
+        {ghostSlide}
       </div>
 
       <div className="tmk-news-carousel__dots" role="tablist" aria-label="Novedades">
@@ -378,7 +405,7 @@ function HomeTmkNews({ noticias, onSelectNoticia, onAbrirPublicar, loading, vari
       <div className="home-section__head">
         <div className="home-section__head-left">
           <span className="home-section__title tmk-news-home__brand">TMK News</span>
-          <span className="home-section__subtitle">Novedades de la semana</span>
+          <span className="home-section__subtitle">Novedades de los últimos 5 días</span>
         </div>
         {onAbrirPublicar && (
           <button type="button" onClick={onAbrirPublicar} className="home-section__link">

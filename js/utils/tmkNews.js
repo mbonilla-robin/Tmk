@@ -16,7 +16,8 @@ const TMK_NEWS_CARD_ART = {
   celebracion: "fa-champagne-glasses"
 };
 
-const TMK_NEWS_DIAS_HOME = 7;
+// Días que considera "Home" para mostrar las novedades.
+const TMK_NEWS_DIAS_HOME = 5;
 
 function tmkNewsSupabaseConfigured() {
   try {

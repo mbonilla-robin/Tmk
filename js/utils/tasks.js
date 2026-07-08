@@ -311,6 +311,14 @@ function fechasLocalesConfirmadasConRemota(local, remota) {
   return true;
 }
 
+function tareaLocalConfirmadaConRemota(local, remota) {
+  if (!fechasLocalesConfirmadasConRemota(local, remota)) return false;
+  const estLocal = normalizarEstado(local?.estado);
+  const estRemota = normalizarEstado(remota?.estado);
+  if (estLocal && estRemota && estLocal !== estRemota) return false;
+  return true;
+}
+
 function limpiarFechasLocalesSiConfirmadas(tarea, remota) {
   if (!tarea?._localFechas || !fechasLocalesConfirmadasConRemota(tarea, remota)) return tarea;
   const copia = { ...tarea };

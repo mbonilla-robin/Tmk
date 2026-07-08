@@ -2628,6 +2628,11 @@
       .notion-task-swipe-wrap .notion-task-row {
         position: relative;
         z-index: 1;
+        background: #fff;
+      }
+
+      .notion-task-swipe-wrap .notion-task-row.is-selected {
+        background: #eff6ff;
       }
     }
 
@@ -4613,6 +4618,14 @@
     html.robin-app[data-theme="midnight"] .notion-task-row.is-selected {
       background: rgba(59, 130, 246, 0.15);
       border-color: #3b82f6;
+    }
+
+    html.robin-app[data-theme="midnight"] .notion-task-swipe-wrap .notion-task-row {
+      background: var(--robin-card);
+    }
+
+    html.robin-app[data-theme="midnight"] .notion-task-swipe-wrap .notion-task-row.is-selected {
+      background: #1e3a5f;
     }
 
     html.robin-app[data-theme="midnight"] .notion-task-title,

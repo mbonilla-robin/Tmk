@@ -1648,8 +1648,8 @@ function App() {
           });
           const fusionadas = cargarTareasLocales();
           const colaVacia = cargarColaSync().length === 0;
-          setHayPendientesLocales(!colaVacia);
-          if (colaVacia) {
+          setHayPendientesLocales(calcularHayPendientesLocales());
+          if (colaVacia && !hayTareasPendientesLocales(fusionadas)) {
             setApiError(null);
             setApiErrorDetail("");
           }
@@ -1718,7 +1718,7 @@ function App() {
       try {
         const resultado = await procesarColaSync();
         reconciliarTareasLocalesConRemotas([]);
-        setHayPendientesLocales(cargarColaSync().length > 0);
+        setHayPendientesLocales(calcularHayPendientesLocales());
         if (resultado.sessionMissing) return;
         if (resultado.errores && resultado.errores.length > 0) {
           const detalle = resultado.errores.map((e) => e.error || e.type).join(" · ");
@@ -1729,7 +1729,7 @@ function App() {
         } else {
           if (resultado.processed > 0) {
             showToast("Cambios guardados en Google Sheets", "success");
-            await new Promise((resolve) => setTimeout(resolve, 600));
+            await new Promise((resolve) => setTimeout(resolve, 1500));
           }
           setApiError(null);
           setApiErrorDetail("");
@@ -1740,7 +1740,7 @@ function App() {
         registrarDiagnosticoRobin("sheets", "Error de sincronización en segundo plano", e?.message || String(e));
       } finally {
         syncMutexRef.current = false;
-        setHayPendientesLocales(cargarColaSync().length > 0);
+        setHayPendientesLocales(calcularHayPendientesLocales());
       }
     }, 350);
   };
@@ -2531,7 +2531,7 @@ function App() {
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => fetchData(false)}
+            onClick={() => sincronizarEnSegundoPlano()}
             disabled={loading || syncing}
             className="px-3 py-1.5 rounded border border-zinc-200 bg-white text-zinc-700 font-semibold"
           >
@@ -2899,7 +2899,7 @@ function App() {
         </header>
 
         <PullToRefresh
-          onRefresh={() => fetchData(false)}
+          onRefresh={() => sincronizarEnSegundoPlano()}
           loading={loading}
           disabled={syncDetalleVisible || isEditing}
           data-robin-content-main

@@ -173,7 +173,7 @@ function FormularioCrearEntregable({
                 listaGlobal={listaDisenadores}
                 registrarNuevaPersona={registrarNuevaPersona}
                 variant="minimal"
-                mostrarBotonTrade={true}
+                expandirTradeComo="disenadores"
               />
             </PropertyRow>
           </div>

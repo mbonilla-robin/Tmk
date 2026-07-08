@@ -4,7 +4,7 @@ function SelectorPersonasChips({
   listaGlobal,
   registrarNuevaPersona,
   variant = "default",
-  mostrarBotonTrade = false
+  expandirTradeComo = "equipo"
 }) {
   const [buscar, setBuscar] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -16,8 +16,27 @@ function SelectorPersonasChips({
     onChange(normalizarCampoPersonas(items.join(", ")));
   };
 
+  const obtenerObjetivosTradeDisenadores = () => {
+    const base = Array.isArray(listaGlobal) ? listaGlobal : [];
+    const objetivos = base
+      .filter((persona) => {
+        const entrada = String(persona || "").trim();
+        if (!entrada) return false;
+        const clave = normalizarClavePersona(entrada);
+        if (clave === "trade" || clave === "cliente") return false;
+        return esPersonaDisenador(entrada);
+      })
+      .map((persona) => formatearEntradaListaPersona(persona))
+      .filter(Boolean);
+
+    return objetivos.length ? objetivos : obtenerListaDisenadoresActiva().filter(esPersonaDisenador);
+  };
+
   const handleTogglePersona = (p) => {
-    const objetivos = partesCampoPersonas(p);
+    const esTrade = normalizarClavePersona(p) === "trade";
+    const objetivos = esTrade && expandirTradeComo === "disenadores"
+      ? obtenerObjetivosTradeDisenadores()
+      : partesCampoPersonas(p);
     const todosSeleccionados = objetivos.length > 0 && objetivos.every((handle) => seleccionadasArray.includes(handle));
 
     let nuevas;
@@ -45,25 +64,14 @@ function SelectorPersonasChips({
         return;
       }
       registrarNuevaPersona(entrada);
-      aplicarCambio([...seleccionadasArray, entrada]);
+      const esTrade = normalizarClavePersona(entrada) === "trade";
+      if (esTrade && expandirTradeComo === "disenadores") {
+        aplicarCambio([...seleccionadasArray, ...obtenerObjetivosTradeDisenadores()]);
+      } else {
+        aplicarCambio([...seleccionadasArray, entrada]);
+      }
       setBuscar("");
     }
-  };
-
-  const handleAgregarTrade = () => {
-    const base = Array.isArray(listaGlobal) ? listaGlobal : [];
-    const disenadores = base
-      .filter((persona) => {
-        const entrada = String(persona || "").trim();
-        if (!entrada) return false;
-        if (normalizarClavePersona(entrada) === "cliente") return false;
-        if (typeof esPersonaDisenador === "function") return esPersonaDisenador(entrada);
-        return normalizarClavePersona(entrada) !== "trade";
-      })
-      .map((persona) => formatearEntradaListaPersona(persona))
-      .filter(Boolean);
-
-    aplicarCambio(["@Trade", ...disenadores, ...seleccionadasArray]);
   };
 
   useEffect(() => {
@@ -122,15 +130,6 @@ function SelectorPersonasChips({
             >
               Añadir
             </button>
-            {mostrarBotonTrade && (
-              <button
-                type="button"
-                onClick={handleAgregarTrade}
-                className="bg-amber-500/90 text-white text-[11px] font-medium px-2.5 py-1 rounded hover:bg-amber-500 transition-colors"
-              >
-                Trade
-              </button>
-            )}
           </div>
           <div className="flex flex-col gap-0.5">
             {listaGlobal

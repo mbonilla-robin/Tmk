@@ -6,15 +6,7 @@ function cargarTareasLocales() {
     const raw = getLocalStorageItemSafe(STORAGE_TAREAS_KEY, "[]");
     const lista = JSON.parse(raw);
     if (!Array.isArray(lista)) return [];
-    const normalizadas = lista.map(normalizarTareaCampos);
-    if (cargarColaSync().length === 0) {
-      return normalizadas.map((t) => {
-        const copia = desmarcarTareaPendiente({ ...t });
-        if (copia._localFechas) delete copia._localFechas;
-        return copia;
-      });
-    }
-    return normalizadas;
+    return lista.map(normalizarTareaCampos);
   } catch (e) {
     console.warn("ROBIN: no se pudo cargar backup de tareas", e);
     return [];
@@ -36,13 +28,7 @@ function tareaEstaEnColaSync(tarea, cola) {
 }
 
 function prepararTareasParaAlmacenamiento(tareas) {
-  const cola = cargarColaSync();
-  return (tareas || []).map((tarea) => {
-    if (tareaEstaEnColaSync(tarea, cola)) return tarea;
-    const copia = desmarcarTareaPendiente({ ...tarea });
-    if (copia._localFechas) delete copia._localFechas;
-    return copia;
-  });
+  return (tareas || []).map((tarea) => ({ ...tarea }));
 }
 
 function limpiarFlagsSyncObsoletos(tarea, remotas) {
@@ -53,12 +39,10 @@ function limpiarFlagsSyncObsoletos(tarea, remotas) {
   const remota = (remotas || []).find((r) => remotaCorrespondeATareaLocal(r, next, cola));
   if (remota) {
     const idRemoto = String(remota.idTarea || "").trim();
-    next = limpiarFechasLocalesSiConfirmadas({
+    next = limpiarEdicionLocalSiConfirmada({
       ...next,
       idTarea: idRemoto && !idRemoto.startsWith("STB-") ? idRemoto : next.idTarea
     }, remota);
-  } else if (next._localFechas) {
-    delete next._localFechas;
   }
   return normalizarTareaCampos(next);
 }
@@ -195,6 +179,11 @@ function desmarcarTareaPendiente(tarea) {
   return copia;
 }
 
+function limpiarEdicionLocalSiConfirmada(tarea, remota) {
+  if (!tareaLocalConfirmadaConRemota(tarea, remota)) return tarea;
+  return desmarcarTareaPendiente(limpiarFechasLocalesSiConfirmadas(tarea, remota));
+}
+
 function tareaEsPendienteLocal(t) {
   if (!t) return false;
   if (t._pendingSync) return true;
@@ -225,13 +214,9 @@ function confirmarTareaLocalTrasSync(op, respuesta) {
   const actualizadas = tareas.map((tarea) => {
     if (!tareaCoincideConOperacionSync(tarea, op)) return tarea;
 
-    let next = desmarcarTareaPendiente(normalizarTareaCampos(tarea));
+    let next = normalizarTareaCampos(tarea);
     if (idRemoto && !idRemoto.startsWith("STB-")) {
       next = { ...next, idTarea: idRemoto };
-    }
-    if (next._localFechas) {
-      const limpia = limpiarFechasLocalesSiConfirmadas(next, next);
-      next = desmarcarTareaPendiente(limpia);
     }
     cambio = true;
     return next;
@@ -261,13 +246,20 @@ function reconciliarTareasLocalesConRemotas(remotas) {
     if (!idRemoto || idRemoto.startsWith("STB-")) return local;
 
     cambio = true;
+    const fechas = fusionarFechasLocales(remota, local);
     const fusionada = normalizarTareaCampos({
-      ...local,
       ...remota,
+      ...local,
+      ...fechas,
+      estado: local.estado,
       idTarea: idRemoto,
-      detalles: local.detalles || remota.detalles
+      detalles: local.detalles || remota.detalles,
+      _localFechas: local._localFechas
     });
-    return desmarcarTareaPendiente(limpiarFechasLocalesSiConfirmadas(fusionada, remota));
+    if (tareaLocalConfirmadaConRemota(local, remota)) {
+      return limpiarEdicionLocalSiConfirmada(fusionada, remota);
+    }
+    return marcarTareaPendiente(fusionada);
   });
 
   if (cambio) guardarTareasLocales(actualizadas);
@@ -275,7 +267,8 @@ function reconciliarTareasLocalesConRemotas(remotas) {
 }
 
 function calcularHayPendientesLocales() {
-  return hayPendientesSync();
+  if (hayPendientesSync()) return true;
+  return hayTareasPendientesLocales(cargarTareasLocales());
 }
 
 function infoTareaCoincide(a, b) {
@@ -348,6 +341,15 @@ function remotaContradiceFechasLocales(remota, local) {
   return false;
 }
 
+function remotaContradiceEdicionLocal(remota, local) {
+  if (remotaContradiceFechasLocales(remota, local)) return true;
+  if (!tareaEsPendienteLocal(local)) return false;
+  const estLocal = normalizarEstado(local?.estado);
+  const estRemota = normalizarEstado(remota?.estado);
+  if (estLocal && estRemota && estLocal !== estRemota) return true;
+  return false;
+}
+
 function combinarLocalesParaFusion(prevTareas, almacenadas) {
   const resultado = [...(almacenadas || [])];
 
@@ -403,11 +405,11 @@ function deduplicarTareasFusionadas(lista) {
       detalles: preferida.detalles || existente.detalles
     });
 
-    const confirmada = fechasLocalesConfirmadasConRemota(preferida, otra);
-    const fusionFinal = limpiarFechasLocalesSiConfirmadas(fusionada, otra);
+    const confirmada = tareaLocalConfirmadaConRemota(preferida, otra);
+    const fusionFinal = limpiarEdicionLocalSiConfirmada(fusionada, otra);
     resultado[indice] = tienePrioridadLocal(preferida) && !confirmada
       ? marcarTareaPendiente(fusionFinal)
-      : desmarcarTareaPendiente(fusionFinal);
+      : fusionFinal;
   });
 
   return resultado;
@@ -425,7 +427,7 @@ function remotaDebeOcultarseDuranteSync(remota, cola, locales) {
     if (!sonLaMismaTarea(remota, local, { estricto: false })) continue;
     if (!tareaEsPendienteLocal(local) && !tareaTieneFechasLocalesPendientes(local)) continue;
     if (remotaCorrespondeATareaLocal(remota, local, cola)) return true;
-    if (remotaContradiceFechasLocales(remota, local)) return true;
+    if (remotaContradiceEdicionLocal(remota, local)) return true;
   }
 
   return false;
@@ -446,13 +448,15 @@ function fusionarTareasRemotasYLocales(remotas, locales) {
     return !remotaDebeOcultarseDuranteSync(t, cola, localesConPins);
   });
 
-  if (remotoFiltrado.length === 0 && (remotas || []).length > 0) {
-    remotoFiltrado = (remotas || []).filter((t) => !eliminaciones.has(getTaskSelectionKey(t)));
-  }
-
   const mapa = new Map();
   remotoFiltrado.forEach((t) => {
-    mapa.set(getTaskSelectionKey(t), desmarcarTareaPendiente(normalizarTareaCampos(t)));
+    const key = getTaskSelectionKey(t);
+    const localPendiente = localesConPins.find(
+      (l) => (tareaEsPendienteLocal(l) || tareaTieneFechasLocalesPendientes(l))
+        && remotaCorrespondeATareaLocal(t, l, cola)
+    );
+    if (localPendiente) return;
+    mapa.set(key, desmarcarTareaPendiente(normalizarTareaCampos(t)));
   });
 
   localesConPins.forEach((t) => {
@@ -469,17 +473,18 @@ function fusionarTareasRemotasYLocales(remotas, locales) {
         ...remota,
         ...local,
         ...fechas,
+        estado: local.estado,
         _localFechas: local._localFechas,
         idTarea: remota.idTarea || local.idTarea,
         detalles: local.detalles || remota.detalles
       });
-      const confirmada = fechasLocalesConfirmadasConRemota(local, remota);
-      const fusionFinal = limpiarFechasLocalesSiConfirmadas(fusionada, remota);
+      const confirmada = tareaLocalConfirmadaConRemota(local, remota);
+      const fusionFinal = limpiarEdicionLocalSiConfirmada(fusionada, remota);
       mapa.set(
         getTaskSelectionKey(local),
         (tareaEsPendienteLocal(local) || tareaTieneFechasLocalesPendientes(local)) && !confirmada
           ? marcarTareaPendiente(fusionFinal)
-          : desmarcarTareaPendiente(fusionFinal)
+          : fusionFinal
       );
     }
   });

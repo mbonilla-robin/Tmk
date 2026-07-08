@@ -37,20 +37,20 @@ function NotionTaskRow({
 
   const handleTouchStart = (e) => {
     if (esCompletada || !onSolicitarCompletar) return;
+    if (e.target.closest(".notion-task-check")) return;
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
-    setSwiping(true);
     bloquearClick.current = false;
   };
 
   const handleTouchMove = (e) => {
-    if (!swiping || esCompletada) return;
+    if (esCompletada) return;
     const deltaX = e.touches[0].clientX - touchStartX.current;
     const deltaY = e.touches[0].clientY - touchStartY.current;
-    if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 8) {
-      setSwiping(false);
-      setOffsetX(0);
-      return;
+    if (!swiping) {
+      if (Math.abs(deltaY) > Math.abs(deltaX) && Math.abs(deltaY) > 8) return;
+      if (deltaX < 8) return;
+      setSwiping(true);
     }
     if (deltaX > 8) bloquearClick.current = true;
     const next = Math.max(0, Math.min(deltaX, MAX_SWIPE));
@@ -68,6 +68,12 @@ function NotionTaskRow({
     }
     offsetXRef.current = 0;
     setOffsetX(0);
+  };
+
+  const handleTouchCancel = () => {
+    resetSwipe();
+    touchStartX.current = 0;
+    touchStartY.current = 0;
   };
 
   const handleClick = () => {
@@ -187,7 +193,7 @@ function NotionTaskRow({
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      onTouchCancel={resetSwipe}
+      onTouchCancel={handleTouchCancel}
     >
       <div className="notion-task-swipe-action md:hidden" aria-hidden="true">
         <i className="fa-solid fa-check" />

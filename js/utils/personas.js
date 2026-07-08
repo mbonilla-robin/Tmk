@@ -536,6 +536,7 @@ function obtenerListaDisenadoresActiva() {
     return handlesDisenador.has(handle);
   });
   return fusionarListasPersonas(
+    ["@Trade"],
     obtenerHandlesDisenadores().map(formatearHandleCanonico),
     desdeDefecto
   );

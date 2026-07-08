@@ -89,7 +89,7 @@ function FormularioRapidoEntregable({
               listaGlobal={listaDisenadores}
               registrarNuevaPersona={registrarNuevaPersona}
               variant="minimal"
-              mostrarBotonTrade={true}
+              expandirTradeComo="disenadores"
             />
           </div>
 

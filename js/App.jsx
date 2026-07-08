@@ -1068,10 +1068,16 @@ function App() {
 
   const toggleSeleccionTarea = (tarea) => {
     const key = getTaskSelectionKey(tarea);
+    const legacy = getTaskSelectionKeyLegacy(tarea);
     setTareasSeleccionadas(prev => {
       const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
+      const activa = next.has(key) || (legacy !== key && next.has(legacy));
+      if (activa) {
+        next.delete(key);
+        next.delete(legacy);
+      } else {
+        next.add(key);
+      }
       return next;
     });
   };
@@ -1098,15 +1104,16 @@ function App() {
     if (isDesigner) return;
     if (!nuevoValor && campo !== "deadline") return;
     const keys = tareasSeleccionadas;
-    const objetivos = tareas.filter(t => keys.has(getTaskSelectionKey(t)));
+    const objetivos = resolverTareasSeleccionadas(tareas, keys);
     if (!objetivos.length) return;
 
     const hoy = new Date();
     const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
     const valorFinal = normalizarValorCampoTarea(campo, nuevoValor);
+    const objetivosSet = new Set(objetivos);
 
     const actualizadas = tareas.map(t => {
-      if (!keys.has(getTaskSelectionKey(t))) return t;
+      if (!objetivosSet.has(t)) return t;
       let detalles = t.detalles || "";
       if (campo === "estado") {
         detalles += `\n• [${timestamp}] Estado cambiado a "${nuevoValor}" por @${usuario}`;
@@ -1894,6 +1901,11 @@ function App() {
     },
     listaCategorias
   };
+
+  const tareasSeleccionadasLista = useMemo(
+    () => resolverTareasSeleccionadas(tareas, tareasSeleccionadas),
+    [tareas, tareasSeleccionadas]
+  );
 
   const handleSaveTaskModal = async (editedTask) => {
     if (guardandoRef.current) return;
@@ -3420,8 +3432,8 @@ function App() {
 
       {!isConfigOnlyAdmin && !isDesigner && paginaActiva === "dashboard" && tareasSeleccionadas.size > 0 && (
         <BarraAccionesMasivas
-          count={tareasSeleccionadas.size}
-          tareasSeleccionadas={tareas.filter((t) => tareasSeleccionadas.has(getTaskSelectionKey(t)))}
+          count={tareasSeleccionadasLista.length || tareasSeleccionadas.size}
+          tareasSeleccionadas={tareasSeleccionadasLista}
           bulkDeadline={bulkDeadline}
           setBulkDeadline={setBulkDeadline}
           onBulkUpdate={handleBulkUpdate}

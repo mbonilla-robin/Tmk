@@ -131,8 +131,64 @@ function getTaskSelectionKey(t) {
   if (id && isValidIdTarea(id)) return id;
   const rawId = String(t.idTarea || "").trim();
   if (rawId.startsWith("STB-")) return rawId;
+  return getTaskSelectionKeyLegacy(t);
+}
+
+function getTaskSelectionKeyLegacy(t) {
   const titulo = tituloLimpioTarea(t) || String(t.info || "").trim().toLowerCase();
   return `${t.marca || ""}|${titulo}`.toLowerCase().trim();
+}
+
+function resolverTareasSeleccionadas(tareas, keysSet) {
+  const keys = keysSet instanceof Set ? keysSet : new Set(keysSet || []);
+  if (!keys.size) return [];
+
+  const lista = Array.isArray(tareas) ? tareas : [];
+  const resultado = [];
+  const keysUsadas = new Set();
+
+  lista.forEach((t) => {
+    const keyActual = getTaskSelectionKey(t);
+    const keyLegacy = getTaskSelectionKeyLegacy(t);
+    const coincide = keys.has(keyActual) || (keyLegacy !== keyActual && keys.has(keyLegacy));
+    if (!coincide) return;
+    resultado.push(t);
+    if (keys.has(keyActual)) keysUsadas.add(keyActual);
+    if (keys.has(keyLegacy)) keysUsadas.add(keyLegacy);
+  });
+
+  if (keysUsadas.size >= keys.size) return resultado;
+
+  keys.forEach((keyGuardada) => {
+    if (keysUsadas.has(keyGuardada)) return;
+    const keyStr = String(keyGuardada || "");
+    if (!keyStr.includes("|")) return;
+    const sep = keyStr.indexOf("|");
+    const marcaKey = keyStr.slice(0, sep);
+    const tituloKey = keyStr.slice(sep + 1);
+    const encontrada = lista.find((t) => {
+      if (resultado.includes(t)) return false;
+      const marca = String(t.marca || "").toLowerCase().trim();
+      if (marca !== marcaKey) return false;
+      const titulo = (tituloLimpioTarea(t) || String(t.info || "").trim()).toLowerCase();
+      return titulo === tituloKey;
+    });
+    if (encontrada) {
+      resultado.push(encontrada);
+      keysUsadas.add(keyGuardada);
+    }
+  });
+
+  return resultado;
+}
+
+function tareaEstaSeleccionada(tarea, keysSet) {
+  const keys = keysSet instanceof Set ? keysSet : new Set(keysSet || []);
+  if (!keys.size || !tarea) return false;
+  const keyActual = getTaskSelectionKey(tarea);
+  if (keys.has(keyActual)) return true;
+  const keyLegacy = getTaskSelectionKeyLegacy(tarea);
+  return keyLegacy !== keyActual && keys.has(keyLegacy);
 }
 
 function getRobinTaskKeyUrlParams() {

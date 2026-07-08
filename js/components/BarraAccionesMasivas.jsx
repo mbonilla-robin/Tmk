@@ -123,12 +123,13 @@ function BarraAccionesMasivas({
   };
 
   return (
-    <ModalPortal>
-      <div
-        className="bulk-action-bar-anchor"
-        style={ancla ? { left: `${ancla.left}px`, width: `${ancla.width}px` } : undefined}
-      >
-        <div className="bulk-action-bar" ref={barRef} role="toolbar" aria-label="Acciones masivas">
+    <>
+      <ModalPortal>
+        <div
+          className="bulk-action-bar-anchor"
+          style={ancla ? { left: `${ancla.left}px`, width: `${ancla.width}px` } : undefined}
+        >
+          <div className="bulk-action-bar" ref={barRef} role="toolbar" aria-label="Acciones masivas">
           <span className="bulk-action-count">
             {count} seleccionado{count !== 1 ? "s" : ""}
           </span>
@@ -231,8 +232,10 @@ function BarraAccionesMasivas({
           </button>
         </div>
       </div>
+      </ModalPortal>
 
       {modalEstatus && (
+        <ModalPortal>
         <div className="bulk-estatus-overlay" role="dialog" aria-modal="true" aria-label="Estatus generado">
           <button
             type="button"
@@ -287,7 +290,8 @@ function BarraAccionesMasivas({
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
-    </ModalPortal>
+    </>
   );
 }

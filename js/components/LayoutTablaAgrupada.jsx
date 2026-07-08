@@ -224,10 +224,10 @@ function LayoutTablaAgrupada({
   );
 
   const grupoCompletamenteSeleccionado = (lista) =>
-    lista.length > 0 && lista.every(t => tareasSeleccionadas.has(getTaskSelectionKey(t)));
+    lista.length > 0 && lista.every(t => tareaEstaSeleccionada(t, tareasSeleccionadas));
 
   const grupoParcialmenteSeleccionado = (lista) =>
-    lista.some(t => tareasSeleccionadas.has(getTaskSelectionKey(t))) && !grupoCompletamenteSeleccionado(lista);
+    lista.some(t => tareaEstaSeleccionada(t, tareasSeleccionadas)) && !grupoCompletamenteSeleccionado(lista);
 
   if (tareas.length === 0) {
     return (
@@ -280,7 +280,7 @@ function LayoutTablaAgrupada({
                     onDeleteTask={onDeleteTask}
                     onSolicitarCompletar={onSolicitarCompletar}
                     onToggleSeleccion={onToggleSeleccion}
-                    estaSeleccionada={tareasSeleccionadas.has(selKey)}
+                    estaSeleccionada={tareaEstaSeleccionada(t, tareasSeleccionadas)}
                     getMarcaStyle={getMarcaStyle}
                     listaCategorias={listaCategorias}
                   />

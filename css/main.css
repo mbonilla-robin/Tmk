@@ -5343,6 +5343,14 @@
       align-items: center;
       gap: 0.35rem;
       min-width: 0;
+      flex: 1;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .bulk-action-buttons::-webkit-scrollbar {
+      display: none;
     }
 
     .bulk-action-btn-wrap {
@@ -5531,19 +5539,21 @@
       }
     }
 
-    /* Modal estatus desde selección — móvil: bottom sheet; desktop: centrado */
+    /* Modal estatus desde selección — desktop centrado; móvil bottom sheet */
     .bulk-estatus-overlay {
       position: fixed;
       inset: 0;
-      z-index: 260;
+      z-index: 300;
       display: flex;
-      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      box-sizing: border-box;
     }
 
     .bulk-estatus-backdrop {
-      flex-shrink: 0;
-      height: 2.5rem;
-      width: 100%;
+      position: absolute;
+      inset: 0;
       background: rgba(0, 0, 0, 0.2);
       backdrop-filter: blur(2px);
       border: none;
@@ -5552,24 +5562,22 @@
     }
 
     .bulk-estatus-panel {
+      position: relative;
+      z-index: 1;
       display: flex;
       flex-direction: column;
-      flex: 1 1 auto;
-      min-height: 0;
-      max-height: 88vh;
+      width: 100%;
+      max-width: 32rem;
+      max-height: min(85vh, 40rem);
       background: var(--robin-card, #fff);
-      border-radius: 1rem 1rem 0 0;
-      box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.12);
+      border-radius: 0.75rem;
+      border: 1px solid var(--robin-border, #e4e4e7);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
       overflow: hidden;
     }
 
     .bulk-estatus-handle {
-      width: 2.25rem;
-      height: 0.25rem;
-      background: var(--robin-border, #d4d4d8);
-      border-radius: 9999px;
-      margin: 0.65rem auto 0.35rem;
-      flex-shrink: 0;
+      display: none;
     }
 
     .bulk-estatus-header {
@@ -5641,9 +5649,10 @@
 
     .bulk-estatus-actions {
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
+      flex-wrap: wrap;
       gap: 0.5rem;
-      padding-bottom: max(0.25rem, env(safe-area-inset-bottom, 0px));
+      justify-content: flex-end;
       flex-shrink: 0;
     }
 
@@ -5652,9 +5661,10 @@
       align-items: center;
       justify-content: center;
       gap: 0.5rem;
-      width: 100%;
-      min-height: 2.75rem;
-      padding: 0.65rem 1rem;
+      width: auto;
+      min-width: 7rem;
+      min-height: 2.5rem;
+      padding: 0.6rem 1rem;
       border-radius: 0.625rem;
       font-size: 13px;
       font-weight: 600;
@@ -5687,6 +5697,7 @@
       background: transparent;
       color: var(--robin-text-muted, #71717a);
       min-height: 2.25rem;
+      margin-right: auto;
     }
 
     .bulk-estatus-btn--ghost:hover {
@@ -5694,71 +5705,50 @@
       background: var(--robin-bg, #f4f4f5);
     }
 
-    @media (min-width: 640px) {
+    @media (max-width: 639px) {
       .bulk-estatus-overlay {
-        align-items: center;
-        justify-content: center;
-        padding: 1rem;
-      }
-
-      .bulk-estatus-backdrop {
-        position: absolute;
-        inset: 0;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.15);
+        align-items: stretch;
+        justify-content: flex-end;
+        padding: 0;
       }
 
       .bulk-estatus-panel {
-        position: relative;
-        z-index: 1;
-        flex: none;
-        width: 100%;
-        max-width: 32rem;
-        max-height: 85vh;
-        border-radius: 0.75rem;
-        border: 1px solid var(--robin-border, #e4e4e7);
-        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        max-width: none;
+        max-height: 88vh;
+        border-radius: 1rem 1rem 0 0;
+        border-left: none;
+        border-right: none;
+        border-bottom: none;
+        box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.12);
       }
 
       .bulk-estatus-handle {
-        display: none;
-      }
-
-      .bulk-estatus-header {
-        padding: 0.875rem 1.25rem;
-      }
-
-      .bulk-estatus-body {
-        padding: 1rem 1.25rem 1.25rem;
+        display: block;
+        width: 2.25rem;
+        height: 0.25rem;
+        background: var(--robin-border, #d4d4d8);
+        border-radius: 9999px;
+        margin: 0.65rem auto 0.35rem;
+        flex-shrink: 0;
       }
 
       .bulk-estatus-actions {
-        flex-direction: row;
-        flex-wrap: wrap;
-        justify-content: flex-end;
+        flex-direction: column;
+        padding-bottom: max(0.25rem, env(safe-area-inset-bottom, 0px));
       }
 
       .bulk-estatus-btn {
-        width: auto;
-        min-width: 7rem;
-      }
-
-      .bulk-estatus-btn--primary {
-        order: 3;
-      }
-
-      .bulk-estatus-btn--secondary {
-        order: 2;
+        width: 100%;
+        min-width: 0;
       }
 
       .bulk-estatus-btn--ghost {
-        order: 1;
-        margin-right: auto;
+        margin-right: 0;
       }
     }
 
     html.robin-app[data-theme="midnight"] .bulk-estatus-panel {
-      box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.45);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
     }
 
     html.robin-app[data-theme="midnight"] .bulk-estatus-btn--primary {

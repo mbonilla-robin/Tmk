@@ -3421,6 +3421,7 @@ function App() {
       {!isConfigOnlyAdmin && !isDesigner && paginaActiva === "dashboard" && tareasSeleccionadas.size > 0 && (
         <BarraAccionesMasivas
           count={tareasSeleccionadas.size}
+          tareasSeleccionadas={tareas.filter((t) => tareasSeleccionadas.has(getTaskSelectionKey(t)))}
           bulkDeadline={bulkDeadline}
           setBulkDeadline={setBulkDeadline}
           onBulkUpdate={handleBulkUpdate}

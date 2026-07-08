@@ -130,3 +130,30 @@ function generarTextoEstatus(tareas, { marcas, estados, filtroTiempo, ordenarPor
 
   return bloques.join("\n\n\n");
 }
+
+function obtenerMarcasUnicasTareas(tareas) {
+  const marcas = [];
+  (tareas || []).forEach((t) => {
+    const marca = t?.marca;
+    if (!marca) return;
+    if (!marcas.some((m) => marcasCoinciden(m, marca))) marcas.push(marca);
+  });
+  return marcas;
+}
+
+function generarTextoEstatusDesdeSeleccion(tareas, { ordenarPor } = {}) {
+  const lista = (tareas || []).filter((t) => t && (t.info || t.marca));
+  if (lista.length === 0) return "";
+
+  const marcas = obtenerMarcasUnicasTareas(lista);
+  const bloques = [];
+
+  marcas.forEach((marca) => {
+    const tareasMarca = lista.filter((t) => marcasCoinciden(t.marca, marca));
+    const ordenadas = ordenarTareasEstatus(tareasMarca, LISTA_ESTADOS_VALIDOS, ordenarPor || "estado");
+    const lineasTareas = ordenadas.map(formatearLineaTareaEstatus);
+    bloques.push(`*${formatearMarca(marca)}:*\n\n${lineasTareas.join("\n\n")}`);
+  });
+
+  return bloques.join("\n\n\n");
+}

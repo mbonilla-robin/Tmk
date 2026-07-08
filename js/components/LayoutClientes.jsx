@@ -193,16 +193,24 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
   );
 
   if (vista === "grid") {
+    const abrirMarcaCliente = (m) => {
+      if (typeof onAbrirMarca === "function") {
+        onAbrirMarca(m);
+        return;
+      }
+      abrirDetalle(m);
+    };
+
     return (
-      <div className="flex flex-col gap-5 animate-fade-in">
-        <header className="clientes-page-header">
+      <div className="flex flex-col gap-4 md:gap-5 animate-fade-in">
+        <header className="clientes-page-header clientes-page-header--slim-mobile">
           <div className="clientes-page-header__bg" aria-hidden="true">
             <div className="clientes-page-header__orb clientes-page-header__orb--1" />
             <div className="clientes-page-header__orb clientes-page-header__orb--2" />
           </div>
           <div className="clientes-page-header__content">
             <h2 className="clientes-page-header__title">Clientes</h2>
-            <p className="clientes-page-header__subtitle">
+            <p className="clientes-page-header__subtitle hidden md:block">
               Toca un cliente para entrar a su espacio de trabajo.
             </p>
           </div>
@@ -222,48 +230,77 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
             No hay clientes registrados todavía.
           </div>
         ) : (
-          <div className="clientes-marca-grid">
-            {marcas.map(m => {
-              const gradientes = obtenerGradientesMarcaTarjeta(m);
-              const abrirMarca = () => {
-                if (typeof onAbrirMarca === "function") {
-                  onAbrirMarca(m);
-                  return;
-                }
-                abrirDetalle(m);
-              };
-              return (
-                <div key={m} className="clientes-marca-btn-wrap">
-                  {canEdit && onDeleteBrand && (
+          <>
+            <div className="mobile-widget-grid md:hidden">
+              {marcas.map((m) => {
+                const cMarca = getMarcaStyle(m);
+                return (
+                  <div key={m} className="clientes-marca-tile-wrap">
+                    {canEdit && onDeleteBrand && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMarcaAEliminar(m);
+                        }}
+                        className="clientes-marca-tile__delete"
+                        title="Eliminar cliente"
+                        aria-label={`Eliminar ${formatearMarca(m)}`}
+                      >
+                        <i className="fa-regular fa-trash-can text-[9px]" />
+                      </button>
+                    )}
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setMarcaAEliminar(m);
-                      }}
-                      className="clientes-marca-btn__delete"
-                      title="Eliminar cliente"
+                      onClick={() => abrirMarcaCliente(m)}
+                      className={`mobile-widget-tile clientes-marca-tile border ${cMarca.surface}`}
                     >
-                      <i className="fa-regular fa-trash-can text-[10px]"></i>
+                      <span className="clientes-marca-tile__icon" aria-hidden="true">
+                        <SVGIcon.MarcaIcon marca={m} className="w-5 h-5" />
+                      </span>
+                      <span className="mobile-widget-tile-label">{formatearMarca(m)}</span>
                     </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={abrirMarca}
-                    className="clientes-marca-btn"
-                    style={{
-                      background: gradientes.card,
-                      borderColor: gradientes.border,
-                      boxShadow: `0 10px 32px ${gradientes.shadow}`
-                    }}
-                  >
-                    <span className="clientes-marca-btn__name">{formatearMarca(m)}</span>
-                    <i className="fa-solid fa-chevron-right clientes-marca-btn__arrow" aria-hidden="true" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="clientes-marca-grid hidden md:grid">
+              {marcas.map((m) => {
+                const gradientes = obtenerGradientesMarcaTarjeta(m);
+                return (
+                  <div key={m} className="clientes-marca-btn-wrap">
+                    {canEdit && onDeleteBrand && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMarcaAEliminar(m);
+                        }}
+                        className="clientes-marca-btn__delete"
+                        title="Eliminar cliente"
+                      >
+                        <i className="fa-regular fa-trash-can text-[10px]"></i>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => abrirMarcaCliente(m)}
+                      className="clientes-marca-btn"
+                      style={{
+                        background: gradientes.card,
+                        borderColor: gradientes.border,
+                        boxShadow: `0 10px 32px ${gradientes.shadow}`
+                      }}
+                    >
+                      <span className="clientes-marca-btn__name">{formatearMarca(m)}</span>
+                      <i className="fa-solid fa-chevron-right clientes-marca-btn__arrow" aria-hidden="true" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </>
         )}
 
         {canEdit && showAddBrandModal && (

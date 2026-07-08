@@ -1,5 +1,6 @@
 function BarraAccionesMasivas({
   count,
+  tareasSeleccionadas = [],
   bulkDeadline,
   setBulkDeadline,
   onBulkUpdate,
@@ -7,6 +8,10 @@ function BarraAccionesMasivas({
 }) {
   const [menuAbierto, setMenuAbierto] = useState(null);
   const [ancla, setAncla] = useState(null);
+  const [modalEstatus, setModalEstatus] = useState(false);
+  const [textoEstatus, setTextoEstatus] = useState("");
+  const [copiado, setCopiado] = useState(false);
+  const [compartido, setCompartido] = useState(false);
   const barRef = useRef(null);
 
   useEffect(() => {
@@ -77,6 +82,46 @@ function BarraAccionesMasivas({
     setMenuAbierto(null);
   };
 
+  const abrirEstatus = () => {
+    const texto = generarTextoEstatusDesdeSeleccion(tareasSeleccionadas);
+    setTextoEstatus(texto || "No hay tareas seleccionadas.");
+    setCopiado(false);
+    setCompartido(false);
+    setMenuAbierto(null);
+    setModalEstatus(true);
+  };
+
+  const cerrarEstatus = () => {
+    setModalEstatus(false);
+    setCopiado(false);
+    setCompartido(false);
+  };
+
+  const handleCopiarEstatus = async () => {
+    try {
+      await navigator.clipboard.writeText(textoEstatus);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = textoEstatus;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    }
+  };
+
+  const handleCompartirEstatus = async () => {
+    const resultado = await compartirTexto(textoEstatus, { titulo: "Estatus ROBIN" });
+    if (resultado.ok) {
+      setCompartido(true);
+      setTimeout(() => setCompartido(false), 2000);
+    }
+  };
+
   return (
     <ModalPortal>
       <div
@@ -94,9 +139,10 @@ function BarraAccionesMasivas({
                 type="button"
                 className={`bulk-action-btn ${menuAbierto === "estado" ? "is-open" : ""}`}
                 onClick={() => toggleMenu("estado")}
+                aria-label="Cambiar estado"
               >
                 <i className="fa-solid fa-circle-half-stroke" aria-hidden="true" />
-                Estado
+                <span className="bulk-action-btn__label">Estado</span>
               </button>
               {menuAbierto === "estado" && (
                 <div className="bulk-action-menu">
@@ -119,9 +165,10 @@ function BarraAccionesMasivas({
                 type="button"
                 className={`bulk-action-btn ${menuAbierto === "prioridad" ? "is-open" : ""}`}
                 onClick={() => toggleMenu("prioridad")}
+                aria-label="Cambiar prioridad"
               >
                 <i className="fa-solid fa-flag" aria-hidden="true" />
-                Prioridad
+                <span className="bulk-action-btn__label">Prioridad</span>
               </button>
               {menuAbierto === "prioridad" && (
                 <div className="bulk-action-menu">
@@ -144,9 +191,10 @@ function BarraAccionesMasivas({
                 type="button"
                 className={`bulk-action-btn ${menuAbierto === "fecha" ? "is-open" : ""}`}
                 onClick={() => toggleMenu("fecha")}
+                aria-label="Cambiar fecha"
               >
                 <i className="fa-regular fa-calendar" aria-hidden="true" />
-                Fecha
+                <span className="bulk-action-btn__label">Fecha</span>
               </button>
               {menuAbierto === "fecha" && (
                 <div className="bulk-action-menu bulk-action-menu--fecha">
@@ -160,6 +208,16 @@ function BarraAccionesMasivas({
                 </div>
               )}
             </div>
+
+            <button
+              type="button"
+              className="bulk-action-btn"
+              onClick={abrirEstatus}
+              aria-label="Generar estatus"
+            >
+              <i className="fa-solid fa-file-lines" aria-hidden="true" />
+              <span className="bulk-action-btn__label">Estatus</span>
+            </button>
           </div>
 
           <button
@@ -173,6 +231,63 @@ function BarraAccionesMasivas({
           </button>
         </div>
       </div>
+
+      {modalEstatus && (
+        <div className="bulk-estatus-overlay" role="dialog" aria-modal="true" aria-label="Estatus generado">
+          <button
+            type="button"
+            className="bulk-estatus-backdrop"
+            onClick={cerrarEstatus}
+            aria-label="Cerrar"
+          />
+          <div className="bulk-estatus-panel animate-zoom-in">
+            <div className="bulk-estatus-handle" aria-hidden="true" />
+            <div className="bulk-estatus-header">
+              <span className="bulk-estatus-title">
+                Estatus ({tareasSeleccionadas.length} tarea{tareasSeleccionadas.length !== 1 ? "s" : ""})
+              </span>
+              <button
+                type="button"
+                onClick={cerrarEstatus}
+                className="bulk-estatus-close"
+                aria-label="Cerrar"
+              >
+                &times;
+              </button>
+            </div>
+
+            <div className="bulk-estatus-body">
+              <pre className="bulk-estatus-text">{textoEstatus}</pre>
+
+              <div className="bulk-estatus-actions">
+                <button
+                  type="button"
+                  onClick={handleCompartirEstatus}
+                  className="bulk-estatus-btn bulk-estatus-btn--primary"
+                >
+                  <i className="fa-brands fa-whatsapp" aria-hidden="true" />
+                  {compartido ? "¡Listo!" : "Enviar por WhatsApp"}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleCopiarEstatus}
+                  className="bulk-estatus-btn bulk-estatus-btn--secondary"
+                >
+                  <i className="fa-regular fa-copy" aria-hidden="true" />
+                  {copiado ? "¡Copiado!" : "Copiar texto"}
+                </button>
+                <button
+                  type="button"
+                  onClick={cerrarEstatus}
+                  className="bulk-estatus-btn bulk-estatus-btn--ghost"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </ModalPortal>
   );
 }

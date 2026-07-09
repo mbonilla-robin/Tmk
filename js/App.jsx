@@ -1105,15 +1105,28 @@ function App() {
     if (!nuevoValor && campo !== "deadline") return;
     const keys = tareasSeleccionadas;
     const objetivos = resolverTareasSeleccionadas(tareas, keys);
-    if (!objetivos.length) return;
+    if (!objetivos.length) {
+      showToast("No se encontraron las tareas seleccionadas", "error");
+      return;
+    }
 
     const hoy = new Date();
     const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
     const valorFinal = normalizarValorCampoTarea(campo, nuevoValor);
-    const objetivosSet = new Set(objetivos);
+    const keysObjetivo = new Set();
+    objetivos.forEach((t) => {
+      keysObjetivo.add(getTaskSelectionKey(t));
+      keysObjetivo.add(getTaskSelectionKeyLegacy(t));
+    });
+
+    const esObjetivo = (t) => {
+      const key = getTaskSelectionKey(t);
+      const legacy = getTaskSelectionKeyLegacy(t);
+      return keysObjetivo.has(key) || keysObjetivo.has(legacy);
+    };
 
     const actualizadas = tareas.map(t => {
-      if (!objetivosSet.has(t)) return t;
+      if (!esObjetivo(t)) return t;
       let detalles = t.detalles || "";
       if (campo === "estado") {
         detalles += `\n• [${timestamp}] Estado cambiado a "${nuevoValor}" por @${usuario}`;
@@ -3432,7 +3445,7 @@ function App() {
 
       {!isConfigOnlyAdmin && !isDesigner && paginaActiva === "dashboard" && tareasSeleccionadas.size > 0 && (
         <BarraAccionesMasivas
-          count={tareasSeleccionadasLista.length || tareasSeleccionadas.size}
+          count={tareasSeleccionadas.size}
           tareasSeleccionadas={tareasSeleccionadasLista}
           bulkDeadline={bulkDeadline}
           setBulkDeadline={setBulkDeadline}

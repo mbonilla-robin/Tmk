@@ -5283,6 +5283,7 @@
       justify-content: center;
       pointer-events: none;
       box-sizing: border-box;
+      overflow: visible;
     }
 
     @media (min-width: 1024px) {
@@ -5326,6 +5327,7 @@
         0 8px 30px rgba(0, 0, 0, 0.1),
         0 2px 8px rgba(0, 0, 0, 0.05);
       max-width: 100%;
+      overflow: visible;
       animation: bulk-bar-enter 0.2s ease-out;
     }
 
@@ -5344,13 +5346,7 @@
       gap: 0.35rem;
       min-width: 0;
       flex: 1;
-      overflow-x: auto;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
-    }
-
-    .bulk-action-buttons::-webkit-scrollbar {
-      display: none;
+      overflow: visible;
     }
 
     .bulk-action-btn-wrap {
@@ -5399,7 +5395,8 @@
       padding: 0.25rem;
       max-height: 14rem;
       overflow-y: auto;
-      z-index: 1;
+      z-index: 100;
+      pointer-events: auto;
       animation: bulk-menu-enter 0.15s ease-out;
     }
 

@@ -17,12 +17,13 @@ function BarraAccionesMasivas({
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (event.target.closest?.(".fecha-picker-popup")) return;
+      if (event.target.closest?.(".bulk-action-menu")) return;
       if (barRef.current && !barRef.current.contains(event.target)) {
         setMenuAbierto(null);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
   useEffect(() => {
@@ -64,6 +65,11 @@ function BarraAccionesMasivas({
 
   const toggleMenu = (menu) => {
     setMenuAbierto((actual) => (actual === menu ? null : menu));
+  };
+
+  const handleMenuToggle = (event, menu) => {
+    event.stopPropagation();
+    toggleMenu(menu);
   };
 
   const aplicarEstado = (valor) => {
@@ -139,7 +145,7 @@ function BarraAccionesMasivas({
               <button
                 type="button"
                 className={`bulk-action-btn ${menuAbierto === "estado" ? "is-open" : ""}`}
-                onClick={() => toggleMenu("estado")}
+                onClick={(e) => handleMenuToggle(e, "estado")}
                 aria-label="Cambiar estado"
               >
                 <i className="fa-solid fa-circle-half-stroke" aria-hidden="true" />
@@ -165,7 +171,7 @@ function BarraAccionesMasivas({
               <button
                 type="button"
                 className={`bulk-action-btn ${menuAbierto === "prioridad" ? "is-open" : ""}`}
-                onClick={() => toggleMenu("prioridad")}
+                onClick={(e) => handleMenuToggle(e, "prioridad")}
                 aria-label="Cambiar prioridad"
               >
                 <i className="fa-solid fa-flag" aria-hidden="true" />
@@ -191,7 +197,7 @@ function BarraAccionesMasivas({
               <button
                 type="button"
                 className={`bulk-action-btn ${menuAbierto === "fecha" ? "is-open" : ""}`}
-                onClick={() => toggleMenu("fecha")}
+                onClick={(e) => handleMenuToggle(e, "fecha")}
                 aria-label="Cambiar fecha"
               >
                 <i className="fa-regular fa-calendar" aria-hidden="true" />

@@ -1,13 +1,6 @@
 const NOTIF_POLL_MS = 45000;
 const MENCION_ACTIVA_RE = /@([^\s@,]*)$/;
 
-const NOTIF_TIPO_ETIQUETA = {
-  mencion: "Te mencionaron",
-  respuesta: "Respondieron",
-  asignacion: "Te asignaron",
-  cambio_estado: "Cambio de estado"
-};
-
 function normalizeRobinUser(val) {
   return String(val || "").replace(/^@/, "").trim().toLowerCase();
 }
@@ -194,23 +187,12 @@ function resumirTextoNotificacion(notif) {
   return actor;
 }
 
-function agruparNotificacionesPorTipo(lista) {
-  const orden = ["mencion", "respuesta", "asignacion", "cambio_estado"];
-  const grupos = new Map();
-
-  (lista || []).forEach((n) => {
-    const tipo = n.type || "mencion";
-    if (!grupos.has(tipo)) grupos.set(tipo, []);
-    grupos.get(tipo).push(n);
+function ordenarNotificacionesRecientes(lista) {
+  return [...(lista || [])].sort((a, b) => {
+    const ta = new Date(a.created_at || 0).getTime();
+    const tb = new Date(b.created_at || 0).getTime();
+    return tb - ta;
   });
-
-  return orden
-    .filter((tipo) => grupos.has(tipo))
-    .map((tipo) => ({
-      tipo,
-      etiqueta: NOTIF_TIPO_ETIQUETA[tipo] || tipo,
-      items: grupos.get(tipo)
-    }));
 }
 
 function buildTaskKeyInFilter(keys) {

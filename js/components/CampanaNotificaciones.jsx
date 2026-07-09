@@ -39,8 +39,8 @@ function CampanaNotificaciones({
   const [abierto, setAbierto] = useState(false);
   const panelRef = useRef(null);
 
-  const grupos = useMemo(
-    () => agruparNotificacionesPorTipo(notificaciones),
+  const notificacionesOrdenadas = useMemo(
+    () => ordenarNotificacionesRecientes(notificaciones),
     [notificaciones]
   );
 
@@ -129,22 +129,17 @@ function CampanaNotificaciones({
             ) : !notificaciones.length ? (
               <p className="robin-notif-panel__empty">No tienes notificaciones</p>
             ) : (
-              grupos.map((grupo) => (
-                <section key={grupo.tipo} className="robin-notif-group">
-                  <h4 className="robin-notif-group__title">{grupo.etiqueta}</h4>
-                  <div className="robin-notif-group__list">
-                    {grupo.items.map((notif) => (
-                      <NotificacionFila
-                        key={notif.id}
-                        notif={notif}
-                        tareas={tareas}
-                        getMarcaStyle={getMarcaStyle}
-                        onClick={handleClickNotif}
-                      />
-                    ))}
-                  </div>
-                </section>
-              ))
+              <div className="robin-notif-group__list">
+                {notificacionesOrdenadas.map((notif) => (
+                  <NotificacionFila
+                    key={notif.id}
+                    notif={notif}
+                    tareas={tareas}
+                    getMarcaStyle={getMarcaStyle}
+                    onClick={handleClickNotif}
+                  />
+                ))}
+              </div>
             )}
           </div>
         </div>

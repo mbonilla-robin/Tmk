@@ -18,7 +18,8 @@ function LayoutHome({
   noticiasTmk,
   cargandoNoticiasTmk,
   onSelectNoticiaTmk,
-  onAbrirPublicarTmkNews
+  onAbrirPublicarTmkNews,
+  onAbrirTmkNews
 }) {
 
   const widgetsVisibles = useMemo(() => agruparWidgetsPorSeccion(widgets), [widgets]);
@@ -161,6 +162,7 @@ function LayoutHome({
             username={username}
             onEstatus={onAbrirEstatus}
             onEquipos={onAbrirEquipos}
+            onTmkNews={onAbrirTmkNews}
           />
         </div>
       )}
@@ -179,6 +181,23 @@ function LayoutHome({
             fechaLabel={fechaLabel}
             primerNombre={primerNombre}
           />
+
+          {onAbrirTmkNews && (
+            <button
+              type="button"
+              onClick={onAbrirTmkNews}
+              className="mobile-tmk-news-banner md:hidden"
+            >
+              <span className="mobile-tmk-news-banner__icon" aria-hidden="true">
+                <i className="fa-solid fa-newspaper" />
+              </span>
+              <span className="mobile-tmk-news-banner__copy">
+                <span className="mobile-tmk-news-banner__title">TMK News</span>
+                <span className="mobile-tmk-news-banner__sub">Ver periódico completo</span>
+              </span>
+              <i className="fa-solid fa-chevron-right mobile-tmk-news-banner__arrow" aria-hidden="true" />
+            </button>
+          )}
 
           <HomePresenceChip
             saludo={saludo}
@@ -216,6 +235,9 @@ function LayoutHome({
                 variant="preview"
                 username={username}
                 onVerMas={() => setWidgetsMobileVista("todos")}
+                onEstatus={onAbrirEstatus}
+                onEquipos={onAbrirEquipos}
+                onTmkNews={onAbrirTmkNews}
               />
             </div>
           )}

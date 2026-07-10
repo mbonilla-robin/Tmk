@@ -393,9 +393,7 @@ function HomeTmkNews({ noticias, onSelectNoticia, onAbrirPublicar, loading, vari
   const lista = Array.isArray(noticias) ? noticias : [];
   const esDesktop = variant === "desktop";
 
-  if (esDesktop && !loading && lista.length === 0) {
-    return null;
-  }
+  if (!lista.length) return null;
 
   return (
     <section
@@ -417,15 +415,6 @@ function HomeTmkNews({ noticias, onSelectNoticia, onAbrirPublicar, loading, vari
 
       {loading ? (
         <p className="home-section__empty">Cargando novedades…</p>
-      ) : lista.length === 0 ? (
-        <div className="tmk-news-home__empty">
-          <p className="home-section__empty">Sin novedades esta semana</p>
-          {onAbrirPublicar && (
-            <button type="button" onClick={onAbrirPublicar} className="tmk-news-home__empty-btn">
-              Comparte algo con el equipo
-            </button>
-          )}
-        </div>
       ) : (
         <TmkNewsCarousel noticias={lista} onSelectNoticia={onSelectNoticia} variant={variant} />
       )}

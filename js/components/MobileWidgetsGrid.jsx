@@ -31,7 +31,8 @@ function MobileWidgetsGrid({
   username,
   onVerMas,
   onEstatus,
-  onEquipos
+  onEquipos,
+  onTmkNews
 }) {
   const [recentTick, setRecentTick] = useState(0);
 
@@ -97,6 +98,22 @@ function MobileWidgetsGrid({
               )}
             </div>
           </div>
+        )}
+        {onTmkNews && (
+          <button
+            type="button"
+            onClick={onTmkNews}
+            className="mobile-tmk-news-banner md:hidden"
+          >
+            <span className="mobile-tmk-news-banner__icon" aria-hidden="true">
+              <i className="fa-solid fa-newspaper" />
+            </span>
+            <span className="mobile-tmk-news-banner__copy">
+              <span className="mobile-tmk-news-banner__title">TMK News</span>
+              <span className="mobile-tmk-news-banner__sub">Periódico del equipo</span>
+            </span>
+            <i className="fa-solid fa-chevron-right mobile-tmk-news-banner__arrow" aria-hidden="true" />
+          </button>
         )}
       </div>
     );

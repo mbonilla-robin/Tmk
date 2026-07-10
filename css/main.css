@@ -505,6 +505,83 @@
       color: #a1a1aa;
     }
 
+    .robin-sidebar__news-banner {
+      display: flex;
+      align-items: center;
+      gap: 0.55rem;
+      width: 100%;
+      padding: 0.45rem 0.5rem;
+      border-radius: 0.375rem;
+      border: 1px solid transparent;
+      background: transparent;
+      color: var(--robin-link);
+      text-align: left;
+      cursor: pointer;
+      transition: background-color 0.15s ease, color 0.15s ease;
+    }
+
+    .robin-sidebar__news-banner:hover {
+      background: var(--robin-surface-hover);
+      border-color: transparent;
+      box-shadow: none;
+    }
+
+    .robin-sidebar__news-banner.is-active {
+      color: var(--robin-link-active);
+      background: var(--robin-link-active-bg);
+      border-color: transparent;
+      box-shadow: none;
+    }
+
+    .robin-sidebar__news-banner-icon {
+      width: 1.75rem;
+      height: 1.75rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0.375rem;
+      background: var(--robin-nav-active-icon-bg);
+      color: var(--robin-link);
+      font-size: 11px;
+      flex-shrink: 0;
+    }
+
+    .robin-sidebar__news-banner.is-active .robin-sidebar__news-banner-icon {
+      color: var(--robin-link-active);
+    }
+
+    .robin-sidebar__news-banner-copy {
+      display: flex;
+      flex-direction: column;
+      gap: 0.05rem;
+      min-width: 0;
+      flex: 1;
+    }
+
+    .robin-sidebar__news-banner-title {
+      font-size: 12px;
+      font-weight: 500;
+      line-height: 1.2;
+      color: inherit;
+    }
+
+    .robin-sidebar__news-banner-sub {
+      font-size: 10px;
+      font-weight: 500;
+      color: #a1a1aa;
+      line-height: 1.2;
+    }
+
+    .robin-sidebar__news-banner.is-active .robin-sidebar__news-banner-sub {
+      color: var(--robin-text-muted);
+    }
+
+    .robin-sidebar__news-banner-arrow {
+      font-size: 9px;
+      color: #d4d4d8;
+      flex-shrink: 0;
+    }
+
     .robin-sidebar__logout {
       width: 100%;
       padding: 0.5rem 0.75rem;

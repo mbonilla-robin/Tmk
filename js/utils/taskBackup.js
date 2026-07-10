@@ -31,6 +31,36 @@ function prepararTareasParaAlmacenamiento(tareas) {
   return (tareas || []).map((tarea) => ({ ...tarea }));
 }
 
+function limpiarPinsLocalesTrasSyncOperacion(tarea, op) {
+  let next = desmarcarTareaPendiente(tarea);
+  if (!next._localFechas) return next;
+
+  const payload = op?.payload || {};
+  const campo = payload.campo || "todo";
+  const pin = { ...next._localFechas };
+  let touched = false;
+
+  const limpiarCampo = (nombre) => {
+    if (pin[nombre]) {
+      delete pin[nombre];
+      touched = true;
+    }
+  };
+
+  if (campo === "todo" || campo === "deadline" || payload.deadline !== undefined) limpiarCampo("deadline");
+  if (campo === "todo" || campo === "fechaInicio" || payload.fechaInicio !== undefined) limpiarCampo("fechaInicio");
+
+  if (!touched) return next;
+
+  if (!pin.deadline && !pin.fechaInicio) {
+    const copia = { ...next };
+    delete copia._localFechas;
+    return copia;
+  }
+
+  return { ...next, _localFechas: pin };
+}
+
 function limpiarFlagsSyncObsoletos(tarea, remotas) {
   const cola = cargarColaSync();
   if (tareaEstaEnColaSync(tarea, cola)) return tarea;
@@ -43,6 +73,10 @@ function limpiarFlagsSyncObsoletos(tarea, remotas) {
       ...next,
       idTarea: idRemoto && !idRemoto.startsWith("STB-") ? idRemoto : next.idTarea
     }, remota);
+  } else if (!cola.length && next._localFechas) {
+    const copia = { ...next };
+    delete copia._localFechas;
+    next = copia;
   }
   return normalizarTareaCampos(next);
 }
@@ -218,6 +252,7 @@ function confirmarTareaLocalTrasSync(op, respuesta) {
     if (idRemoto && !idRemoto.startsWith("STB-")) {
       next = { ...next, idTarea: idRemoto };
     }
+    next = limpiarPinsLocalesTrasSyncOperacion(next, op);
     cambio = true;
     return next;
   });
@@ -266,8 +301,40 @@ function reconciliarTareasLocalesConRemotas(remotas) {
   return cambio ? actualizadas : tareas;
 }
 
+function tareaTieneFlagsSyncHuerfanos(tarea) {
+  if (!tarea) return false;
+  if (tarea._pendingSync) return true;
+  return !!(tarea._localFechas?.deadline || tarea._localFechas?.fechaInicio);
+}
+
+function repararFlagsSyncSinCola(remotas) {
+  if (cargarColaSync().length > 0) return false;
+  const tareas = cargarTareasLocales();
+  if (!tareas.length) return false;
+
+  let cambio = false;
+  const reparadas = tareas.map((tarea) => {
+    if (!tareaTieneFlagsSyncHuerfanos(tarea)) return tarea;
+    const next = limpiarFlagsSyncObsoletos(tarea, remotas);
+    if (
+      !!tarea._pendingSync !== !!next._pendingSync ||
+      !!tarea._localFechas !== !!next._localFechas
+    ) {
+      cambio = true;
+    }
+    return next;
+  });
+
+  if (cambio) guardarTareasLocales(reparadas);
+  return cambio;
+}
+
 function calcularHayPendientesLocales() {
   if (hayPendientesSync()) return true;
+  const tareas = cargarTareasLocales();
+  if (tareas.some(tareaTieneFlagsSyncHuerfanos)) {
+    repararFlagsSyncSinCola();
+  }
   return hayTareasPendientesLocales(cargarTareasLocales());
 }
 
@@ -605,6 +672,7 @@ async function procesarColaSync() {
   }
 
   guardarColaSync(restantes);
+  if (restantes.length === 0) repararFlagsSyncSinCola();
   return { ok: restantes.length === 0, processed, remaining: restantes.length, errores };
 }
 

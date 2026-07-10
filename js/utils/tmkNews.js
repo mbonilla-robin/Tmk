@@ -18,6 +18,8 @@ const TMK_NEWS_CARD_ART = {
 
 // Días que considera "Home" para mostrar las novedades.
 const TMK_NEWS_DIAS_HOME = 5;
+// Archivo del periódico (página TMK News).
+const TMK_NEWS_DIAS_ARCHIVO = 90;
 
 function tmkNewsSupabaseConfigured() {
   try {
@@ -66,15 +68,28 @@ function noticiaEsNueva(noticia) {
   return Date.now() - fecha.getTime() < 48 * 60 * 60 * 1000;
 }
 
-async function fetchNoticiasTmk({ dias = TMK_NEWS_DIAS_HOME } = {}) {
+async function fetchNoticiasTmk({ dias = TMK_NEWS_DIAS_HOME, limite = null } = {}) {
   if (!tmkNewsSupabaseConfigured()) return [];
 
-  const limiteDias = Number(dias) > 0 ? Number(dias) : TMK_NEWS_DIAS_HOME;
-  const desde = new Date(Date.now() - limiteDias * 24 * 60 * 60 * 1000).toISOString();
+  const limiteDias = Number(dias);
+  const params = [
+    "status=eq.published",
+    "select=id,author_username,author_display_name,raw_input,title,lead,body,category,status,published_at,created_at",
+    "order=published_at.desc"
+  ];
+
+  if (limiteDias > 0) {
+    const desde = new Date(Date.now() - limiteDias * 24 * 60 * 60 * 1000).toISOString();
+    params.push(`published_at=gte.${encodeURIComponent(desde)}`);
+  }
+
+  if (Number(limite) > 0) {
+    params.push(`limit=${Number(limite)}`);
+  }
 
   try {
     const res = await fetch(
-      `${tmkNewsBaseUrl()}/rest/v1/robin_news?status=eq.published&published_at=gte.${encodeURIComponent(desde)}&select=id,author_username,author_display_name,raw_input,title,lead,body,category,status,published_at,created_at&order=published_at.desc`,
+      `${tmkNewsBaseUrl()}/rest/v1/robin_news?${params.join("&")}`,
       { method: "GET", headers: tmkNewsHeaders() }
     );
     if (!res.ok) {
@@ -181,4 +196,42 @@ async function publicarNoticiaTmk({
     console.warn("ROBIN: error publicando TMK News", e);
     return { ok: false, error: "Error de conexión." };
   }
+}
+
+function formatearFechaNoticiaTmk(noticia) {
+  const fecha = new Date(noticia?.published_at || noticia?.created_at || "");
+  if (Number.isNaN(fecha.getTime())) return "";
+  const raw = fecha.toLocaleDateString("es-MX", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  });
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+
+function formatearFechaCortaNoticiaTmk(noticia) {
+  const fecha = new Date(noticia?.published_at || noticia?.created_at || "");
+  if (Number.isNaN(fecha.getTime())) return "";
+  return fecha.toLocaleDateString("es-MX", { day: "numeric", month: "short" });
+}
+
+function agruparNoticiasPorMes(noticias) {
+  const grupos = [];
+  const mapa = new Map();
+
+  (noticias || []).forEach((noticia) => {
+    const fecha = new Date(noticia?.published_at || noticia?.created_at || "");
+    const clave = Number.isNaN(fecha.getTime())
+      ? "Sin fecha"
+      : fecha.toLocaleDateString("es-MX", { month: "long", year: "numeric" });
+    const titulo = clave.charAt(0).toUpperCase() + clave.slice(1);
+    if (!mapa.has(titulo)) {
+      mapa.set(titulo, []);
+      grupos.push({ titulo, items: mapa.get(titulo) });
+    }
+    mapa.get(titulo).push(noticia);
+  });
+
+  return grupos;
 }

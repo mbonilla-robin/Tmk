@@ -120,7 +120,7 @@ function App() {
   const [apiError, setApiError] = useState(null);
   const [apiErrorDetail, setApiErrorDetail] = useState("");
   const [ultimaSyncOk, setUltimaSyncOk] = useState(null);
-  const [hayPendientesLocales, setHayPendientesLocales] = useState(() => hayPendientesSync());
+  const [hayPendientesLocales, setHayPendientesLocales] = useState(() => calcularHayPendientesLocales());
   const syncMutexRef = useRef(false);
   const syncTimerRef = useRef(null);
   const guardandoRef = useRef(false);
@@ -176,6 +176,8 @@ function App() {
   const [formularioRapidoVisible, setFormularioRapidoVisible] = useState(false);
   const [noticiasTmk, setNoticiasTmk] = useState([]);
   const [cargandoNoticiasTmk, setCargandoNoticiasTmk] = useState(false);
+  const [noticiasTmkArchivo, setNoticiasTmkArchivo] = useState([]);
+  const [cargandoNoticiasTmkArchivo, setCargandoNoticiasTmkArchivo] = useState(false);
   const [noticiaTmkAbierta, setNoticiaTmkAbierta] = useState(null);
   const [panelTmkNewsVisible, setPanelTmkNewsVisible] = useState(false);
   const [sidebarMarcasAbierto, setSidebarMarcasAbierto] = useState(true);
@@ -357,6 +359,16 @@ function App() {
     }
   }, []);
 
+  const cargarNoticiasTmkArchivo = useCallback(async () => {
+    setCargandoNoticiasTmkArchivo(true);
+    try {
+      const lista = await fetchNoticiasTmk({ dias: TMK_NEWS_DIAS_ARCHIVO });
+      setNoticiasTmkArchivo(lista);
+    } finally {
+      setCargandoNoticiasTmkArchivo(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (!usuario) return undefined;
     if (paginaActiva !== "home" && !(paginaActiva === "configuracion" && configSeccion === "news")) {
@@ -365,6 +377,12 @@ function App() {
     cargarNoticiasTmk();
     return undefined;
   }, [usuario, paginaActiva, configSeccion, cargarNoticiasTmk]);
+
+  useEffect(() => {
+    if (!usuario || paginaActiva !== "tmknews") return undefined;
+    cargarNoticiasTmkArchivo();
+    return undefined;
+  }, [usuario, paginaActiva, cargarNoticiasTmkArchivo]);
 
   const abrirPanelTmkNews = useCallback(() => {
     let esDesktop = false;
@@ -463,6 +481,8 @@ function App() {
     if (stored && hasRobinApiSession()) {
       repararColaSyncMarcas();
       repararColaSyncActualizacionesFantasma();
+      repararFlagsSyncSinCola();
+      setHayPendientesLocales(calcularHayPendientesLocales());
       setUsuario(stored);
       return;
     }
@@ -2466,7 +2486,10 @@ function App() {
           nombreUsuario={nombreCompleto}
           currentTheme={currentTheme}
           theme={theme}
-          onPublicado={() => cargarNoticiasTmk()}
+          onPublicado={() => {
+            cargarNoticiasTmk();
+            cargarNoticiasTmkArchivo();
+          }}
           showToast={showToast}
         />
       );
@@ -2647,9 +2670,11 @@ function App() {
       icono = "fa-cloud-arrow-up";
       colorIcono = "is-pending";
       titulo = "Subiendo cambios";
-      mensaje = colaPendiente === 1
-        ? "Hay 1 cambio esperando subirse a Google Sheets."
-        : `Hay ${colaPendiente} cambios esperando subirse a Google Sheets.`;
+      mensaje = colaPendiente > 0
+        ? (colaPendiente === 1
+          ? "Hay 1 cambio esperando subirse a Google Sheets."
+          : `Hay ${colaPendiente} cambios esperando subirse a Google Sheets.`)
+        : "Finalizando la sincronización local…";
     }
 
     const ultimaSyncTexto = ultimaSyncOk
@@ -2867,6 +2892,25 @@ function App() {
             </div>
             )}
 
+            {!isConfigOnlyAdmin && (
+            <div className="robin-sidebar__section">
+              <button
+                type="button"
+                onClick={() => navegarA("tmknews")}
+                className={`robin-sidebar__news-banner ${paginaActiva === "tmknews" ? "is-active" : ""}`}
+              >
+                <span className="robin-sidebar__news-banner-icon" aria-hidden="true">
+                  <i className="fa-solid fa-newspaper" />
+                </span>
+                <span className="robin-sidebar__news-banner-copy">
+                  <span className="robin-sidebar__news-banner-title">TMK News</span>
+                  <span className="robin-sidebar__news-banner-sub">Periódico del equipo</span>
+                </span>
+                <i className="fa-solid fa-chevron-right robin-sidebar__news-banner-arrow" aria-hidden="true" />
+              </button>
+            </div>
+            )}
+
             <div className="robin-sidebar__section">
               <span className="robin-sidebar__section-title">Soporte</span>
               <button
@@ -2956,7 +3000,9 @@ function App() {
                 ? "robin-mobile-main robin-main-config max-w-6xl mx-auto"
                 : paginaActiva === "home"
                   ? "robin-mobile-main robin-main-home max-w-6xl mx-auto"
-                  : "robin-mobile-main max-w-6xl mx-auto"
+                  : paginaActiva === "tmknews"
+                    ? "robin-mobile-main robin-main-tmknews max-w-3xl mx-auto"
+                    : "robin-mobile-main max-w-6xl mx-auto"
         }`}>
           {syncDetalleVisible && renderSyncSubpage()}
           
@@ -2982,7 +3028,27 @@ function App() {
               cargandoNoticiasTmk={cargandoNoticiasTmk}
               onSelectNoticiaTmk={setNoticiaTmkAbierta}
               onAbrirPublicarTmkNews={abrirPanelTmkNews}
+              onAbrirTmkNews={() => navegarA("tmknews")}
             />
+          )}
+
+          {!isConfigOnlyAdmin && paginaActiva === "tmknews" && (
+            <>
+              <div className="robin-mobile-only">
+                <MobileSubpageBar
+                  title="TMK News"
+                  onBack={() => navegarA("home")}
+                  backLabel="Home"
+                />
+              </div>
+              <LayoutTmkNews
+                noticias={noticiasTmkArchivo}
+                loading={cargandoNoticiasTmkArchivo}
+                onSelectNoticia={setNoticiaTmkAbierta}
+                onAbrirPublicar={isDesigner ? undefined : abrirPanelTmkNews}
+                theme={theme}
+              />
+            </>
           )}
 
           {!isConfigOnlyAdmin && !isDesigner && paginaActiva === "agregar" && (
@@ -3457,6 +3523,7 @@ function App() {
                   theme={theme}
                   onPublicado={() => {
                     cargarNoticiasTmk();
+                    cargarNoticiasTmkArchivo();
                     setPanelTmkNewsVisible(false);
                   }}
                   showToast={showToast}

@@ -10,7 +10,7 @@ function PropertyRow({ icon, label, children }) {
   );
 }
 
-function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNuevaPersona, listaCategorias, registrarNuevaCategoria, marcasDisponibles, usuario, nombreUsuario, onComentarioPublicado, onToast, soloLectura = false, modoDisenador = false }) {
+function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNuevaPersona, listaCategorias, registrarNuevaCategoria, marcasDisponibles, usuario, nombreUsuario, onComentarioPublicado, onToast, soloLectura = false, modoDisenador = false, tareas = [], relacionesTareas = [], onRelacionCreada, onAbrirTareaRelacionada, getMarcaStyle }) {
   const resolverEstadoInicial = () => {
     let categoriaInicial = tarea.categoria || "";
     let infoInicial = extraerTituloLimpio(tarea.info, tarea.categoria);
@@ -236,6 +236,23 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     }
   };
 
+  const abrirRelacionada = (otra) => {
+    if (typeof onAbrirTareaRelacionada === "function") {
+      onAbrirTareaRelacionada(otra);
+    }
+  };
+
+  const propsRelacionadas = {
+    tarea,
+    tareas,
+    relaciones: relacionesTareas,
+    usuario,
+    onRelacionCreada,
+    onAbrirTarea: abrirRelacionada,
+    onToast,
+    getMarcaStyle
+  };
+
   return (
     <div className="task-sheet-overlay">
       <button
@@ -245,6 +262,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
         aria-label="Cerrar entregable"
       />
 
+      <div className="task-sheet-stack">
       <div className="task-sheet-panel">
         <form onSubmit={handleSubmit} className="task-form-layout task-form-page min-h-0 flex-1">
           <div className="task-form-scroll">
@@ -432,7 +450,15 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
                 )}
               </div>
             </PropertyRow>
+
+            {!soloLectura && (
+              <PropertyRow icon="fa-solid fa-link" label="Relacionadas">
+                <TareasRelacionadas zona="controls" {...propsRelacionadas} />
+              </PropertyRow>
+            )}
           </div>
+
+          <TareasRelacionadas zona="internal" {...propsRelacionadas} />
 
           {modoDisenador && cleanEstado(estado) !== "completada" && (
             <div className="px-6 md:px-10 py-3 flex flex-wrap gap-2 border-b border-zinc-100 max-w-3xl mx-auto w-full">
@@ -544,6 +570,9 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
             </div>
           </div>
         </form>
+      </div>
+
+      <TareasRelacionadas zona="external" {...propsRelacionadas} />
       </div>
     </div>
   );

@@ -149,6 +149,7 @@ function App() {
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
   const [notifCargando, setNotifCargando] = useState(false);
   const [tareasSeleccionadas, setTareasSeleccionadas] = useState(() => new Set());
+  const [relacionesTareas, setRelacionesTareas] = useState(() => cargarRelacionesIniciales());
   const [bulkDeadline, setBulkDeadline] = useState("");
 
   const [nombreCompleto, setNombreCompleto] = useState(() => {
@@ -1579,6 +1580,24 @@ function App() {
 
     return () => { cancelled = true; };
   }, [usuario]);
+
+  useEffect(() => {
+    if (!usuario) return;
+    let cancelled = false;
+
+    cargarRelacionesRemotas().then((remotas) => {
+      if (cancelled || !remotas || !remotas.length) return;
+      const fusionadas = fusionarRelaciones(cargarRelacionesLocales(), remotas);
+      guardarRelacionesLocales(fusionadas);
+      setRelacionesTareas(fusionadas);
+    });
+
+    return () => { cancelled = true; };
+  }, [usuario]);
+
+  const handleRelacionCreada = (fila) => {
+    setRelacionesTareas((prev) => agregarRelacionALista(prev, fila));
+  };
 
   const fetchData = async (isBackground = false) => {
     if (!isBackground) setLoading(true);
@@ -3382,6 +3401,11 @@ function App() {
             onToast={showToast}
             soloLectura={false}
             modoDisenador={isDesigner}
+            tareas={tareas}
+            relacionesTareas={relacionesTareas}
+            onRelacionCreada={handleRelacionCreada}
+            onAbrirTareaRelacionada={abrirEdicionTarea}
+            getMarcaStyle={getMarcaStyle}
           />
         </ModalPortal>
       )}

@@ -233,7 +233,7 @@ function LayoutMarcaHome({
           </select>
           <select value={filtroPersona} onChange={(e) => setFiltroPersona(e.target.value)} className="notion-filter-select">
             <option value="TODAS">Persona</option>
-            {listaPersonas.map(p => (<option key={p} value={p}>{p}</option>))}
+            {listaPersonas.map(p => (<option key={claveUnicaPersonaLista(p) || p} value={p}>{etiquetaDisplayListaPersona(p)}</option>))}
           </select>
         </div>
         <div className="notion-time-pills">
@@ -416,7 +416,7 @@ function LayoutMarcaHome({
                     </select>
                     <select value={filtroPersona} onChange={(e) => setFiltroPersona(e.target.value)} className="w-full bg-white border border-zinc-200 p-2 text-ui rounded text-zinc-600">
                       <option value="TODAS">Todas las personas</option>
-                      {listaPersonas.map(p => (<option key={p} value={p}>{p}</option>))}
+                      {listaPersonas.map(p => (<option key={claveUnicaPersonaLista(p) || p} value={p}>{etiquetaDisplayListaPersona(p)}</option>))}
                     </select>
                   </div>
                   <div className="grid grid-cols-3 gap-1.5 pt-1">

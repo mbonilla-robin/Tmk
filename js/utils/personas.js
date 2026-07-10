@@ -20,11 +20,9 @@ const LISTA_PERSONAS_DEFECTO = [
   "@arodriguez",
   "@agraterol",
   "@dmatheus",
-  "@David Matheus",
-  "@Aaron Graterol",
-  "@Angel Graterol",
-  "@Cliente",
-  "@Trade"
+  "@cmujica",
+  "Cliente",
+  "Trade"
 ];
 
 const PERSONAS_STORAGE_KEY = "robin_personas_v3";
@@ -141,6 +139,13 @@ const PERSONAS_ALIAS_A_CANONICO = (() => {
   add("matheus", "dmatheus");
   add("@dmatheus", "dmatheus");
   add("@david matheus", "dmatheus");
+
+  add("cmujica", "cmujica");
+  add("carlos mujica", "cmujica");
+  add("carlos", "cmujica");
+  add("mujica", "cmujica");
+  add("@cmujica", "cmujica");
+  add("@carlos mujica", "cmujica");
 
   return map;
 })();
@@ -343,8 +348,29 @@ function tareaIncluyePersonaFiltro(personasRaw, filtro) {
   return handlesTarea.includes(filtroCanonico);
 }
 
-function obtenerListaPersonasDefecto() {
-  return LISTA_PERSONAS_DEFECTO.slice();
+function esAliasCliente(valor) {
+  return normalizarClavePersona(valor) === "cliente";
+}
+
+function entradaCanonicaPersonaEspecial(valor) {
+  if (esAliasEquipoTrade(valor)) return "Trade";
+  if (esAliasCliente(valor)) return "Cliente";
+  return "";
+}
+
+function etiquetaDisplayListaPersona(entrada) {
+  const especial = entradaCanonicaPersonaEspecial(entrada);
+  if (especial) return especial;
+
+  const handle = claveUnicaPersonaLista(entrada);
+  if (!handle) return String(entrada || "").trim();
+
+  if (typeof obtenerNombreDisplayEquipo === "function") {
+    const nombre = obtenerNombreDisplayEquipo(handle);
+    if (nombre && !/^@[\w.]+$/i.test(nombre)) return nombre;
+  }
+
+  return entradaCanonicaListaPersona(entrada);
 }
 
 function leerListaPersonasGuardada() {
@@ -358,20 +384,46 @@ function leerListaPersonasGuardada() {
   }
 }
 
+function claveUnicaPersonaLista(valor) {
+  const canonico = resolverHandleCanonico(valor);
+  if (canonico) return canonico;
+  return normalizarClavePersona(valor);
+}
+
+function entradaCanonicaListaPersona(valor) {
+  const entrada = String(valor || "").trim();
+  if (!entrada) return "";
+
+  const especial = entradaCanonicaPersonaEspecial(entrada);
+  if (especial) return especial;
+
+  const canonico = resolverHandleCanonico(entrada);
+  if (canonico) return formatearHandleCanonico(canonico);
+
+  const clave = normalizarClavePersona(entrada);
+  return entrada.startsWith("@") ? entrada : `@${clave}`;
+}
+
 function fusionarListasPersonas(...listas) {
   const resultado = [];
   const vistos = new Set();
 
   listas.flat().forEach((persona) => {
-    const entrada = String(persona || "").trim();
-    if (!entrada) return;
-    const clave = normalizarClavePersona(entrada);
+    const entradaCanonica = entradaCanonicaListaPersona(persona);
+    if (!entradaCanonica) return;
+
+    const clave = claveUnicaPersonaLista(entradaCanonica);
     if (!clave || vistos.has(clave)) return;
+
     vistos.add(clave);
-    resultado.push(entrada);
+    resultado.push(entradaCanonica);
   });
 
   return resultado;
+}
+
+function obtenerListaPersonasDefecto() {
+  return LISTA_PERSONAS_DEFECTO.slice();
 }
 
 function obtenerListaPersonasActiva() {
@@ -385,14 +437,14 @@ function formatearEntradaListaPersona(nombre) {
   const texto = String(nombre || "").trim();
   if (!texto) return "";
 
-  if (esAliasEquipoTrade(texto)) return "@Trade";
-  if (normalizarClavePersona(texto) === "cliente") return "@Cliente";
+  const especial = entradaCanonicaPersonaEspecial(texto);
+  if (especial) return especial;
 
   const canonico = resolverHandleCanonico(texto);
   if (canonico) return formatearHandleCanonico(canonico);
 
   const enLista = obtenerListaPersonasActiva().find(
-    (persona) => normalizarClavePersona(persona) === normalizarClavePersona(texto)
+    (persona) => claveUnicaPersonaLista(persona) === claveUnicaPersonaLista(texto)
   );
   if (enLista) return enLista;
 
@@ -426,14 +478,14 @@ function obtenerEntradaListaPermitida(valor) {
   const clave = normalizarClavePersona(valor);
   if (!clave) return "";
 
-  if (clave === "trade") return "@Trade";
-  if (clave === "cliente") return "@Cliente";
+  if (clave === "trade") return "Trade";
+  if (clave === "cliente") return "Cliente";
 
   const canonico = resolverHandleCanonico(valor);
   if (canonico) return formatearHandleCanonico(canonico);
 
   const coincidencia = obtenerListaPersonasActiva().find(
-    (persona) => normalizarClavePersona(persona) === clave
+    (persona) => claveUnicaPersonaLista(persona) === claveUnicaPersonaLista(valor)
   );
   return coincidencia || "";
 }
@@ -525,7 +577,7 @@ function esPersonaDisenador(valor) {
 function obtenerListaEjecutivosActiva() {
   return fusionarListasPersonas(
     obtenerHandlesEquipoTrade().map(formatearHandleCanonico),
-    ["@Trade", "@Cliente"]
+    ["Trade", "Cliente"]
   );
 }
 
@@ -536,7 +588,7 @@ function obtenerListaDisenadoresActiva() {
     return handlesDisenador.has(handle);
   });
   return fusionarListasPersonas(
-    ["@Trade"],
+    ["Trade"],
     obtenerHandlesDisenadores().map(formatearHandleCanonico),
     desdeDefecto
   );

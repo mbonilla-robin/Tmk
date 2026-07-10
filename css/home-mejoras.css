@@ -1166,10 +1166,10 @@
 }
 
 .home-cronograma {
-  border: 1px solid #ececec;
-  border-radius: 0.875rem;
-  background: #fff;
-  padding: 0.75rem;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
 }
 
 .home-cronograma .home-section__head {
@@ -1273,7 +1273,7 @@
 
 .home-cronograma__day.is-selected {
   border-color: #37352f;
-  background: #fafafa;
+  background: #fff;
 }
 
 .home-cronograma__dow {
@@ -1309,7 +1309,6 @@
 }
 
 .home-cronograma__day-panel {
-  border-top: 1px solid #f4f4f5;
   padding-top: 0.625rem;
 }
 
@@ -1341,11 +1340,7 @@
 .home-cronograma__list {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
-}
-
-.home-cronograma__list--full {
-  max-height: none;
+  gap: 0.4375rem;
 }
 
 .home-cronograma__more-hint {
@@ -1357,7 +1352,9 @@
 }
 
 .home-cronograma__footer {
-  margin-top: 0.625rem;
+  display: flex;
+  justify-content: center;
+  margin-top: 0.75rem;
   padding-top: 0.125rem;
 }
 
@@ -1397,15 +1394,16 @@
   align-items: flex-start;
   gap: 0.0625rem;
   width: 100%;
-  padding: 0.5rem 0.5625rem;
-  border-radius: 0.5rem;
-  border: 1px solid #f4f4f5;
-  background: #fafafa;
+  padding: 0.5625rem 0.625rem;
+  border-radius: 0.75rem;
+  border: 1px solid #ececec;
+  background: #fff;
   text-align: left;
 }
 
 .home-cronograma__item:active {
-  background: #f4f4f5;
+  background: #fff;
+  transform: scale(0.99);
 }
 
 .home-cronograma__item-marca {
@@ -1441,28 +1439,27 @@
   flex-shrink: 0;
 }
 
-.home-cronograma__expand {
-  display: flex;
+.home-cronograma__footer-link {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.375rem;
-  width: 100%;
-  padding: 0.5625rem 0.75rem;
-  border-radius: 0.625rem;
-  border: 1px solid #ececec;
+  padding: 0.25rem 0.5rem;
   font-size: 11px;
   font-weight: 600;
-  color: #52525b;
-  background: #fafafa;
+  color: #71717a;
+  background: transparent;
+  border: none;
 }
 
-.home-cronograma__expand:active {
-  background: #f4f4f5;
+.home-cronograma__footer-link:active {
+  opacity: 0.7;
 }
 
-.home-cronograma__expand svg {
+.home-cronograma__footer-link svg {
   width: 0.875rem;
   height: 0.875rem;
+  flex-shrink: 0;
 }
 
 .home-cronograma__back {

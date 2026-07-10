@@ -3137,7 +3137,7 @@ function App() {
                         <select value={filtroPersona} onChange={(e) => setFiltroPersona(e.target.value)} className="w-full bg-white border border-zinc-200 p-2 text-ui rounded text-zinc-600">
                           <option value="TODAS">Todas las personas</option>
                           {!isDesigner && <option value="SIN_DISENADOR">Sin diseñador asignado</option>}
-                          {listaPersonas.map(p => (<option key={p} value={p}>{p}</option>))}
+                          {listaPersonas.map(p => (<option key={claveUnicaPersonaLista(p) || p} value={p}>{etiquetaDisplayListaPersona(p)}</option>))}
                         </select>
                       </div>
                       <div className="grid grid-cols-3 gap-1.5 pt-1" data-induccion="dashboard-tiempo">
@@ -3293,7 +3293,7 @@ function App() {
                   <select value={filtroPersona} onChange={(e) => setFiltroPersona(e.target.value)} className="notion-filter-select">
                     <option value="TODAS">Persona</option>
                     {!isDesigner && <option value="SIN_DISENADOR">Sin diseñador</option>}
-                    {listaPersonas.map(p => (<option key={p} value={p}>{p}</option>))}
+                    {listaPersonas.map(p => (<option key={claveUnicaPersonaLista(p) || p} value={p}>{etiquetaDisplayListaPersona(p)}</option>))}
                   </select>
                 </div>
                 <div className="notion-time-pills" data-induccion="dashboard-tiempo">

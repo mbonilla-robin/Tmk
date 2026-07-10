@@ -42,6 +42,20 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username, modoH
     setVista((actual) => (actual === guardada ? actual : guardada));
   }, [username]);
 
+  useEffect(() => {
+    if (!selectedDayDetail) return undefined;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") setSelectedDayDetail(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [selectedDayDetail]);
+
   const monthNames = [
     "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
@@ -596,57 +610,86 @@ function CalendarioNotion({ tareas, onSelectTask, getMarcaStyle, username, modoH
     </section>
   );
 
-  const renderDayDetailModal = () => (
-    selectedDayDetail && (
-      <div className="cal-day-modal-overlay animate-fade-in">
-        <div className="cal-day-modal">
-          <div className="cal-day-modal-header">
-            <div>
-              <span className="text-section">Resumen del día</span>
-              <p className="cal-day-modal-date">
-                {selectedDayDetail.day} {monthNames[selectedDayDetail.month]} {selectedDayDetail.year}
-              </p>
+  const renderDayDetailModal = () => {
+    if (!selectedDayDetail) return null;
+
+    const { day, month, year, tasks, activities } = selectedDayDetail;
+    const acts = activities || [];
+    const fechaLabel = `${day} ${monthNames[month]} ${year}`;
+    const totalEntregas = tasks.length;
+
+    return (
+      <ModalPortal>
+        <div className="cal-day-modal-overlay animate-fade-in" role="presentation">
+          <button
+            type="button"
+            className="cal-day-modal-backdrop"
+            onClick={() => setSelectedDayDetail(null)}
+            aria-label="Cerrar resumen del día"
+          />
+          <div
+            className="cal-day-modal-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cal-day-sheet-title"
+          >
+            <header className="cal-day-modal-panel__header">
+              <div className="cal-day-modal-panel__head-center">
+                <h2 id="cal-day-sheet-title" className="cal-day-modal-panel__title">Resumen del día</h2>
+                <p className="cal-day-modal-panel__date">{fechaLabel}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedDayDetail(null)}
+                className="cal-day-modal-panel__close"
+                aria-label="Cerrar"
+              >
+                &times;
+              </button>
+            </header>
+
+            <div className="cal-day-modal-panel__body">
+              {tasks.length === 0 && acts.length === 0 ? (
+                <p className="cal-day-modal-empty">Sin entregables ni actividad</p>
+              ) : (
+                <>
+                  {tasks.length > 0 && (
+                    <section className="cal-day-modal-panel__section">
+                      <div className="cal-day-modal-panel__section-head">
+                        <p className="cal-day-modal-section-title">Entregas</p>
+                        <span className="cal-day-modal-panel__section-count">
+                          {totalEntregas} entrega{totalEntregas !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+                      <div className="cal-day-modal-panel__task-list">
+                        {tasks.map((t, i) => renderModalTaskRow(t, i))}
+                      </div>
+                    </section>
+                  )}
+                  {acts.length > 0 && (
+                    <section className="cal-day-modal-panel__section">
+                      <div className="cal-activity-panel cal-activity-panel--modal">
+                        <div className="cal-activity-panel-head">
+                          <i className="fa-regular fa-clock" aria-hidden="true" />
+                          <span>Actividad del día</span>
+                        </div>
+                        <p className="cal-activity-panel-note">
+                          Lo que se trabajó o cambió. No es fecha de entrega.
+                        </p>
+                        <div className="cal-activity-panel-list">
+                          {acts.map((act, i) => renderModalActivityRow(act, i))}
+                        </div>
+                      </div>
+                    </section>
+                  )}
+                </>
+              )}
             </div>
-            <button
-              type="button"
-              onClick={() => setSelectedDayDetail(null)}
-              className="cal-day-modal-close"
-            >
-              &times;
-            </button>
-          </div>
-          <div className="cal-day-modal-body">
-            {selectedDayDetail.tasks.length === 0 && (selectedDayDetail.activities || []).length === 0 ? (
-              <p className="cal-day-modal-empty">Sin entregables ni actividad</p>
-            ) : (
-              <>
-                {selectedDayDetail.tasks.length > 0 && (
-                  <>
-                    <p className="cal-day-modal-section-title">Entregas</p>
-                    {selectedDayDetail.tasks.map((t, i) => renderModalTaskRow(t, i))}
-                  </>
-                )}
-                {(selectedDayDetail.activities || []).length > 0 && (
-                  <div className="cal-activity-panel cal-activity-panel--modal">
-                    <div className="cal-activity-panel-head">
-                      <i className="fa-regular fa-clock" aria-hidden="true" />
-                      <span>Actividad del día</span>
-                    </div>
-                    <p className="cal-activity-panel-note">
-                      Lo que se trabajó o cambió. No es fecha de entrega.
-                    </p>
-                    <div className="cal-activity-panel-list">
-                      {(selectedDayDetail.activities || []).map((act, i) => renderModalActivityRow(act, i))}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
           </div>
         </div>
-      </div>
-    )
-  );
+      </ModalPortal>
+    );
+  };
 
   const shellClass = modoHomeCompacto && homeExpandido
     ? "cal-shell cal-shell--home-expanded rounded-lg border overflow-hidden shadow-sm w-full"

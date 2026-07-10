@@ -24,7 +24,7 @@ function AvatarComentario({ author, nombre, avatarUrl }) {
   );
 }
 
-function ComentarioItem({ comentario, usuarioActual, onResponder, perfil, perfilesMap }) {
+function ComentarioItem({ comentario, usuarioActual, onResponder, onEliminar, perfil, perfilesMap, eliminando }) {
   const esMio = normalizeRobinUser(comentario.author) === normalizeRobinUser(usuarioActual);
   const autorLabel = nombreVisiblePerfil(perfil, comentario.author);
 
@@ -39,6 +39,16 @@ function ComentarioItem({ comentario, usuarioActual, onResponder, perfil, perfil
         <div className="robin-comment__meta">
           <span className="robin-comment__author">{autorLabel}</span>
           <span className="robin-comment__time">{formatearTiempoRelativo(comentario.created_at)}</span>
+          {esMio && (
+            <button
+              type="button"
+              className="robin-comment__delete-btn"
+              onClick={() => onEliminar(comentario)}
+              disabled={eliminando}
+            >
+              {eliminando ? "Eliminando…" : "Eliminar"}
+            </button>
+          )}
           {!esMio && (
             <button
               type="button"
@@ -58,6 +68,48 @@ function ComentarioItem({ comentario, usuarioActual, onResponder, perfil, perfil
   );
 }
 
+function ComentarioInput({ value, onChange, onKeyDown, disabled, perfilesMap, inputRef, mirrorRef }) {
+  const mirrorHtml = useMemo(
+    () => renderizarBorradorComentario(value, perfilesMap),
+    [value, perfilesMap]
+  );
+
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 96)}px`;
+  }, [value, inputRef]);
+
+  const syncMirrorScroll = (e) => {
+    if (mirrorRef.current) {
+      mirrorRef.current.scrollTop = e.target.scrollTop;
+    }
+  };
+
+  return (
+    <div className="robin-comment-input-stack">
+      <div
+        ref={mirrorRef}
+        className="robin-comment-input-mirror"
+        aria-hidden="true"
+        dangerouslySetInnerHTML={{ __html: mirrorHtml || "&#8203;" }}
+      />
+      <textarea
+        ref={inputRef}
+        value={value}
+        onChange={onChange}
+        onKeyDown={onKeyDown}
+        onScroll={syncMirrorScroll}
+        placeholder="Añadir un comentario…"
+        rows={1}
+        className="robin-comment-input robin-comment-input--overlay"
+        disabled={disabled}
+      />
+    </div>
+  );
+}
+
 function ComentariosTarea({ tarea, usuario, nombreUsuario, listaPersonas, onComentarioPublicado, onToast }) {
   const [comentarios, setComentarios] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -68,7 +120,9 @@ function ComentariosTarea({ tarea, usuario, nombreUsuario, listaPersonas, onCome
   const [sugerenciaIdx, setSugerenciaIdx] = useState(0);
   const [perfilesAutores, setPerfilesAutores] = useState({});
   const [miPerfil, setMiPerfil] = useState(null);
+  const [eliminandoId, setEliminandoId] = useState(null);
   const textareaRef = useRef(null);
+  const mirrorRef = useRef(null);
 
   const clavesTarea = useMemo(
     () => clavesBusquedaComentariosTarea(tarea),
@@ -98,6 +152,21 @@ function ComentariosTarea({ tarea, usuario, nombreUsuario, listaPersonas, onCome
   useEffect(() => {
     recargar();
   }, [recargar]);
+
+  useEffect(() => {
+    const menciones = extraerMencionesDeTexto(texto);
+    const faltantes = menciones.filter((h) => !perfilesAutores[h]);
+    if (!faltantes.length) return;
+
+    let cancelado = false;
+    precargarPerfilesUsuarios(faltantes).then((nuevos) => {
+      if (cancelado) return;
+      setPerfilesAutores((prev) => ({ ...prev, ...nuevos }));
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, [texto]);
 
   const detectarMencionActiva = (valor, cursorPos) => {
     const antes = valor.slice(0, cursorPos);
@@ -231,6 +300,22 @@ function ComentariosTarea({ tarea, usuario, nombreUsuario, listaPersonas, onCome
 
   const cancelarRespuesta = () => setRespondiendoA(null);
 
+  const handleEliminar = async (comentario) => {
+    if (!window.confirm("¿Eliminar este comentario?")) return;
+
+    setEliminandoId(comentario.id);
+    const resultado = await eliminarComentario({ id: comentario.id, author: usuario });
+    if (resultado.ok) {
+      setComentarios((prev) => prev.filter((c) => c.id !== comentario.id));
+      if (typeof onToast === "function") {
+        onToast("Comentario eliminado", "success");
+      }
+    } else if (typeof onToast === "function") {
+      onToast(resultado.error || "No se pudo eliminar el comentario", "error");
+    }
+    setEliminandoId(null);
+  };
+
   const puedeEnviar = Boolean(texto.trim()) && !enviando;
 
   return (
@@ -250,6 +335,8 @@ function ComentariosTarea({ tarea, usuario, nombreUsuario, listaPersonas, onCome
               usuarioActual={usuario}
               perfil={perfilesAutores[key]}
               perfilesMap={perfilesAutores}
+              eliminando={eliminandoId === c.id}
+              onEliminar={handleEliminar}
               onResponder={(com) => {
                 setRespondiendoA(com);
                 const mencion = formatearHandleCanonico(com.author);
@@ -278,15 +365,14 @@ function ComentariosTarea({ tarea, usuario, nombreUsuario, listaPersonas, onCome
           avatarUrl={miPerfil?.avatarUrl}
         />
         <div className="robin-comment-input-wrap">
-          <textarea
-            ref={textareaRef}
+          <ComentarioInput
             value={texto}
             onChange={handleChangeTexto}
             onKeyDown={handleKeyDown}
-            placeholder="Añadir un comentario…"
-            rows={1}
-            className="robin-comment-input"
             disabled={enviando}
+            perfilesMap={perfilesAutores}
+            inputRef={textareaRef}
+            mirrorRef={mirrorRef}
           />
           {sugerencias.length > 0 && (
             <ul className="robin-mention-suggestions" role="listbox">
@@ -302,7 +388,7 @@ function ComentariosTarea({ tarea, usuario, nombreUsuario, listaPersonas, onCome
                       insertarMencion(handle);
                     }}
                   >
-                    {formatearHandleCanonico(handle)}
+                    {etiquetaDisplayListaPersona(handle)}
                   </button>
                 </li>
               ))}

@@ -185,7 +185,7 @@ function LayoutEquipos({ tareas, usuariosConectados, onVerTareasPersona }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {metricas.length === 0 ? (
           <p className="text-sm text-zinc-500 col-span-full py-8 text-center">
-            No hay personas asignadas en entregables (excluyendo @Cliente y @Trade).
+            No hay personas asignadas en entregables (excluyendo Cliente y Trade).
           </p>
         ) : metricas.map((persona) => (
           <TarjetaPersonaEquipo

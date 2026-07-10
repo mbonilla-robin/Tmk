@@ -208,7 +208,7 @@ function HomeCronogramaSemana({ tareas, onSelectTask, getMarcaStyle }) {
   };
 
   return (
-    <section className="home-cronograma md:hidden" data-induccion="calendario">
+    <section className="home-section home-cronograma md:hidden" data-induccion="calendario">
       <div className="home-section__head">
         <div className="home-section__head-left">
           <span className="home-section__title">Cronograma</span>
@@ -286,7 +286,7 @@ function HomeCronogramaSemana({ tareas, onSelectTask, getMarcaStyle }) {
         {tareasDiaSeleccionado.length === 0 ? (
           <p className="home-cronograma__empty">Sin entregas este día</p>
         ) : (
-          <div className={`home-cronograma__list ${vista === "mes" ? "home-cronograma__list--full" : ""}`}>
+          <div className="home-cronograma__list">
             {tareasVisibles.map((t) => (
               <HomeCronogramaItem
                 key={t.idTarea}
@@ -307,7 +307,7 @@ function HomeCronogramaSemana({ tareas, onSelectTask, getMarcaStyle }) {
 
       <div className="home-cronograma__footer">
         {vista === "semana" ? (
-          <button type="button" className="home-cronograma__expand" onClick={abrirVistaMes}>
+          <button type="button" className="home-cronograma__footer-link" onClick={abrirVistaMes}>
             <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <rect x="2" y="3" width="12" height="10.5" rx="1.2" stroke="currentColor" strokeWidth="1.2" />
               <path d="M2 6h12" stroke="currentColor" strokeWidth="1.2" />
@@ -318,7 +318,7 @@ function HomeCronogramaSemana({ tareas, onSelectTask, getMarcaStyle }) {
             <SVGIcon.ChevronRight className="w-3 h-3" />
           </button>
         ) : (
-          <button type="button" className="home-cronograma__expand" onClick={volverASemana}>
+          <button type="button" className="home-cronograma__footer-link" onClick={volverASemana}>
             <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <path d="M10 4L6 8l4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
             </svg>

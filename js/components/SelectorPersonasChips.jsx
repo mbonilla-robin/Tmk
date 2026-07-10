@@ -98,8 +98,8 @@ function SelectorPersonasChips({
           <span className="text-ui-sm text-zinc-400 font-normal">Vacío</span>
         ) : (
           seleccionadasArray.map(p => (
-            <span key={p} className="inline-flex items-center gap-1 bg-zinc-100 text-[#37352F] text-[11px] font-medium px-2 py-0.5 rounded border border-zinc-200">
-              {p}
+            <span key={claveUnicaPersonaLista(p) || p} className="inline-flex items-center gap-1 bg-zinc-100 text-[#37352F] text-[11px] font-medium px-2 py-0.5 rounded border border-zinc-200">
+              {etiquetaDisplayListaPersona(p)}
               <button 
                 type="button"
                 onClick={(e) => { e.stopPropagation(); handleTogglePersona(p); }}
@@ -133,18 +133,24 @@ function SelectorPersonasChips({
           </div>
           <div className="flex flex-col gap-0.5">
             {listaGlobal
-              .filter(p => p.toLowerCase().includes(buscar.toLowerCase()))
+              .filter(p => {
+                const etiqueta = etiquetaDisplayListaPersona(p);
+                const busqueda = buscar.toLowerCase();
+                return etiqueta.toLowerCase().includes(busqueda)
+                  || p.toLowerCase().includes(busqueda);
+              })
               .map(p => {
                 const isSel = personaEstaSeleccionada(p, seleccionadasArray);
+                const clave = claveUnicaPersonaLista(p);
                 return (
                   <div 
-                    key={p}
+                    key={clave || p}
                     onClick={() => handleTogglePersona(p)}
                     className={`flex items-center justify-between px-2 py-1 rounded text-xs font-medium cursor-pointer ${
                       isSel ? 'bg-zinc-100 text-zinc-900 font-bold' : 'hover:bg-zinc-50 text-zinc-600'
                     }`}
                   >
-                    <span>{p}</span>
+                    <span>{etiquetaDisplayListaPersona(p)}</span>
                     {isSel && <i className="fa-solid fa-check text-zinc-600 text-[10px]"></i>}
                   </div>
                 );

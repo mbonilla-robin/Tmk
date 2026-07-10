@@ -449,7 +449,7 @@ function obtenerNombreMencionDisplay(handle, perfilesMap) {
   return obtenerNombreAutorComentario(clave);
 }
 
-function renderizarCuerpoComentario(texto, perfilesMap) {
+function renderizarCuerpoComentario(texto, perfilesMap, { borrador } = {}) {
   const raw = String(texto || "");
   if (!raw) return "";
 
@@ -473,6 +473,15 @@ function renderizarCuerpoComentario(texto, perfilesMap) {
       const displayName = obtenerNombreMencionDisplay(resolved.handle, perfilesMap);
       result += `<span class="robin-mention">${escaparHtmlTexto(displayName)}</span>`;
       i = resolved.endIndex;
+    } else if (borrador) {
+      const partial = raw.slice(i).match(/^@[^\s@,]*/);
+      if (partial && partial[0].length > 1) {
+        result += `<span class="robin-mention">${escaparHtmlTexto(partial[0])}</span>`;
+        i += partial[0].length;
+      } else {
+        result += escaparHtmlTexto(raw[i]);
+        i += 1;
+      }
     } else {
       result += escaparHtmlTexto(raw[i]);
       i += 1;
@@ -480,6 +489,39 @@ function renderizarCuerpoComentario(texto, perfilesMap) {
   }
 
   return result;
+}
+
+function renderizarBorradorComentario(texto, perfilesMap) {
+  return renderizarCuerpoComentario(texto, perfilesMap, { borrador: true });
+}
+
+async function eliminarComentario({ id, author }) {
+  const comentarioId = String(id || "").trim();
+  const usuario = normalizeRobinUser(author);
+  if (!safeSupabaseConfigured() || !comentarioId || !usuario) {
+    return { ok: false, error: "Datos incompletos" };
+  }
+
+  try {
+    const res = await fetch(
+      `${supabaseBaseUrl()}/rest/v1/robin_task_comments?id=eq.${encodeURIComponent(comentarioId)}&author=eq.${encodeURIComponent(usuario)}`,
+      {
+        method: "DELETE",
+        headers: supabaseHeaders("return=minimal")
+      }
+    );
+
+    if (!res.ok) {
+      const detalle = await res.text();
+      console.warn("ROBIN: error eliminando comentario", res.status, detalle);
+      return { ok: false, error: "No se pudo eliminar el comentario." };
+    }
+
+    return { ok: true };
+  } catch (e) {
+    console.warn("ROBIN: error eliminando comentario", e);
+    return { ok: false, error: "Error de conexión" };
+  }
 }
 
 const AVATAR_COLORES = ["#E8DEEE", "#FADEC9", "#D3E5EF", "#DBEDDB", "#FDECC8", "#FFE2DD"];

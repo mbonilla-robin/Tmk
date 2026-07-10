@@ -4,7 +4,13 @@ const NOMBRES_DISPLAY_EQUIPO = {
   dsalavarria: "Daniela Salavarría",
   fcolmenares: "Francisco Colmenares",
   gnebrus: "Genesis Nebrus",
-  sgiucastro: "Sofia Giucastro"
+  sgiucastro: "Sofia Giucastro",
+  agraterol: "Aaron Graterol",
+  dmatheus: "David Matheus",
+  jalfiero: "Jesús Alfiero",
+  arusso: "Alejandro Russo",
+  arodriguez: "Angelo Rodríguez",
+  cmujica: "Carlos Mujica"
 };
 
 const ESTADOS_BARRA_EQUIPO = [

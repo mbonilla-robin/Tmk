@@ -23,25 +23,27 @@ function ChipTareaRelacionada({ tarea, sugerida, onAbrir, onAceptar, onDescartar
             style={{ backgroundColor: marcaEstilo.accent }}
             aria-hidden="true"
           />
-          <span className="task-related-pill__name">{tituloCorto}</span>
+          <span className="task-related-pill__name">{titulo}</span>
         </button>
-        <button
-          type="button"
-          className="task-related-pill__add"
-          onClick={(e) => { e.stopPropagation(); onAceptar(tarea); }}
-          title="Relacionar"
-          aria-label={`Relacionar con ${titulo}`}
-        >
-          <i className="fa-solid fa-plus" aria-hidden="true" />
-        </button>
-        <button
-          type="button"
-          className="task-related-pill__dismiss"
-          onClick={(e) => { e.stopPropagation(); onDescartar(tarea); }}
-          aria-label="Descartar sugerencia"
-        >
-          <i className="fa-solid fa-xmark" aria-hidden="true" />
-        </button>
+        <div className="task-related-pill__actions">
+          <button
+            type="button"
+            className="task-related-pill__add"
+            onClick={(e) => { e.stopPropagation(); onAceptar(tarea); }}
+            title="Relacionar"
+            aria-label={`Relacionar con ${titulo}`}
+          >
+            <i className="fa-solid fa-plus" aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            className="task-related-pill__dismiss"
+            onClick={(e) => { e.stopPropagation(); onDescartar(tarea); }}
+            aria-label="Descartar sugerencia"
+          >
+            <i className="fa-solid fa-xmark" aria-hidden="true" />
+          </button>
+        </div>
       </div>
     );
   }

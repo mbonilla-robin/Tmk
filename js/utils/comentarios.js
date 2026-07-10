@@ -436,7 +436,20 @@ async function marcarTodasNotificacionesLeidas(username) {
   }
 }
 
-function renderizarCuerpoComentario(texto) {
+function obtenerNombreMencionDisplay(handle, perfilesMap) {
+  const clave = normalizeRobinUser(handle);
+  if (!clave) return "";
+
+  const perfil = perfilesMap && perfilesMap[clave];
+  if (typeof nombreVisiblePerfil === "function") {
+    const nombre = nombreVisiblePerfil(perfil, clave);
+    if (nombre && !/^@[\w.]+$/i.test(nombre)) return nombre;
+  }
+
+  return obtenerNombreAutorComentario(clave);
+}
+
+function renderizarCuerpoComentario(texto, perfilesMap) {
   const raw = String(texto || "");
   if (!raw) return "";
 
@@ -457,8 +470,8 @@ function renderizarCuerpoComentario(texto) {
       : null;
 
     if (resolved && resolved.handle) {
-      const mentionText = raw.slice(i, resolved.endIndex);
-      result += `<span class="robin-mention">${escaparHtmlTexto(mentionText)}</span>`;
+      const displayName = obtenerNombreMencionDisplay(resolved.handle, perfilesMap);
+      result += `<span class="robin-mention">${escaparHtmlTexto(displayName)}</span>`;
       i = resolved.endIndex;
     } else {
       result += escaparHtmlTexto(raw[i]);

@@ -24,7 +24,7 @@ function AvatarComentario({ author, nombre, avatarUrl }) {
   );
 }
 
-function ComentarioItem({ comentario, usuarioActual, onResponder, perfil }) {
+function ComentarioItem({ comentario, usuarioActual, onResponder, perfil, perfilesMap }) {
   const esMio = normalizeRobinUser(comentario.author) === normalizeRobinUser(usuarioActual);
   const autorLabel = nombreVisiblePerfil(perfil, comentario.author);
 
@@ -51,7 +51,7 @@ function ComentarioItem({ comentario, usuarioActual, onResponder, perfil }) {
         </div>
         <div
           className="robin-comment__body"
-          dangerouslySetInnerHTML={{ __html: renderizarCuerpoComentario(comentario.body) }}
+          dangerouslySetInnerHTML={{ __html: renderizarCuerpoComentario(comentario.body, perfilesMap) }}
         />
       </div>
     </article>
@@ -80,8 +80,13 @@ function ComentariosTarea({ tarea, usuario, nombreUsuario, listaPersonas, onCome
     const lista = await fetchComentariosTarea(tarea);
     setComentarios(lista);
     const autores = [...new Set((lista || []).map((c) => c.author).filter(Boolean))];
-    if (usuario) autores.push(usuario);
-    const mapa = await precargarPerfilesUsuarios(autores);
+    const mencionados = [...new Set((lista || []).flatMap((c) => [
+      ...(Array.isArray(c.mentions) ? c.mentions : []),
+      ...extraerMencionesDeTexto(c.body || "")
+    ]))];
+    const handles = [...new Set([...autores, ...mencionados])];
+    if (usuario) handles.push(usuario);
+    const mapa = await precargarPerfilesUsuarios(handles);
     setPerfilesAutores(mapa);
     if (usuario) {
       const yo = typeof normalizeRobinUser === "function" ? normalizeRobinUser(usuario) : usuario;
@@ -244,6 +249,7 @@ function ComentariosTarea({ tarea, usuario, nombreUsuario, listaPersonas, onCome
               comentario={c}
               usuarioActual={usuario}
               perfil={perfilesAutores[key]}
+              perfilesMap={perfilesAutores}
               onResponder={(com) => {
                 setRespondiendoA(com);
                 const mencion = formatearHandleCanonico(com.author);

@@ -207,19 +207,27 @@ function puntajeSugerenciaRelacion(origen, candidata) {
   return score;
 }
 
-function sugerirTareasRelacionadas(tarea, tareas, relaciones, max = 3) {
+function sugerirTareasRelacionadas(tarea, tareas, relaciones, max = 2) {
   const taskKey = resolverTaskKeyRelacion(tarea);
   const descartadas = cargarSugerenciasDescartadas();
   const relacionadas = new Set(keysRelacionadosDe(taskKey, relaciones));
 
   const candidatas = (tareas || [])
     .filter((t) => !sonLaMismaTarea(tarea, t))
-    .map((t) => ({
-      tarea: t,
-      score: puntajeSugerenciaRelacion(tarea, t)
-    }))
-    .filter(({ tarea: t, score }) => {
-      if (score < 2) return false;
+    .map((t) => {
+      const score = puntajeSugerenciaRelacion(tarea, t);
+      const palabrasCompartidas = extraerPalabrasTitulo(tarea).filter((w) =>
+        extraerPalabrasTitulo(t).includes(w)
+      ).length;
+      const mismoDeadline = diasEntreDeadlines(tarea, t) === 0;
+      const califica =
+        score >= 4 &&
+        (palabrasCompartidas >= 1 || (mismoDeadline && score >= 5));
+
+      return { tarea: t, score, califica };
+    })
+    .filter(({ tarea: t, califica }) => {
+      if (!califica) return false;
       const otroKey = resolverTaskKeyRelacion(t);
       if (relacionadas.has(otroKey)) return false;
       const claveDesc = claveSugerenciaDescartada(taskKey, otroKey);

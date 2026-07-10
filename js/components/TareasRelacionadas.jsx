@@ -1,33 +1,42 @@
+function tituloCortoRelacion(tarea, max = 42) {
+  const titulo = tituloDisplayTarea(tarea);
+  if (titulo.length <= max) return titulo;
+  return `${titulo.slice(0, max - 1).trim()}…`;
+}
+
 function ChipTareaRelacionada({ tarea, sugerida, onAbrir, onAceptar, onDescartar, getMarcaStyle }) {
   const titulo = tituloDisplayTarea(tarea);
+  const tituloCorto = tituloCortoRelacion(tarea);
   const marcaEstilo = getMarcaStyle ? getMarcaStyle(tarea.marca) : { accent: "#71717A" };
 
   if (sugerida) {
     return (
-      <div className="task-related-chip task-related-chip--suggested">
+      <div className="task-related-pill task-related-pill--suggested">
         <button
           type="button"
-          className="task-related-chip__main"
+          className="task-related-pill__open"
           onClick={() => onAbrir(tarea)}
           title={titulo}
         >
           <span
-            className="task-related-chip__dot"
+            className="task-related-pill__dot"
             style={{ backgroundColor: marcaEstilo.accent }}
             aria-hidden="true"
           />
-          <span className="task-related-chip__name">{titulo}</span>
+          <span className="task-related-pill__name">{tituloCorto}</span>
         </button>
         <button
           type="button"
-          className="task-related-chip__accept"
+          className="task-related-pill__add"
           onClick={(e) => { e.stopPropagation(); onAceptar(tarea); }}
+          title="Relacionar"
+          aria-label={`Relacionar con ${titulo}`}
         >
-          Aceptar
+          <i className="fa-solid fa-plus" aria-hidden="true" />
         </button>
         <button
           type="button"
-          className="task-related-chip__dismiss"
+          className="task-related-pill__dismiss"
           onClick={(e) => { e.stopPropagation(); onDescartar(tarea); }}
           aria-label="Descartar sugerencia"
         >
@@ -40,16 +49,16 @@ function ChipTareaRelacionada({ tarea, sugerida, onAbrir, onAceptar, onDescartar
   return (
     <button
       type="button"
-      className="task-related-chip task-related-chip--linked"
+      className="task-related-pill task-related-pill--linked"
       onClick={() => onAbrir(tarea)}
       title={titulo}
     >
       <span
-        className="task-related-chip__dot"
+        className="task-related-pill__dot"
         style={{ backgroundColor: marcaEstilo.accent }}
         aria-hidden="true"
       />
-      <span className="task-related-chip__name">{titulo}</span>
+      <span className="task-related-pill__name">{tituloCorto}</span>
     </button>
   );
 }
@@ -156,29 +165,26 @@ function TareasRelacionadas({
     setSugerenciasOcultas((n) => n + 1);
   };
 
-  const chips = (
-    <>
-      {relacionadas.map((t) => (
-        <ChipTareaRelacionada
-          key={getTaskSelectionKey(t)}
-          tarea={t}
-          onAbrir={onAbrirTarea}
-          getMarcaStyle={getMarcaStyle}
-        />
-      ))}
-      {sugerencias.map((t) => (
-        <ChipTareaRelacionada
-          key={`sug-${getTaskSelectionKey(t)}`}
-          tarea={t}
-          sugerida
-          onAbrir={onAbrirTarea}
-          onAceptar={crearRelacion}
-          onDescartar={handleDescartar}
-          getMarcaStyle={getMarcaStyle}
-        />
-      ))}
-    </>
-  );
+  const chipsVinculadas = relacionadas.map((t) => (
+    <ChipTareaRelacionada
+      key={getTaskSelectionKey(t)}
+      tarea={t}
+      onAbrir={onAbrirTarea}
+      getMarcaStyle={getMarcaStyle}
+    />
+  ));
+
+  const chipsSugeridas = sugerencias.map((t) => (
+    <ChipTareaRelacionada
+      key={`sug-${getTaskSelectionKey(t)}`}
+      tarea={t}
+      sugerida
+      onAbrir={onAbrirTarea}
+      onAceptar={crearRelacion}
+      onDescartar={handleDescartar}
+      getMarcaStyle={getMarcaStyle}
+    />
+  ));
 
   if (zona === "controls") {
     return (
@@ -209,11 +215,18 @@ function TareasRelacionadas({
     if (!relacionadas.length && !sugerencias.length) return null;
     return (
       <div className="task-related-internal lg:hidden">
-        <div className="task-related-internal__label">
-          <i className="fa-solid fa-link" aria-hidden="true" />
-          Relacionadas
-        </div>
-        <div className="task-related-chips">{chips}</div>
+        {relacionadas.length > 0 && (
+          <div className="task-related-group">
+            <div className="task-related-group__label">Relacionadas</div>
+            <div className="task-related-pills">{chipsVinculadas}</div>
+          </div>
+        )}
+        {sugerencias.length > 0 && (
+          <div className="task-related-group task-related-group--suggested">
+            <div className="task-related-group__label">Sugeridas</div>
+            <div className="task-related-pills">{chipsSugeridas}</div>
+          </div>
+        )}
       </div>
     );
   }
@@ -221,8 +234,18 @@ function TareasRelacionadas({
   if (zona === "external") {
     if (!relacionadas.length && !sugerencias.length) return null;
     return (
-      <div className="task-related-external hidden lg:flex">
-        <div className="task-related-chips">{chips}</div>
+      <div className="task-related-external hidden lg:block">
+        {relacionadas.length > 0 && (
+          <div className="task-related-dock">
+            <div className="task-related-pills">{chipsVinculadas}</div>
+          </div>
+        )}
+        {sugerencias.length > 0 && (
+          <div className="task-related-dock task-related-dock--suggested">
+            <span className="task-related-dock__hint">Sugeridas</span>
+            <div className="task-related-pills">{chipsSugeridas}</div>
+          </div>
+        )}
       </div>
     );
   }

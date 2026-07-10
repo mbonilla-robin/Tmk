@@ -1,4 +1,4 @@
-const PREFS_VERSION = 1;
+const PREFS_VERSION = 2;
 const REMOTE_SYNC_DEBOUNCE_MS = 600;
 const remoteSyncTimers = new Map();
 
@@ -19,7 +19,7 @@ const DEFAULT_USER_PREFS = {
   pwaIconVariant: "naranja",
   paginaActiva: "home",
   vistaModo: "TABLE",
-  calendarioVista: "mes",
+  calendarioVista: "semana",
   filtroTiempo: "TODAS",
   filtroMarca: "TODAS",
   filtroEstado: "TODOS",
@@ -59,6 +59,7 @@ function prefsForRemote(prefs) {
   const copy = { ...prefs };
   delete copy._localUpdatedAt;
   delete copy._v;
+  delete copy._calDefaultSemanaV2;
   return copy;
 }
 
@@ -112,6 +113,24 @@ function safeSupabaseUrl() {
   return typeof SUPABASE_URL !== "undefined" ? SUPABASE_URL : "";
 }
 
+function applyPrefsMigrations(prefs) {
+  const merged = { ...DEFAULT_USER_PREFS, ...(prefs || {}) };
+
+  if (!merged._calDefaultSemanaV2) {
+    if (merged.calendarioVista === "mes") {
+      merged.calendarioVista = "semana";
+    }
+    merged._calDefaultSemanaV2 = true;
+  }
+
+  const version = Number(merged._v) || 0;
+  if (version < PREFS_VERSION) {
+    merged._v = PREFS_VERSION;
+  }
+
+  return merged;
+}
+
 function readStoredUserPrefs(username) {
   if (!username) return null;
 
@@ -119,7 +138,7 @@ function readStoredUserPrefs(username) {
     const raw = getLocalStorageItemSafe(userDataStorageKey(username), null);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    return { ...DEFAULT_USER_PREFS, ...parsed };
+    return applyPrefsMigrations(parsed);
   } catch (e) {
     console.warn("ROBIN: error leyendo preferencias locales", e);
     return null;
@@ -190,11 +209,11 @@ function migrateLegacyPrefs(username) {
     hasLegacy = true;
   }
 
-  const record = migrarNombreCompletoAPerfil({
+  const record = applyPrefsMigrations(migrarNombreCompletoAPerfil({
     ...prefs,
     _localUpdatedAt: hasLegacy ? Date.now() : 0,
     _v: PREFS_VERSION
-  });
+  }));
   setLocalStorageItemSafe(userDataStorageKey(username), JSON.stringify(record));
   return record;
 }
@@ -203,7 +222,21 @@ function loadUserDataLocal(username) {
   if (!username) return { ...DEFAULT_USER_PREFS };
 
   const stored = readStoredUserPrefs(username);
-  if (stored) return migrarNombreCompletoAPerfil(stored);
+  if (stored) {
+    const migradas = migrarNombreCompletoAPerfil(stored);
+    try {
+      const raw = getLocalStorageItemSafe(userDataStorageKey(username), null);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (!parsed._calDefaultSemanaV2) {
+          saveUserDataLocal(username, migradas);
+        }
+      }
+    } catch (e) {
+      /* ignore */
+    }
+    return migradas;
+  }
 
   return migrateLegacyPrefs(username);
 }
@@ -338,7 +371,7 @@ async function mergeAndSyncUserPrefs(username) {
       return local;
     }
 
-    const merged = mergeUserPrefRecords(local, remote.prefs, new Date(remote.updatedAt).getTime());
+    const merged = applyPrefsMigrations(mergeUserPrefRecords(local, remote.prefs, new Date(remote.updatedAt).getTime()));
     saveUserDataLocal(user, merged);
 
     const localTime = Number(local._localUpdatedAt) || 0;

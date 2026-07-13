@@ -1,4 +1,4 @@
-function InputFechaLibre({ value, onChange, className, required, placeholder, onBlurExtra }) {
+function InputFechaLibre({ value, onChange, className, required, placeholder, onBlurExtra, showHoyButton = false }) {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [viewMonth, setViewMonth] = useState(() => new Date().getMonth());
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
@@ -109,6 +109,13 @@ function InputFechaLibre({ value, onChange, className, required, placeholder, on
     setViewMonth(now.getMonth());
     setViewYear(now.getFullYear());
     selectDate(now.getDate(), now.getMonth(), now.getFullYear());
+  };
+
+  const aplicarHoy = () => {
+    const now = new Date();
+    const display = formatearFechaDisplay(`${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`);
+    onChange(display);
+    if (onBlurExtra) onBlurExtra(display);
   };
 
   const isSameDay = (day, month, year, ref) =>
@@ -262,19 +269,30 @@ function InputFechaLibre({ value, onChange, className, required, placeholder, on
   return (
     <div ref={containerRef} className="relative w-full">
       <div className="flex items-center gap-1 w-full min-w-0">
-        <input
-          type="text"
-          inputMode="text"
-          autoComplete="off"
-          spellCheck={false}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onBlur={handleBlur}
-          placeholder={placeholder || "dd/mm/aaaa"}
-          required={required}
-          className={`flex-1 min-w-0 ${className || ""}`}
-          title="Ej: 16/06/2026, 16 06 2026 o 16-06-2026"
-        />
+        {showHoyButton ? (
+          <button
+            type="button"
+            onClick={aplicarHoy}
+            className={`flex-1 min-w-0 bulk-action-date-hoy-btn ${className || ""}`}
+            title="Asignar fecha de hoy"
+          >
+            Hoy
+          </button>
+        ) : (
+          <input
+            type="text"
+            inputMode="text"
+            autoComplete="off"
+            spellCheck={false}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            onBlur={handleBlur}
+            placeholder={placeholder || "dd/mm/aaaa"}
+            required={required}
+            className={`flex-1 min-w-0 ${className || ""}`}
+            title="Ej: 16/06/2026, 16 06 2026 o 16-06-2026"
+          />
+        )}
         <button
           type="button"
           onClick={openCalendar}

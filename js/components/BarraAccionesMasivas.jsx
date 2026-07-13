@@ -209,8 +209,7 @@ function BarraAccionesMasivas({
                     value={bulkDeadline}
                     onChange={setBulkDeadline}
                     onBlurExtra={aplicarFecha}
-                    className="bulk-action-date-input"
-                    placeholder="dd/mm/aaaa"
+                    showHoyButton
                   />
                 </div>
               )}

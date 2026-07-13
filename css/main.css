@@ -6082,6 +6082,28 @@
       color: var(--robin-text);
     }
 
+    .bulk-action-date-hoy-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 2rem;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--robin-border);
+      border-radius: 0.375rem;
+      padding: 0.4rem 0.5rem;
+      background: var(--robin-bg);
+      color: var(--robin-text);
+      cursor: pointer;
+      transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+
+    .bulk-action-date-hoy-btn:hover {
+      background: var(--robin-surface-hover);
+      border-color: #d4d4d8;
+    }
+
     .bulk-action-clear {
       display: inline-flex;
       align-items: center;

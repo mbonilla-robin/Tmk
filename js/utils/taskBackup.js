@@ -689,6 +689,7 @@ function normalizarTareasDesdeApi(jsonData) {
       cleanM.includes("seguimiento") ||
       cleanM.includes("revision") ||
       cleanM.includes("pausa") ||
+      cleanM.includes("suspendido") ||
       cleanM.includes("completada") ||
       cleanM === "config_marcas" ||
       cleanM === "presencia"

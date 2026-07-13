@@ -276,15 +276,44 @@ function esTareaCompletada(tarea) {
   return cleanEstado(tarea?.estado) === "completada";
 }
 
+function esTareaSuspendida(tarea) {
+  return cleanEstado(tarea?.estado) === "suspendido";
+}
+
+function esEstadoSoloVistaCliente(estado) {
+  return (ESTADOS_SOLO_VISTA_CLIENTE || []).some((e) => cleanEstado(e) === cleanEstado(estado));
+}
+
+function obtenerEstadosKanban() {
+  return ESTADOS_MAPA.filter((e) => !esEstadoSoloVistaCliente(e.id));
+}
+
+function obtenerEstadosFiltroLista() {
+  return LISTA_ESTADOS_VALIDOS.filter((e) => !esEstadoSoloVistaCliente(e));
+}
+
+function obtenerEstadosGeneradorEstatus() {
+  return LISTA_ESTADOS_VALIDOS.filter(
+    (e) => cleanEstado(e) !== "completada" && !esEstadoSoloVistaCliente(e)
+  );
+}
+
+function cuentaComoAtrasada(tarea, tHoy) {
+  if (esTareaCompletada(tarea) || esTareaSuspendida(tarea)) return false;
+  const tDeadline = obtenerTiempoFecha(tarea.deadline);
+  const hoy = tHoy ?? obtenerTiempoHoyLocal();
+  return tDeadline !== Infinity && tDeadline < hoy;
+}
+
 function esEntregaHoyTarea(tarea, tHoy) {
-  if (esTareaCompletada(tarea)) return false;
+  if (esTareaCompletada(tarea) || esTareaSuspendida(tarea)) return false;
   const tDeadline = obtenerTiempoFecha(tarea.deadline);
   const hoy = tHoy ?? obtenerTiempoHoyLocal();
   return tDeadline !== Infinity && tDeadline === hoy;
 }
 
 function esTrabajarHoyTarea(tarea, tHoy) {
-  if (esTareaCompletada(tarea)) return false;
+  if (esTareaCompletada(tarea) || esTareaSuspendida(tarea)) return false;
   const hoy = tHoy ?? obtenerTiempoHoyLocal();
   const tDeadline = obtenerTiempoFecha(tarea.deadline);
   if (tDeadline === Infinity || tDeadline <= hoy) return false;
@@ -408,7 +437,8 @@ const ORDEN_ESTADOS_LISTA = {
   "seguimiento": 3,
   "en revision": 4,
   "en pausa": 5,
-  "completada": 6
+  "suspendido": 6,
+  "completada": 7
 };
 
 function obtenerOrdenEstadoTarea(tarea) {
@@ -498,3 +528,10 @@ window.leerTaskKeyDesdeUrl = leerTaskKeyDesdeUrl;
 window.limpiarTaskKeyEnUrl = limpiarTaskKeyEnUrl;
 window.normalizarTareaCampos = normalizarTareaCampos;
 window.obtenerTiempoHoyLocal = obtenerTiempoHoyLocal;
+window.esTareaCompletada = esTareaCompletada;
+window.esTareaSuspendida = esTareaSuspendida;
+window.esEstadoSoloVistaCliente = esEstadoSoloVistaCliente;
+window.obtenerEstadosKanban = obtenerEstadosKanban;
+window.obtenerEstadosFiltroLista = obtenerEstadosFiltroLista;
+window.obtenerEstadosGeneradorEstatus = obtenerEstadosGeneradorEstatus;
+window.cuentaComoAtrasada = cuentaComoAtrasada;

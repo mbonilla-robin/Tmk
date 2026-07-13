@@ -2,7 +2,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
   const [vista, setVista] = useState("formulario");
   const [marcasSeleccionadas, setMarcasSeleccionadas] = useState([]);
   const [estadosSeleccionados, setEstadosSeleccionados] = useState(
-    () => LISTA_ESTADOS_VALIDOS.filter(e => cleanEstado(e) !== "completada")
+    () => obtenerEstadosGeneradorEstatus()
   );
   const [personasFiltro, setPersonasFiltro] = useState("");
   const [filtroTiempo, setFiltroTiempo] = useState("todas");
@@ -132,7 +132,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
               <div>
                 <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-2">Estados a incluir</label>
                 <div className="flex flex-wrap gap-2">
-                  {LISTA_ESTADOS_VALIDOS.map(estado => {
+                  {obtenerEstadosGeneradorEstatus().map(estado => {
                     const seleccionado = estadosSeleccionados.some(e => cleanEstado(e) === cleanEstado(estado));
                     const config = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(estado));
                     return (

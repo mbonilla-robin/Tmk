@@ -15,6 +15,7 @@ function NotionTaskRow({
     ? t.personas.split(/[\s,]+/).filter(Boolean).slice(0, 2).join(", ")
     : null;
   const esCompletada = cleanEstado(t.estado) === "completada";
+  const esSuspendida = esTareaSuspendida(t);
   const subtareasResumen = useMemo(() => resumirSubtareasTarea(t), [t.detalles]);
   const sinDisenador = useMemo(() => tareaSinDisenadorAsignado(t), [t.personas]);
   const cats = parseCategoriasTarea(t.categoria);
@@ -36,7 +37,7 @@ function NotionTaskRow({
   };
 
   const handleTouchStart = (e) => {
-    if (esCompletada || !onSolicitarCompletar) return;
+    if (esCompletada || esSuspendida || !onSolicitarCompletar) return;
     if (e.target.closest(".notion-task-check")) return;
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
@@ -44,7 +45,7 @@ function NotionTaskRow({
   };
 
   const handleTouchMove = (e) => {
-    if (esCompletada) return;
+    if (esCompletada || esSuspendida) return;
     const deltaX = e.touches[0].clientX - touchStartX.current;
     const deltaY = e.touches[0].clientY - touchStartY.current;
     if (!swiping) {
@@ -59,7 +60,7 @@ function NotionTaskRow({
   };
 
   const handleTouchEnd = () => {
-    if (!swiping || esCompletada) return;
+    if (!swiping || esCompletada || esSuspendida) return;
     setSwiping(false);
     if (offsetXRef.current >= SWIPE_THRESHOLD) {
       resetSwipe();
@@ -87,7 +88,7 @@ function NotionTaskRow({
   const rowContent = (
     <div
       onClick={handleClick}
-      className={`notion-task-row group ${estaSeleccionada ? "is-selected" : ""} ${esCompletada ? "is-completed" : ""}`}
+      className={`notion-task-row group ${estaSeleccionada ? "is-selected" : ""} ${esCompletada ? "is-completed" : ""} ${esSuspendida ? "is-suspended" : ""}`}
       style={{
         borderLeftColor: cMarca.accent,
         transform: offsetX ? `translateX(${offsetX}px)` : undefined,
@@ -118,7 +119,7 @@ function NotionTaskRow({
             {normalizarEstado(t.estado) || "—"}
           </span>
 
-          {t.deadline && (
+          {t.deadline && !esSuspendida && (
             <span className="notion-task-meta-chip">
               <SVGIcon.Calendar className="w-3 h-3 text-zinc-400 shrink-0" />
               {formatearFecha(t.deadline)}
@@ -161,7 +162,7 @@ function NotionTaskRow({
             </span>
           )}
 
-          {sinDisenador && !esCompletada && (
+          {sinDisenador && !esCompletada && !esSuspendida && (
             <span className="notion-task-badge notion-task-badge--warn" title="Sin diseñador asignado">
               Sin diseñador
             </span>
@@ -183,7 +184,7 @@ function NotionTaskRow({
     </div>
   );
 
-  if (!onSolicitarCompletar || esCompletada) {
+  if (!onSolicitarCompletar || esCompletada || esSuspendida) {
     return rowContent;
   }
 

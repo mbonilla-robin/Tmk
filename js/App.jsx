@@ -242,7 +242,7 @@ function App() {
   }, [tareasVisibles, marcasMetadata]);
 
   const tareasActivasCount = useMemo(() => {
-    return tareasVisibles.filter(t => cleanEstado(t.estado) !== "completada").length;
+    return tareasVisibles.filter(t => !esTareaCompletada(t) && !esTareaSuspendida(t)).length;
   }, [tareasVisibles]);
 
   const tareasFiltradas = useMemo(() => {
@@ -252,13 +252,14 @@ function App() {
     return tareasVisibles.filter(t => {
       const tDeadline = obtenerTiempoFecha(t.deadline);
       const esCompletada = cleanEstado(t.estado) === "completada";
+      const esSuspendida = esTareaSuspendida(t);
+
+      if (esSuspendida) return false;
       
       if (filtroTiempo === "HOY") {
         if (!esRelevanteHoyTarea(t, tHoy)) return false;
       } else if (filtroTiempo === "ATRASADAS") {
-        const tieneFechaReal = tDeadline !== Infinity;
-        const esAtrasada = tieneFechaReal && tDeadline < tHoy;
-        if (!esAtrasada || esCompletada) return false;
+        if (!cuentaComoAtrasada(t, tHoy)) return false;
       } else if (filtroTiempo === "FUTURAS") {
         const esFutura = tDeadline !== Infinity && tDeadline > tHoy;
         if (!esFutura) return false;
@@ -295,10 +296,7 @@ function App() {
     const trabajarHoy = tareasVisibles.filter(t => esTrabajarHoyTarea(t, tHoy)).length;
     const activasHoy = entregasHoy + trabajarHoy;
 
-    const atrasadas = tareasVisibles.filter(t => {
-      const tDeadline = obtenerTiempoFecha(t.deadline);
-      return tDeadline !== Infinity && tDeadline < tHoy && cleanEstado(t.estado) !== "completada";
-    }).length;
+    const atrasadas = tareasVisibles.filter(t => cuentaComoAtrasada(t, tHoy)).length;
     
     return { activasHoy, entregasHoy, trabajarHoy, atrasadas };
   }, [tareasVisibles]);
@@ -3128,7 +3126,7 @@ function App() {
                         </select>
                         <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} className="w-full bg-white border border-zinc-200 p-2 text-ui rounded text-zinc-600">
                           <option value="TODOS">Todos los estados</option>
-                          {LISTA_ESTADOS_VALIDOS.map(opt => (<option key={opt} value={opt}>{opt}</option>))}
+                          {obtenerEstadosFiltroLista().map(opt => (<option key={opt} value={opt}>{opt}</option>))}
                         </select>
                         <select value={filtroPrioridad} onChange={(e) => setFiltroPrioridad(e.target.value)} className="w-full bg-white border border-zinc-200 p-2 text-ui rounded text-zinc-600">
                           <option value="TODAS">Todas las prioridades</option>
@@ -3284,7 +3282,7 @@ function App() {
                   </select>
                   <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} className="notion-filter-select">
                     <option value="TODOS">Estado</option>
-                    {LISTA_ESTADOS_VALIDOS.map(opt => (<option key={opt} value={opt}>{opt}</option>))}
+                    {obtenerEstadosFiltroLista().map(opt => (<option key={opt} value={opt}>{opt}</option>))}
                   </select>
                   <select value={filtroPrioridad} onChange={(e) => setFiltroPrioridad(e.target.value)} className="notion-filter-select">
                     <option value="TODAS">Prioridad</option>

@@ -67,10 +67,12 @@ function tareaCuentaParaRangoEquipos(tarea, modo, tHoy, semanaInicio, semanaFin)
   const est = cleanEstado(tarea.estado);
   const td = obtenerTiempoFecha(tarea.deadline);
   const esCompletada = est === "completada";
+  const esSuspendida = est === "suspendido";
 
   if (modo === "todo") return true;
 
   if (modo === "hoy") {
+    if (esSuspendida) return false;
     if (!esCompletada) {
       if (est === "en progreso") return true;
       return esRelevanteHoyTarea(tarea, tHoy);
@@ -79,6 +81,7 @@ function tareaCuentaParaRangoEquipos(tarea, modo, tHoy, semanaInicio, semanaFin)
   }
 
   if (modo === "semana") {
+    if (esSuspendida) return false;
     if (!esCompletada) {
       if (est === "en progreso") return true;
       if (td !== Infinity && td >= semanaInicio && td <= semanaFin) return true;
@@ -143,13 +146,13 @@ function agregarMetricasPorPersona(tareas, modo) {
       const est = cleanEstado(t.estado);
       porEstado[est] = (porEstado[est] || 0) + 1;
       if (est === "completada") completadasPeriodo += 1;
-      else activas += 1;
+      else if (est !== "suspendido") activas += 1;
     });
 
     let atrasadas = 0;
     let vencenHoy = 0;
     tareasPersona.forEach((t) => {
-      if (esTareaCompletada(t)) return;
+      if (esTareaCompletada(t) || esTareaSuspendida(t)) return;
       const td = obtenerTiempoFecha(t.deadline);
       if (td !== Infinity && td < tHoy) atrasadas += 1;
       if (td === tHoy) vencenHoy += 1;

@@ -134,19 +134,15 @@ function LayoutMarcaHome({
   }, [tareas, marca]);
 
   const tareasActivasMarca = useMemo(() => {
-    return tareasMarca.filter(t => cleanEstado(t.estado) !== "completada").length;
+    return tareasMarca.filter(t => !esTareaCompletada(t) && !esTareaSuspendida(t)).length;
   }, [tareasMarca]);
 
   const stats = useMemo(() => {
     const total = tareasMarca.length;
     const completadas = tareasMarca.filter(t => cleanEstado(t.estado) === "completada").length;
     const enProgreso = tareasMarca.filter(t => cleanEstado(t.estado) === "en progreso").length;
-    const hoy = new Date();
-    const tHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
-    const atrasadas = tareasMarca.filter(t => {
-      const tDeadline = obtenerTiempoFecha(t.deadline);
-      return tDeadline !== Infinity && tDeadline < tHoy && cleanEstado(t.estado) !== "completada";
-    }).length;
+    const tHoy = obtenerTiempoHoyLocal();
+    const atrasadas = tareasMarca.filter(t => cuentaComoAtrasada(t, tHoy)).length;
     return { total, completadas, enProgreso, atrasadas };
   }, [tareasMarca]);
 
@@ -155,22 +151,25 @@ function LayoutMarcaHome({
     const entregasHoy = tareasMarca.filter(t => esEntregaHoyTarea(t, tHoy)).length;
     const trabajarHoy = tareasMarca.filter(t => esTrabajarHoyTarea(t, tHoy)).length;
     const activasHoy = entregasHoy + trabajarHoy;
-    const atrasadas = tareasMarca.filter(t => {
-      const tDeadline = obtenerTiempoFecha(t.deadline);
-      return tDeadline !== Infinity && tDeadline < tHoy && cleanEstado(t.estado) !== "completada";
-    }).length;
+    const atrasadas = tareasMarca.filter(t => cuentaComoAtrasada(t, tHoy)).length;
     return { activasHoy, atrasadas };
   }, [tareasMarca]);
 
   const highPriorityTasks = useMemo(() => {
     return tareasMarca
-      .filter(t => esPrioridadAlta(t.prioridad) && cleanEstado(t.estado) !== "completada")
+      .filter(t => esPrioridadAlta(t.prioridad) && !esTareaCompletada(t) && !esTareaSuspendida(t))
       .sort((a, b) => {
         const pesoA = getPriorityWeight(a.prioridad);
         const pesoB = getPriorityWeight(b.prioridad);
         if (pesoA !== pesoB) return pesoB - pesoA;
         return obtenerTiempoFecha(a.deadline) - obtenerTiempoFecha(b.deadline);
       });
+  }, [tareasMarca]);
+
+  const tareasSuspendidas = useMemo(() => {
+    return tareasMarca
+      .filter(t => esTareaSuspendida(t))
+      .sort((a, b) => (a.info || "").localeCompare(b.info || "", "es"));
   }, [tareasMarca]);
 
   const widgetsMarca = useMemo(() => {
@@ -225,7 +224,7 @@ function LayoutMarcaHome({
           </div>
           <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} className="notion-filter-select">
             <option value="TODOS">Estado</option>
-            {LISTA_ESTADOS_VALIDOS.map(opt => (<option key={opt} value={opt}>{opt}</option>))}
+            {obtenerEstadosFiltroLista().map(opt => (<option key={opt} value={opt}>{opt}</option>))}
           </select>
           <select value={filtroPrioridad} onChange={(e) => setFiltroPrioridad(e.target.value)} className="notion-filter-select">
             <option value="TODAS">Prioridad</option>
@@ -408,7 +407,7 @@ function LayoutMarcaHome({
                   <div className="flex flex-col gap-3">
                     <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} className="w-full bg-white border border-zinc-200 p-2 text-ui rounded text-zinc-600">
                       <option value="TODOS">Todos los estados</option>
-                      {LISTA_ESTADOS_VALIDOS.map(opt => (<option key={opt} value={opt}>{opt}</option>))}
+                      {obtenerEstadosFiltroLista().map(opt => (<option key={opt} value={opt}>{opt}</option>))}
                     </select>
                     <select value={filtroPrioridad} onChange={(e) => setFiltroPrioridad(e.target.value)} className="w-full bg-white border border-zinc-200 p-2 text-ui rounded text-zinc-600">
                       <option value="TODAS">Todas las prioridades</option>
@@ -486,6 +485,51 @@ function LayoutMarcaHome({
               <LayoutKanban tareas={tareasFiltradas} ordenPrioridad={kanbanOrdenPrioridadActivo} onUpdateField={onUpdateField} onSelectTask={onSelectTask} onDeleteTask={onDeleteTask} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
             )}
           </div>
+
+          {tareasSuspendidas.length > 0 && dashboardMobileVista !== "filtros" && (
+            <div className="marca-suspendidos-panel overflow-hidden">
+              <div className="marca-suspendidos-panel__header px-0 py-2.5 md:py-3 flex items-center justify-between gap-2">
+                <span className="mobile-section-label md:hidden">Suspendidos</span>
+                <span className="hidden md:block text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Proyectos suspendidos</span>
+                <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 rounded-full px-2 py-0.5">
+                  {tareasSuspendidas.length}
+                </span>
+              </div>
+              <div className="pb-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                  {tareasSuspendidas.map(t => {
+                    const personasCorta = t.personas
+                      ? t.personas.split(/[\s,]+/).filter(Boolean).slice(0, 2).join(", ")
+                      : "";
+                    return (
+                      <div
+                        key={t.idTarea || t.info}
+                        onClick={() => onSelectTask(t)}
+                        className="suspendido-task-card"
+                        style={{ borderLeftColor: marcaEstilo.accent || "#94a3b8" }}
+                      >
+                        <div className="suspendido-task-card-body">
+                          <p className="suspendido-task-card-title">{t.info}</p>
+                          <div className="suspendido-task-card-meta">
+                            <span className="inline-flex items-center gap-1 min-w-0">
+                              <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-slate-400" />
+                              <span className="truncate">Suspendido</span>
+                            </span>
+                            {personasCorta && (
+                              <>
+                                <span className="suspendido-task-card-dot" aria-hidden="true">·</span>
+                                <span className="truncate">{personasCorta}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

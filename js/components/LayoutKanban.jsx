@@ -21,7 +21,7 @@ function LayoutKanban({ tareas, onUpdateField, onSelectTask, onDeleteTask, getMa
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 items-start h-full animate-fade-in">
-      {ESTADOS_MAPA.map(col => {
+      {obtenerEstadosKanban().map(col => {
         let tareasColumna = tareas.filter(t => cleanEstado(t.estado) === cleanEstado(col.id));
         if (ordenPrioridad) {
           tareasColumna = [...tareasColumna].sort((a, b) => {
@@ -58,9 +58,10 @@ function LayoutKanban({ tareas, onUpdateField, onSelectTask, onDeleteTask, getMa
                 const avanzarEstado = (e) => {
                   e.stopPropagation();
                   if (!onUpdateField) return;
-                  const index = ESTADOS_MAPA.findIndex(e => cleanEstado(e.id) === cleanEstado(t.estado));
-                  const nextIndex = (index + 1) % ESTADOS_MAPA.length;
-                  onUpdateField(t, "estado", ESTADOS_MAPA[nextIndex].id);
+                  const index = obtenerEstadosKanban().findIndex(e => cleanEstado(e.id) === cleanEstado(t.estado));
+                  const columnas = obtenerEstadosKanban();
+                  const nextIndex = (index + 1) % columnas.length;
+                  onUpdateField(t, "estado", columnas[nextIndex].id);
                 };
 
                 return (

@@ -11,10 +11,7 @@ function calcularContadoresAtajos(tareas, username, soloMisTareas = false) {
     (t) => tareaSinDisenadorAsignado(t) && !esTareaCompletada(t)
   ).length;
   const activasHoy = base.filter((t) => esRelevanteHoyTarea(t, tHoy)).length;
-  const atrasadas = base.filter((t) => {
-    const tDeadline = obtenerTiempoFecha(t.deadline);
-    return tDeadline !== Infinity && tDeadline < tHoy && !esTareaCompletada(t);
-  }).length;
+  const atrasadas = base.filter((t) => cuentaComoAtrasada(t, tHoy)).length;
 
   return { mias, enRevision, sinDisenador, activasHoy, atrasadas };
 }

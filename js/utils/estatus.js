@@ -36,12 +36,12 @@ function filtrarTareasParaEstatus(tareas, { marcas, estados, filtroTiempo, perso
 
     const tDeadline = obtenerTiempoFecha(t.deadline);
     const esCompletada = cleanEstado(t.estado) === "completada";
+    const esSuspendida = esTareaSuspendida(t);
 
     if (filtroTiempo === "hoy") {
-      if (!esRelevanteHoyTarea(t, tHoy)) return false;
+      if (esSuspendida || !esRelevanteHoyTarea(t, tHoy)) return false;
     } else if (filtroTiempo === "atrasadas") {
-      const esAtrasada = tDeadline !== Infinity && tDeadline < tHoy;
-      if (!esAtrasada || esCompletada) return false;
+      if (!cuentaComoAtrasada(t, tHoy)) return false;
     }
 
     if (!tareaTienePersona(t, personas)) return false;

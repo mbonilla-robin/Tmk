@@ -47,17 +47,14 @@ function LayoutHome({
 
     const hoy = new Date();
     const tHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
-    const atrasadas = tareas.filter(t => {
-      const tDeadline = obtenerTiempoFecha(t.deadline);
-      return tDeadline !== Infinity && tDeadline < tHoy && cleanEstado(t.estado) !== "completada";
-    }).length;
+    const atrasadas = tareas.filter(t => cuentaComoAtrasada(t, tHoy)).length;
 
     return { total, completadas, enProgreso, atrasadas };
   }, [tareas]);
 
   const highPriorityTasks = useMemo(() => {
     return tareas
-      .filter(t => esPrioridadAlta(t.prioridad) && cleanEstado(t.estado) !== "completada")
+      .filter(t => esPrioridadAlta(t.prioridad) && !esTareaCompletada(t) && !esTareaSuspendida(t))
       .sort((a, b) => {
         const pesoA = getPriorityWeight(a.prioridad);
         const pesoB = getPriorityWeight(b.prioridad);

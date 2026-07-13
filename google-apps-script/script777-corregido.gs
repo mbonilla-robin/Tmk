@@ -17,6 +17,7 @@ const COLORES_ESTADOS = {
   "seguimiento": { fondo: "#F3E8FF", texto: "#6B21A8" },
   "en revision": { fondo: "#FEF3C7", texto: "#B45309" },
   "en pausa":    { fondo: "#FEE2E2", texto: "#991B1B" },
+  "suspendido":  { fondo: "#F4F4F5", texto: "#52525B" },
   "completada":  { fondo: "#DCFCE7", texto: "#166534" }
 };
 
@@ -26,6 +27,7 @@ const PRIORIDAD_ESTADOS = {
   "seguimiento": 3,
   "en revision": 4,
   "en pausa": 5,
+  "suspendido": 6,
   "completada": 99
 };
 
@@ -35,6 +37,7 @@ const LISTA_ESTADOS_VALIDOS = [
   "🟡 Seguimiento",
   "🟠 En revisión",
   "🔴 En pausa",
+  "⚫ Suspendido",
   "🟢 Completada"
 ];
 
@@ -103,6 +106,7 @@ function obtenerEstadoConEmoji(texto) {
   if (clean === "seguimiento") return "🟡 Seguimiento";
   if (clean === "en revision") return "🟠 En revisión";
   if (clean === "en pausa") return "🔴 En pausa";
+  if (clean === "suspendido") return "⚫ Suspendido";
   if (clean === "completada" || clean === "completado") return "🟢 Completada";
   return "⚪ Pendiente";
 }
@@ -299,7 +303,7 @@ function actualizarHojaHoy() {
           var fechaDeadline = valores[j][7];
 
           var tDeadline = obtenerTiempoFecha(fechaDeadline);
-          if (txtMarca !== "" && txtEstado !== "completada" && tDeadline === tHoy && tDeadline !== Infinity) {
+          if (txtMarca !== "" && txtEstado !== "completada" && txtEstado !== "suspendido" && tDeadline === tHoy && tDeadline !== Infinity) {
             todasLasTareas.push(valores[j]);
           }
         }
@@ -543,7 +547,7 @@ function aplicarEstilosFila(sheet) {
 function corregirEstructuraHojas() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var pestañasMarcas = ["DIAGEO", "GAMA", "La Santé", "ROBIN", "TMK"];
-  var estadosValidos = ["pendiente", "en progreso", "seguimiento", "en revision", "en pausa", "completada"];
+  var estadosValidos = ["pendiente", "en progreso", "seguimiento", "en revision", "en pausa", "suspendido", "completada"];
 
   var rule = SpreadsheetApp.newDataValidation()
     .requireValueInList(LISTA_ESTADOS_VALIDOS, true)
@@ -700,7 +704,7 @@ function sincronizarDesdeHoy(e) {
   var tHoy = obtenerTiempoFecha(hoyString);
   var tDeadline = obtenerTiempoFecha(deadlineActual);
 
-  if (cleanEstado(estadoActual) === "completada" || tDeadline !== tHoy) {
+  if (cleanEstado(estadoActual) === "completada" || cleanEstado(estadoActual) === "suspendido" || tDeadline !== tHoy) {
     debaEliminarse = true;
   }
 
@@ -767,10 +771,10 @@ function sincronizarDesdeMarca(e) {
   var tDeadline = obtenerTiempoFecha(deadlineActual);
 
   var esHoy = (tDeadline === tHoy && tDeadline !== Infinity);
-  var noCompletada = (cleanEstado(estadoActual) !== "completada");
+  var activaParaHoy = (cleanEstado(estadoActual) !== "completada" && cleanEstado(estadoActual) !== "suspendido");
 
   if (targetRowHoy !== -1) {
-    if (noCompletada && esHoy) {
+    if (activaParaHoy && esHoy) {
       if (col === 7) { // Estado
         sheetHoy.getRange(targetRowHoy, 8).setValue(newValue);
       } else if (col === 8) { // Deadline
@@ -784,7 +788,7 @@ function sincronizarDesdeMarca(e) {
       sheetHoy.deleteRow(targetRowHoy);
     }
   } else {
-    if (noCompletada && esHoy) {
+    if (activaParaHoy && esHoy) {
       var rowData = sheetMarca.getRange(row, 1, 1, 10).getValues()[0];
       var nextRowHoy = sheetHoy.getLastRow() + 1;
       if (nextRowHoy < 5) nextRowHoy = 5;
@@ -993,7 +997,7 @@ function doGet(e) {
             if (txtInfo === "" && String(fila[8]).trim() === "") continue;
 
             var cleanM = txtMarca.toLowerCase();
-            if (cleanM === "" || cleanM.indexOf("pendiente") !== -1 || cleanM.indexOf("progreso") !== -1 || cleanM.indexOf("seguimiento") !== -1 || cleanM.indexOf("revision") !== -1 || cleanM.indexOf("pausa") !== -1 || cleanM.indexOf("completada") !== -1) {
+            if (cleanM === "" || cleanM.indexOf("pendiente") !== -1 || cleanM.indexOf("progreso") !== -1 || cleanM.indexOf("seguimiento") !== -1 || cleanM.indexOf("revision") !== -1 || cleanM.indexOf("pausa") !== -1 || cleanM.indexOf("suspendido") !== -1 || cleanM.indexOf("completada") !== -1) {
               continue;
             }
 

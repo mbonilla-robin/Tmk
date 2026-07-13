@@ -38,9 +38,11 @@ function PanelTmkNews({
   const [publicando, setPublicando] = useState(false);
   const [recientes, setRecientes] = useState([]);
   const [cargandoRecientes, setCargandoRecientes] = useState(true);
+  const [eliminandoId, setEliminandoId] = useState(null);
 
   const nombreVisible = nombreUsuario || `@${usuario}`;
   const esOscuro = theme === "midnight";
+  const usuarioNorm = normalizarUsuarioTmkNews(usuario);
 
   const cargarRecientes = useCallback(async () => {
     setCargandoRecientes(true);
@@ -121,6 +123,29 @@ function PanelTmkNews({
       if (typeof onPublicado === "function") onPublicado(resultado.noticia);
     } finally {
       setPublicando(false);
+    }
+  };
+
+  const handleEliminar = async (noticia) => {
+    if (!window.confirm("¿Eliminar esta noticia? No se puede deshacer.")) return;
+
+    setEliminandoId(noticia.id);
+    try {
+      const resultado = await eliminarNoticiaTmk({
+        id: noticia.id,
+        authorUsername: usuario
+      });
+
+      if (!resultado.ok) {
+        showToast && showToast(resultado.error || "No se pudo eliminar", "error");
+        return;
+      }
+
+      setRecientes((prev) => prev.filter((n) => n.id !== noticia.id));
+      showToast && showToast("Noticia eliminada", "success");
+      if (typeof onPublicado === "function") onPublicado(null);
+    } finally {
+      setEliminandoId(null);
     }
   };
 
@@ -277,6 +302,8 @@ function PanelTmkNews({
                 ? formatearTiempoRelativo(noticia.published_at || noticia.created_at)
                 : "";
               const meta = resolverEtiquetaCategoriaNoticia(noticia.category);
+              const esMia = normalizarUsuarioTmkNews(noticia.author_username) === usuarioNorm;
+              const eliminando = eliminandoId === noticia.id;
               return (
                 <li key={noticia.id} className="tmk-news-panel__list-item">
                   <div className="tmk-news-panel__list-main">
@@ -289,7 +316,25 @@ function PanelTmkNews({
                       </p>
                     </div>
                   </div>
-                  <TmkNewsCategoriaChip category={noticia.category} className="tmk-news-panel__list-chip" />
+                  <div className="tmk-news-panel__list-aside">
+                    <TmkNewsCategoriaChip category={noticia.category} className="tmk-news-panel__list-chip" />
+                    {esMia && (
+                      <button
+                        type="button"
+                        className="tmk-news-panel__list-delete"
+                        onClick={() => handleEliminar(noticia)}
+                        disabled={eliminando}
+                        aria-label="Eliminar noticia"
+                        title="Eliminar"
+                      >
+                        {eliminando ? (
+                          <i className="fa-solid fa-circle-notch fa-spin" aria-hidden="true" />
+                        ) : (
+                          <i className="fa-regular fa-trash-can" aria-hidden="true" />
+                        )}
+                      </button>
+                    )}
+                  </div>
                 </li>
               );
             })}

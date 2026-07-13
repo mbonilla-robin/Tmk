@@ -198,6 +198,35 @@ async function publicarNoticiaTmk({
   }
 }
 
+async function eliminarNoticiaTmk({ id, authorUsername }) {
+  const noticiaId = String(id || "").trim();
+  const usuario = normalizarUsuarioTmkNews(authorUsername);
+  if (!tmkNewsSupabaseConfigured() || !noticiaId || !usuario) {
+    return { ok: false, error: "Datos incompletos" };
+  }
+
+  try {
+    const res = await fetch(
+      `${tmkNewsBaseUrl()}/rest/v1/robin_news?id=eq.${encodeURIComponent(noticiaId)}&author_username=eq.${encodeURIComponent(usuario)}`,
+      {
+        method: "DELETE",
+        headers: tmkNewsHeaders("return=minimal")
+      }
+    );
+
+    if (!res.ok) {
+      const detalle = await res.text();
+      console.warn("ROBIN: error eliminando TMK News", res.status, detalle);
+      return { ok: false, error: "No se pudo eliminar la noticia." };
+    }
+
+    return { ok: true };
+  } catch (e) {
+    console.warn("ROBIN: error eliminando TMK News", e);
+    return { ok: false, error: "Error de conexión." };
+  }
+}
+
 function formatearFechaNoticiaTmk(noticia) {
   const fecha = new Date(noticia?.published_at || noticia?.created_at || "");
   if (Number.isNaN(fecha.getTime())) return "";

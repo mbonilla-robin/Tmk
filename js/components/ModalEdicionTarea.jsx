@@ -43,6 +43,30 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   const [rawDetalles, setRawDetalles] = useState(tarea.detalles || "");
   const [guardando, setGuardando] = useState(false);
   const [copiadoEnlace, setCopiadoEnlace] = useState(false);
+  const titleRef = useRef(null);
+
+  const filasTitulo = useMemo(() => {
+    if (!info) return 2;
+    const anchoEstimado = typeof window !== "undefined" && window.innerWidth < 768 ? 26 : 42;
+    const lineas = String(info)
+      .split("\n")
+      .reduce((total, linea) => total + Math.max(1, Math.ceil(linea.length / anchoEstimado)), 0);
+    return Math.min(8, Math.max(2, lineas));
+  }, [info]);
+
+  const ajustarAlturaTitulo = useCallback(() => {
+    const el = titleRef.current;
+    if (!el) return;
+    el.style.height = "0px";
+    const next = Math.max(el.scrollHeight, el.offsetHeight);
+    el.style.height = `${next}px`;
+  }, []);
+
+  useLayoutEffect(() => {
+    ajustarAlturaTitulo();
+    const raf = requestAnimationFrame(ajustarAlturaTitulo);
+    return () => cancelAnimationFrame(raf);
+  }, [info, filasTitulo, ajustarAlturaTitulo]);
 
   const metadatosSoloLectura = soloLectura || modoDisenador;
   const estadosDisponibles = useMemo(() => {
@@ -281,17 +305,19 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
           {/* Encabezado estilo Notion */}
           <div className="relative px-6 md:px-10 pb-4 max-w-3xl mx-auto w-full">
             {metadatosSoloLectura ? (
-              <h2 className="task-form-title w-full pr-8 text-2xl md:text-[1.75rem] font-bold text-[#37352F] leading-snug">
+              <h2 className="task-form-title w-full pr-8 text-2xl md:text-[1.75rem] font-bold text-[#37352F] leading-snug break-words whitespace-pre-wrap">
                 {info || "Sin título"}
               </h2>
             ) : (
-              <input
-                type="text"
+              <textarea
+                ref={titleRef}
                 required
+                rows={filasTitulo}
                 value={info}
                 onChange={(e) => setInfo(e.target.value)}
+                onInput={ajustarAlturaTitulo}
                 placeholder="Sin título"
-                className="task-form-title w-full pr-8 text-2xl md:text-[1.75rem] font-bold text-[#37352F] bg-transparent border-0 focus:outline-none placeholder-zinc-300 leading-snug"
+                className="task-form-title task-form-title-input w-full pr-8 text-2xl md:text-[1.75rem] font-bold text-[#37352F] bg-transparent border-0 focus:outline-none placeholder-zinc-300 leading-normal md:leading-snug resize-none"
               />
             )}
             {cleanIdTarea(tarea.idTarea) && (

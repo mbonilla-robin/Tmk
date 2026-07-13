@@ -702,6 +702,32 @@
       color: var(--robin-text);
     }
 
+    .task-form-title {
+      word-break: break-word;
+      overflow-wrap: break-word;
+      line-height: 1.35;
+      white-space: pre-wrap;
+    }
+
+    textarea.task-form-title-input {
+      display: block;
+      min-height: 3.25rem;
+      overflow: visible;
+      box-sizing: border-box;
+      padding: 0;
+      margin: 0;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    @media (max-width: 767px) {
+      textarea.task-form-title-input {
+        font-size: 1.25rem;
+        line-height: 1.4;
+        min-height: 3.5rem;
+      }
+    }
+
     .task-form-page .task-form-eyebrow,
     .task-form-page .task-prop-label,
     .task-form-page .task-section-label {

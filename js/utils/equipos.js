@@ -23,7 +23,7 @@ const ESTADOS_BARRA_EQUIPO = [
 
 function esPersonaExcluidaEquipos(valor) {
   const clave = normalizarClavePersona(valor);
-  return clave === "trade" || clave === "cliente";
+  return clave === "trade" || clave === "cliente" || clave === "admin";
 }
 
 function esTareaPresenciaEquipos(tarea) {
@@ -58,6 +58,36 @@ function obtenerPersonasTaggeadasEnTareas(tareas) {
   return Array.from(handles);
 }
 
+function normalizarHandleRosterEquipos(valor) {
+  const clave = normalizarClavePersona(valor);
+  if (!clave || esPersonaExcluidaEquipos(clave)) return "";
+  return resolverHandleCanonico(clave) || clave;
+}
+
+/**
+ * Roster completo del equipo: ejecutivos + diseñadores + quien ya tenga tareas.
+ * Siempre incluye a todos los del equipo, con o sin carga.
+ */
+function obtenerRosterEquipos(listaEjecutivos, listaDisenadores, tareas) {
+  const handles = new Set();
+
+  (listaEjecutivos || []).forEach((u) => {
+    const handle = normalizarHandleRosterEquipos(u);
+    if (handle) handles.add(handle);
+  });
+
+  (listaDisenadores || []).forEach((u) => {
+    const handle = normalizarHandleRosterEquipos(u);
+    if (handle) handles.add(handle);
+  });
+
+  obtenerPersonasTaggeadasEnTareas(tareas).forEach((handle) => {
+    if (handle && !esPersonaExcluidaEquipos(handle)) handles.add(handle);
+  });
+
+  return Array.from(handles);
+}
+
 function obtenerNombreDisplayEquipo(handle) {
   const clave = normalizarClavePersona(handle);
   if (typeof loadUserDataLocal === "function" && typeof migrarNombreCompletoAPerfil === "function") {
@@ -73,38 +103,25 @@ function obtenerRangoSemana(fechaRef) {
   return obtenerRangoSemanaLaboral(fechaRef);
 }
 
-function tareaCuentaParaRangoEquipos(tarea, modo, tHoy, semanaInicio, semanaFin) {
-  if (esTareaPresenciaEquipos(tarea)) return false;
-
-  const est = cleanEstado(tarea.estado);
+/** Completadas: solo para el desglose por periodo (Hoy / Semana / Todo). */
+function tareaCompletadaEnRangoEquipos(tarea, modo, tHoy, semanaInicio, semanaFin) {
+  if (!esTareaCompletada(tarea)) return false;
   const td = obtenerTiempoFecha(tarea.deadline);
-  const esCompletada = est === "completada";
-  const esSuspendida = est === "suspendido";
 
-  if (modo === "todo") return !esSuspendida;
-
-  if (modo === "hoy") {
-    if (esSuspendida) return false;
-    if (!esCompletada) {
-      if (est === "en progreso") return true;
-      if (typeof cuentaComoAtrasada === "function" && cuentaComoAtrasada(tarea, tHoy)) return true;
-      return esRelevanteHoyTarea(tarea, tHoy);
-    }
-    return td !== Infinity && td === tHoy;
-  }
-
-  if (modo === "semana") {
-    if (esSuspendida) return false;
-    if (!esCompletada) {
-      if (est === "en progreso") return true;
-      if (typeof cuentaComoAtrasada === "function" && cuentaComoAtrasada(tarea, tHoy)) return true;
-      if (td !== Infinity && td >= semanaInicio && td <= semanaFin) return true;
-      return esRelevanteHoyTarea(tarea, tHoy);
-    }
-    return td !== Infinity && td >= semanaInicio && td <= semanaFin;
-  }
-
+  if (modo === "todo") return true;
+  if (modo === "hoy") return td !== Infinity && td === tHoy;
+  if (modo === "semana") return td !== Infinity && td >= semanaInicio && td <= semanaFin;
   return false;
+}
+
+/**
+ * Carga activa: TODAS las tareas abiertas asignadas (no completada / no suspendida / no presencia).
+ * El filtro Hoy/Semana no esconde tareas activas reales — solo afecta completadas.
+ */
+function esTareaActivaEquipos(tarea) {
+  if (esTareaPresenciaEquipos(tarea)) return false;
+  if (esTareaCompletada(tarea) || esTareaSuspendida(tarea)) return false;
+  return true;
 }
 
 function calcularIndiceCarga(activas, atrasadas) {
@@ -133,9 +150,11 @@ function estaUsuarioEnLinea(handle, usuariosEnLinea) {
   });
 }
 
-function agregarMetricasPorPersona(tareas, modo) {
+function agregarMetricasPorPersona(tareas, modo, rosterHandles) {
   const tareasReales = filtrarTareasRealesEquipos(tareas);
-  const handles = obtenerPersonasTaggeadasEnTareas(tareasReales);
+  const handles = (Array.isArray(rosterHandles) && rosterHandles.length)
+    ? rosterHandles
+    : obtenerPersonasTaggeadasEnTareas(tareasReales);
   const tHoy = obtenerTiempoHoyLocal();
   const { inicio, fin } = obtenerRangoSemana();
 
@@ -145,29 +164,26 @@ function agregarMetricasPorPersona(tareas, modo) {
       tareaIncluyePersonaFiltro(t.personas || "", filtroPersona)
     );
 
-    const enRango = tareasPersona.filter((t) =>
-      tareaCuentaParaRangoEquipos(t, modo, tHoy, inicio, fin)
-    );
+    const abiertas = tareasPersona.filter(esTareaActivaEquipos);
 
     const porEstado = {};
     LISTA_ESTADOS_VALIDOS.forEach((e) => {
       porEstado[cleanEstado(e)] = 0;
     });
 
-    let activas = 0;
-    let completadasPeriodo = 0;
-
-    enRango.forEach((t) => {
+    abiertas.forEach((t) => {
       const est = cleanEstado(t.estado);
       porEstado[est] = (porEstado[est] || 0) + 1;
-      if (est === "completada") completadasPeriodo += 1;
-      else if (est !== "suspendido") activas += 1;
     });
+
+    const activas = abiertas.length;
+    const completadasPeriodo = tareasPersona.filter((t) =>
+      tareaCompletadaEnRangoEquipos(t, modo, tHoy, inicio, fin)
+    ).length;
 
     let atrasadas = 0;
     let vencenHoy = 0;
-    tareasPersona.forEach((t) => {
-      if (esTareaCompletada(t) || esTareaSuspendida(t)) return;
+    abiertas.forEach((t) => {
       const td = obtenerTiempoFecha(t.deadline);
       if (td !== Infinity && td < tHoy) atrasadas += 1;
       if (td === tHoy) vencenHoy += 1;
@@ -186,11 +202,9 @@ function agregarMetricasPorPersona(tareas, modo) {
       porEstado,
       indiceCarga,
       nivelCarga: obtenerNivelCarga(indiceCarga),
-      totalEnRango: enRango.length
+      totalEnRango: activas + completadasPeriodo
     };
-  }).filter((r) =>
-    r.activas > 0 || r.completadasPeriodo > 0 || r.atrasadas > 0 || r.vencenHoy > 0
-  ).sort((a, b) =>
+  }).sort((a, b) =>
     b.activas - a.activas ||
     b.indiceCarga - a.indiceCarga ||
     a.display.localeCompare(b.display, "es")

@@ -110,7 +110,7 @@ function SeccionRolEquipo({ titulo, personas, usuariosConectados, onVerTareasPer
       </div>
       {personas.length === 0 ? (
         <p className="text-sm text-zinc-500 py-4 text-center border border-dashed border-zinc-200 rounded-lg">
-          Nadie asignado en este periodo.
+          Nadie en este rol todavía.
         </p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -129,12 +129,23 @@ function SeccionRolEquipo({ titulo, personas, usuariosConectados, onVerTareasPer
   );
 }
 
-function LayoutEquipos({ tareas, usuariosConectados, listaDisenadores, onVerTareasPersona }) {
-  const [rango, setRango] = useState("hoy");
+function LayoutEquipos({
+  tareas,
+  usuariosConectados,
+  listaEjecutivos,
+  listaDisenadores,
+  onVerTareasPersona
+}) {
+  const [rango, setRango] = useState("todo");
+
+  const roster = useMemo(
+    () => obtenerRosterEquipos(listaEjecutivos, listaDisenadores, tareas),
+    [listaEjecutivos, listaDisenadores, tareas]
+  );
 
   const metricas = useMemo(
-    () => agregarMetricasPorPersona(tareas, rango),
-    [tareas, rango]
+    () => agregarMetricasPorPersona(tareas, rango, roster),
+    [tareas, rango, roster]
   );
 
   const { ejecutivos, disenadores } = useMemo(() => {
@@ -179,6 +190,7 @@ function LayoutEquipos({ tareas, usuariosConectados, listaDisenadores, onVerTare
             type="button"
             onClick={() => setRango("hoy")}
             className={`notion-time-pill ${rango === "hoy" ? "is-active-blue" : ""}`}
+            title="Completadas con deadline hoy"
           >
             Hoy
           </button>
@@ -186,6 +198,7 @@ function LayoutEquipos({ tareas, usuariosConectados, listaDisenadores, onVerTare
             type="button"
             onClick={() => setRango("semana")}
             className={`notion-time-pill ${rango === "semana" ? "is-active" : ""}`}
+            title="Completadas con deadline esta semana"
           >
             Semana
           </button>
@@ -193,6 +206,7 @@ function LayoutEquipos({ tareas, usuariosConectados, listaDisenadores, onVerTare
             type="button"
             onClick={() => setRango("todo")}
             className={`notion-time-pill ${rango === "todo" ? "is-active" : ""}`}
+            title="Todas las completadas"
           >
             Todo
           </button>
@@ -215,35 +229,29 @@ function LayoutEquipos({ tareas, usuariosConectados, listaDisenadores, onVerTare
           <p className="text-lg font-bold text-emerald-700">{resumen.enLinea}</p>
         </div>
         <div className="border border-zinc-200 rounded-md px-3 py-2 bg-zinc-50/50 col-span-2 sm:col-span-1">
-          <p className="text-[10px] text-zinc-400 font-semibold uppercase">Periodo</p>
+          <p className="text-[10px] text-zinc-400 font-semibold uppercase">Completadas</p>
           <p className="text-sm font-bold text-[#37352F] capitalize">
             {rango === "hoy" ? "Hoy" : rango === "semana" ? "Esta semana" : "Todas"}
           </p>
         </div>
       </div>
 
-      {metricas.length === 0 ? (
-        <p className="text-sm text-zinc-500 py-8 text-center">
-          No hay personas asignadas en entregables (excluyendo Cliente y Trade).
-        </p>
-      ) : (
-        <div className="flex flex-col gap-6">
-          <SeccionRolEquipo
-            titulo="Ejecutivos"
-            personas={ejecutivos}
-            usuariosConectados={usuariosConectados}
-            onVerTareasPersona={onVerTareasPersona}
-            onSegmentClick={handleSegmentClick}
-          />
-          <SeccionRolEquipo
-            titulo="Diseñadores"
-            personas={disenadores}
-            usuariosConectados={usuariosConectados}
-            onVerTareasPersona={onVerTareasPersona}
-            onSegmentClick={handleSegmentClick}
-          />
-        </div>
-      )}
+      <div className="flex flex-col gap-6">
+        <SeccionRolEquipo
+          titulo="Ejecutivos"
+          personas={ejecutivos}
+          usuariosConectados={usuariosConectados}
+          onVerTareasPersona={onVerTareasPersona}
+          onSegmentClick={handleSegmentClick}
+        />
+        <SeccionRolEquipo
+          titulo="Diseñadores"
+          personas={disenadores}
+          usuariosConectados={usuariosConectados}
+          onVerTareasPersona={onVerTareasPersona}
+          onSegmentClick={handleSegmentClick}
+        />
+      </div>
     </div>
   );
 }

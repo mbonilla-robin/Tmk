@@ -139,8 +139,26 @@ function robinValidarSesionRobin_(e, payload) {
   };
 }
 
+function robinEsHeartbeatPresencia_(payload) {
+  if (!payload) return false;
+  var id = String(payload.idTarea || "").trim().toUpperCase();
+  var campo = String(payload.campo || "").trim();
+  var marca = String(payload.marca || "").trim().toUpperCase();
+  return id.indexOf("PRESENCE-") === 0 && campo === "todo" && marca === "ROBIN";
+}
+
 function robinExigirOperacionDisenador_(session, payload) {
   if (!session || !session.isDesigner) return;
+
+  // Los diseñadores deben poder anunciar presencia (lista "En línea").
+  if (robinEsHeartbeatPresencia_(payload)) {
+    var expected = ("PRESENCE-" + String(session.username || "").replace(/^@/, "").trim()).toUpperCase();
+    var id = String(payload.idTarea || "").trim().toUpperCase();
+    if (id !== expected) {
+      throw new Error("No autorizado: heartbeat de presencia inválido.");
+    }
+    return;
+  }
 
   var campo = payload && payload.campo ? String(payload.campo).trim() : "";
   if (campo === "eliminar") {

@@ -86,6 +86,10 @@ PASO 5 — Redesplegar
 5. Implementar → copiar URL
 6. Actualizar AUTO_API_URL en la PWA si la URL cambió
 
+Importante (presencia / «En línea»):
+- Tras cambios en ApiAuth.gs o script777-corregido.gs debes redesplegar.
+- Los diseñadores ahora sí pueden anunciar presencia y aparecen en la lista.
+
 
 PASO 6 — Probar la PWA
 ----------------------
@@ -93,6 +97,7 @@ PASO 6 — Probar la PWA
    (La contraseña se guarda en sessionStorage; sin login no hay token)
 2. Recarga la página (o borra caché PWA)
 3. Deben aparecer las tareas
+4. Con un diseñador y un ejecutivo conectados, ambos deben verse en «En línea»
 
 
 RESUMEN DE SEGURIDAD

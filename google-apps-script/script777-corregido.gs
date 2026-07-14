@@ -1034,9 +1034,15 @@ function doGet(e) {
     });
     if (executives.indexOf("admin") === -1) executives.push("admin");
 
+    var filasPresencia = todasLasTareas.filter(function (t) {
+      var id = String(t.idTarea || "").trim().toUpperCase();
+      return id.indexOf("PRESENCE-") === 0;
+    });
+
     var response = {
       success: true,
       data: todasLasTareas,
+      presencia: filasPresencia,
       marcasMetadata: marcasMetadata,
       widgets: widgets,
       marcasConfig: COLORES_MARCAS,
@@ -1051,11 +1057,16 @@ function doGet(e) {
     };
 
     if (session.isDesigner) {
+      // Mantener filas PRESENCE-* para que la lista "En línea" vea a todos.
       response.data = todasLasTareas.filter(function (t) {
+        var id = String(t.idTarea || "").trim().toUpperCase();
+        if (id.indexOf("PRESENCE-") === 0) return true;
         return robinTareaAsignadaADisenador_(t.personas, session.username);
       });
       var marcasPermitidas = {};
       response.data.forEach(function (t) {
+        var id = String(t.idTarea || "").trim().toUpperCase();
+        if (id.indexOf("PRESENCE-") === 0) return;
         var mName = String(t.marca || "").trim();
         if (mName && marcasMetadata[mName]) {
           marcasPermitidas[mName] = marcasMetadata[mName];
@@ -1332,14 +1343,24 @@ function doPost(e) {
 
     if (campo) {
       if (targetRow === -1) {
+        var idEntranteNuevo = String(payload.idTarea || "").trim();
+        var esHeartbeatPresencia = idEntranteNuevo.toUpperCase().indexOf("PRESENCE-") === 0;
         payload.esActualizacion = false;
-        payload.esNuevo = true;
+        // No marcar presencia como entregable nuevo (bloquearía a diseñadores).
+        if (!esHeartbeatPresencia) {
+          payload.esNuevo = true;
+        }
         targetRow = lastRow + 1;
         var limitRowNuevo = (marca === "Config_Marcas") ? 2 : 3;
         if (targetRow < limitRowNuevo) targetRow = limitRowNuevo;
 
-        var prefijoNuevo = (marca === "Config_Marcas") ? "WID" : marca.substring(0, 3).toUpperCase();
-        idTarea = prefijoNuevo + "-" + Math.floor(100 + Math.random() * 900);
+        // Preservar IDs de presencia; no reemplazarlos por ROB-xxx.
+        if (esHeartbeatPresencia) {
+          idTarea = idEntranteNuevo;
+        } else {
+          var prefijoNuevo = (marca === "Config_Marcas") ? "WID" : marca.substring(0, 3).toUpperCase();
+          idTarea = prefijoNuevo + "-" + Math.floor(100 + Math.random() * 900);
+        }
       }
 
       if (campo === "estado") {
@@ -1396,7 +1417,9 @@ function doPost(e) {
       targetSheet.getRange(targetRow, 10).setValue(payload.prioridad || "🟡 Media");
     }
 
-    if (marca !== "Config_Marcas") {
+    var esPresencia = String(idTarea || payload.idTarea || "").trim().toUpperCase().indexOf("PRESENCE-") === 0;
+
+    if (marca !== "Config_Marcas" && !esPresencia) {
       var rule = SpreadsheetApp.newDataValidation()
         .requireValueInList(LISTA_ESTADOS_VALIDOS, true)
         .build();
@@ -1404,8 +1427,10 @@ function doPost(e) {
       ordenarHojaPorEstado(targetSheet);
       aplicarEstilosFila(targetSheet);
     }
-    
-    actualizarHojaHoy();
+
+    if (!esPresencia) {
+      actualizarHojaHoy();
+    }
 
     var idFinal = String(idTarea || "").trim();
     if (!idFinal && targetRow !== -1) {
@@ -1414,7 +1439,7 @@ function doPost(e) {
 
     return robinJsonResponse_({
       success: true,
-      message: "Sincronización completada con éxito.",
+      message: esPresencia ? "Presencia actualizada." : "Sincronización completada con éxito.",
       idTarea: idFinal,
       marca: marca,
       info: String(payload.info || "").trim()

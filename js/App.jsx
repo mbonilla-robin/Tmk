@@ -3353,6 +3353,7 @@ function App() {
             <LayoutEquipos
               tareas={tareas}
               usuariosConectados={usuariosConectados}
+              listaDisenadores={listaDisenadores}
               onVerTareasPersona={irATareasPersona}
             />
           )}

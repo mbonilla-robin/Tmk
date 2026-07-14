@@ -99,13 +99,53 @@ function TarjetaPersonaEquipo({ persona, enLinea, onVerTareas, onSegmentClick })
   );
 }
 
-function LayoutEquipos({ tareas, usuariosConectados, onVerTareasPersona }) {
+function SeccionRolEquipo({ titulo, personas, usuariosConectados, onVerTareasPersona, onSegmentClick }) {
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex items-baseline justify-between gap-2">
+        <h3 className="text-sm font-bold text-[#37352F] tracking-tight">{titulo}</h3>
+        <span className="text-[10px] text-zinc-400 font-medium">
+          {personas.length} {personas.length === 1 ? "persona" : "personas"}
+        </span>
+      </div>
+      {personas.length === 0 ? (
+        <p className="text-sm text-zinc-500 py-4 text-center border border-dashed border-zinc-200 rounded-lg">
+          Nadie asignado en este periodo.
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {personas.map((persona) => (
+            <TarjetaPersonaEquipo
+              key={persona.handle}
+              persona={persona}
+              enLinea={estaUsuarioEnLinea(persona.handle, usuariosConectados)}
+              onVerTareas={(handleFiltro) => onVerTareasPersona(handleFiltro, null)}
+              onSegmentClick={(estadoKey) => onSegmentClick(persona.handleFiltro, estadoKey)}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function LayoutEquipos({ tareas, usuariosConectados, listaDisenadores, onVerTareasPersona }) {
   const [rango, setRango] = useState("hoy");
 
   const metricas = useMemo(
     () => agregarMetricasPorPersona(tareas, rango),
     [tareas, rango]
   );
+
+  const { ejecutivos, disenadores } = useMemo(() => {
+    const exec = [];
+    const dis = [];
+    metricas.forEach((persona) => {
+      if (isRobinDesigner(persona.handle, listaDisenadores)) dis.push(persona);
+      else exec.push(persona);
+    });
+    return { ejecutivos: exec, disenadores: dis };
+  }, [metricas, listaDisenadores]);
 
   const resumen = useMemo(() => {
     const activas = metricas.reduce((sum, p) => sum + p.activas, 0);
@@ -182,21 +222,28 @@ function LayoutEquipos({ tareas, usuariosConectados, onVerTareasPersona }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {metricas.length === 0 ? (
-          <p className="text-sm text-zinc-500 col-span-full py-8 text-center">
-            No hay personas asignadas en entregables (excluyendo Cliente y Trade).
-          </p>
-        ) : metricas.map((persona) => (
-          <TarjetaPersonaEquipo
-            key={persona.handle}
-            persona={persona}
-            enLinea={estaUsuarioEnLinea(persona.handle, usuariosConectados)}
-            onVerTareas={(handleFiltro) => onVerTareasPersona(handleFiltro, null)}
-            onSegmentClick={(estadoKey) => handleSegmentClick(persona.handleFiltro, estadoKey)}
+      {metricas.length === 0 ? (
+        <p className="text-sm text-zinc-500 py-8 text-center">
+          No hay personas asignadas en entregables (excluyendo Cliente y Trade).
+        </p>
+      ) : (
+        <div className="flex flex-col gap-6">
+          <SeccionRolEquipo
+            titulo="Ejecutivos"
+            personas={ejecutivos}
+            usuariosConectados={usuariosConectados}
+            onVerTareasPersona={onVerTareasPersona}
+            onSegmentClick={handleSegmentClick}
           />
-        ))}
-      </div>
+          <SeccionRolEquipo
+            titulo="Diseñadores"
+            personas={disenadores}
+            usuariosConectados={usuariosConectados}
+            onVerTareasPersona={onVerTareasPersona}
+            onSegmentClick={handleSegmentClick}
+          />
+        </div>
+      )}
     </div>
   );
 }

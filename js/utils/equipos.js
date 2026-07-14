@@ -26,6 +26,16 @@ function esPersonaExcluidaEquipos(valor) {
   return clave === "trade" || clave === "cliente";
 }
 
+function esTareaPresenciaEquipos(tarea) {
+  if (typeof esFilaPresencia === "function") return esFilaPresencia(tarea);
+  const id = String(tarea?.idTarea || tarea?.id || "").trim().toUpperCase();
+  return id.startsWith("PRESENCE-");
+}
+
+function filtrarTareasRealesEquipos(tareas) {
+  return (tareas || []).filter((t) => !esTareaPresenciaEquipos(t));
+}
+
 function expandirTokenPersonaEquipos(token) {
   if (esPersonaExcluidaEquipos(token)) return [];
 
@@ -39,7 +49,7 @@ function expandirTokenPersonaEquipos(token) {
 function obtenerPersonasTaggeadasEnTareas(tareas) {
   const handles = new Set();
 
-  (tareas || []).forEach((tarea) => {
+  filtrarTareasRealesEquipos(tareas).forEach((tarea) => {
     tokenizarCampoPersonas(tarea.personas).forEach((token) => {
       expandirTokenPersonaEquipos(token).forEach((handle) => handles.add(handle));
     });
@@ -64,17 +74,20 @@ function obtenerRangoSemana(fechaRef) {
 }
 
 function tareaCuentaParaRangoEquipos(tarea, modo, tHoy, semanaInicio, semanaFin) {
+  if (esTareaPresenciaEquipos(tarea)) return false;
+
   const est = cleanEstado(tarea.estado);
   const td = obtenerTiempoFecha(tarea.deadline);
   const esCompletada = est === "completada";
   const esSuspendida = est === "suspendido";
 
-  if (modo === "todo") return true;
+  if (modo === "todo") return !esSuspendida;
 
   if (modo === "hoy") {
     if (esSuspendida) return false;
     if (!esCompletada) {
       if (est === "en progreso") return true;
+      if (typeof cuentaComoAtrasada === "function" && cuentaComoAtrasada(tarea, tHoy)) return true;
       return esRelevanteHoyTarea(tarea, tHoy);
     }
     return td !== Infinity && td === tHoy;
@@ -84,6 +97,7 @@ function tareaCuentaParaRangoEquipos(tarea, modo, tHoy, semanaInicio, semanaFin)
     if (esSuspendida) return false;
     if (!esCompletada) {
       if (est === "en progreso") return true;
+      if (typeof cuentaComoAtrasada === "function" && cuentaComoAtrasada(tarea, tHoy)) return true;
       if (td !== Infinity && td >= semanaInicio && td <= semanaFin) return true;
       return esRelevanteHoyTarea(tarea, tHoy);
     }
@@ -120,13 +134,14 @@ function estaUsuarioEnLinea(handle, usuariosEnLinea) {
 }
 
 function agregarMetricasPorPersona(tareas, modo) {
-  const handles = obtenerPersonasTaggeadasEnTareas(tareas);
+  const tareasReales = filtrarTareasRealesEquipos(tareas);
+  const handles = obtenerPersonasTaggeadasEnTareas(tareasReales);
   const tHoy = obtenerTiempoHoyLocal();
   const { inicio, fin } = obtenerRangoSemana();
 
   const resultado = handles.map((handle) => {
     const filtroPersona = formatearHandleCanonico(handle);
-    const tareasPersona = (tareas || []).filter((t) =>
+    const tareasPersona = tareasReales.filter((t) =>
       tareaIncluyePersonaFiltro(t.personas || "", filtroPersona)
     );
 
@@ -173,7 +188,9 @@ function agregarMetricasPorPersona(tareas, modo) {
       nivelCarga: obtenerNivelCarga(indiceCarga),
       totalEnRango: enRango.length
     };
-  }).sort((a, b) =>
+  }).filter((r) =>
+    r.activas > 0 || r.completadasPeriodo > 0 || r.atrasadas > 0 || r.vencenHoy > 0
+  ).sort((a, b) =>
     b.activas - a.activas ||
     b.indiceCarga - a.indiceCarga ||
     a.display.localeCompare(b.display, "es")

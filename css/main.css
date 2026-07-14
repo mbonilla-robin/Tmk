@@ -344,8 +344,8 @@
 
       .marca-home-main .marca-home-hero {
         margin-top: 0;
-        padding-top: 2.25rem;
-        padding-bottom: 1.75rem;
+        padding-top: 2rem;
+        padding-bottom: 2rem;
       }
     }
 
@@ -3798,10 +3798,15 @@
 
     .marca-home-hero {
       width: 100%;
-      padding: 2.25rem 1.5rem 1.75rem;
+      padding: 2rem 1.5rem;
       position: relative;
       overflow: visible;
       flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 5.5rem;
+      box-sizing: border-box;
     }
 
     .marca-home-hero::before {
@@ -4094,7 +4099,8 @@
 
     @media (min-width: 768px) {
       .marca-home-hero {
-        padding: 2.75rem 2rem 2.25rem;
+        padding: 2.5rem 2rem;
+        min-height: 6.5rem;
       }
 
       .marca-home-hero-inner {
@@ -4130,8 +4136,9 @@
       }
 
       .marca-home-main .marca-home-hero {
-        padding-top: 3rem;
-        padding-bottom: 2.5rem;
+        padding-top: 2.75rem;
+        padding-bottom: 2.75rem;
+        min-height: 7rem;
       }
 
       .marca-home-body {

@@ -308,6 +308,17 @@
       flex-shrink: 0;
     }
 
+    /* Default: layout desktop (lista de entregables, etc.) */
+    .robin-desktop-only {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .robin-mobile-only {
+      display: none;
+      flex-direction: column;
+    }
+
     @media (min-width: 768px) and (max-width: 1023px) {
       .robin-notif-sidebar-slot {
         display: flex;
@@ -318,22 +329,6 @@
         left: 0;
         right: auto;
         width: min(360px, calc(100vw - 2rem));
-      }
-
-      /* Tablet/iPad: sidebar visible pero sin chrome móvil — usar layout desktop */
-      .robin-desktop-only {
-        display: flex !important;
-      }
-
-      .robin-mobile-only {
-        display: none !important;
-      }
-
-      .robin-mobile-main {
-        padding: 1.5rem;
-        padding-top: 1.5rem;
-        padding-bottom: 1.5rem;
-        scroll-padding-bottom: 1.5rem;
       }
 
       .marca-home-main {
@@ -4165,7 +4160,8 @@
       }
 
       .robin-mobile-only {
-        display: flex;
+        display: flex !important;
+        flex-direction: column;
       }
 
       .robin-desktop-only {
@@ -5120,6 +5116,25 @@
       }
     }
 
+    /* Tablet/iPad con sidebar: forzar bloques desktop (después del override móvil) */
+    @media (min-width: 768px) and (max-width: 1023px) {
+      .robin-desktop-only {
+        display: flex !important;
+        flex-direction: column;
+      }
+
+      .robin-mobile-only {
+        display: none !important;
+      }
+
+      .robin-mobile-main {
+        padding: 1.5rem;
+        padding-top: 1.5rem;
+        padding-bottom: 1.5rem;
+        scroll-padding-bottom: 1.5rem;
+      }
+    }
+
     /* Tema oscuro: tarjetas y superficies con bg-white hardcodeado en JSX */
     .theme-picker-btn {
       padding: 0.75rem;
@@ -5773,7 +5788,8 @@
       }
 
       .robin-desktop-only {
-        display: flex;
+        display: flex !important;
+        flex-direction: column;
       }
 
       .robin-mobile-main {

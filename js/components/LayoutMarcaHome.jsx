@@ -329,7 +329,7 @@ function LayoutMarcaHome({
             </div>
             <div className="area-stat-item">
               <span className="area-stat-label">Activos</span>
-              <span className="area-stat-value area-stat-value--active">{stats.enProgreso}</span>
+              <span className="area-stat-value area-stat-value--active">{tareasActivasMarca}</span>
             </div>
             <div className="area-stat-item">
               <span className="area-stat-label">Listos</span>

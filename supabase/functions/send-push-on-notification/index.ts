@@ -12,7 +12,8 @@ const DISPLAY_NAMES: Record<string, string> = {
   dsalavarria: "Daniela Salavarría",
   fcolmenares: "Francisco Colmenares",
   gnebrus: "Genesis Nebrus",
-  sgiucastro: "Sofia Giucastro"
+  sgiucastro: "Sofia Giucastro",
+  dsanchez: "Douglas Sánchez"
 };
 
 type NotifRecord = {

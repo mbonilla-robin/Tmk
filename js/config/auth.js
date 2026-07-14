@@ -21,3 +21,10 @@ const ROBIN_DESIGNER_USERNAMES = [
   "agraterol",
   "dmatheus"
 ];
+
+// Contenido: mismos permisos que ejecutivos; desarrollan el contenido de la tarea
+const ROBIN_CONTENT_USERNAMES = [
+  "dsalavarria",
+  "sgiucastro",
+  "dsanchez"
+];

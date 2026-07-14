@@ -54,7 +54,8 @@ function InduccionBienvenida({
   const touchStartRef = useRef(null);
 
   const primerNombre = obtenerPrimerNombreBienvenida(nombreCompleto, username);
-  const rolLabel = esDisenador ? "diseñador" : "ejecutivo";
+  const esContenido = typeof isRobinContent === "function" && isRobinContent(username);
+  const rolLabel = esDisenador ? "diseñador" : (esContenido ? "contenido" : "ejecutivo");
   const clientes = useMemo(() => filtrarClientesActivosInduccion(marcas), [marcas]);
   const escenas = useMemo(() => construirEscenasBienvenida(clientes), [clientes]);
   const escenaActual = escenas[escena] || escenas[0];

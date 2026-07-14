@@ -17,11 +17,17 @@ function App() {
   const isConfigOnlyAdmin = useMemo(() => isRobinConfigOnlyAdmin(usuario), [usuario]);
   
   const [listaEjecutivos, setListaEjecutivos] = useState(() => {
-    const DEFAULT_EXECUTIVOS = getDefaultAllowedUsers();
+    const DEFAULT_EXECUTIVOS = getDefaultExecutiveUsers();
     const setDisDefault = new Set((Array.isArray(ROBIN_DESIGNER_USERNAMES) ? ROBIN_DESIGNER_USERNAMES : []).map(normalizeRobinUsername));
+    const setContentDefault = new Set(getDefaultContentUsers().map(normalizeRobinUsername));
     try {
       const guardadosEjecutivos = getLocalStorageItemSafe("robin_lista_ejecutivos", null);
       const guardadosDisenadores = getLocalStorageItemSafe("robin_lista_disenadores", null);
+      const guardadosContenido = getLocalStorageItemSafe("robin_lista_contenido", null);
+      const contenidoLocal = guardadosContenido
+        ? (JSON.parse(guardadosContenido) || []).map(normalizeRobinUsername).filter(Boolean)
+        : getDefaultContentUsers();
+      const setContentLocal = new Set([...setContentDefault, ...contenidoLocal]);
 
       // Si existe la llave nueva, úsala. Solo limpiamos exclusividad si ya existe la lista de diseñadores.
       if (guardadosEjecutivos) {
@@ -32,7 +38,7 @@ function App() {
         const setDisLocal = new Set(disenadores);
 
         const limpios = Array.from(new Set(ejecutivos))
-          .filter((u) => u === "admin" || (!setDisDefault.has(u) && !setDisLocal.has(u)));
+          .filter((u) => u === "admin" || (!setDisDefault.has(u) && !setDisLocal.has(u) && !setContentLocal.has(u)));
 
         return limpios.length ? limpios : DEFAULT_EXECUTIVOS;
       }
@@ -49,7 +55,7 @@ function App() {
             exec.push(user);
             return;
           }
-          if (setDisDefault.has(user)) return;
+          if (setDisDefault.has(user) || setContentLocal.has(user)) return;
           exec.push(user);
         });
         const finalExec = Array.from(new Set(exec));
@@ -60,6 +66,36 @@ function App() {
       return DEFAULT_EXECUTIVOS;
     } catch (e) {
       return DEFAULT_EXECUTIVOS;
+    }
+  });
+
+  const [listaContenido, setListaContenido] = useState(() => {
+    const DEFAULT_CONTENIDO = getDefaultContentUsers();
+    try {
+      const guardadosContenido = getLocalStorageItemSafe("robin_lista_contenido", null);
+      if (guardadosContenido) {
+        const contenido = (JSON.parse(guardadosContenido) || [])
+          .map(normalizeRobinUsername)
+          .filter(Boolean)
+          .filter((u) => u !== "admin");
+        return Array.from(new Set(contenido.length ? contenido : DEFAULT_CONTENIDO));
+      }
+
+      // Migración: sacar de ejecutivos guardados a quienes son contenido por defecto.
+      const setContentDefault = new Set(DEFAULT_CONTENIDO);
+      const guardadosEjecutivos = getLocalStorageItemSafe("robin_lista_ejecutivos", null);
+      if (guardadosEjecutivos) {
+        const ejecutivos = (JSON.parse(guardadosEjecutivos) || []).map(normalizeRobinUsername).filter(Boolean);
+        const desdeExec = ejecutivos.filter((u) => setContentDefault.has(u));
+        const fusion = Array.from(new Set([...DEFAULT_CONTENIDO, ...desdeExec]));
+        setLocalStorageItemSafe("robin_lista_contenido", JSON.stringify(fusion));
+        return fusion;
+      }
+
+      setLocalStorageItemSafe("robin_lista_contenido", JSON.stringify(DEFAULT_CONTENIDO));
+      return DEFAULT_CONTENIDO;
+    } catch (e) {
+      return DEFAULT_CONTENIDO;
     }
   });
 
@@ -99,6 +135,7 @@ function App() {
   const isDesigner = useMemo(() => isRobinDesigner(usuario, listaDisenadores), [usuario, listaDisenadores]);
 
   const [nuevoEjecutivoInput, setNuevoEjecutivoInput] = useState("");
+  const [nuevoContenidoInput, setNuevoContenidoInput] = useState("");
   const [nuevoDisenadorInput, setNuevoDisenadorInput] = useState("");
 
   const [theme, setTheme] = useState(() => {
@@ -1473,10 +1510,12 @@ function App() {
     }
   };
 
-  const persistirListasUsuariosLocal = ({ ejecutivos, disenadores }) => {
+  const persistirListasUsuariosLocal = ({ ejecutivos, contenido, disenadores }) => {
     setListaEjecutivos(ejecutivos);
+    setListaContenido(contenido);
     setListaDisenadores(disenadores);
     setLocalStorageItemSafe("robin_lista_ejecutivos", JSON.stringify(ejecutivos));
+    setLocalStorageItemSafe("robin_lista_contenido", JSON.stringify(contenido));
     setLocalStorageItemSafe("robin_lista_disenadores", JSON.stringify(disenadores));
   };
 
@@ -1495,6 +1534,7 @@ function App() {
     }
 
     const nextEjecutivos = Array.from(new Set([...listaEjecutivos, nuevo]));
+    const nextContenido = listaContenido.filter((u) => u !== nuevo);
     const nextDisenadores = listaDisenadores.filter((u) => u !== nuevo);
 
     await sincronizarUsuarioAdmin({
@@ -1502,7 +1542,11 @@ function App() {
       rol: "ejecutivo",
       accion: "add",
       onExitoLocal: () => {
-        persistirListasUsuariosLocal({ ejecutivos: nextEjecutivos, disenadores: nextDisenadores });
+        persistirListasUsuariosLocal({
+          ejecutivos: nextEjecutivos,
+          contenido: nextContenido,
+          disenadores: nextDisenadores
+        });
         registrarNuevaPersonaGlobal("@" + nuevo);
         setNuevoEjecutivoInput("");
       }
@@ -1515,6 +1559,7 @@ function App() {
     if (!listaEjecutivos.includes(user)) return;
 
     const nextEjecutivos = listaEjecutivos.filter((u) => u !== user);
+    const nextContenido = listaContenido.filter(Boolean);
     const nextDisenadores = listaDisenadores.filter(Boolean);
 
     await sincronizarUsuarioAdmin({
@@ -1522,7 +1567,68 @@ function App() {
       rol: "ejecutivo",
       accion: "remove",
       onExitoLocal: () => {
-        persistirListasUsuariosLocal({ ejecutivos: nextEjecutivos, disenadores: nextDisenadores });
+        persistirListasUsuariosLocal({
+          ejecutivos: nextEjecutivos,
+          contenido: nextContenido,
+          disenadores: nextDisenadores
+        });
+      }
+    });
+  };
+
+  const handleAddContenido = async (e) => {
+    e.preventDefault();
+    const nuevo = nuevoContenidoInput.trim().toLowerCase();
+    if (!nuevo) return;
+    if (nuevo === "admin") {
+      showToast("admin no puede ser de contenido", "error");
+      setNuevoContenidoInput("");
+      return;
+    }
+    if (listaContenido.includes(nuevo)) {
+      showToast("Ya está en contenido", "error");
+      return;
+    }
+
+    const nextContenido = Array.from(new Set([...listaContenido, nuevo]));
+    const nextEjecutivos = listaEjecutivos.filter((u) => u !== nuevo);
+    const nextDisenadores = listaDisenadores.filter((u) => u !== nuevo);
+
+    await sincronizarUsuarioAdmin({
+      usuario: nuevo,
+      rol: "contenido",
+      accion: "add",
+      onExitoLocal: () => {
+        persistirListasUsuariosLocal({
+          ejecutivos: nextEjecutivos,
+          contenido: nextContenido,
+          disenadores: nextDisenadores
+        });
+        registrarNuevaPersonaGlobal("@" + nuevo);
+        setNuevoContenidoInput("");
+      }
+    });
+  };
+
+  const handleRemoveContenido = async (usernameToRemove) => {
+    const user = normalizeRobinUsername(usernameToRemove);
+    if (!user || user === "admin") return;
+    if (!listaContenido.includes(user)) return;
+
+    const nextContenido = listaContenido.filter((u) => u !== user);
+    const nextEjecutivos = listaEjecutivos.filter(Boolean);
+    const nextDisenadores = listaDisenadores.filter(Boolean);
+
+    await sincronizarUsuarioAdmin({
+      usuario: user,
+      rol: "contenido",
+      accion: "remove",
+      onExitoLocal: () => {
+        persistirListasUsuariosLocal({
+          ejecutivos: nextEjecutivos,
+          contenido: nextContenido,
+          disenadores: nextDisenadores
+        });
       }
     });
   };
@@ -1543,13 +1649,18 @@ function App() {
 
     const nextDisenadores = Array.from(new Set([...listaDisenadores, nuevo]));
     const nextEjecutivos = listaEjecutivos.filter((u) => u !== nuevo);
+    const nextContenido = listaContenido.filter((u) => u !== nuevo);
 
     await sincronizarUsuarioAdmin({
       usuario: nuevo,
       rol: "disenador",
       accion: "add",
       onExitoLocal: () => {
-        persistirListasUsuariosLocal({ ejecutivos: nextEjecutivos, disenadores: nextDisenadores });
+        persistirListasUsuariosLocal({
+          ejecutivos: nextEjecutivos,
+          contenido: nextContenido,
+          disenadores: nextDisenadores
+        });
         registrarNuevaPersonaGlobal("@" + nuevo);
         setNuevoDisenadorInput("");
       }
@@ -1563,13 +1674,18 @@ function App() {
 
     const nextDisenadores = listaDisenadores.filter((u) => u !== user);
     const nextEjecutivos = listaEjecutivos.filter(Boolean);
+    const nextContenido = listaContenido.filter(Boolean);
 
     await sincronizarUsuarioAdmin({
       usuario: user,
       rol: "disenador",
       accion: "remove",
       onExitoLocal: () => {
-        persistirListasUsuariosLocal({ ejecutivos: nextEjecutivos, disenadores: nextDisenadores });
+        persistirListasUsuariosLocal({
+          ejecutivos: nextEjecutivos,
+          contenido: nextContenido,
+          disenadores: nextDisenadores
+        });
       }
     });
   };
@@ -1683,12 +1799,33 @@ function App() {
           // Seed de roles desde backend (PropertiesService).
           if (json.auth) {
             const execs = Array.isArray(json.auth.executives) ? json.auth.executives : null;
+            const contentAuth = Array.isArray(json.auth.content) ? json.auth.content : null;
             const dis = Array.isArray(json.auth.designers) ? json.auth.designers : null;
+            const setContentDefault = new Set(getDefaultContentUsers().map(normalizeRobinUsername));
 
             if (execs) {
               const normalizados = execs.map(normalizeRobinUsername).filter(Boolean);
-              setListaEjecutivos(normalizados);
-              setLocalStorageItemSafe("robin_lista_ejecutivos", JSON.stringify(normalizados));
+              const locales = leerListaLocalContenido().map(normalizeRobinUsername).filter(Boolean);
+              const contentAuthNorm = Array.isArray(contentAuth)
+                ? contentAuth.map(normalizeRobinUsername).filter(Boolean)
+                : [];
+              // Si el backend aún no trae `content`, sacamos a Daniela/Sofía/Douglas de ejecutivos.
+              const contenidoFusion = Array.from(new Set(
+                contentAuthNorm.length
+                  ? contentAuthNorm
+                  : [
+                    ...setContentDefault,
+                    ...locales,
+                    ...normalizados.filter((u) => setContentDefault.has(u) || locales.includes(u))
+                  ]
+              )).filter((u) => u && u !== "admin");
+              const setContent = new Set(contenidoFusion);
+              const ejecutivos = normalizados.filter((u) => u === "admin" || !setContent.has(u));
+
+              setListaEjecutivos(ejecutivos);
+              setListaContenido(contenidoFusion);
+              setLocalStorageItemSafe("robin_lista_ejecutivos", JSON.stringify(ejecutivos));
+              setLocalStorageItemSafe("robin_lista_contenido", JSON.stringify(contenidoFusion));
             }
             if (dis) {
               const normalizados = dis.map(normalizeRobinUsername).filter(Boolean);
@@ -2399,7 +2536,7 @@ function App() {
             <p className="robin-config-advanced__hint">Personas con acceso a ROBIN.</p>
             {isAdmin ? (
               <div className={`${currentTheme.cardBg} border ${currentTheme.border} p-3 rounded-md flex flex-col gap-3`}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div className="flex flex-col gap-2">
                     <h4 className={`text-sm font-bold ${currentTheme.text}`}>Ejecutivos</h4>
                     <form onSubmit={handleAddExecutive} className="flex gap-2">
@@ -2425,6 +2562,33 @@ function App() {
                         </span>
                       )) : (
                         <span className="text-ui-sm text-zinc-400">Sin ejecutivos</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <h4 className={`text-sm font-bold ${currentTheme.text}`}>Contenido</h4>
+                    <form onSubmit={handleAddContenido} className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Usuario contenido (ej: dsanchez)"
+                        value={nuevoContenidoInput}
+                        onChange={(e) => setNuevoContenidoInput(e.target.value)}
+                        className="flex-1 bg-zinc-50 border border-zinc-200 px-3 py-2 text-sm rounded font-semibold"
+                      />
+                      <button type="submit" className="px-3 py-2 bg-[#37352F] text-white text-ui font-semibold rounded-md">+</button>
+                    </form>
+                    <div className="flex flex-wrap gap-1.5">
+                      {listaContenido.length ? listaContenido.map((u) => (
+                        <span
+                          key={u}
+                          className="inline-flex items-center gap-1 bg-zinc-50 border border-zinc-200 text-zinc-800 text-[11px] font-semibold px-2 py-1 rounded-full"
+                        >
+                          @{u}
+                          <button type="button" onClick={() => handleRemoveContenido(u)} className="text-zinc-400 font-bold">&times;</button>
+                        </span>
+                      )) : (
+                        <span className="text-ui-sm text-zinc-400">Sin contenido</span>
                       )}
                     </div>
                   </div>
@@ -3391,6 +3555,7 @@ function App() {
               tareas={tareas}
               usuariosConectados={usuariosConectados}
               listaEjecutivos={listaEjecutivos}
+              listaContenido={listaContenido}
               listaDisenadores={listaDisenadores}
               onVerTareasPersona={irATareasPersona}
             />

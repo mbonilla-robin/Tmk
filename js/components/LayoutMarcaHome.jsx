@@ -57,7 +57,7 @@ function MarcaInfoSubpagina({ metadata, nombreMarca, marcaEstilo, onVerFichaClie
               )}
             </div>
             <div className="marca-info-block">
-              <span className="marca-info-block-label">Content</span>
+              <span className="marca-info-block-label">Contenido</span>
               {metadata.contentEquipo.length === 0 ? (
                 <p className="marca-info-block-empty">Sin asignar</p>
               ) : (

@@ -5,16 +5,18 @@ const PERSONAS_CANONICAS = [
   "fcolmenares",
   "gnebrus",
   "sgiucastro",
+  "dsanchez",
   "admin"
 ];
 
 const LISTA_PERSONAS_DEFECTO = [
   "@fcolmenares",
   "@ralvarez",
-  "@dsalavarria",
   "@mbonilla",
   "@gnebrus",
+  "@dsalavarria",
   "@sgiucastro",
+  "@dsanchez",
   "@jalfiero",
   "@arusso",
   "@arodriguez",
@@ -28,13 +30,18 @@ const LISTA_PERSONAS_DEFECTO = [
 const PERSONAS_STORAGE_KEY = "robin_personas_v3";
 const PERSONAS_STORAGE_KEY_LEGACY = "robin_personas_v2";
 
+/** Alias @Trade: solo ejecutivos de trade (sin contenido ni diseñadores). */
 const PERSONAS_EQUIPO_TRADE = [
   "fcolmenares",
   "ralvarez",
-  "dsalavarria",
   "mbonilla",
-  "gnebrus",
-  "sgiucastro"
+  "gnebrus"
+];
+
+const PERSONAS_EQUIPO_CONTENIDO = [
+  "dsalavarria",
+  "sgiucastro",
+  "dsanchez"
 ];
 
 const PERSONAS_ALIAS_A_CANONICO = (() => {
@@ -101,6 +108,16 @@ const PERSONAS_ALIAS_A_CANONICO = (() => {
   add("@sofia", "sgiucastro");
   add("@sofi", "sgiucastro");
   add("@sgiucastro", "sgiucastro");
+
+  add("douglas", "dsanchez");
+  add("doug", "dsanchez");
+  add("sanchez", "dsanchez");
+  add("douglas sanchez", "dsanchez");
+  add("d sanchez", "dsanchez");
+  add("dsanchez", "dsanchez");
+  add("@douglas", "dsanchez");
+  add("@doug", "dsanchez");
+  add("@dsanchez", "dsanchez");
 
   add("admin", "admin");
   add("@admin", "admin");
@@ -569,15 +586,50 @@ function obtenerHandlesDisenadores() {
   return Array.from(set);
 }
 
+function obtenerHandlesContenido() {
+  const base = (
+    typeof ROBIN_CONTENT_USERNAMES !== "undefined"
+      ? ROBIN_CONTENT_USERNAMES
+      : PERSONAS_EQUIPO_CONTENIDO
+  );
+  const raw = getLocalStorageItemSafe("robin_lista_contenido", null);
+  let local = [];
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      local = Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      local = [];
+    }
+  }
+
+  const set = new Set([...base, ...local].map((u) => normalizarClavePersona(u)).filter(Boolean));
+  return Array.from(set);
+}
+
 function esPersonaDisenador(valor) {
   const handlesDisenador = new Set(obtenerHandlesDisenadores());
   return obtenerHandlesDesdeCampoPersonas(valor).some((h) => handlesDisenador.has(h));
 }
 
+function esPersonaContenido(valor) {
+  if (esPersonaDisenador(valor)) return false;
+  const handlesContenido = new Set(obtenerHandlesContenido());
+  return obtenerHandlesDesdeCampoPersonas(valor).some((h) => handlesContenido.has(h));
+}
+
 function obtenerListaEjecutivosActiva() {
+  const setDis = new Set(obtenerHandlesDisenadores());
+  const setContent = new Set(obtenerHandlesContenido());
+  const desdeTrade = obtenerHandlesEquipoTrade()
+    .filter((h) => !setDis.has(h) && !setContent.has(h))
+    .map(formatearHandleCanonico);
+  return fusionarListasPersonas(desdeTrade, ["Trade", "Cliente"]);
+}
+
+function obtenerListaContenidoActiva() {
   return fusionarListasPersonas(
-    obtenerHandlesEquipoTrade().map(formatearHandleCanonico),
-    ["Trade", "Cliente"]
+    obtenerHandlesContenido().map(formatearHandleCanonico)
   );
 }
 
@@ -597,11 +649,14 @@ function obtenerListaDisenadoresActiva() {
 function dividirCampoPersonasPorRol(raw) {
   const partes = partesCampoPersonas(raw);
   const ejecutivos = [];
+  const contenido = [];
   const disenadores = [];
 
   partes.forEach((persona) => {
     if (esPersonaDisenador(persona)) {
       disenadores.push(persona);
+    } else if (esPersonaContenido(persona)) {
+      contenido.push(persona);
     } else {
       ejecutivos.push(persona);
     }
@@ -609,12 +664,17 @@ function dividirCampoPersonasPorRol(raw) {
 
   return {
     ejecutivos: normalizarCampoPersonas(ejecutivos.join(", ")),
+    contenido: normalizarCampoPersonas(contenido.join(", ")),
     disenadores: normalizarCampoPersonas(disenadores.join(", "))
   };
 }
 
-function combinarEjecutivosYDisenadores(ejecutivosRaw, disenadoresRaw) {
+function combinarRolesPersonas(ejecutivosRaw, contenidoRaw, disenadoresRaw) {
   return normalizarCampoPersonas(
-    [ejecutivosRaw, disenadoresRaw].filter(Boolean).join(", ")
+    [ejecutivosRaw, contenidoRaw, disenadoresRaw].filter(Boolean).join(", ")
   );
+}
+
+function combinarEjecutivosYDisenadores(ejecutivosRaw, disenadoresRaw) {
+  return combinarRolesPersonas(ejecutivosRaw, "", disenadoresRaw);
 }

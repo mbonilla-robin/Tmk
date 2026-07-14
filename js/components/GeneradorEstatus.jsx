@@ -192,6 +192,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                   onChange={setPersonasFiltro}
                   listaGlobal={personasDisponibles}
                   registrarNuevaPersona={registrarNuevaPersona}
+                  titulo="Personas"
                 />
               </div>
 

@@ -39,7 +39,12 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   const [fechaInicioError, setFechaInicioError] = useState("");
   const rolesIniciales = dividirCampoPersonasPorRol(tarea.personas || "");
   const [personasEjecutivos, setPersonasEjecutivos] = useState(rolesIniciales.ejecutivos);
+  const [personasContenido, setPersonasContenido] = useState(rolesIniciales.contenido);
   const [personasDisenadores, setPersonasDisenadores] = useState(rolesIniciales.disenadores);
+  const [mostrarContenido, setMostrarContenido] = useState(() => Boolean(String(rolesIniciales.contenido || "").trim()));
+  const [mostrarDisenadores, setMostrarDisenadores] = useState(() => Boolean(String(rolesIniciales.disenadores || "").trim()));
+  const [autoAbrirContenido, setAutoAbrirContenido] = useState(false);
+  const [autoAbrirDisenadores, setAutoAbrirDisenadores] = useState(false);
   const [rawDetalles, setRawDetalles] = useState(tarea.detalles || "");
   const [guardando, setGuardando] = useState(false);
   const [copiadoEnlace, setCopiadoEnlace] = useState(false);
@@ -83,6 +88,10 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     () => fusionarListasPersonas(obtenerListaEjecutivosActiva(), partesCampoPersonas(personasEjecutivos)),
     [personasEjecutivos]
   );
+  const listaContenido = useMemo(
+    () => fusionarListasPersonas(obtenerListaContenidoActiva(), partesCampoPersonas(personasContenido)),
+    [personasContenido]
+  );
   const listaDisenadores = useMemo(
     () => fusionarListasPersonas(obtenerListaDisenadoresActiva(), partesCampoPersonas(personasDisenadores)),
     [personasDisenadores]
@@ -125,7 +134,12 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     setFechaInicioError("");
     const roles = dividirCampoPersonasPorRol(tarea.personas || "");
     setPersonasEjecutivos(roles.ejecutivos);
+    setPersonasContenido(roles.contenido);
     setPersonasDisenadores(roles.disenadores);
+    setMostrarContenido(Boolean(String(roles.contenido || "").trim()));
+    setMostrarDisenadores(Boolean(String(roles.disenadores || "").trim()));
+    setAutoAbrirContenido(false);
+    setAutoAbrirDisenadores(false);
     setRawDetalles(detalles);
     setNotes(parsedDetalles.notes || parsedDetalles.notas);
     setSubtareas(parsedDetalles.subtareas);
@@ -220,7 +234,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     }
     setDeadlineError("");
     setFechaInicioError("");
-    const personas = combinarEjecutivosYDisenadores(personasEjecutivos, personasDisenadores);
+    const personas = combinarRolesPersonas(personasEjecutivos, personasContenido, personasDisenadores);
     const tareaPreparada = prepararTareaConCategoria({
       ...tarea,
       info: info.trim(),
@@ -366,6 +380,21 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
               )}
             </PropertyRow>
 
+            <PropertyRow icon="fa-solid fa-store" label="Subcliente">
+              {metadatosSoloLectura ? (
+                <span className={readOnlyClass}>{subcliente || "—"}</span>
+              ) : (
+                <SelectorSubclienteChip
+                  valor={subcliente}
+                  onChange={handleSubclienteChange}
+                  marca={marca}
+                  listaGlobal={listaSubclientes}
+                  registrarNuevoSubcliente={registrarNuevoSubcliente}
+                  variant="minimal"
+                />
+              )}
+            </PropertyRow>
+
             <PropertyRow icon="fa-regular fa-circle-dot" label="Estado">
               <div className="flex items-center gap-2">
                 <span className={`w-2 h-2 rounded-full shrink-0 ${estadoVisual.dot}`} />
@@ -444,21 +473,6 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
               )}
             </PropertyRow>
 
-            <PropertyRow icon="fa-solid fa-store" label="Subcliente">
-              {metadatosSoloLectura ? (
-                <span className={readOnlyClass}>{subcliente || "—"}</span>
-              ) : (
-                <SelectorSubclienteChip
-                  valor={subcliente}
-                  onChange={handleSubclienteChange}
-                  marca={marca}
-                  listaGlobal={listaSubclientes}
-                  registrarNuevoSubcliente={registrarNuevoSubcliente}
-                  variant="minimal"
-                />
-              )}
-            </PropertyRow>
-
             <PropertyRow icon="fa-regular fa-user" label="Ejecutivos">
               {metadatosSoloLectura ? (
                 <span className={readOnlyClass}>{personasEjecutivos || "—"}</span>
@@ -469,6 +483,22 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
                   listaGlobal={listaEjecutivos}
                   registrarNuevaPersona={registrarNuevaPersona}
                   variant="minimal"
+                  titulo="Ejecutivos"
+                />
+              )}
+            </PropertyRow>
+
+            <PropertyRow icon="fa-regular fa-user" label="Contenido">
+              {metadatosSoloLectura ? (
+                <span className={readOnlyClass}>{personasContenido || "—"}</span>
+              ) : (
+                <SelectorPersonasChips
+                  personasSeleccionadas={personasContenido}
+                  onChange={setPersonasContenido}
+                  listaGlobal={listaContenido}
+                  registrarNuevaPersona={registrarNuevaPersona}
+                  variant="minimal"
+                  titulo="Contenido"
                 />
               )}
             </PropertyRow>
@@ -484,6 +514,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
                   registrarNuevaPersona={registrarNuevaPersona}
                   variant="minimal"
                   expandirTradeComo="disenadores"
+                  titulo="Diseñadores"
                 />
               )}
             </PropertyRow>

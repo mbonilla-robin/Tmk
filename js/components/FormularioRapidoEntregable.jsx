@@ -90,6 +90,7 @@ function FormularioRapidoEntregable({
               registrarNuevaPersona={registrarNuevaPersona}
               variant="minimal"
               expandirTradeComo="disenadores"
+              titulo="Diseñador"
             />
           </div>
 

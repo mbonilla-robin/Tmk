@@ -37,6 +37,10 @@ ALIAS_TO_CANONICAL = {
     "giucastro": "sgiucastro",
     "sofia giucastro": "sgiucastro",
     "sgiucastro": "sgiucastro",
+    "douglas": "dsanchez",
+    "sanchez": "dsanchez",
+    "douglas sanchez": "dsanchez",
+    "dsanchez": "dsanchez",
     "admin": "admin",
 }
 

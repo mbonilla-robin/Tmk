@@ -43,6 +43,42 @@ function isRobinDesigner(username, disenadoresOverride = null) {
   return localList.map(normalizeRobinUsername).includes(user);
 }
 
+function leerListaLocalContenido() {
+  const raw = getLocalStorageItemSafe("robin_lista_contenido", null);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+/**
+ * Determina si el usuario es de contenido (mismos permisos que ejecutivo).
+ * - Default: `ROBIN_CONTENT_USERNAMES`
+ * - Override / persistencia: `robin_lista_contenido`
+ */
+function isRobinContent(username, contenidoOverride = null) {
+  const user = normalizeRobinUsername(username);
+  if (!user) return false;
+  if (isRobinDesigner(user)) return false;
+
+  if (ROBIN_CONTENT_USERNAMES.includes(user)) return true;
+
+  const overrideList = Array.isArray(contenidoOverride) ? contenidoOverride : null;
+  if (overrideList) {
+    const set = new Set(overrideList.map(normalizeRobinUsername).filter(Boolean));
+    return set.has(user);
+  }
+
+  return leerListaLocalContenido().map(normalizeRobinUsername).includes(user);
+}
+
+function getDefaultContentUsers() {
+  return (Array.isArray(ROBIN_CONTENT_USERNAMES) ? ROBIN_CONTENT_USERNAMES : []).slice();
+}
+
 function isPasswordValidForUser(username, password) {
   // El backend valida que el usuario pertenezca realmente al rol,
   // así que del lado del frontend aceptamos cualquiera de los dos secrets.
@@ -136,7 +172,19 @@ function isRobinAdmin(username) {
 
 function getDefaultAllowedUsers() {
   return [
-    "fcolmenares", "ralvarez", "dsalavarria", "mbonilla", "gnebrus", "sgiucastro",
+    "fcolmenares", "ralvarez", "mbonilla", "gnebrus",
+    "dsalavarria", "sgiucastro", "dsanchez",
     "admin"
   ];
+}
+
+/** Ejecutivos por defecto (sin contenido ni diseñadores). */
+function getDefaultExecutiveUsers() {
+  const setContent = new Set(getDefaultContentUsers().map(normalizeRobinUsername));
+  const setDesigners = new Set(
+    (Array.isArray(ROBIN_DESIGNER_USERNAMES) ? ROBIN_DESIGNER_USERNAMES : []).map(normalizeRobinUsername)
+  );
+  return getDefaultAllowedUsers().filter(
+    (u) => u === "admin" || (!setContent.has(u) && !setDesigners.has(u))
+  );
 }

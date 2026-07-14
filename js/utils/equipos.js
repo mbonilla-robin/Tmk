@@ -5,6 +5,7 @@ const NOMBRES_DISPLAY_EQUIPO = {
   fcolmenares: "Francisco Colmenares",
   gnebrus: "Genesis Nebrus",
   sgiucastro: "Sofia Giucastro",
+  dsanchez: "Douglas Sánchez",
   agraterol: "Aaron Graterol",
   dmatheus: "David Matheus",
   jalfiero: "Jesús Alfiero",
@@ -65,13 +66,18 @@ function normalizarHandleRosterEquipos(valor) {
 }
 
 /**
- * Roster completo del equipo: ejecutivos + diseñadores + quien ya tenga tareas.
- * Siempre incluye a todos los del equipo, con o sin carga.
+ * Roster completo del equipo: ejecutivos + contenido + diseñadores + quien ya tenga tareas.
+ * Siempre incluye a todos del equipo, con o sin carga.
  */
-function obtenerRosterEquipos(listaEjecutivos, listaDisenadores, tareas) {
+function obtenerRosterEquipos(listaEjecutivos, listaContenido, listaDisenadores, tareas) {
   const handles = new Set();
 
   (listaEjecutivos || []).forEach((u) => {
+    const handle = normalizarHandleRosterEquipos(u);
+    if (handle) handles.add(handle);
+  });
+
+  (listaContenido || []).forEach((u) => {
     const handle = normalizarHandleRosterEquipos(u);
     if (handle) handles.add(handle);
   });

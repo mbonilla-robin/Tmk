@@ -133,14 +133,15 @@ function LayoutEquipos({
   tareas,
   usuariosConectados,
   listaEjecutivos,
+  listaContenido,
   listaDisenadores,
   onVerTareasPersona
 }) {
   const [rango, setRango] = useState("todo");
 
   const roster = useMemo(
-    () => obtenerRosterEquipos(listaEjecutivos, listaDisenadores, tareas),
-    [listaEjecutivos, listaDisenadores, tareas]
+    () => obtenerRosterEquipos(listaEjecutivos, listaContenido, listaDisenadores, tareas),
+    [listaEjecutivos, listaContenido, listaDisenadores, tareas]
   );
 
   const metricas = useMemo(
@@ -148,15 +149,17 @@ function LayoutEquipos({
     [tareas, rango, roster]
   );
 
-  const { ejecutivos, disenadores } = useMemo(() => {
+  const { ejecutivos, contenido, disenadores } = useMemo(() => {
     const exec = [];
+    const cont = [];
     const dis = [];
     metricas.forEach((persona) => {
       if (isRobinDesigner(persona.handle, listaDisenadores)) dis.push(persona);
+      else if (isRobinContent(persona.handle, listaContenido)) cont.push(persona);
       else exec.push(persona);
     });
-    return { ejecutivos: exec, disenadores: dis };
-  }, [metricas, listaDisenadores]);
+    return { ejecutivos: exec, contenido: cont, disenadores: dis };
+  }, [metricas, listaDisenadores, listaContenido]);
 
   const resumen = useMemo(() => {
     const activas = metricas.reduce((sum, p) => sum + p.activas, 0);
@@ -240,6 +243,13 @@ function LayoutEquipos({
         <SeccionRolEquipo
           titulo="Ejecutivos"
           personas={ejecutivos}
+          usuariosConectados={usuariosConectados}
+          onVerTareasPersona={onVerTareasPersona}
+          onSegmentClick={handleSegmentClick}
+        />
+        <SeccionRolEquipo
+          titulo="Contenido"
+          personas={contenido}
           usuariosConectados={usuariosConectados}
           onVerTareasPersona={onVerTareasPersona}
           onSegmentClick={handleSegmentClick}

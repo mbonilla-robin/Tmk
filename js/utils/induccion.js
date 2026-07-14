@@ -267,7 +267,7 @@ function construirPasosInduccion({ esDisenador = false } = {}) {
         id: "form-personas",
         target: "form-personas",
         titulo: "Asignar personas",
-        texto: "Ejecutivos y diseñadores reciben la tarea en sus filtros y notificaciones.",
+        texto: "Ejecutivos, contenido y diseñadores reciben la tarea en sus filtros y notificaciones.",
         placement: "top",
         pagina: "agregar",
         scrollTarget: true

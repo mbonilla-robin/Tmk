@@ -1023,16 +1023,23 @@ function doGet(e) {
     // Listas de autorización por rol (para sembrar en el cliente).
     var allowed = robinListaDesdePropiedad_(
       "ROBIN_ALLOWED_USERS",
-      "fcolmenares,ralvarez,dsalavarria,mbonilla,gnebrus,sgiucastro,admin"
+      "fcolmenares,ralvarez,dsalavarria,mbonilla,gnebrus,sgiucastro,dsanchez,admin"
     );
     var designers = robinListaDesdePropiedad_(
       "ROBIN_DESIGNER_USERS",
       "jalfiero,arusso,arodriguez,agraterol,dmatheus"
     );
+    var contentUsers = robinListaDesdePropiedad_(
+      "ROBIN_CONTENT_USERS",
+      "dsalavarria,sgiucastro,dsanchez"
+    );
     var executives = allowed.filter(function (u) {
-      return designers.indexOf(u) === -1;
+      return designers.indexOf(u) === -1 && contentUsers.indexOf(u) === -1;
     });
     if (executives.indexOf("admin") === -1) executives.push("admin");
+    contentUsers = contentUsers.filter(function (u) {
+      return designers.indexOf(u) === -1 && u !== "admin";
+    });
 
     var filasPresencia = todasLasTareas.filter(function (t) {
       var id = String(t.idTarea || "").trim().toUpperCase();
@@ -1052,6 +1059,7 @@ function doGet(e) {
         isDesigner: session.isDesigner,
         isAdmin: session.isAdmin,
         executives: executives,
+        content: contentUsers,
         designers: designers
       }
     };

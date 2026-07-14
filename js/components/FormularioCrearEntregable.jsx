@@ -29,11 +29,20 @@ function FormularioCrearEntregable({
   const [subtareas, setSubtareas] = useState([]);
   const rolesIniciales = dividirCampoPersonasPorRol(nuevaTarea.personas || "");
   const [personasEjecutivos, setPersonasEjecutivos] = useState(rolesIniciales.ejecutivos);
+  const [personasContenido, setPersonasContenido] = useState(rolesIniciales.contenido);
   const [personasDisenadores, setPersonasDisenadores] = useState(rolesIniciales.disenadores);
+  const [mostrarContenido, setMostrarContenido] = useState(() => Boolean(String(rolesIniciales.contenido || "").trim()));
+  const [mostrarDisenadores, setMostrarDisenadores] = useState(() => Boolean(String(rolesIniciales.disenadores || "").trim()));
+  const [autoAbrirContenido, setAutoAbrirContenido] = useState(false);
+  const [autoAbrirDisenadores, setAutoAbrirDisenadores] = useState(false);
 
   const listaEjecutivos = useMemo(
     () => fusionarListasPersonas(obtenerListaEjecutivosActiva(), partesCampoPersonas(personasEjecutivos)),
     [personasEjecutivos]
+  );
+  const listaContenido = useMemo(
+    () => fusionarListasPersonas(obtenerListaContenidoActiva(), partesCampoPersonas(personasContenido)),
+    [personasContenido]
   );
   const listaDisenadores = useMemo(
     () => fusionarListasPersonas(obtenerListaDisenadoresActiva(), partesCampoPersonas(personasDisenadores)),
@@ -42,24 +51,44 @@ function FormularioCrearEntregable({
 
   const actualizarPersonasEjecutivos = (val) => {
     setPersonasEjecutivos(val);
-    setPersonasDisenadores((disenadoresActual) => {
-      setNuevaTarea((prev) => ({
-        ...prev,
-        personas: combinarEjecutivosYDisenadores(val, disenadoresActual)
-      }));
-      return disenadoresActual;
-    });
+    setNuevaTarea((prev) => ({
+      ...prev,
+      personas: combinarRolesPersonas(val, personasContenido, personasDisenadores)
+    }));
+  };
+
+  const actualizarPersonasContenido = (val) => {
+    setPersonasContenido(val);
+    if (!partesCampoPersonas(val).length) {
+      setMostrarContenido(false);
+      setAutoAbrirContenido(false);
+    }
+    setNuevaTarea((prev) => ({
+      ...prev,
+      personas: combinarRolesPersonas(personasEjecutivos, val, personasDisenadores)
+    }));
   };
 
   const actualizarPersonasDisenadores = (val) => {
     setPersonasDisenadores(val);
-    setPersonasEjecutivos((ejecutivosActual) => {
-      setNuevaTarea((prev) => ({
-        ...prev,
-        personas: combinarEjecutivosYDisenadores(ejecutivosActual, val)
-      }));
-      return ejecutivosActual;
-    });
+    if (!partesCampoPersonas(val).length) {
+      setMostrarDisenadores(false);
+      setAutoAbrirDisenadores(false);
+    }
+    setNuevaTarea((prev) => ({
+      ...prev,
+      personas: combinarRolesPersonas(personasEjecutivos, personasContenido, val)
+    }));
+  };
+
+  const activarRolContenido = () => {
+    setMostrarContenido(true);
+    setAutoAbrirContenido(true);
+  };
+
+  const activarRolDisenadores = () => {
+    setMostrarDisenadores(true);
+    setAutoAbrirDisenadores(true);
   };
 
   const estadoVisual = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(nuevaTarea.estado)) || ESTADOS_MAPA[0];
@@ -109,6 +138,17 @@ function FormularioCrearEntregable({
               </select>
             </PropertyRow>
 
+            <PropertyRow icon="fa-solid fa-store" label="Subcliente">
+              <SelectorSubclienteChip
+                valor={nuevaTarea.subcliente || ""}
+                onChange={(val) => setNuevaTarea({ ...nuevaTarea, subcliente: val })}
+                marca={nuevaTarea.marca}
+                listaGlobal={listaSubclientes}
+                registrarNuevoSubcliente={registrarNuevoSubcliente}
+                variant="minimal"
+              />
+            </PropertyRow>
+
             <PropertyRow icon="fa-regular fa-circle-dot" label="Estado">
               <div className="flex items-center gap-2">
                 <span className={`w-2 h-2 rounded-full shrink-0 ${estadoVisual.dot}`} />
@@ -146,17 +186,6 @@ function FormularioCrearEntregable({
               />
             </PropertyRow>
 
-            <PropertyRow icon="fa-solid fa-store" label="Subcliente">
-              <SelectorSubclienteChip
-                valor={nuevaTarea.subcliente || ""}
-                onChange={(val) => setNuevaTarea({ ...nuevaTarea, subcliente: val })}
-                marca={nuevaTarea.marca}
-                listaGlobal={listaSubclientes}
-                registrarNuevoSubcliente={registrarNuevoSubcliente}
-                variant="minimal"
-              />
-            </PropertyRow>
-
             <PropertyRow icon="fa-regular fa-calendar-check" label="Inicio">
               <InputFechaLibre
                 value={nuevaTarea.fechaInicio || fechaHoyDisplay()}
@@ -185,19 +214,63 @@ function FormularioCrearEntregable({
                 listaGlobal={listaEjecutivos}
                 registrarNuevaPersona={registrarNuevaPersona}
                 variant="minimal"
+                titulo="Ejecutivos"
               />
             </PropertyRow>
 
-            <PropertyRow icon="fa-regular fa-user" label="Diseñadores">
-              <SelectorPersonasChips
-                personasSeleccionadas={personasDisenadores}
-                onChange={actualizarPersonasDisenadores}
-                listaGlobal={listaDisenadores}
-                registrarNuevaPersona={registrarNuevaPersona}
-                variant="minimal"
-                expandirTradeComo="disenadores"
-              />
-            </PropertyRow>
+            {mostrarContenido && (
+              <PropertyRow icon="fa-regular fa-user" label="Contenido">
+                <SelectorPersonasChips
+                  personasSeleccionadas={personasContenido}
+                  onChange={actualizarPersonasContenido}
+                  listaGlobal={listaContenido}
+                  registrarNuevaPersona={registrarNuevaPersona}
+                  variant="minimal"
+                  titulo="Contenido"
+                  autoAbrir={autoAbrirContenido}
+                  onCerrarSinSeleccion={() => {
+                    setMostrarContenido(false);
+                    setAutoAbrirContenido(false);
+                  }}
+                />
+              </PropertyRow>
+            )}
+
+            {mostrarDisenadores && (
+              <PropertyRow icon="fa-regular fa-user" label="Diseñadores">
+                <SelectorPersonasChips
+                  personasSeleccionadas={personasDisenadores}
+                  onChange={actualizarPersonasDisenadores}
+                  listaGlobal={listaDisenadores}
+                  registrarNuevaPersona={registrarNuevaPersona}
+                  variant="minimal"
+                  expandirTradeComo="disenadores"
+                  titulo="Diseñadores"
+                  autoAbrir={autoAbrirDisenadores}
+                  onCerrarSinSeleccion={() => {
+                    setMostrarDisenadores(false);
+                    setAutoAbrirDisenadores(false);
+                  }}
+                />
+              </PropertyRow>
+            )}
+
+            {(!mostrarContenido || !mostrarDisenadores) && (
+              <div className="task-prop-roles-add">
+                {!mostrarContenido && (
+                  <button type="button" className="selector-rol-add-btn" onClick={activarRolContenido}>
+                    <i className="fa-solid fa-plus" aria-hidden="true" />
+                    Contenido
+                  </button>
+                )}
+                {!mostrarDisenadores && (
+                  <button type="button" className="selector-rol-add-btn" onClick={activarRolDisenadores}>
+                    <i className="fa-solid fa-plus" aria-hidden="true" />
+                    Diseñador
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           <PropertyRow icon="fa-solid fa-link" label="Enlace">

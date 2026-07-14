@@ -28,6 +28,45 @@
   transition: all 0.15s ease;
 }
 
+@media (max-width: 1023px) {
+  .home-atajo-pill {
+    min-height: 2.5rem;
+    padding: 0.55rem 0.9rem;
+    font-size: 13px;
+    gap: 0.45rem;
+  }
+
+  .home-atajo-pill__count {
+    min-width: 1.35rem;
+    height: 1.35rem;
+    font-size: 11px;
+    line-height: 1.35rem;
+  }
+
+  .home-area-stat {
+    min-height: 4.25rem;
+    padding: 0.85rem 0.75rem;
+  }
+
+  .home-area-stat__label {
+    font-size: 12px;
+  }
+
+  .home-area-stat__value {
+    font-size: 1.35rem;
+  }
+
+  .mobile-quick-menu__item {
+    min-height: 3rem;
+    padding: 0.8rem 0.85rem;
+    font-size: 15px;
+  }
+
+  .mobile-quick-menu__item i {
+    font-size: 14px;
+  }
+}
+
 .home-atajo-pill:active {
   transform: scale(0.98);
 }

@@ -60,7 +60,7 @@ function robinUsuarioAutorizado_(username) {
   if (robinEsDisenadorUsuario_(user)) return true;
   var allowed = robinListaDesdePropiedad_(
     "ROBIN_ALLOWED_USERS",
-    "fcolmenares,ralvarez,dsalavarria,mbonilla,gnebrus,sgiucastro,jalfiero,arusso,arodriguez,agraterol,dmatheus,admin"
+    "fcolmenares,ralvarez,dsalavarria,mbonilla,gnebrus,sgiucastro,dsanchez,jalfiero,arusso,arodriguez,agraterol,dmatheus,admin"
   );
   return allowed.indexOf(user) !== -1;
 }
@@ -210,9 +210,10 @@ function robinActualizarUsuarios_(payload) {
 
   if (rol === "designer" || rol === "disenadores" || rol === "disenador") rol = "disenador";
   if (rol === "executive" || rol === "ejecutivos" || rol === "ejecutivo") rol = "ejecutivo";
+  if (rol === "content" || rol === "contenido") rol = "contenido";
 
-  if (rol !== "disenador" && rol !== "ejecutivo") {
-    throw new Error("Rol inválido. Usa 'ejecutivo' o 'disenador'.");
+  if (rol !== "disenador" && rol !== "ejecutivo" && rol !== "contenido") {
+    throw new Error("Rol inválido. Usa 'ejecutivo', 'contenido' o 'disenador'.");
   }
 
   if (usuario === "admin" && accion === "remove") {
@@ -221,11 +222,15 @@ function robinActualizarUsuarios_(payload) {
 
   var allowed = robinListaDesdePropiedad_(
     "ROBIN_ALLOWED_USERS",
-    "fcolmenares,ralvarez,dsalavarria,mbonilla,gnebrus,sgiucastro,admin"
+    "fcolmenares,ralvarez,dsalavarria,mbonilla,gnebrus,sgiucastro,dsanchez,admin"
   );
   var designers = robinListaDesdePropiedad_(
     "ROBIN_DESIGNER_USERS",
     "jalfiero,arusso,arodriguez,agraterol,dmatheus"
+  );
+  var contentUsers = robinListaDesdePropiedad_(
+    "ROBIN_CONTENT_USERS",
+    "dsalavarria,sgiucastro,dsanchez"
   );
 
   var has = function (arr, v) { return arr.indexOf(v) !== -1; };
@@ -237,15 +242,26 @@ function robinActualizarUsuarios_(payload) {
       if (usuario === "admin") throw new Error("admin no puede ser diseñador.");
       if (!has(designers, usuario)) designers.push(usuario);
       allowed = removeVal(allowed, usuario);
+      contentUsers = removeVal(contentUsers, usuario);
+    } else if (rol === "contenido") {
+      if (usuario === "admin") throw new Error("admin no puede ser de contenido.");
+      if (!has(allowed, usuario)) allowed.push(usuario);
+      if (!has(contentUsers, usuario)) contentUsers.push(usuario);
+      designers = removeVal(designers, usuario);
     } else {
       if (!has(allowed, usuario)) allowed.push(usuario);
       designers = removeVal(designers, usuario);
+      contentUsers = removeVal(contentUsers, usuario);
     }
   } else if (accion === "remove") {
     if (rol === "disenador") {
       designers = removeVal(designers, usuario);
+    } else if (rol === "contenido") {
+      contentUsers = removeVal(contentUsers, usuario);
+      allowed = removeVal(allowed, usuario);
     } else {
       allowed = removeVal(allowed, usuario);
+      contentUsers = removeVal(contentUsers, usuario);
     }
   } else {
     throw new Error("Acción inválida. Usa 'add' o 'remove'.");
@@ -253,12 +269,50 @@ function robinActualizarUsuarios_(payload) {
 
   allowed = uniq(allowed);
   designers = uniq(designers);
+  contentUsers = uniq(contentUsers);
 
   var props = PropertiesService.getScriptProperties();
   props.setProperty("ROBIN_ALLOWED_USERS", allowed.join(","));
   props.setProperty("ROBIN_DESIGNER_USERS", designers.join(","));
+  props.setProperty("ROBIN_CONTENT_USERS", contentUsers.join(","));
 
   return robinJsonResponse_({ success: true });
+}
+
+/**
+ * Ejecutar una vez desde el editor (tras desplegar):
+ * mueve a Daniela, Sofía y Douglas a contenido sin tocar las tareas.
+ * Cada tarea conserva a quien ya tenía en `personas`.
+ */
+function robinSembrarUsuariosContenido() {
+  var props = PropertiesService.getScriptProperties();
+  var allowed = robinListaDesdePropiedad_(
+    "ROBIN_ALLOWED_USERS",
+    "fcolmenares,ralvarez,dsalavarria,mbonilla,gnebrus,sgiucastro,dsanchez,admin"
+  );
+  var designers = robinListaDesdePropiedad_(
+    "ROBIN_DESIGNER_USERS",
+    "jalfiero,arusso,arodriguez,agraterol,dmatheus"
+  );
+  var contentUsers = ["dsalavarria", "sgiucastro", "dsanchez"];
+
+  contentUsers.forEach(function (u) {
+    if (allowed.indexOf(u) === -1) allowed.push(u);
+  });
+  designers = designers.filter(function (u) {
+    return contentUsers.indexOf(u) === -1;
+  });
+  allowed = Array.from(new Set(allowed));
+  designers = Array.from(new Set(designers));
+  contentUsers = Array.from(new Set(contentUsers));
+
+  props.setProperty("ROBIN_ALLOWED_USERS", allowed.join(","));
+  props.setProperty("ROBIN_DESIGNER_USERS", designers.join(","));
+  props.setProperty("ROBIN_CONTENT_USERS", contentUsers.join(","));
+
+  Logger.log("ROBIN_CONTENT_USERS: " + contentUsers.join(","));
+  Logger.log("ROBIN_ALLOWED_USERS: " + allowed.join(","));
+  Logger.log("ROBIN_DESIGNER_USERS: " + designers.join(","));
 }
 
 /** Ejecutar desde el editor: Probar → robinProbarConfiguracion */
@@ -267,6 +321,7 @@ function robinProbarConfiguracion() {
   var secret = props.getProperty("ROBIN_API_SECRET");
   Logger.log("ROBIN_API_SECRET configurado: " + (secret ? "SÍ" : "NO"));
   Logger.log("ROBIN_ALLOWED_USERS: " + props.getProperty("ROBIN_ALLOWED_USERS"));
+  Logger.log("ROBIN_CONTENT_USERS: " + props.getProperty("ROBIN_CONTENT_USERS"));
   Logger.log("ROBIN_ADMIN_USERS: " + props.getProperty("ROBIN_ADMIN_USERS"));
 
   var fakeGet = {

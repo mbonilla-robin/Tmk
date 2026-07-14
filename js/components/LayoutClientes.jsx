@@ -416,11 +416,11 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Content</label>
+              <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1">Contenido</label>
               <ListaPersonasEditor
                 items={ficha.contentEquipo.length ? ficha.contentEquipo : [{ nombre: "", tipo: "" }]}
                 onChange={(items) => actualizarFicha("contentEquipo", items)}
-                placeholder="Nombre del content"
+                placeholder="Nombre del contenido"
               />
             </div>
 
@@ -464,7 +464,7 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <BloquePersonasLectura titulo="Ejecutivos de Trade Marketing" items={ficha.ejecutivos} />
-              <BloquePersonasLectura titulo="Content" items={ficha.contentEquipo} />
+              <BloquePersonasLectura titulo="Contenido" items={ficha.contentEquipo} />
             </div>
 
             <BloquePersonasLectura titulo="Diseñadores" items={ficha.disenadores} mostrarTipo />

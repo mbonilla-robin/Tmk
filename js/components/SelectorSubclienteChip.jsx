@@ -4,11 +4,16 @@ function SelectorSubclienteChip({
   marca,
   listaGlobal,
   registrarNuevoSubcliente,
-  variant = "default"
+  variant = "default",
+  titulo = "Subcliente"
 }) {
   const [buscar, setBuscar] = useState("");
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [esMobile, setEsMobile] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches
+  );
   const containerRef = useRef(null);
+  const panelRef = useRef(null);
 
   const seleccionado = useMemo(() => normalizarNombreSubcliente(valor), [valor]);
 
@@ -22,6 +27,19 @@ function SelectorSubclienteChip({
     return opciones.filter((n) => n.toLowerCase().includes(q));
   }, [opciones, buscar]);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return undefined;
+    const mq = window.matchMedia("(max-width: 1023px)");
+    const sync = () => setEsMobile(mq.matches);
+    sync();
+    if (mq.addEventListener) mq.addEventListener("change", sync);
+    else mq.addListener(sync);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener("change", sync);
+      else mq.removeListener(sync);
+    };
+  }, []);
+
   const handleSelect = (nombre) => {
     const norm = normalizarNombreSubcliente(nombre);
     if (!norm) return;
@@ -31,7 +49,7 @@ function SelectorSubclienteChip({
       onChange(norm);
     }
     setBuscar("");
-    setDropdownOpen(false);
+    if (!esMobile) setDropdownOpen(false);
   };
 
   const handleClear = (e) => {
@@ -56,94 +74,154 @@ function SelectorSubclienteChip({
   };
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (containerRef.current && !containerRef.current.contains(event.target)) {
-        setDropdownOpen(false);
-      }
+    if (!dropdownOpen) return undefined;
+
+    const handlePointerOutside = (event) => {
+      const target = event.target;
+      const inTrigger = containerRef.current && containerRef.current.contains(target);
+      const inPanel = panelRef.current && panelRef.current.contains(target);
+      if (!inTrigger && !inPanel) setDropdownOpen(false);
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") setDropdownOpen(false);
+    };
+
+    document.addEventListener("mousedown", handlePointerOutside);
+    document.addEventListener("touchstart", handlePointerOutside, { passive: true });
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerOutside);
+      document.removeEventListener("touchstart", handlePointerOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [dropdownOpen]);
 
   const triggerClass = variant === "minimal"
-    ? "min-h-[28px] w-full bg-transparent border-0 rounded p-0 flex flex-wrap gap-1 items-center cursor-pointer"
-    : "min-h-[36px] w-full bg-white border border-zinc-200 rounded p-1.5 flex flex-wrap gap-1 items-center cursor-pointer hover:border-zinc-300 transition-colors";
+    ? "selector-chip-trigger selector-chip-trigger--minimal"
+    : "selector-chip-trigger";
 
   const puedeCrear = esNombreSubclienteNuevoValido(buscar)
     && !opciones.some((n) => subclientesCoinciden(n, buscar));
 
-  return (
-    <div ref={containerRef} className="relative w-full">
-      <div onClick={() => setDropdownOpen(true)} className={triggerClass}>
-        {!seleccionado ? (
-          <span className="text-ui-sm text-zinc-400 font-normal">Sin subcliente</span>
+  const renderOpciones = () => (
+    <>
+      <p className="selector-chip-panel__hint">
+        Opcional. Busca un subcliente de esta marca o crea uno nuevo.
+      </p>
+      <div className="selector-chip-panel__search">
+        <input
+          type="text"
+          placeholder="Buscar o crear..."
+          value={buscar}
+          onChange={(e) => setBuscar(e.target.value)}
+          onKeyDown={handleAddCustom}
+          className="selector-chip-panel__input"
+          autoFocus={!esMobile}
+        />
+        <button
+          type="button"
+          onClick={handleAddCustom}
+          disabled={!puedeCrear}
+          className="selector-chip-panel__add"
+        >
+          Añadir
+        </button>
+      </div>
+      <div className="selector-chip-panel__list">
+        {opcionesFiltradas.length === 0 && !puedeCrear ? (
+          <p className="selector-chip-panel__empty">
+            {buscar.trim() ? "Sin coincidencias" : "Aún no hay subclientes en esta marca"}
+          </p>
         ) : (
-          <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded border bg-zinc-50 text-zinc-700 border-zinc-200">
-            <i className="fa-solid fa-store text-[8px] opacity-60" />
-            {seleccionado}
-            <button
-              type="button"
-              onClick={handleClear}
-              className="text-zinc-400 hover:text-red-500 ml-0.5 font-bold"
-            >
-              &times;
-            </button>
-          </span>
+          opcionesFiltradas.map((nombre) => {
+            const isSel = subclientesCoinciden(seleccionado, nombre);
+            return (
+              <button
+                key={nombre}
+                type="button"
+                onClick={() => handleSelect(nombre)}
+                className={`selector-chip-option ${isSel ? "is-selected" : ""}`}
+              >
+                <span className="selector-chip-option__label">
+                  <i className="fa-solid fa-store selector-chip-option__icon" aria-hidden="true" />
+                  {nombre}
+                </span>
+                {isSel && <i className="fa-solid fa-check" aria-hidden="true" />}
+              </button>
+            );
+          })
         )}
       </div>
+    </>
+  );
 
-      {dropdownOpen && (
-        <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-zinc-200 rounded shadow-md p-2 flex flex-col gap-2 max-h-52 overflow-y-auto animate-zoom-in">
-          <p className="text-[10px] text-zinc-400 px-1 leading-snug">
-            Opcional. Busca un subcliente de esta marca o crea uno nuevo.
-          </p>
-          <div className="flex gap-1">
-            <input
-              type="text"
-              placeholder="Buscar o crear..."
-              value={buscar}
-              onChange={(e) => setBuscar(e.target.value)}
-              onKeyDown={handleAddCustom}
-              className="flex-1 bg-zinc-50 border border-zinc-200 text-xs rounded px-2 py-1 focus:outline-none font-medium text-[#37352F]"
-              autoFocus
-            />
-            <button
-              type="button"
-              onClick={handleAddCustom}
-              disabled={!puedeCrear}
-              className="bg-zinc-800 text-white text-[11px] font-medium px-2.5 py-1 rounded disabled:opacity-40"
+  const mobileSheet = dropdownOpen && esMobile ? (
+    <div className="selector-chip-sheet" role="dialog" aria-label={titulo}>
+      <button
+        type="button"
+        className="selector-chip-sheet__backdrop"
+        aria-label="Cerrar"
+        onClick={() => setDropdownOpen(false)}
+      />
+      <div ref={panelRef} className="selector-chip-sheet__panel">
+        <div className="selector-chip-sheet__handle" aria-hidden="true" />
+        <div className="selector-chip-sheet__head">
+          <h3 className="selector-chip-sheet__title">{titulo}</h3>
+          <button
+            type="button"
+            className="selector-chip-sheet__done"
+            onClick={() => setDropdownOpen(false)}
+          >
+            Listo
+          </button>
+        </div>
+        {renderOpciones()}
+      </div>
+    </div>
+  ) : null;
+
+  return (
+    <div ref={containerRef} className="relative w-full selector-chip-root">
+      <button
+        type="button"
+        onClick={() => setDropdownOpen(true)}
+        className={triggerClass}
+        aria-expanded={dropdownOpen}
+        aria-haspopup="listbox"
+      >
+        {!seleccionado ? (
+          <span className="selector-chip-trigger__placeholder">Tocar para elegir</span>
+        ) : (
+          <span className="selector-chip-pill">
+            <i className="fa-solid fa-store selector-chip-pill__icon" aria-hidden="true" />
+            {seleccionado}
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={handleClear}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleClear(e);
+                }
+              }}
+              className="selector-chip-pill__remove"
+              aria-label="Quitar subcliente"
             >
-              Añadir
-            </button>
-          </div>
-          <div className="flex flex-col gap-0.5">
-            {opcionesFiltradas.length === 0 && !puedeCrear ? (
-              <p className="text-[11px] text-zinc-400 px-2 py-1.5">
-                {buscar.trim() ? "Sin coincidencias" : "Aún no hay subclientes en esta marca"}
-              </p>
-            ) : (
-              opcionesFiltradas.map((nombre) => {
-                const isSel = subclientesCoinciden(seleccionado, nombre);
-                return (
-                  <div
-                    key={nombre}
-                    onClick={() => handleSelect(nombre)}
-                    className={`flex items-center justify-between px-2 py-1 rounded text-xs font-medium cursor-pointer ${
-                      isSel ? "bg-zinc-100 text-zinc-900 font-bold" : "hover:bg-zinc-50 text-zinc-600"
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <i className="fa-solid fa-store text-[9px] text-zinc-400" />
-                      {nombre}
-                    </span>
-                    {isSel && <i className="fa-solid fa-check text-zinc-600 text-[10px]" />}
-                  </div>
-                );
-              })
-            )}
-          </div>
+              &times;
+            </span>
+          </span>
+        )}
+      </button>
+
+      {dropdownOpen && !esMobile && (
+        <div ref={panelRef} className="selector-chip-dropdown">
+          {renderOpciones()}
         </div>
       )}
+
+      {mobileSheet ? ReactDOM.createPortal(mobileSheet, document.body) : null}
     </div>
   );
 }

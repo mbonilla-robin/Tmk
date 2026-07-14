@@ -179,23 +179,6 @@ function LayoutHome({
             primerNombre={primerNombre}
           />
 
-          {onAbrirTmkNews && (
-            <button
-              type="button"
-              onClick={onAbrirTmkNews}
-              className="mobile-tmk-news-banner md:hidden"
-            >
-              <span className="mobile-tmk-news-banner__icon" aria-hidden="true">
-                <i className="fa-solid fa-newspaper" />
-              </span>
-              <span className="mobile-tmk-news-banner__copy">
-                <span className="mobile-tmk-news-banner__title">TMK News</span>
-                <span className="mobile-tmk-news-banner__sub">Ver periódico completo</span>
-              </span>
-              <i className="fa-solid fa-chevron-right mobile-tmk-news-banner__arrow" aria-hidden="true" />
-            </button>
-          )}
-
           <HomePresenceChip
             saludo={saludo}
             otrosUsuariosEnLinea={otrosUsuariosEnLinea}

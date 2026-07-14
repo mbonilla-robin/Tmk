@@ -1,4 +1,5 @@
 const ROBIN_LINK_RE = /<!--\s*robin-link:([^>]+?)\s*-->/i;
+const ROBIN_SUBCLIENTE_RE = /<!--\s*robin-subcliente:([^>]+?)\s*-->/i;
 const HISTORIAL_LINE_RE = /^•\s*\[(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})\]\s*(.+)$/;
 
 function extraerMarcadorLink(text) {
@@ -11,8 +12,22 @@ function extraerMarcadorLink(text) {
   };
 }
 
+function extraerMarcadorSubcliente(text) {
+  const raw = String(text || "");
+  const match = raw.match(ROBIN_SUBCLIENTE_RE);
+  if (!match) return { subcliente: "", resto: raw };
+  const nombre = typeof normalizarNombreSubcliente === "function"
+    ? normalizarNombreSubcliente(match[1])
+    : String(match[1] || "").trim();
+  return {
+    subcliente: nombre,
+    resto: raw.replace(ROBIN_SUBCLIENTE_RE, "").trim()
+  };
+}
+
 function parseDetalles(detallesRaw) {
-  const { link, resto } = extraerMarcadorLink(detallesRaw || "");
+  const sinLink = extraerMarcadorLink(detallesRaw || "");
+  const { subcliente, resto } = extraerMarcadorSubcliente(sinLink.resto);
   const lines = resto.split("\n");
   const notasLines = [];
   const subtareas = [];
@@ -32,14 +47,15 @@ function parseDetalles(detallesRaw) {
   });
 
   return {
-    link,
+    link: sinLink.link,
+    subcliente,
     notas: notasLines.join("\n"),
     subtareas,
     historial
   };
 }
 
-function serializeDetalles(notas, subtareas, historial, link) {
+function serializeDetalles(notas, subtareas, historial, link, subcliente) {
   let text = (notas || "").trim();
   if (subtareas && subtareas.length > 0) {
     const subtasksText = subtareas.map(s => `- [${s.completed ? "x" : " "}] ${s.text}`).join("\n");
@@ -49,9 +65,16 @@ function serializeDetalles(notas, subtareas, historial, link) {
     const historialText = historial.join("\n");
     text = text ? `${text}\n\n${historialText}` : historialText;
   }
+  const markers = [];
   const linkNorm = normalizarUrlEnlace(link);
-  if (linkNorm) {
-    text = text ? `<!--robin-link:${linkNorm}-->\n${text}` : `<!--robin-link:${linkNorm}-->`;
+  if (linkNorm) markers.push(`<!--robin-link:${linkNorm}-->`);
+  const subNorm = typeof normalizarNombreSubcliente === "function"
+    ? normalizarNombreSubcliente(subcliente)
+    : String(subcliente || "").trim();
+  if (subNorm) markers.push(`<!--robin-subcliente:${subNorm}-->`);
+  if (markers.length) {
+    const prefix = markers.join("\n");
+    text = text ? `${prefix}\n${text}` : prefix;
   }
   return text;
 }
@@ -158,6 +181,16 @@ function obtenerLinkTarea(tarea) {
   if (!tarea) return "";
   if (tarea.link) return normalizarUrlEnlace(tarea.link);
   return parseDetalles(tarea.detalles || "").link || "";
+}
+
+function obtenerSubclienteDesdeDetalles(tarea) {
+  if (!tarea) return "";
+  if (tarea.subcliente) {
+    return typeof normalizarNombreSubcliente === "function"
+      ? normalizarNombreSubcliente(tarea.subcliente)
+      : String(tarea.subcliente).trim();
+  }
+  return parseDetalles(tarea.detalles || "").subcliente || "";
 }
 
 function normalizarUrlEnlace(val) {

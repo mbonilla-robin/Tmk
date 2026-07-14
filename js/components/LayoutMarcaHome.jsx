@@ -120,7 +120,8 @@ function LayoutMarcaHome({
   alternarKanbanOrdenPrioridad,
   kanbanOrdenPrioridad,
   onVerFichaCliente,
-  onLimpiarFiltros
+  onLimpiarFiltros,
+  listaSubclientes = []
 }) {
   const marcaEstilo = getMarcaStyle(marca);
   const nombreMarca = formatearMarca(marca);
@@ -128,10 +129,25 @@ function LayoutMarcaHome({
   const metadata = useMemo(() => obtenerMetadataMarca(marcasMetadata, marca), [marcasMetadata, marca]);
 
   const [vistaSubpagina, setVistaSubpagina] = useState(null);
+  const [filtroSubcliente, setFiltroSubcliente] = useState("TODOS");
 
   const tareasMarca = useMemo(() => {
     return tareas.filter(t => marcasCoinciden(t.marca, marca));
   }, [tareas, marca]);
+
+  const subclientesDisponibles = useMemo(
+    () => listarSubclientesDisponiblesParaMarca(listaSubclientes, marca, tareasMarca),
+    [listaSubclientes, marca, tareasMarca]
+  );
+  const tieneSubclientes = subclientesDisponibles.length > 0;
+  const gruposSubclientes = useMemo(
+    () => agruparTareasPorSubcliente(tareasMarca, marca),
+    [tareasMarca, marca]
+  );
+  const tareasVista = useMemo(() => {
+    if (filtroSubcliente === "TODOS") return tareasFiltradas;
+    return tareasFiltradas.filter((t) => subclientesCoinciden(obtenerSubclienteTarea(t), filtroSubcliente));
+  }, [tareasFiltradas, filtroSubcliente]);
 
   const tareasActivasMarca = useMemo(() => {
     return tareasMarca.filter(t => !esTareaCompletada(t) && !esTareaSuspendida(t)).length;
@@ -181,7 +197,13 @@ function LayoutMarcaHome({
     filtroPrioridad !== "TODAS" ||
     filtroPersona !== "TODAS" ||
     filtroTiempo !== "TODAS" ||
+    filtroSubcliente !== "TODOS" ||
     searchQuery.trim() !== "";
+
+  const limpiarFiltrosLocales = () => {
+    setFiltroSubcliente("TODOS");
+    if (onLimpiarFiltros) onLimpiarFiltros();
+  };
 
   const entregablesToolbar = (
     <>
@@ -189,8 +211,8 @@ function LayoutMarcaHome({
         <div>
           <h3 className="marca-entregables-title">Entregables</h3>
           <p className="text-ui-sm text-zinc-400 mt-0.5">
-            {tareasFiltradas.length} activo{tareasFiltradas.length !== 1 ? "s" : ""}
-            {tareasFiltradas.length !== tareasActivasMarca ? ` · ${tareasActivasMarca} en total` : ""}
+            {tareasVista.length} activo{tareasVista.length !== 1 ? "s" : ""}
+            {tareasVista.length !== tareasActivasMarca ? ` · ${tareasActivasMarca} en total` : ""}
           </p>
         </div>
         <div className="flex items-center gap-0.5">
@@ -234,6 +256,14 @@ function LayoutMarcaHome({
             <option value="TODAS">Persona</option>
             {listaPersonas.map(p => (<option key={claveUnicaPersonaLista(p) || p} value={p}>{etiquetaDisplayListaPersona(p)}</option>))}
           </select>
+          {tieneSubclientes && (
+            <select value={filtroSubcliente} onChange={(e) => setFiltroSubcliente(e.target.value)} className="notion-filter-select">
+              <option value="TODOS">Subcliente</option>
+              {subclientesDisponibles.map((nombre) => (
+                <option key={nombre} value={nombre}>{nombre}</option>
+              ))}
+            </select>
+          )}
         </div>
         <div className="notion-time-pills">
           <button type="button" onClick={() => setFiltroTiempo("TODAS")} className={`notion-time-pill ${filtroTiempo === "TODAS" ? "is-active" : ""}`}>Todo</button>
@@ -299,21 +329,93 @@ function LayoutMarcaHome({
     );
   }
 
+  if (vistaSubpagina === "subclientes") {
+    return (
+      <div className="marca-home animate-fade-in">
+        <MobileSubpageBar
+          title="Subclientes"
+          onBack={() => setVistaSubpagina(null)}
+          backLabel={nombreMarca}
+        />
+        <div className="robin-desktop-only marca-info-desktop-bar">
+          <button type="button" onClick={() => setVistaSubpagina(null)} className="marca-info-desktop-back">
+            <i className="fa-solid fa-chevron-left text-[10px]" />
+            <span>{nombreMarca}</span>
+          </button>
+          <h2 className="marca-info-desktop-title">Subclientes</h2>
+        </div>
+        <div className="marca-subclientes-page">
+          {gruposSubclientes.length === 0 ? (
+            <div className="marca-subclientes-empty">
+              <p>No hay tareas con subcliente asignado en esta marca.</p>
+              <p className="text-ui-sm text-zinc-400 mt-1">
+                Asigna un subcliente al crear o editar un entregable.
+              </p>
+            </div>
+          ) : (
+            gruposSubclientes.map((grupo) => (
+              <section key={grupo.nombre} className="marca-subcliente-block">
+                <div className="marca-subcliente-block-header">
+                  <h3 className="marca-subcliente-block-title">{grupo.nombre}</h3>
+                  <span className="marca-subcliente-block-count">
+                    {grupo.tareas.length} tarea{grupo.tareas.length !== 1 ? "s" : ""}
+                  </span>
+                </div>
+                <ul className="marca-subcliente-task-list">
+                  {grupo.tareas.map((t) => {
+                    const cEstado = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(t.estado)) || { dot: "bg-zinc-400" };
+                    return (
+                      <li
+                        key={getTaskSelectionKey(t)}
+                        className="marca-subcliente-task-row"
+                        onClick={() => onSelectTask(t)}
+                      >
+                        <span className="marca-subcliente-task-title">{t.info || "Sin título"}</span>
+                        <span className="marca-subcliente-task-estado">
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cEstado.dot}`} />
+                          {normalizarEstado(t.estado) || "Sin estado"}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            ))
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="marca-home animate-fade-in">
       <header className="marca-home-hero" style={{ background: gradienteHeader }}>
         <div className="marca-home-hero-inner">
           <span className="marca-home-hero-spacer" aria-hidden="true" />
           <h1 className="marca-home-hero-title">{nombreMarca}</h1>
-          <button
-            type="button"
-            onClick={() => setVistaSubpagina("info")}
-            className="marca-home-info-btn"
-            title="Ver información del cliente"
-            aria-label="Ver información del cliente"
-          >
-            <i className="fa-solid fa-circle-info" />
-          </button>
+          <div className="marca-home-hero-actions">
+            {tieneSubclientes && (
+              <button
+                type="button"
+                onClick={() => setVistaSubpagina("subclientes")}
+                className="marca-home-subclientes-btn"
+                title="Ver subclientes"
+                aria-label="Ver subclientes"
+              >
+                <i className="fa-solid fa-store" />
+                <span className="marca-home-subclientes-btn-label">Subclientes</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setVistaSubpagina("info")}
+              className="marca-home-info-btn"
+              title="Ver información del cliente"
+              aria-label="Ver información del cliente"
+            >
+              <i className="fa-solid fa-circle-info" />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -417,19 +519,27 @@ function LayoutMarcaHome({
                       <option value="TODAS">Todas las personas</option>
                       {listaPersonas.map(p => (<option key={claveUnicaPersonaLista(p) || p} value={p}>{etiquetaDisplayListaPersona(p)}</option>))}
                     </select>
+                    {tieneSubclientes && (
+                      <select value={filtroSubcliente} onChange={(e) => setFiltroSubcliente(e.target.value)} className="w-full bg-white border border-zinc-200 p-2 text-ui rounded text-zinc-600">
+                        <option value="TODOS">Todos los subclientes</option>
+                        {subclientesDisponibles.map((nombre) => (
+                          <option key={nombre} value={nombre}>{nombre}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                   <div className="grid grid-cols-3 gap-1.5 pt-1">
                     <button onClick={() => setFiltroTiempo("TODAS")} className={`px-2 py-2 rounded text-[10px] font-semibold border ${filtroTiempo === "TODAS" ? "bg-[#37352F] text-white border-zinc-900" : "bg-white border-zinc-200 text-zinc-600"}`}>Todo</button>
                     <button onClick={() => setFiltroTiempo("HOY")} className={`px-2 py-2 rounded text-[10px] font-semibold border ${filtroTiempo === "HOY" ? "bg-blue-600 text-white border-blue-700" : "bg-white border-zinc-200 text-zinc-600"}`}>Hoy{metricaCounters.activasHoy > 0 ? ` (${metricaCounters.activasHoy})` : ""}</button>
                     <button onClick={() => setFiltroTiempo("ATRASADAS")} className={`px-2 py-2 rounded text-[10px] font-semibold border ${filtroTiempo === "ATRASADAS" ? "bg-red-600 text-white border-red-700" : "bg-white border-zinc-200 text-zinc-600"}`}>Atraso{metricaCounters.atrasadas > 0 ? ` (${metricaCounters.atrasadas})` : ""}</button>
                   </div>
-                  {filtrosEntregablesActivos && onLimpiarFiltros && (
-                    <button type="button" onClick={onLimpiarFiltros} className="w-full py-2 text-ui-sm font-medium text-zinc-500 border border-zinc-200 rounded-md">
+                  {filtrosEntregablesActivos && (
+                    <button type="button" onClick={limpiarFiltrosLocales} className="w-full py-2 text-ui-sm font-medium text-zinc-500 border border-zinc-200 rounded-md">
                       Limpiar filtros
                     </button>
                   )}
                   <button type="button" onClick={() => setDashboardMobileVista("lista")} className="w-full py-2.5 bg-[#37352F] text-white text-ui font-semibold rounded-md">
-                    Ver {tareasFiltradas.length} resultados
+                    Ver {tareasVista.length} resultados
                   </button>
                 </div>
               </div>
@@ -441,7 +551,7 @@ function LayoutMarcaHome({
                       Entregables
                     </h2>
                     <p className="text-[10px] text-zinc-400">
-                      {tareasFiltradas.length} resultado{tareasFiltradas.length !== 1 ? "s" : ""}
+                      {tareasVista.length} resultado{tareasVista.length !== 1 ? "s" : ""}
                       {filtrosEntregablesActivos ? " · filtros activos" : ""}
                     </p>
                   </div>
@@ -469,9 +579,9 @@ function LayoutMarcaHome({
                   </div>
                 )}
                 {vistaModo === "TABLE" ? (
-                  <LayoutTablaAgrupada {...layoutTablaProps} />
+                  <LayoutTablaAgrupada {...layoutTablaProps} tareas={tareasVista} />
                 ) : (
-                  <LayoutKanban tareas={tareasFiltradas} ordenPrioridad={kanbanOrdenPrioridadActivo} onUpdateField={onUpdateField} onSelectTask={onSelectTask} onDeleteTask={onDeleteTask} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
+                  <LayoutKanban tareas={tareasVista} ordenPrioridad={kanbanOrdenPrioridadActivo} onUpdateField={onUpdateField} onSelectTask={onSelectTask} onDeleteTask={onDeleteTask} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
                 )}
               </>
             )}
@@ -480,9 +590,9 @@ function LayoutMarcaHome({
           <div className="robin-desktop-only flex-col gap-4">
             {entregablesToolbar}
             {vistaModo === "TABLE" ? (
-              <LayoutTablaAgrupada {...layoutTablaProps} />
+              <LayoutTablaAgrupada {...layoutTablaProps} tareas={tareasVista} />
             ) : (
-              <LayoutKanban tareas={tareasFiltradas} ordenPrioridad={kanbanOrdenPrioridadActivo} onUpdateField={onUpdateField} onSelectTask={onSelectTask} onDeleteTask={onDeleteTask} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
+              <LayoutKanban tareas={tareasVista} ordenPrioridad={kanbanOrdenPrioridadActivo} onUpdateField={onUpdateField} onSelectTask={onSelectTask} onDeleteTask={onDeleteTask} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
             )}
           </div>
 

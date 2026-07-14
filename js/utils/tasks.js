@@ -110,6 +110,7 @@ function crearNuevaTareaVacia() {
   return {
     marca: "La Santé",
     categoria: "",
+    subcliente: "",
     info: "",
     personas: "",
     detalles: "",
@@ -412,6 +413,11 @@ function limpiarFechasLocalesSiConfirmadas(tarea, remota) {
 }
 
 function normalizarTareaCampos(t) {
+  const subcliente = typeof obtenerSubclienteTarea === "function"
+    ? obtenerSubclienteTarea(t)
+    : (typeof obtenerSubclienteDesdeDetalles === "function"
+      ? obtenerSubclienteDesdeDetalles(t)
+      : String(t?.subcliente || "").trim());
   return aplicarFechasLocales({
     ...t,
     marca: normalizarMarca(t.marca),
@@ -419,7 +425,8 @@ function normalizarTareaCampos(t) {
     prioridad: normalizarPrioridad(t.prioridad || t.Prioridad),
     deadline: normalizarDeadline(t.deadline),
     fechaInicio: resolverFechaInicioTarea(t),
-    personas: normalizarCampoPersonas(t.personas)
+    personas: normalizarCampoPersonas(t.personas),
+    subcliente
   });
 }
 

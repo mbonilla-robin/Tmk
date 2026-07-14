@@ -19,7 +19,7 @@ function tareaTienePersona(tarea, personasFiltro) {
   return personasFiltro.some((filtro) => tareaIncluyePersonaFiltro(tarea.personas || "", filtro));
 }
 
-function filtrarTareasParaEstatus(tareas, { marcas, estados, filtroTiempo, personas }) {
+function filtrarTareasParaEstatus(tareas, { marcas, estados, filtroTiempo, personas, subclientes }) {
   const hoy = new Date();
   const tHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
 
@@ -45,6 +45,11 @@ function filtrarTareasParaEstatus(tareas, { marcas, estados, filtroTiempo, perso
     }
 
     if (!tareaTienePersona(t, personas)) return false;
+
+    if (subclientes && subclientes.length > 0) {
+      const sub = obtenerSubclienteTarea(t);
+      if (!subclientes.some((s) => subclientesCoinciden(s, sub))) return false;
+    }
 
     return true;
   });
@@ -98,8 +103,10 @@ function formatearLineaTareaEstatus(tarea) {
   const titulo = (tarea.info || "Sin título").trim();
   const deadline = formatearFechaEstatus(tarea.deadline);
   const personas = (tarea.personas || "Sin asignar").trim();
+  const subcliente = obtenerSubclienteTarea(tarea);
+  const subparte = subcliente ? ` | ${subcliente}` : "";
 
-  const lineas = [`• _${estado}_ | *${titulo}* | ${deadline} | ${personas}`];
+  const lineas = [`• _${estado}_ | *${titulo}* | ${deadline} | ${personas}${subparte}`];
 
   const { subtareas } = parseDetalles(tarea.detalles);
   const lineasSubtareas = subtareas
@@ -113,10 +120,10 @@ function formatearLineaTareaEstatus(tarea) {
   return lineas.join("\n");
 }
 
-function generarTextoEstatus(tareas, { marcas, estados, filtroTiempo, ordenarPor, personas }) {
+function generarTextoEstatus(tareas, { marcas, estados, filtroTiempo, ordenarPor, personas, subclientes }) {
   if (!marcas || marcas.length === 0) return "";
 
-  const filtradas = filtrarTareasParaEstatus(tareas, { marcas, estados, filtroTiempo, personas });
+  const filtradas = filtrarTareasParaEstatus(tareas, { marcas, estados, filtroTiempo, personas, subclientes });
   const bloques = [];
 
   marcas.forEach(marca => {

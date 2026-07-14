@@ -1,10 +1,11 @@
-function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarNuevaPersona, onClose }) {
+function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarNuevaPersona, listaSubclientes = [], onClose }) {
   const [vista, setVista] = useState("formulario");
   const [marcasSeleccionadas, setMarcasSeleccionadas] = useState([]);
   const [estadosSeleccionados, setEstadosSeleccionados] = useState(
     () => obtenerEstadosGeneradorEstatus()
   );
   const [personasFiltro, setPersonasFiltro] = useState("");
+  const [subclientesFiltro, setSubclientesFiltro] = useState([]);
   const [filtroTiempo, setFiltroTiempo] = useState("todas");
   const [ordenarPor, setOrdenarPor] = useState("estado");
   const [textoGenerado, setTextoGenerado] = useState("");
@@ -17,6 +18,18 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
     if (!personasFiltro) return [];
     return personasFiltro.split(",").map(p => p.trim()).filter(Boolean);
   }, [personasFiltro]);
+
+  const subclientesDisponibles = useMemo(() => {
+    if (marcasSeleccionadas.length === 0) return [];
+    const nombres = new Map();
+    marcasSeleccionadas.forEach((marca) => {
+      listarSubclientesDisponiblesParaMarca(listaSubclientes, marca, tareas).forEach((nombre) => {
+        const key = claveSubcliente(nombre);
+        if (!nombres.has(key)) nombres.set(key, nombre);
+      });
+    });
+    return Array.from(nombres.values()).sort((a, b) => a.localeCompare(b, "es"));
+  }, [marcasSeleccionadas, listaSubclientes, tareas]);
 
   const toggleMarca = (marca) => {
     setMarcasSeleccionadas(prev =>
@@ -34,6 +47,14 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
     );
   };
 
+  const toggleSubcliente = (nombre) => {
+    setSubclientesFiltro((prev) =>
+      prev.some((s) => subclientesCoinciden(s, nombre))
+        ? prev.filter((s) => !subclientesCoinciden(s, nombre))
+        : [...prev, nombre]
+    );
+  };
+
   const handleGenerar = (e) => {
     e.preventDefault();
     if (marcasSeleccionadas.length === 0) return;
@@ -43,7 +64,8 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
       estados: estadosSeleccionados,
       filtroTiempo: filtroTiempo === "todas" ? "" : filtroTiempo,
       ordenarPor,
-      personas: personasFiltroArray
+      personas: personasFiltroArray,
+      subclientes: subclientesFiltro
     });
 
     setTextoGenerado(texto || "No hay tareas que coincidan con los filtros seleccionados.");
@@ -82,9 +104,16 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
       marcas: marcasSeleccionadas,
       estados: estadosSeleccionados,
       filtroTiempo: filtroTiempo === "todas" ? "" : filtroTiempo,
-      personas: personasFiltroArray
+      personas: personasFiltroArray,
+      subclientes: subclientesFiltro
     }).length;
-  }, [tareas, marcasSeleccionadas, estadosSeleccionados, filtroTiempo, personasFiltroArray]);
+  }, [tareas, marcasSeleccionadas, estadosSeleccionados, filtroTiempo, personasFiltroArray, subclientesFiltro]);
+
+  useEffect(() => {
+    setSubclientesFiltro((prev) =>
+      prev.filter((s) => subclientesDisponibles.some((d) => subclientesCoinciden(d, s)))
+    );
+  }, [subclientesDisponibles]);
 
   return (
     <ModalPortal>
@@ -165,6 +194,34 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                   registrarNuevaPersona={registrarNuevaPersona}
                 />
               </div>
+
+              {subclientesDisponibles.length > 0 && (
+                <div>
+                  <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-2">
+                    Subclientes <span className="font-normal normal-case">(opcional)</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {subclientesDisponibles.map((nombre) => {
+                      const seleccionado = subclientesFiltro.some((s) => subclientesCoinciden(s, nombre));
+                      return (
+                        <button
+                          key={nombre}
+                          type="button"
+                          onClick={() => toggleSubcliente(nombre)}
+                          className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                            seleccionado
+                              ? "bg-zinc-100 text-zinc-800 ring-2 ring-offset-1 ring-zinc-300 border-zinc-300"
+                              : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                          }`}
+                        >
+                          <i className="fa-solid fa-store text-[9px] opacity-60" />
+                          {nombre}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>

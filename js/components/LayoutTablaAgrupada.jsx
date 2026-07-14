@@ -19,6 +19,7 @@ function NotionTaskRow({
   const subtareasResumen = useMemo(() => resumirSubtareasTarea(t), [t.detalles]);
   const sinDisenador = useMemo(() => tareaSinDisenadorAsignado(t), [t.personas]);
   const cats = parseCategoriasTarea(t.categoria);
+  const subcliente = obtenerSubclienteTarea(t);
 
   const [offsetX, setOffsetX] = useState(0);
   const [swiping, setSwiping] = useState(false);
@@ -150,6 +151,13 @@ function NotionTaskRow({
               </span>
             );
           })}
+
+          {subcliente && (
+            <span className="notion-task-meta-chip border bg-zinc-50 text-zinc-600 border-zinc-200">
+              <i className="fa-solid fa-store text-[9px] text-zinc-400 shrink-0" />
+              {subcliente}
+            </span>
+          )}
 
           <span className={`notion-task-prio-tag ${cPrioridad.color}`}>
             {normalizarPrioridad(t.prioridad)}

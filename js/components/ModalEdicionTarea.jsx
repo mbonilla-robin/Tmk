@@ -10,7 +10,7 @@ function PropertyRow({ icon, label, children }) {
   );
 }
 
-function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNuevaPersona, listaCategorias, registrarNuevaCategoria, marcasDisponibles, usuario, nombreUsuario, onComentarioPublicado, onToast, soloLectura = false, modoDisenador = false, tareas = [], relacionesTareas = [], onRelacionCreada, onAbrirTareaRelacionada, getMarcaStyle }) {
+function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNuevaPersona, listaCategorias, registrarNuevaCategoria, listaSubclientes, registrarNuevoSubcliente, marcasDisponibles, usuario, nombreUsuario, onComentarioPublicado, onToast, soloLectura = false, modoDisenador = false, tareas = [], relacionesTareas = [], onRelacionCreada, onAbrirTareaRelacionada, getMarcaStyle }) {
   const resolverEstadoInicial = () => {
     let categoriaInicial = tarea.categoria || "";
     let infoInicial = extraerTituloLimpio(tarea.info, tarea.categoria);
@@ -93,6 +93,9 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   const [notes, setNotes] = useState(parsed.notes || parsed.notas);
   const [subtareas, setSubtareas] = useState(parsed.subtareas);
   const [link, setLink] = useState(parsed.link || "");
+  const [subcliente, setSubcliente] = useState(
+    () => obtenerSubclienteTarea(tarea) || parsed.subcliente || ""
+  );
 
   useEffect(() => {
     const detalles = tarea.detalles || "";
@@ -127,6 +130,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     setNotes(parsedDetalles.notes || parsedDetalles.notas);
     setSubtareas(parsedDetalles.subtareas);
     setLink(parsedDetalles.link || "");
+    setSubcliente(obtenerSubclienteTarea(tarea) || parsedDetalles.subcliente || "");
   }, [
     tarea.idTarea,
     tarea.info,
@@ -137,7 +141,8 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     tarea.deadline,
     tarea.fechaInicio,
     tarea.personas,
-    tarea.detalles
+    tarea.detalles,
+    tarea.subcliente
   ]);
 
   const estadoVisual = useMemo(() => {
@@ -153,29 +158,39 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     return base;
   }, [marcasDisponibles, marca]);
 
+  const serializarConMeta = (notasVal, subtareasVal, historialVal, linkVal, subclienteVal) =>
+    serializeDetalles(notasVal, subtareasVal, historialVal, linkVal, subclienteVal);
+
   const handleSubtareasChange = (nuevas) => {
     setSubtareas(nuevas);
-    setRawDetalles(serializeDetalles(notes, nuevas, parsed.historial, link));
+    setRawDetalles(serializarConMeta(notes, nuevas, parsed.historial, link, subcliente));
   };
 
   const handleNotasChange = (newNotas) => {
     setNotes(newNotas);
-    setRawDetalles(serializeDetalles(newNotas, subtareas, parsed.historial, link));
+    setRawDetalles(serializarConMeta(newNotas, subtareas, parsed.historial, link, subcliente));
   };
 
   const handleLinkChange = (val) => {
     setLink(val);
-    setRawDetalles(serializeDetalles(notes, subtareas, parsed.historial, val));
+    setRawDetalles(serializarConMeta(notes, subtareas, parsed.historial, val, subcliente));
+  };
+
+  const handleSubclienteChange = (val) => {
+    setSubcliente(val);
+    setRawDetalles(serializarConMeta(notes, subtareas, parsed.historial, link, val));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const tFinal = serializarConMeta(notes, subtareas, parsed.historial, link, subcliente);
+    const subclienteNorm = normalizarNombreSubcliente(subcliente);
 
     if (soloLectura || modoDisenador) {
-      const tFinal = serializeDetalles(notes, subtareas, parsed.historial, link);
       const tareaPreparada = prepararTareaConCategoria({
         ...tarea,
         ...(modoDisenador ? { estado: normalizarEstado(estado) } : {}),
+        subcliente: subclienteNorm,
         detalles: tFinal
       });
       setGuardando(true);
@@ -205,12 +220,12 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     }
     setDeadlineError("");
     setFechaInicioError("");
-    const tFinal = serializeDetalles(notes, subtareas, parsed.historial, link);
     const personas = combinarEjecutivosYDisenadores(personasEjecutivos, personasDisenadores);
     const tareaPreparada = prepararTareaConCategoria({
       ...tarea,
       info: info.trim(),
       categoria,
+      subcliente: subclienteNorm,
       marca: normalizarMarca(marca),
       prioridad: normalizarPrioridad(prioridad),
       estado: normalizarEstado(estado),
@@ -234,10 +249,11 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   const aplicarEstadoRapido = async (nuevoEstado) => {
     if (!modoDisenador || guardando) return;
     setEstado(nuevoEstado);
-    const tFinal = serializeDetalles(notes, subtareas, parsed.historial, link);
+    const tFinal = serializarConMeta(notes, subtareas, parsed.historial, link, subcliente);
     const tareaPreparada = prepararTareaConCategoria({
       ...tarea,
       estado: normalizarEstado(nuevoEstado),
+      subcliente: normalizarNombreSubcliente(subcliente),
       detalles: tFinal
     });
     setGuardando(true);
@@ -334,7 +350,15 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
               {metadatosSoloLectura ? (
                 <span className={readOnlyClass}>{formatearMarca(marca)}</span>
               ) : (
-                <select value={marca} onChange={(e) => setMarca(e.target.value)} className={inputPropClass}>
+                <select
+                  value={marca}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setMarca(next);
+                    if (subcliente) handleSubclienteChange("");
+                  }}
+                  className={inputPropClass}
+                >
                   {opcionesMarca.map(m => (
                     <option key={m} value={m}>{formatearMarca(m)}</option>
                   ))}
@@ -415,6 +439,21 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
                   onChange={setCategoria}
                   listaGlobal={listaCategorias}
                   registrarNuevaCategoria={registrarNuevaCategoria}
+                  variant="minimal"
+                />
+              )}
+            </PropertyRow>
+
+            <PropertyRow icon="fa-solid fa-store" label="Subcliente">
+              {metadatosSoloLectura ? (
+                <span className={readOnlyClass}>{subcliente || "—"}</span>
+              ) : (
+                <SelectorSubclienteChip
+                  valor={subcliente}
+                  onChange={handleSubclienteChange}
+                  marca={marca}
+                  listaGlobal={listaSubclientes}
+                  registrarNuevoSubcliente={registrarNuevoSubcliente}
                   variant="minimal"
                 />
               )}

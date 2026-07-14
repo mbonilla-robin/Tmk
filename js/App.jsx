@@ -191,6 +191,7 @@ function App() {
 
   const [listaPersonas, setListaPersonas] = useState(() => cargarListaPersonas());
   const [listaCategorias, setListaCategorias] = useState(() => cargarListaCategorias());
+  const [listaSubclientes, setListaSubclientes] = useState(() => cargarListaSubclientes());
 
   const palabraEstadoSync = useMemo(() => {
     if (!isApiConfigured()) return "Sin API";
@@ -223,7 +224,7 @@ function App() {
     typeof window.crearNuevaTareaVacia === "function"
       ? window.crearNuevaTareaVacia()
       : (typeof crearNuevaTareaVacia === "function" ? crearNuevaTareaVacia() : {
-          marca: "La Santé", categoria: "", info: "", personas: "", detalles: "",
+          marca: "La Santé", categoria: "", subcliente: "", info: "", personas: "", detalles: "",
           link: "", estado: "Pendiente", deadline: "", fechaInicio: "", prioridad: "Media"
         })
   ));
@@ -282,7 +283,8 @@ function App() {
           (t.info || "").toLowerCase().includes(q) ||
           (t.detalles && (t.detalles || "").toLowerCase().includes(q)) ||
           (t.personas && (t.personas || "").toLowerCase().includes(q)) ||
-          (t.categoria && (t.categoria || "").toLowerCase().includes(q))
+          (t.categoria && (t.categoria || "").toLowerCase().includes(q)) ||
+          (obtenerSubclienteTarea(t) || "").toLowerCase().includes(q)
         );
       }
 
@@ -1587,6 +1589,15 @@ function App() {
     insertarCategoriaRemota(normalizado, color);
   };
 
+  const registrarNuevoSubclienteGlobal = (marca, nombre) => {
+    if (!esNombreSubclienteNuevoValido(nombre)) return;
+    const marcaNorm = normalizarMarca(marca);
+    const nombreNorm = normalizarNombreSubcliente(nombre);
+    if (!marcaNorm || !nombreNorm) return;
+    setListaSubclientes((prev) => registrarSubclientesEnLista(prev, [{ marca: marcaNorm, nombre: nombreNorm }]));
+    insertarSubclienteRemoto(marcaNorm, nombreNorm);
+  };
+
   useEffect(() => {
     if (!usuario) return;
     let cancelled = false;
@@ -1594,6 +1605,11 @@ function App() {
     cargarCategoriasRemotas().then((remotas) => {
       if (cancelled || !remotas || !remotas.length) return;
       setListaCategorias(guardarListaCategorias(remotas));
+    });
+
+    cargarSubclientesRemotos().then((remotas) => {
+      if (cancelled || !remotas || !remotas.length) return;
+      setListaSubclientes(guardarListaSubclientes(remotas));
     });
 
     return () => { cancelled = true; };
@@ -2013,6 +2029,7 @@ function App() {
       const cambios = [];
       if (original.info !== editedTask.info && tituloLimpioTarea(original) !== tituloLimpioTarea(editedTask)) cambios.push("título");
       if (original.categoria !== editedTask.categoria) cambios.push("categoría");
+      if (obtenerSubclienteTarea(original) !== obtenerSubclienteTarea(editedTask)) cambios.push("subcliente");
       if (original.personas !== editedTask.personas) cambios.push("asignados");
       if (normalizarEstado(original.estado) !== normalizarEstado(editedTask.estado)) cambios.push(`estado a "${normalizarEstado(editedTask.estado)}"`);
       if (normalizarDeadline(original.deadline) !== normalizarDeadline(editedTask.deadline)) cambios.push("fecha límite");
@@ -2161,6 +2178,14 @@ function App() {
         if (!parsed.principal) return prev;
         return registrarCategoriasEnLista(prev, [{ nombre: parsed.principal, color: asignarColorCategoria(parsed.principal, prev) }]);
       });
+      const subclienteNuevo = obtenerSubclienteTarea(nuevaConId);
+      if (subclienteNuevo) {
+        setListaSubclientes((prev) => registrarSubclientesEnLista(prev, [{
+          marca: nuevaConId.marca,
+          nombre: subclienteNuevo
+        }]));
+        insertarSubclienteRemoto(nuevaConId.marca, subclienteNuevo);
+      }
 
       persistTareas((prev) => [nuevaConId, ...prev]);
 
@@ -3069,6 +3094,8 @@ function App() {
               registrarNuevaPersona={registrarNuevaPersonaGlobal}
               listaCategorias={listaCategorias}
               registrarNuevaCategoria={registrarNuevaCategoriaGlobal}
+              listaSubclientes={listaSubclientes}
+              registrarNuevoSubcliente={registrarNuevoSubclienteGlobal}
             />
           )}
 
@@ -3100,6 +3127,7 @@ function App() {
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
               listaPersonas={listaPersonas}
+              listaSubclientes={listaSubclientes}
               layoutTablaProps={layoutTablaProps}
               dashboardMobileVista={dashboardMobileVista}
               setDashboardMobileVista={setDashboardMobileVista}
@@ -3469,6 +3497,8 @@ function App() {
             registrarNuevaPersona={registrarNuevaPersonaGlobal}
             listaCategorias={listaCategorias}
             registrarNuevaCategoria={registrarNuevaCategoriaGlobal}
+            listaSubclientes={listaSubclientes}
+            registrarNuevoSubcliente={registrarNuevoSubclienteGlobal}
             marcasDisponibles={marcasDisponibles}
             usuario={usuario}
             nombreUsuario={nombreCompleto}
@@ -3618,6 +3648,7 @@ function App() {
           marcasDisponibles={marcasDisponibles}
           listaPersonas={listaPersonas}
           registrarNuevaPersona={registrarNuevaPersonaGlobal}
+          listaSubclientes={listaSubclientes}
           onClose={() => setShowGeneradorEstatus(false)}
         />
       )}

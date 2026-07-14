@@ -22,7 +22,9 @@ function FormularioCrearEntregable({
   listaPersonas,
   registrarNuevaPersona,
   listaCategorias,
-  registrarNuevaCategoria
+  registrarNuevaCategoria,
+  listaSubclientes,
+  registrarNuevoSubcliente
 }) {
   const [subtareas, setSubtareas] = useState([]);
   const rolesIniciales = dividirCampoPersonasPorRol(nuevaTarea.personas || "");
@@ -65,8 +67,17 @@ function FormularioCrearEntregable({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const detallesFinal = serializeDetalles(nuevaTarea.detalles, subtareas, [], nuevaTarea.link);
-    const tareaPreparada = prepararTareaConCategoria(nuevaTarea);
+    const detallesFinal = serializeDetalles(
+      nuevaTarea.detalles,
+      subtareas,
+      [],
+      nuevaTarea.link,
+      nuevaTarea.subcliente
+    );
+    const tareaPreparada = prepararTareaConCategoria({
+      ...nuevaTarea,
+      subcliente: normalizarNombreSubcliente(nuevaTarea.subcliente)
+    });
     onSubmit(e, detallesFinal, tareaPreparada);
   };
 
@@ -89,7 +100,7 @@ function FormularioCrearEntregable({
             <PropertyRow icon="fa-regular fa-building" label="Cliente">
               <select
                 value={nuevaTarea.marca}
-                onChange={(e) => setNuevaTarea({ ...nuevaTarea, marca: e.target.value })}
+                onChange={(e) => setNuevaTarea({ ...nuevaTarea, marca: e.target.value, subcliente: "" })}
                 className={inputPropClass}
               >
                 {marcasDisponibles.map(m => (
@@ -131,6 +142,17 @@ function FormularioCrearEntregable({
                 onChange={(val) => setNuevaTarea({ ...nuevaTarea, categoria: val })}
                 listaGlobal={listaCategorias}
                 registrarNuevaCategoria={registrarNuevaCategoria}
+                variant="minimal"
+              />
+            </PropertyRow>
+
+            <PropertyRow icon="fa-solid fa-store" label="Subcliente">
+              <SelectorSubclienteChip
+                valor={nuevaTarea.subcliente || ""}
+                onChange={(val) => setNuevaTarea({ ...nuevaTarea, subcliente: val })}
+                marca={nuevaTarea.marca}
+                listaGlobal={listaSubclientes}
+                registrarNuevoSubcliente={registrarNuevoSubcliente}
                 variant="minimal"
               />
             </PropertyRow>

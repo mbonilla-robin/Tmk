@@ -2850,7 +2850,16 @@ function App() {
                     <button
                       key={b}
                       type="button"
-                      onClick={() => { setFiltroMarca(b); setFiltroTiempo("TODAS"); navegarA("dashboard"); }}
+                      onClick={() => {
+                        setFiltroMarca(b);
+                        setFiltroTiempo("TODAS");
+                        setFiltroEstado("TODOS");
+                        setFiltroPrioridad("TODAS");
+                        setFiltroPersona("TODAS");
+                        setSearchQuery("");
+                        setDashboardMobileVista("lista");
+                        navegarA("dashboard");
+                      }}
                       className={`robin-sidebar__link ${marcasCoinciden(filtroMarca, b) && paginaActiva === "dashboard" ? "is-active" : ""}`}
                     >
                       <span

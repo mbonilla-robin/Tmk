@@ -48,6 +48,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   const [rawDetalles, setRawDetalles] = useState(tarea.detalles || "");
   const [guardando, setGuardando] = useState(false);
   const [copiadoEnlace, setCopiadoEnlace] = useState(false);
+  const [historialAbierto, setHistorialAbierto] = useState(false);
   const titleRef = useRef(null);
 
   const filasTitulo = useMemo(() => {
@@ -140,6 +141,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     setMostrarDisenadores(Boolean(String(roles.disenadores || "").trim()));
     setAutoAbrirContenido(false);
     setAutoAbrirDisenadores(false);
+    setHistorialAbierto(false);
     setRawDetalles(detalles);
     setNotes(parsedDetalles.notes || parsedDetalles.notas);
     setSubtareas(parsedDetalles.subtareas);
@@ -619,17 +621,31 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
 
           {parsed.historial && parsed.historial.length > 0 && (
             <div className="pb-4">
-              <div className="flex items-center gap-2 mb-2 text-ui-sm text-zinc-500">
-                <i className="fa-regular fa-clock text-zinc-400 text-[11px]" />
-                <span>Historial</span>
-              </div>
-              <div className="flex flex-col gap-1 pl-5 border-l-2 border-zinc-100">
-                {parsed.historial.map((line, idx) => (
-                  <p key={idx} className="text-[11px] text-zinc-400 leading-relaxed">
-                    {line}
-                  </p>
-                ))}
-              </div>
+              <button
+                type="button"
+                className="task-historial-toggle"
+                aria-expanded={historialAbierto}
+                onClick={() => setHistorialAbierto((abierto) => !abierto)}
+              >
+                <span className="task-historial-toggle__label">
+                  <i className="fa-regular fa-clock text-zinc-400 text-[11px]" aria-hidden="true" />
+                  <span>Historial</span>
+                  <span className="task-historial-toggle__count">{parsed.historial.length}</span>
+                </span>
+                <i
+                  className={`fa-solid fa-chevron-down task-historial-toggle__chevron${historialAbierto ? " is-open" : ""}`}
+                  aria-hidden="true"
+                />
+              </button>
+              {historialAbierto && (
+                <div className="task-historial-panel flex flex-col gap-1 pl-5 border-l-2 border-zinc-100 mt-2">
+                  {parsed.historial.map((line, idx) => (
+                    <p key={idx} className="text-[11px] text-zinc-400 leading-relaxed">
+                      {line}
+                    </p>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

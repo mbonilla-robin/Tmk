@@ -94,8 +94,40 @@ function ordenarTareasEstatus(tareas, estadosOrden, ordenarPor) {
 function formatearLineaSubtareaEstatus(texto, completed) {
   const textoLimpio = String(texto || "").trim();
   if (!textoLimpio) return null;
-  const sufijo = completed ? " (✓)" : "";
-  return `> ${textoLimpio}${sufijo}`;
+  if (completed) return `> ~${textoLimpio}~`;
+  return `> ${textoLimpio}`;
+}
+
+function formatearLineasSubtareasEstatus(subtareas) {
+  const lista = (subtareas || [])
+    .map((sub) => ({
+      text: String(sub?.text || "").trim(),
+      completed: Boolean(sub?.completed)
+    }))
+    .filter((sub) => sub.text);
+
+  if (lista.length === 0) return [];
+
+  const pendientes = lista.filter((sub) => !sub.completed);
+  const completadas = lista.filter((sub) => sub.completed);
+  const lineas = [];
+
+  pendientes.forEach((sub) => {
+    lineas.push(formatearLineaSubtareaEstatus(sub.text, false));
+  });
+
+  if (completadas.length > 0) {
+    if (pendientes.length > 0) {
+      const nombres = completadas.map((sub) => sub.text).join(" · ");
+      lineas.push(`_Completadas (${completadas.length}): ${nombres}_`);
+    } else {
+      completadas.forEach((sub) => {
+        lineas.push(formatearLineaSubtareaEstatus(sub.text, true));
+      });
+    }
+  }
+
+  return lineas.filter(Boolean);
 }
 
 function formatearLineaTareaEstatus(tarea) {
@@ -109,12 +141,10 @@ function formatearLineaTareaEstatus(tarea) {
   const lineas = [`• _${estado}_ | *${titulo}* | ${deadline} | ${personas}${subparte}`];
 
   const { subtareas } = parseDetalles(tarea.detalles);
-  const lineasSubtareas = subtareas
-    .map(sub => formatearLineaSubtareaEstatus(sub.text, sub.completed))
-    .filter(Boolean);
+  const lineasSubtareas = formatearLineasSubtareasEstatus(subtareas);
 
   if (lineasSubtareas.length > 0) {
-    lineas.push(lineasSubtareas.join("\n\n"));
+    lineas.push(lineasSubtareas.join("\n"));
   }
 
   return lineas.join("\n");

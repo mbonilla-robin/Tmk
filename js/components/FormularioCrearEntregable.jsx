@@ -256,17 +256,17 @@ function FormularioCrearEntregable({
             )}
 
             {(!mostrarContenido || !mostrarDisenadores) && (
-              <div className="task-prop-roles-add">
+              <div className="task-prop-roles-add" role="group" aria-label="Agregar roles">
                 {!mostrarContenido && (
                   <button type="button" className="selector-rol-add-btn" onClick={activarRolContenido}>
                     <i className="fa-solid fa-plus" aria-hidden="true" />
-                    Contenido
+                    <span>Contenido</span>
                   </button>
                 )}
                 {!mostrarDisenadores && (
                   <button type="button" className="selector-rol-add-btn" onClick={activarRolDisenadores}>
                     <i className="fa-solid fa-plus" aria-hidden="true" />
-                    Diseñador
+                    <span>Diseñador</span>
                   </button>
                 )}
               </div>

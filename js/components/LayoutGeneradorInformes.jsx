@@ -698,8 +698,21 @@ function LayoutGeneradorInformes({
         toast(`Generando PDF… ${i + 1}/${sheets.length}`);
       }
 
-      const safeName = String(informe.marca || "informe").replace(/\s+/g, "-").toLowerCase();
-      pdf.save(`${safeName}-informe-entregables.pdf`);
+      const marcaNombre = String(informe.marca || "Cliente").trim() || "Cliente";
+      const hoy = new Date();
+      const fechaArchivo = [
+        hoy.getFullYear(),
+        String(hoy.getMonth() + 1).padStart(2, "0"),
+        String(hoy.getDate()).padStart(2, "0")
+      ].join("-");
+      const safePart = (s) => String(s || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[\/\\?%*:|"<>]/g, "-")
+        .replace(/\s+/g, " ")
+        .trim();
+      const fileName = `${safePart(marcaNombre)} - Informe entregables - ${fechaArchivo}.pdf`;
+      pdf.save(fileName);
       const saved = guardarBorradorInforme(informe);
       if (saved?.savedAt) setBorradorAt(saved.savedAt);
       toast(`PDF listo · ${sheets.length} pág.`);

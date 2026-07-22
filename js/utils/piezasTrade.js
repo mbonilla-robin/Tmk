@@ -253,6 +253,26 @@ function nombresPiezas(lista) {
   return parsePiezasSeleccionadas(lista).map((p) => p.nombre);
 }
 
+/** Ícono SVG temático por tipo de pieza Trade. */
+function iconoPiezaTrade(nombre) {
+  const n = clavePiezaTrade(nombre);
+  if (!n) return "check";
+  if (/cenefa|collar|cinta|lazo/.test(n)) return "tag";
+  if (/dangler|colgante|wobbler/.test(n)) return "hang";
+  if (/hablador|tarjeta|stopper/.test(n)) return "speak";
+  if (/rompe|trafico|stop/.test(n)) return "stop";
+  if (/sticker|adhesiv|pegatin/.test(n)) return "sticker";
+  if (/banner|pendon|banderin|flyer|volante|pop-?up|cartelera/.test(n)) return "banner";
+  if (/standee|totem|display|isla/.test(n)) return "totem";
+  if (/floor|piso/.test(n)) return "floor";
+  if (/marco|pantalla|a4|soporte|backing|portico|foto/.test(n)) return "frame";
+  if (/fachada|microperfor|revest|vinil/.test(n)) return "wall";
+  if (/entrada/.test(n) && /floor|graf/.test(n)) return "floor";
+  if (/cubo|gondola|anaquel|freezer|caja/.test(n)) return "box";
+  if (/senal|preciador|pricing/.test(n)) return "tag";
+  return "check";
+}
+
 window.PIEZAS_TRADE_DEFAULT = PIEZAS_TRADE_DEFAULT;
 window.cargarPiezasTrade = cargarPiezasTrade;
 window.guardarPiezasTrade = guardarPiezasTrade;
@@ -263,5 +283,6 @@ window.aplicarPiezasDesdeTextoPegado = aplicarPiezasDesdeTextoPegado;
 window.serializarPiezasSeleccionadas = serializarPiezasSeleccionadas;
 window.sumaVersionesPiezas = sumaVersionesPiezas;
 window.nombresPiezas = nombresPiezas;
+window.iconoPiezaTrade = iconoPiezaTrade;
 window.clavePiezaTrade = clavePiezaTrade;
 window.normalizarPiezaTrade = normalizarPiezaTrade;

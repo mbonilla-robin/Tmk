@@ -79,6 +79,74 @@ function InformeIconoSVG({ name = "spark", className = "" }) {
           <path d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zm10 0h6v6h-6v-6z" stroke="currentColor" strokeWidth="1.6" />
         </svg>
       );
+    case "tag":
+      return (
+        <svg {...common}>
+          <path d="M3.5 12V5.5H11l8 8-6.5 6.5-9-8z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+          <circle cx="7.2" cy="9" r="1.1" fill="currentColor" />
+        </svg>
+      );
+    case "hang":
+      return (
+        <svg {...common}>
+          <path d="M12 4v7M8 9.5c0 2.2 1.8 4 4 4s4-1.8 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          <path d="M7 20h10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+        </svg>
+      );
+    case "speak":
+      return (
+        <svg {...common}>
+          <path d="M5 7.5h10a3 3 0 013 3v2a3 3 0 01-3 3H10l-4 3v-3H5a2 2 0 01-2-2v-3a3 3 0 013-3z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+        </svg>
+      );
+    case "banner":
+      return (
+        <svg {...common}>
+          <path d="M5 5h14v9.5l-2.2-1.4L14.5 14.5 12 13.2 9.5 14.5 7.2 13.1 5 14.5V5z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+        </svg>
+      );
+    case "floor":
+      return (
+        <svg {...common}>
+          <path d="M4 8h16v10H4V8z" stroke="currentColor" strokeWidth="1.6" />
+          <path d="M4 12h16M12 8v10" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      );
+    case "frame":
+      return (
+        <svg {...common}>
+          <path d="M5 5h14v14H5V5z" stroke="currentColor" strokeWidth="1.6" />
+          <path d="M8 8h8v8H8V8z" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      );
+    case "sticker":
+      return (
+        <svg {...common}>
+          <circle cx="12" cy="12" r="7.2" stroke="currentColor" strokeWidth="1.6" />
+          <path d="M9.2 12.2l1.8 1.8 3.8-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    case "totem":
+      return (
+        <svg {...common}>
+          <path d="M9 20V8.5L12 4l3 4.5V20" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+          <path d="M9 12h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      );
+    case "wall":
+      return (
+        <svg {...common}>
+          <path d="M4 19V8l8-4 8 4v11" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+          <path d="M4 11h16M12 4.2V19" stroke="currentColor" strokeWidth="1.5" />
+        </svg>
+      );
+    case "stop":
+      return (
+        <svg {...common}>
+          <path d="M8.2 4.5h7.6L19.5 8.2v7.6l-3.7 3.7H8.2L4.5 15.8V8.2L8.2 4.5z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+          <path d="M8.5 12h7" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+        </svg>
+      );
     case "spark":
     default:
       return (
@@ -112,11 +180,20 @@ function SeccionTituloPDF({ title, icon = "layers", level = "h2", blockId, divid
 
 function BloqueEjeHeadPDF({ eje, variant = "macro" }) {
   const fechaLabel = formatearFechaEjeCorta(eje.fechaFin);
+  const typeIcon = variant === "micro" ? "box" : "flag";
   return (
     <div className={`inf-eje inf-eje--open inf-eje--${variant} inf-eje--head`} data-eje-part="head">
       <div className="inf-eje__title-bar">
+        <span className="inf-eje__type-ico" aria-hidden="true">
+          <InformeIconoSVG name={typeIcon} />
+        </span>
         <h4 className="inf-eje__title">{eje.titulo || "Sin título"}</h4>
-        {fechaLabel && <span className="inf-eje__fecha">{fechaLabel}</span>}
+        {fechaLabel && (
+          <span className="inf-eje__fecha">
+            <InformeIconoSVG name="clock" />
+            {fechaLabel}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -128,21 +205,29 @@ function BloqueEjeLeadPDF({ eje, variant = "macro" }) {
   const enEjecucion = Boolean(eje.enEjecucion);
   const hechos = Number(eje.ejecutablesHechos) || 0;
   return (
-    <div className={`inf-eje inf-eje--open inf-eje--cols inf-eje--${variant} inf-eje--lead`} data-eje-part="lead">
-      <div className="inf-eje__body">
-        <div className="inf-eje__kpi-col">
-          <div className="inf-eje__kpi-item">
+    <div className={`inf-eje inf-eje--open inf-eje--${variant} inf-eje--lead`} data-eje-part="lead">
+      <div className="inf-eje__metrics">
+        <div className="inf-eje__metric">
+          <span className="inf-eje__metric-ico" aria-hidden="true">
+            <InformeIconoSVG name="target" />
+          </span>
+          <div className="inf-eje__metric-copy">
             <strong>{prop}</strong>
             <span>Propuestas</span>
           </div>
-          <p className={`inf-eje__hechos${enEjecucion ? " inf-eje__hechos--curso" : ""}`}>
-            {enEjecucion ? "En ejecución" : `${hechos} realizados`}
-          </p>
         </div>
-        <div className="inf-eje__text-col">
-          {intro ? <p className="inf-eje__text">{intro}</p> : null}
+        <span className="inf-eje__metric-sep" aria-hidden="true" />
+        <div className={`inf-eje__metric${enEjecucion ? " inf-eje__metric--curso" : ""}`}>
+          <span className="inf-eje__metric-ico" aria-hidden="true">
+            <InformeIconoSVG name={enEjecucion ? "clock" : "check"} />
+          </span>
+          <div className="inf-eje__metric-copy">
+            <strong>{enEjecucion ? "—" : hechos}</strong>
+            <span>{enEjecucion ? "En ejecución" : "Realizados"}</span>
+          </div>
         </div>
       </div>
+      {intro ? <p className="inf-eje__text">{intro}</p> : null}
     </div>
   );
 }
@@ -161,15 +246,29 @@ function BloqueEjeBulletPDF({ text, isFirst, isLast }) {
 function BloqueEjePiezasPDF({ eje }) {
   const piezas = parsePiezasSeleccionadas(eje.piezas || eje.trabajos || []);
   if (!piezas.length) return null;
+  const iconFor = typeof iconoPiezaTrade === "function"
+    ? iconoPiezaTrade
+    : () => "check";
   return (
-    <p className="inf-eje__piezas" data-eje-part="piezas">
-      {piezas.map((p, i) => (
-        <span key={p.nombre}>
-          {i > 0 ? " · " : ""}
-          {p.nombre}{p.versiones > 1 ? ` ×${p.versiones}` : ""}
-        </span>
-      ))}
-    </p>
+    <div className="inf-eje__piezas" data-eje-part="piezas">
+      <p className="inf-eje__piezas-label">
+        <InformeIconoSVG name="layers" />
+        <span>Piezas</span>
+      </p>
+      <div className="inf-eje__chips">
+        {piezas.map((p) => (
+          <span key={p.nombre} className="inf-eje__chip">
+            <span className="inf-eje__chip-ico" aria-hidden="true">
+              <InformeIconoSVG name={iconFor(p.nombre)} />
+            </span>
+            <span className="inf-eje__chip-name">
+              {p.nombre}
+              {p.versiones > 1 ? <em> ×{p.versiones}</em> : null}
+            </span>
+          </span>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -252,17 +351,17 @@ function ItemSugerenciaPDF({ item, index, isFirst, isLast, blockId }) {
   const icon = item.icon || "improve";
   return (
     <div
-      className={`inf-card inf-sug__item${isFirst ? " inf-sug__item--first" : ""}${isLast ? " inf-sug__item--last" : ""}`}
+      className={`inf-sug__item${isFirst ? " inf-sug__item--first" : ""}${isLast ? " inf-sug__item--last" : ""}`}
       data-block-id={blockId}
     >
-      <div className="inf-sug__aside">
+      <div className="inf-sug__title-bar">
         <span className="inf-sug__icon" aria-hidden="true">
           <InformeIconoSVG name={icon} />
         </span>
+        <p className="inf-sug__title">{item.titulo || `Sugerencia ${n}`}</p>
         <span className="inf-sug__mark">{String(n).padStart(2, "0")}</span>
       </div>
       <div className="inf-sug__body">
-        {item.titulo ? <p className="inf-sug__title">{item.titulo}</p> : null}
         <CuerpoSugerenciaPDF text={item.text} />
       </div>
     </div>
@@ -516,6 +615,7 @@ function listarBloquesInforme(informe) {
       kind: "sectionTitle",
       title: "Indicadores del periodo",
       icon: "chart",
+      divider: true,
       preferNewPage: true
     });
     if (propuestas.some((p) => p.value > 0)) {
@@ -550,6 +650,7 @@ function listarBloquesInforme(informe) {
       kind: "sectionTitle",
       title: "Sugerencias de mejora",
       icon: "improve",
+      divider: true,
       preferNewPage: true
     });
     sugerencias.forEach((s, i) => {
@@ -603,6 +704,7 @@ function renderBloquePagina(block, informe) {
           title={block.title}
           icon={block.icon || "layers"}
           level="h2"
+          divider={!!block.divider}
         />
       );
     case "subTitle":

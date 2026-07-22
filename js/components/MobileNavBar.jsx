@@ -81,6 +81,7 @@ function MobileNavBar({
   onAtajoFiltro,
   onAbrirEquipos,
   onAbrirEstatus,
+  onAbrirInformes,
   onCrearRapido
 }) {
   const [quickMenu, setQuickMenu] = useState(null);
@@ -96,7 +97,8 @@ function MobileNavBar({
     if (!esDisenador) {
       map.home = [
         ...(onAbrirEquipos ? [{ id: "equipos", label: "Ver equipos", icon: "fa-users", onClick: onAbrirEquipos }] : []),
-        ...(onAbrirEstatus ? [{ id: "estatus", label: "Generar estatus", icon: "fa-file-lines", onClick: onAbrirEstatus }] : [])
+        ...(onAbrirEstatus ? [{ id: "estatus", label: "Generar estatus", icon: "fa-file-lines", onClick: onAbrirEstatus }] : []),
+        ...(onAbrirInformes ? [{ id: "informes", label: "Generar informes", icon: "fa-chart-pie", onClick: onAbrirInformes }] : [])
       ];
     }
 
@@ -131,7 +133,7 @@ function MobileNavBar({
     }
 
     return map;
-  }, [esDisenador, onAtajoFiltro, onAbrirEquipos, onAbrirEstatus, onCrearRapido, navegarA]);
+  }, [esDisenador, onAtajoFiltro, onAbrirEquipos, onAbrirEstatus, onAbrirInformes, onCrearRapido, navegarA]);
 
   const navItems = [
     {

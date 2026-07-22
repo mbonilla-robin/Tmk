@@ -32,6 +32,7 @@ function MobileWidgetsGrid({
   onVerMas,
   onEstatus,
   onEquipos,
+  onInformes,
   onTmkNews
 }) {
   const [recentTick, setRecentTick] = useState(0);
@@ -70,20 +71,34 @@ function MobileWidgetsGrid({
       <div className="flex flex-col gap-4 md:hidden">
         {renderGrupo("Robin", agrupados.robin)}
         {renderGrupo("Clientes", agrupados.clientes)}
-        {onEstatus && (
+        {(onEstatus || onEquipos || onInformes) && (
           <div className="flex flex-col gap-2">
             <span className="mobile-section-label">Más opciones</span>
             <div className="mobile-widget-grid" data-induccion="estatus-equipos-mobile">
-              <button
-                type="button"
-                onClick={onEstatus}
-                className={`mobile-widget-tile ${estiloEstatus.button}`}
-              >
-                <span className="mobile-widget-tile-icon">
-                  <SVGIcon.FileText className="w-4 h-4" />
-                </span>
-                <span className="mobile-widget-tile-label">Estatus</span>
-              </button>
+              {onEstatus && (
+                <button
+                  type="button"
+                  onClick={onEstatus}
+                  className={`mobile-widget-tile ${estiloEstatus.button}`}
+                >
+                  <span className="mobile-widget-tile-icon">
+                    <SVGIcon.FileText className="w-4 h-4" />
+                  </span>
+                  <span className="mobile-widget-tile-label">Estatus</span>
+                </button>
+              )}
+              {onInformes && (
+                <button
+                  type="button"
+                  onClick={onInformes}
+                  className={`mobile-widget-tile ${estiloEstatus.button}`}
+                >
+                  <span className="mobile-widget-tile-icon">
+                    <i className="fa-solid fa-chart-pie text-sm" />
+                  </span>
+                  <span className="mobile-widget-tile-label">Informes</span>
+                </button>
+              )}
               {onEquipos && (
                 <button
                   type="button"

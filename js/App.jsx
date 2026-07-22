@@ -507,7 +507,7 @@ function App() {
 
   useEffect(() => {
     if (!isDesigner) return;
-    const paginasRestringidas = ["clientes", "agregar", "equipos"];
+    const paginasRestringidas = ["clientes", "agregar", "equipos", "informes"];
     if (paginasRestringidas.includes(paginaActiva)) {
       setPaginaActiva("home");
     }
@@ -3078,6 +3078,14 @@ function App() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => navegarA("informes")}
+                  className={`robin-sidebar__tile ${paginaActiva === "informes" ? "is-active" : ""}`}
+                >
+                  <i className="fa-solid fa-chart-pie" style={{ fontSize: "0.85rem", opacity: 0.85 }} aria-hidden="true" />
+                  <span>Informes</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => navegarA("equipos")}
                   className={`robin-sidebar__tile ${paginaActiva === "equipos" ? "is-active" : ""}`}
                 >
@@ -3196,6 +3204,8 @@ function App() {
                 ? "robin-mobile-main robin-main-config max-w-6xl mx-auto"
                 : paginaActiva === "home"
                   ? "robin-mobile-main robin-main-home max-w-6xl mx-auto"
+                  : paginaActiva === "informes"
+                    ? "robin-mobile-main robin-main-informes !px-0 md:!px-4 max-w-6xl mx-auto"
                   : paginaActiva === "tmknews"
                     ? "robin-mobile-main robin-main-tmknews max-w-3xl mx-auto"
                     : "robin-mobile-main max-w-6xl mx-auto"
@@ -3212,6 +3222,7 @@ function App() {
               widgets={widgets}
               onAbrirEstatus={isDesigner ? undefined : () => setShowGeneradorEstatus(true)}
               onAbrirEquipos={isDesigner ? undefined : () => navegarA("equipos")}
+              onAbrirInformes={isDesigner ? undefined : () => navegarA("informes")}
               onVerTodasHoy={() => aplicarAtajoFiltro("hoy")}
               onCrearRapido={isDesigner ? undefined : () => setFormularioRapidoVisible(true)}
               onAtajoFiltro={aplicarAtajoFiltro}
@@ -3561,6 +3572,14 @@ function App() {
             />
           )}
 
+          {!isConfigOnlyAdmin && !isDesigner && paginaActiva === "informes" && (
+            <LayoutGeneradorInformes
+              tareas={tareas}
+              marcasDisponibles={marcasDisponibles}
+              onBack={() => navegarA("home")}
+            />
+          )}
+
           {!isConfigOnlyAdmin && !isDesigner && paginaActiva === "clientes" && (
             <LayoutClientes
               key={clientesReset}
@@ -3646,6 +3665,7 @@ function App() {
         onAtajoFiltro={aplicarAtajoFiltro}
         onAbrirEquipos={isDesigner ? undefined : () => navegarA("equipos")}
         onAbrirEstatus={isDesigner ? undefined : () => setShowGeneradorEstatus(true)}
+        onAbrirInformes={isDesigner ? undefined : () => navegarA("informes")}
         onCrearRapido={isDesigner ? undefined : () => setFormularioRapidoVisible(true)}
       />
       )}

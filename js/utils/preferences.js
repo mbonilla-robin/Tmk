@@ -429,7 +429,7 @@ function resolvePaginaActivaForUser(username, prefs) {
   if (username === "admin") return "configuracion";
   const pagina = prefs.paginaActiva || "home";
   if (typeof isRobinDesigner === "function" && isRobinDesigner(username)) {
-    if (["clientes", "agregar", "equipos"].includes(pagina)) return "home";
+    if (["clientes", "agregar", "equipos", "informes"].includes(pagina)) return "home";
     return pagina;
   }
   if (pagina === "configuracion" && username !== "admin") return "home";

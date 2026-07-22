@@ -7,6 +7,7 @@ function LayoutHome({
   widgets,
   onAbrirEstatus,
   onAbrirEquipos,
+  onAbrirInformes,
   onVerTodasHoy,
   onCrearRapido,
   onAtajoFiltro,
@@ -159,6 +160,7 @@ function LayoutHome({
             username={username}
             onEstatus={onAbrirEstatus}
             onEquipos={onAbrirEquipos}
+            onInformes={onAbrirInformes}
             onTmkNews={onAbrirTmkNews}
           />
         </div>
@@ -217,6 +219,7 @@ function LayoutHome({
                 onVerMas={() => setWidgetsMobileVista("todos")}
                 onEstatus={onAbrirEstatus}
                 onEquipos={onAbrirEquipos}
+                onInformes={onAbrirInformes}
                 onTmkNews={onAbrirTmkNews}
               />
             </div>

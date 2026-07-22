@@ -46,8 +46,8 @@
 
   <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Google Fonts: Inter -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Google Fonts: Inter + Plus Jakarta Sans (informe PDF) -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
 
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -68,6 +68,12 @@
 
   <link rel="stylesheet" href="css/main.css?v=183">
   <link rel="stylesheet" href="css/home-mejoras.css?v=53">
+  <link rel="stylesheet" href="css/informe-entregables.css?v=46">
+
+  <!-- PDF export (informe entregables) -->
+  <script src="vendor/html-to-image.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 </head>
 <body class="overflow-hidden">
 
@@ -208,7 +214,7 @@
   <script src="js/utils/storage.js?v=107"></script>
   <script src="js/utils/diagnostics.js?v=107"></script>
   <script src="js/utils/user.js?v=107"></script>
-  <script src="js/utils/preferences.js?v=108"></script>
+  <script src="js/utils/preferences.js?v=109"></script>
   <script src="js/utils/auth.js?v=107"></script>
   <script src="js/utils/api.js?v=107"></script>
   <script src="js/utils/personas.js?v=109"></script>
@@ -250,10 +256,15 @@
   <script type="text/babel" data-presets="robin-react" src="js/components/FormularioCrearEntregable.jsx?v=114"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/FormularioRapidoEntregable.jsx?v=2"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/GeneradorEstatus.jsx?v=140"></script>
+  <script src="js/utils/piezasTrade.js?v=3"></script>
+  <script src="js/utils/informeEntregables.js?v=21"></script>
+  <script src="js/utils/informeAi.js?v=4"></script>
+  <script type="text/babel" data-presets="robin-react" src="js/components/VistaPreviaInformePDF.jsx?v=35"></script>
+  <script type="text/babel" data-presets="robin-react" src="js/components/LayoutGeneradorInformes.jsx?v=26"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/BarraAccionesMasivas.jsx?v=112"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/BarraHoyAccesoRapido.jsx?v=107"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/DesktopWidgetsPanel.jsx?v=122"></script>
-  <script type="text/babel" data-presets="robin-react" src="js/components/MobileWidgetsGrid.jsx?v=127"></script>
+  <script type="text/babel" data-presets="robin-react" src="js/components/MobileWidgetsGrid.jsx?v=128"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/ListaAtajosRapidos.jsx?v=3"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/HomeMobileCommandCenter.jsx?v=3"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/HomeAreaStats.jsx?v=2"></script>
@@ -266,7 +277,7 @@
   <script type="text/babel" data-presets="robin-react" src="js/components/LayoutTmkNews.jsx?v=3"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/ModalTmkNews.jsx?v=12"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/PanelTmkNews.jsx?v=2"></script>
-  <script type="text/babel" data-presets="robin-react" src="js/components/LayoutHome.jsx?v=146"></script>
+  <script type="text/babel" data-presets="robin-react" src="js/components/LayoutHome.jsx?v=147"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/LayoutMarcaHome.jsx?v=136"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/LayoutEquipos.jsx?v=109"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/ModalPortal.jsx?v=107"></script>
@@ -278,12 +289,12 @@
   <script type="text/babel" data-presets="robin-react" src="js/components/CampanaNotificaciones.jsx?v=135"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/WidgetsAdminPanel.jsx?v=107"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/MobileSubpageBar.jsx?v=108"></script>
-  <script type="text/babel" data-presets="robin-react" src="js/components/MobileNavBar.jsx?v=116"></script>
+  <script type="text/babel" data-presets="robin-react" src="js/components/MobileNavBar.jsx?v=117"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/PullToRefresh.jsx?v=13"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/InduccionBienvenida.jsx?v=126"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/InduccionDemoComentarios.jsx?v=1"></script>
   <script type="text/babel" data-presets="robin-react" src="js/components/InduccionTour.jsx?v=136"></script>
-  <script type="text/babel" data-presets="robin-react" src="js/App.jsx?v=168"></script>
+  <script type="text/babel" data-presets="robin-react" src="js/App.jsx?v=169"></script>
   <script type="text/babel" data-presets="robin-react" src="js/bootstrap.jsx?v=113"></script>
 
 </body>

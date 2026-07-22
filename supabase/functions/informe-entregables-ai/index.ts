@@ -188,8 +188,8 @@ Reglas de sugerencias de mejora (CRÍTICO — alimentan los próximos pasos):
 2. PROHIBIDO resumir o acortar. Si el equipo escribió ~10 líneas, el resultado debe tener al menos esa extensión (idealmente un poco más: pulir y ampliar ~10–20%).
 3. Mejora tipografía, ortografía, gramática y claridad, pero conserva TODO el contenido, matices, bullets y estructura.
 4. Cada sugerencia DEBE tener:
-   - "titulo": subtítulo corto (3–8 palabras).
-   - "text": desarrollo COMPLETO con saltos de línea. Usa \\n entre párrafos y \\n• para cada bullet. NO aplanes todo en un solo párrafo.
+   - "titulo": etiqueta temática CORTA (3–6 palabras). Es el nombre general del bloque (ej. "Fechas y assets", "Alineación de equipos"). PROHIBIDO copiar, parafrasear o repetir la primera frase / bullets del "text". El título NO es un resumen narrativo.
+   - "text": desarrollo COMPLETO con saltos de línea. Usa \\n entre párrafos y \\n• para cada bullet. NO aplanes todo en un solo párrafo. NO empieces el text repitiendo el titulo.
    - "icon": elige el SVG más acorde al tema (clock=tiempos/fechas, users=equipos/feedback, shield=calidad/riesgo/stock, target=objetivos/brief, chart=métricas, flag=prioridad/campaña, box=materiales/PDV, improve=mejora general, layers=procesos, spark=idea).
 5. Una sugerencia por tema/idea. No fusiones temas distintos. Conserva los bullets del original (pulidos).
 6. Si no hay notas, propone 2–3 mejoras generales realistas de Trade Marketing (sin inventar hechos del cliente).

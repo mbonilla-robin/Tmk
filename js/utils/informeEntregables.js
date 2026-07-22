@@ -579,40 +579,166 @@ function normalizarSugerenciaInforme(item) {
   if (typeof item === "string") {
     const text = String(item).trim();
     if (!text) return null;
-    const titulo = tituloCortoDesdeTexto(text);
+    const titulo = tituloTematicoDesdeSugerencia(text);
     return {
       icon: elegirIconoSugerencia(titulo, text),
       titulo,
-      text
+      text: quitarTituloDuplicadoDelCuerpo(titulo, text)
     };
   }
-  const text = String(item.text || item.desarrollo || item.body || "").trim();
-  const titulo = String(item.titulo || item.subtitulo || item.title || "").trim();
-  if (!text && !titulo) return null;
-  const tituloFinal = titulo || tituloCortoDesdeTexto(text);
-  const textFinal = text || titulo;
-  const icon = iconoSugerenciaPermitido(item.icon) || elegirIconoSugerencia(tituloFinal, textFinal);
+  const textRaw = String(item.text || item.desarrollo || item.body || "").trim();
+  let titulo = String(item.titulo || item.subtitulo || item.title || "").trim();
+  if (!textRaw && !titulo) return null;
+
+  const textBase = textRaw || titulo;
+  if (!titulo || tituloRepiteCuerpo(titulo, textBase)) {
+    titulo = tituloTematicoDesdeSugerencia(textBase);
+  } else {
+    // Mantener título corto: máx. ~8 palabras
+    const palabras = titulo.split(/\s+/).filter(Boolean);
+    if (palabras.length > 8 || titulo.length > 56) {
+      titulo = tituloTematicoDesdeSugerencia(textBase);
+    } else {
+      titulo = pulirTituloInforme(titulo) || titulo;
+    }
+  }
+
+  const textFinal = quitarTituloDuplicadoDelCuerpo(titulo, textBase);
+  const icon = iconoSugerenciaPermitido(item.icon) || elegirIconoSugerencia(titulo, textFinal);
   return {
     icon,
-    titulo: tituloFinal,
-    text: textFinal
+    titulo,
+    text: textFinal || textBase
   };
 }
 
-function tituloCortoDesdeTexto(texto) {
-  const t = String(texto || "").replace(/\s+/g, " ").trim();
-  if (!t) return "Sugerencia";
-  const conDosPuntos = t.match(/^(.{6,72}?):\s+/);
-  if (conDosPuntos) return pulirTituloInforme(conDosPuntos[1]) || conDosPuntos[1];
-  // Prefer first non-bullet line for title
-  const primeraLinea = String(texto || "")
+/** True si el subtítulo copia (o casi) el inicio / cuerpo de la sugerencia. */
+function tituloRepiteCuerpo(titulo, text) {
+  const t = informeNorm(titulo);
+  const body = informeNorm(text);
+  if (!t || !body) return false;
+  if (t.length < 8) return false;
+  if (body.startsWith(t)) return true;
+
+  const primeraLinea = informeNorm(
+    String(text || "")
+      .split("\n")
+      .map((l) => l.replace(/^[•\-\*\d.)]+\s*/, "").trim())
+      .find((l) => l.length > 3) || ""
+  );
+  if (primeraLinea && (primeraLinea.startsWith(t) || t.startsWith(primeraLinea))) return true;
+  if (primeraLinea && t.length >= 18 && primeraLinea.includes(t)) return true;
+
+  const head = body.slice(0, 180);
+  if (t.length >= 18 && head.includes(t)) return true;
+
+  const tw = t.split(/\s+/).filter((w) => w.length > 3);
+  if (tw.length >= 4) {
+    const overlap = tw.filter((w) => head.includes(w)).length;
+    if (overlap / tw.length >= 0.8) return true;
+  }
+  return false;
+}
+
+/**
+ * Subtítulo temático corto (etiqueta), no una frase del cuerpo.
+ * Resume el tema de los bullets en pocas palabras.
+ */
+function tituloTematicoDesdeSugerencia(texto) {
+  const raw = String(texto || "").trim();
+  if (!raw) return "Sugerencia";
+  const n = informeNorm(raw);
+
+  // Etiqueta explícita "Tema:" al inicio
+  const conDosPuntos = raw.match(/^([^\n:]{3,40}):\s*\n?/);
+  if (conDosPuntos) {
+    const label = conDosPuntos[1].trim();
+    if (label.split(/\s+/).length <= 6 && !tituloRepiteCuerpo(label, raw.slice(conDosPuntos[0].length))) {
+      return pulirTituloInforme(label) || label;
+    }
+  }
+
+  if (/fecha|plazo|tiempo|entrega|calendario|cronograma|asset|deadline/.test(n)) {
+    return "Fechas y assets";
+  }
+  if (/feedback|equipo|colabor|comunic|aline|coordin|reunion/.test(n)) {
+    return "Alineación de equipos";
+  }
+  if (/brief|briefing|briefing|alcance|kick.?off|requerim/.test(n)) {
+    return "Brief y alcance";
+  }
+  if (/stock|proveedor|inventario|material soft|materiales soft/.test(n)) {
+    return "Stock y proveedores";
+  }
+  if (/aprobacion|aprobación|validacion|validación|cliente|sign.?off/.test(n)) {
+    return "Ciclos de aprobación";
+  }
+  if (/pricing|precio|comercial|trade marketing/.test(n)) {
+    return "Alineación comercial";
+  }
+  if (/calidad|control|revision|revisión|qa|chequeo/.test(n)) {
+    return "Control de calidad";
+  }
+  if (/produccion|producción|impres|implementacion|implementación|pdv|piso/.test(n)) {
+    return "Producción e implementación";
+  }
+  if (/metric|indicador|reporte|medicion|kpi|dato/.test(n)) {
+    return "Seguimiento e indicadores";
+  }
+  if (/proceso|flujo|organiz|estandar|estándar|metodolog/.test(n)) {
+    return "Procesos de trabajo";
+  }
+  if (/pieza|pop|dangler|hablador|cenefa|material/.test(n)) {
+    return "Materiales Trade";
+  }
+  if (/mejor|oportunidad|aprendizaje|siguiente paso|proximo/.test(n)) {
+    return "Mejora continua";
+  }
+
+  // Fallback: 3–5 palabras clave de la primera línea (sin frase completa larga)
+  const primera = raw
     .split("\n")
-    .map((l) => l.replace(/^[•\-\*\d.)]+\s*/, "").trim())
-    .find((l) => l.length > 3) || t;
-  const primera = primeraLinea.split(/[.!?]/)[0].trim();
-  if (primera && primera.length <= 72) return pulirTituloInforme(primera) || primera;
-  const words = primeraLinea.split(/\s+/).slice(0, 8).join(" ");
-  return pulirTituloInforme(words) || words;
+    .map((l) => l.replace(/^[•\-\*\d.)]+\s*/, "").replace(/:+$/, "").trim())
+    .find((l) => l.length > 3) || raw;
+  const stop = new Set([
+    "para", "con", "los", "las", "del", "una", "uno", "que", "por", "como",
+    "este", "esta", "estos", "estas", "sobre", "entre", "desde", "hacia",
+    "mejorar", "asegurar", "garantizar", "establecer", "fomentar", "definir"
+  ]);
+  const words = informeNorm(primera)
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !stop.has(w))
+    .slice(0, 4);
+  if (words.length >= 2) {
+    const label = words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    return pulirTituloInforme(label) || label;
+  }
+  return "Sugerencia de mejora";
+}
+
+/** Quita del cuerpo un inicio que solo repite el subtítulo. */
+function quitarTituloDuplicadoDelCuerpo(titulo, text) {
+  let body = String(text || "").replace(/\r\n?/g, "\n").trim();
+  const t = String(titulo || "").trim();
+  if (!t || !body) return body;
+
+  const esc = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  body = body.replace(new RegExp(`^${esc}\\s*[:.\\-–—]?\\s*`, "i"), "").trim();
+
+  // Primera línea idéntica o casi al título
+  const lines = body.split("\n");
+  if (lines.length > 1) {
+    const first = lines[0].replace(/^[•\-\*]\s*/, "").trim();
+    if (informeNorm(first) === informeNorm(t) || tituloRepiteCuerpo(t, first)) {
+      body = lines.slice(1).join("\n").replace(/^\n+/, "").trim();
+    }
+  }
+  return body;
+}
+
+/** @deprecated usar tituloTematicoDesdeSugerencia */
+function tituloCortoDesdeTexto(texto) {
+  return tituloTematicoDesdeSugerencia(texto);
 }
 
 /** Pule gramática línea a línea sin aplastar párrafos ni bullets. */
@@ -674,15 +800,19 @@ function sugerenciasABulletsIA(texto) {
     let bloque = String(p || "")
       .replace(/^\d+[.)]\s*/, "")
       .trim();
-    const conTitulo = bloque.match(/^([^\n:]{4,72}):\s*\n?([\s\S]+)$/);
-    let titulo;
+    const conTitulo = bloque.match(/^([^\n:]{3,40}):\s*\n?([\s\S]+)$/);
     let body;
-    if (conTitulo && conTitulo[2].trim().length > 20) {
-      titulo = pulirTituloInforme(conTitulo[1]) || conTitulo[1].trim();
+    let tituloHint = "";
+    if (conTitulo && conTitulo[2].trim().length > 12 && conTitulo[1].trim().split(/\s+/).length <= 6) {
+      tituloHint = conTitulo[1].trim();
       body = pulirTextoSugerenciaLargo(conTitulo[2]);
     } else {
-      titulo = tituloCortoDesdeTexto(bloque);
       body = pulirTextoSugerenciaLargo(bloque);
+    }
+    // Siempre etiqueta temática; el hint "Tema:" solo si no copia el cuerpo
+    let titulo = tituloTematicoDesdeSugerencia(bloque);
+    if (tituloHint && !tituloRepiteCuerpo(tituloHint, body)) {
+      titulo = pulirTituloInforme(tituloHint) || tituloHint;
     }
     return normalizarSugerenciaInforme({
       icon: elegirIconoSugerencia(titulo, body),

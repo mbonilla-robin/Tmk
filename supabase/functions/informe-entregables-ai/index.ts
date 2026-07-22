@@ -156,6 +156,7 @@ Deno.serve(async (req: Request) => {
           piezas: eje.piezas || eje.trabajos,
           propuestas: eje.propuestas,
           ejecutablesHechos: eje.ejecutablesHechos,
+          enEjecucion: eje.enEjecucion,
           fechaFin: eje.fechaFin,
         };
       });
@@ -172,21 +173,25 @@ Responde SOLO con JSON válido (sin markdown) con esta forma exacta:
 {
   "macros": [{"id":"...","redactado":"párrafo\\n• bullet\\n• bullet"}],
   "micros": [{"id":"...","redactado":"párrafo\\n• bullet\\n• bullet"}],
-  "sugerenciasBullets": [{"icon":"improve|target|chart|spark|users|flag|shield|clock","text":"..."}]
+  "sugerenciasBullets": [{"icon":"improve|target|chart|spark|users|flag|shield|clock","titulo":"Subtítulo corto","text":"Texto desarrollado en 2 a 5 oraciones"}]
 }
 
 Reglas de redacción por eje (macro/micro):
-1. LEE con atención "notas", "titulo", piezas, propuestas y ejecutablesHechos del formulario. Esa es la fuente de verdad.
-2. Reescribe en español profesional lo que se hizo: acciones, despliegues, materiales y resultados concretos.
+1. LEE con atención "notas", "titulo", piezas, propuestas, ejecutablesHechos y enEjecucion del formulario. Esa es la fuente de verdad.
+2. Reescribe en español profesional lo que se hizo: acciones, despliegues, materiales y resultados concretos. Si enEjecucion es true, indícalo como proyecto aún en curso (sin inventar ejecutables realizados).
 3. Formato: 1 párrafo inicial (2–4 oraciones) + bullets de acciones/resultados cuando las notas lo ameriten. No resumas de más: conserva la información útil del formulario.
 4. NO listes piezas/trabajos en el redactado (van aparte en el PDF). NO inventes métricas, fechas ni entregables que no vengan en los datos.
 5. Conserva el "id" de cada eje. Si un eje no tiene notas, redacta un párrafo breve y fiel a título + métricas disponibles, sin inventar.
 
-Reglas de sugerencias de mejora:
-1. Parte de "sugerenciasNotas" del formulario y del panorama del periodo.
-2. Tono: mejora continua y trabajo conjunto (construir, afinar, seguir avanzando juntos). Nunca tono de recriminación ni culpa.
-3. Cada bullet: acción concreta, viable y profesional (1–2 oraciones).
-4. Entre 3 y 6 sugerencias si hay material; si no hay notas, propone 2–3 mejoras generales realistas de Trade Marketing alineadas al periodo (sin inventar hechos del cliente).
+Reglas de sugerencias de mejora (crítico — alimentan los próximos pasos):
+1. Parte de "sugerenciasNotas" del formulario y del panorama del periodo. Esa es la fuente de verdad.
+2. NO resumas de más. Conserva el detalle, el contexto y la intención de las notas del equipo.
+3. Cada sugerencia DEBE tener:
+   - "titulo": subtítulo corto (3–8 palabras) que nombre el tema.
+   - "text": desarrollo completo (2–5 oraciones) con el problema/oportunidad y el siguiente paso concreto.
+4. Si las notas traen varias ideas (párrafos, numeración o bullets), genera una sugerencia por idea. No fusiones temas distintos.
+5. Tono: mejora continua y trabajo conjunto. Nunca recriminación ni culpa.
+6. Entre 3 y 8 sugerencias si hay material; si no hay notas, propone 2–3 mejoras generales realistas de Trade Marketing alineadas al periodo (sin inventar hechos del cliente).
 
 Estilo: claro, directo, corporativo. Evita adjetivos vacíos, emojis y frases de relleno.`;
 
@@ -210,7 +215,7 @@ ${sugerenciasNotas ? JSON.stringify(sugerenciasNotas) : "(sin notas; propone mej
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      { temperature: 0.4, max_tokens: 3500, json: true },
+      { temperature: 0.4, max_tokens: 4500, json: true },
     );
 
     if (!result.ok) {

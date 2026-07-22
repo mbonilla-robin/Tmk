@@ -56,7 +56,8 @@ function crearEjeVacio(tipo = "macro") {
     trabajos: "",
     piezas: [],
     propuestas: 0,
-    ejecutablesHechos: 0
+    ejecutablesHechos: 0,
+    enEjecucion: false
   };
 }
 
@@ -109,7 +110,8 @@ function normalizarInformeDesdeBorrador(informe) {
       piezas,
       propuestas: Number(e?.propuestas) || 0,
       ejecutablesPropuestos: Number(e?.ejecutablesPropuestos) || 0,
-      ejecutablesHechos: Number(e?.ejecutablesHechos) || 0
+      ejecutablesHechos: Number(e?.ejecutablesHechos) || 0,
+      enEjecucion: Boolean(e?.enEjecucion)
     };
   };
   return {
@@ -122,12 +124,7 @@ function normalizarInformeDesdeBorrador(informe) {
     micros: Array.isArray(base.micros) ? base.micros.map(mapEje) : [],
     sugerenciasNotas: String(base.sugerenciasNotas || ""),
     sugerenciasBullets: Array.isArray(base.sugerenciasBullets)
-      ? base.sugerenciasBullets
-        .map((s) => ({
-          icon: String(s?.icon || "spark"),
-          text: String(s?.text || "").trim()
-        }))
-        .filter((s) => s.text)
+      ? base.sugerenciasBullets.map(normalizarSugerenciaInforme).filter(Boolean)
       : [],
     aiGenerado: Boolean(base.aiGenerado),
     aiGeneradoAt: base.aiGeneradoAt || null
@@ -292,14 +289,17 @@ function informeRecuperadoGamaJunAgo2026() {
     sugerenciasBullets: [
       {
         icon: "clock",
-        text: "Mejorar las fechas de entrega de los proyectos para asegurar una implementación oportuna."
+        titulo: "Fechas de entrega",
+        text: "Mejorar las fechas de entrega de los proyectos para asegurar una implementación oportuna en piso de venta."
       },
       {
         icon: "flag",
-        text: "Establecer fechas claras para la recepción de assets de los clientes para agilizar el proceso de diseño y producción."
+        titulo: "Assets del cliente",
+        text: "Establecer fechas claras para la recepción de assets de los clientes y así agilizar el proceso de diseño y producción."
       },
       {
         icon: "users",
+        titulo: "Feedback entre equipos",
         text: "Fomentar un feedback constante y abierto entre los equipos para garantizar la calidad y eficacia de los proyectos."
       }
     ]
@@ -363,10 +363,26 @@ function seedInformeEjemploGama() {
     sugerenciasNotas:
       "mejorar tiempos de aprobación con el cliente, documentar brief de eventualidades, anticipar stock de materiales soft, alinear pricing con el equipo comercial",
     sugerenciasBullets: [
-      { icon: "clock", text: "Acortar los ciclos de aprobación con el cliente para proteger fechas de piso." },
-      { icon: "improve", text: "Documentar un brief estándar para eventualidades fuera de FII." },
-      { icon: "shield", text: "Anticipar stock y proveedores de materiales soft de alta rotación." },
-      { icon: "users", text: "Alinear pricing con el equipo comercial antes de abrir producción." }
+      {
+        icon: "clock",
+        titulo: "Ciclos de aprobación",
+        text: "Acortar los ciclos de aprobación con el cliente para proteger fechas de implementación en piso."
+      },
+      {
+        icon: "improve",
+        titulo: "Brief de eventualidades",
+        text: "Documentar un brief estándar para eventualidades fuera de FII y alinear expectativas con el equipo."
+      },
+      {
+        icon: "shield",
+        titulo: "Stock de materiales soft",
+        text: "Anticipar stock y proveedores de materiales soft de alta rotación para no frenar producción."
+      },
+      {
+        icon: "users",
+        titulo: "Alineación de pricing",
+        text: "Alinear pricing con el equipo comercial antes de abrir producción y evitar retrabajos."
+      }
     ]
   };
 }
@@ -534,13 +550,92 @@ function redactarTemporalidadIA(eje) {
   return [intro, ...bullets].join("\n");
 }
 
+function normalizarSugerenciaInforme(item) {
+  if (!item) return null;
+  if (typeof item === "string") {
+    const text = String(item).trim();
+    if (!text) return null;
+    return {
+      icon: "spark",
+      titulo: tituloCortoDesdeTexto(text),
+      text
+    };
+  }
+  const text = String(item.text || item.desarrollo || item.body || "").trim();
+  const titulo = String(item.titulo || item.subtitulo || item.title || "").trim();
+  if (!text && !titulo) return null;
+  return {
+    icon: String(item.icon || "spark"),
+    titulo: titulo || tituloCortoDesdeTexto(text),
+    text: text || titulo
+  };
+}
+
+function tituloCortoDesdeTexto(texto) {
+  const t = String(texto || "").replace(/\s+/g, " ").trim();
+  if (!t) return "Sugerencia";
+  const conDosPuntos = t.match(/^(.{6,72}?):\s+/);
+  if (conDosPuntos) return pulirTituloInforme(conDosPuntos[1]) || conDosPuntos[1];
+  const primera = t.split(/[.!?\n]/)[0].trim();
+  if (primera && primera.length <= 72) return pulirTituloInforme(primera) || primera;
+  const words = t.split(/\s+/).slice(0, 8).join(" ");
+  return pulirTituloInforme(words) || words;
+}
+
+/** Parte notas largas de sugerencias sin recortar por comas (conserva desarrollo). */
+function partirSugerenciasNotas(texto) {
+  const limpio = String(texto || "").replace(/\r\n?/g, "\n").trim();
+  if (!limpio) return [];
+
+  let partes = limpio.split(/\n\s*\n+/).map((s) => s.trim()).filter(Boolean);
+  if (partes.length === 1 && /^\s*\d+[.)]\s+\S/m.test(limpio)) {
+    partes = limpio
+      .split(/(?=(?:^|\n)\s*\d+[.)]\s+)/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  }
+  if (partes.length === 1) {
+    const lineas = limpio.split("\n").map((s) => s.trim()).filter(Boolean);
+    if (lineas.length > 1 && lineas.every((l) => l.length > 12)) {
+      partes = lineas;
+    }
+  }
+  if (partes.length === 1 && /[;•]/.test(limpio) && limpio.length > 180) {
+    partes = limpio
+      .split(/[;•]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 12);
+  }
+  return partes.length ? partes : [limpio];
+}
+
 function sugerenciasABulletsIA(texto) {
-  const partes = partirLineasNotas(texto);
+  const partes = partirSugerenciasNotas(texto);
   if (partes.length === 0) return [];
-  return partes.slice(0, 8).map((p, i) => ({
-    icon: INFORME_ICONOS_SUGERENCIA[i % INFORME_ICONOS_SUGERENCIA.length],
-    text: pulirFraseInforme(p)
-  }));
+  return partes.slice(0, 8).map((p, i) => {
+    let bloque = String(p || "")
+      .replace(/^\d+[.)]\s*/, "")
+      .replace(/^[-•*]\s*/, "")
+      .trim();
+    const icon = INFORME_ICONOS_SUGERENCIA[i % INFORME_ICONOS_SUGERENCIA.length];
+    const conTitulo = bloque.match(/^([^:\n]{4,72}):\s*([\s\S]+)$/);
+    if (conTitulo) {
+      return normalizarSugerenciaInforme({
+        icon,
+        titulo: pulirTituloInforme(conTitulo[1]) || conTitulo[1].trim(),
+        text: pulirFraseInforme(conTitulo[2]) || conTitulo[2].trim()
+      });
+    }
+    // Conservar el desarrollo: no reducir a una sola frase corta
+    const text = bloque.length > 140
+      ? bloque.replace(/\s+/g, " ").trim()
+      : pulirFraseInforme(bloque);
+    return normalizarSugerenciaInforme({
+      icon,
+      titulo: tituloCortoDesdeTexto(bloque),
+      text
+    });
+  }).filter(Boolean);
 }
 
 function ordenarEjesPorFecha(lista) {
@@ -594,11 +689,13 @@ function prepararInformeParaVista(informe, opts = {}) {
   next.micros = ordenarEjesPorFecha((informe.micros || []).map(mapEje));
 
   if (keepRedactado && Array.isArray(informe.sugerenciasBullets) && informe.sugerenciasBullets.length) {
-    next.sugerenciasBullets = informe.sugerenciasBullets;
+    next.sugerenciasBullets = informe.sugerenciasBullets.map(normalizarSugerenciaInforme).filter(Boolean);
   } else if (String(informe.sugerenciasNotas || "").trim()) {
     next.sugerenciasBullets = sugerenciasABulletsIA(informe.sugerenciasNotas);
   } else {
-    next.sugerenciasBullets = Array.isArray(informe.sugerenciasBullets) ? informe.sugerenciasBullets : [];
+    next.sugerenciasBullets = Array.isArray(informe.sugerenciasBullets)
+      ? informe.sugerenciasBullets.map(normalizarSugerenciaInforme).filter(Boolean)
+      : [];
   }
   return next;
 }
@@ -719,6 +816,7 @@ window.seriesEjecutablesComparativa = seriesEjecutablesComparativa;
 window.totalesMetricasInforme = totalesMetricasInforme;
 window.redactarTemporalidadIA = redactarTemporalidadIA;
 window.sugerenciasABulletsIA = sugerenciasABulletsIA;
+window.normalizarSugerenciaInforme = normalizarSugerenciaInforme;
 window.prepararInformeParaVista = prepararInformeParaVista;
 window.informeTieneRedaccionAi = informeTieneRedaccionAi;
 window.ordenarEjesPorFecha = ordenarEjesPorFecha;

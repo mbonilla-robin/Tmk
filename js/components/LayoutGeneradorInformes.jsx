@@ -305,13 +305,36 @@ function CampoEjeGestion({ eje, onChange, onRemove, tipoLabel }) {
         </div>
         <div className="informe-field">
           <label className="informe-field__label">Ejecutables realizados</label>
-          <input
-            className="informe-input"
-            type="number"
-            min="0"
-            value={eje.ejecutablesHechos ?? 0}
-            onChange={(e) => patch({ ejecutablesHechos: Number(e.target.value) || 0 })}
-          />
+          <div className="informe-ejecutables-row">
+            <input
+              className="informe-input"
+              type="number"
+              min="0"
+              disabled={Boolean(eje.enEjecucion)}
+              value={eje.enEjecucion ? "" : (eje.ejecutablesHechos ?? 0)}
+              placeholder={eje.enEjecucion ? "—" : "0"}
+              onChange={(e) => patch({
+                ejecutablesHechos: Number(e.target.value) || 0,
+                enEjecucion: false
+              })}
+            />
+            <button
+              type="button"
+              className={`informe-chip informe-chip--ejecucion${eje.enEjecucion ? " is-selected" : ""}`}
+              onClick={() => patch({
+                enEjecucion: !eje.enEjecucion,
+                ejecutablesHechos: !eje.enEjecucion ? 0 : (eje.ejecutablesHechos ?? 0)
+              })}
+              title="Marcar el proyecto como aún en curso, sin ejecutables realizados"
+            >
+              En ejecución
+            </button>
+          </div>
+          {eje.enEjecucion ? (
+            <p className="informe-hint" style={{ marginTop: "0.25rem" }}>
+              Proyecto en curso: en el PDF aparecerá «En ejecución» en lugar de un número de realizados.
+            </p>
+          ) : null}
         </div>
       </div>
     </div>
@@ -1043,11 +1066,14 @@ function LayoutGeneradorInformes({
                   <label className="informe-field__label">Notas del equipo</label>
                   <textarea
                     className="informe-textarea"
-                    rows={4}
+                    rows={8}
                     value={informe.sugerenciasNotas || ""}
-                    placeholder="Mejoras, aprendizajes…"
+                    placeholder={"Pega aquí el desarrollo completo. Puedes separar ideas con líneas en blanco o números.\nEjemplo:\n1. Fechas de assets: explicar el problema y el siguiente paso…\n\n2. Feedback entre equipos: …"}
                     onChange={(e) => patch({ sugerenciasNotas: e.target.value })}
                   />
+                  <p className="informe-hint" style={{ marginTop: "0.25rem" }}>
+                    La IA arma un subtítulo + texto desarrollado por idea (sin resumir de más). Sirve de base para los próximos pasos.
+                  </p>
                 </div>
                 {(informe.sugerenciasBullets || []).length > 0 && (
                   <div className="informe-field">
@@ -1058,10 +1084,22 @@ function LayoutGeneradorInformes({
                     <ul className="informe-sug-bullets-edit">
                       {(informe.sugerenciasBullets || []).map((s, i) => (
                         <li key={`sug-${i}`}>
+                          <input
+                            className="informe-input"
+                            value={s.titulo || ""}
+                            placeholder="Subtítulo de la sugerencia"
+                            onChange={(e) => {
+                              const next = (informe.sugerenciasBullets || []).map((item, idx) => (
+                                idx === i ? { ...item, titulo: e.target.value } : item
+                              ));
+                              patch({ sugerenciasBullets: next });
+                            }}
+                          />
                           <textarea
                             className="informe-textarea"
-                            rows={2}
+                            rows={4}
                             value={s.text || ""}
+                            placeholder="Texto desarrollado"
                             onChange={(e) => {
                               const next = (informe.sugerenciasBullets || []).map((item, idx) => (
                                 idx === i ? { ...item, text: e.target.value } : item

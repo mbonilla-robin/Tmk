@@ -94,12 +94,16 @@ async function prepararInformeConGemini(informeBase) {
   };
 
   if (Array.isArray(ai.sugerenciasBullets) && ai.sugerenciasBullets.length) {
+    const normalizar = typeof normalizarSugerenciaInforme === "function"
+      ? normalizarSugerenciaInforme
+      : (s) => s;
     next.sugerenciasBullets = ai.sugerenciasBullets
-      .map((s) => ({
-        icon: String(s.icon || "spark"),
-        text: String(s.text || "").trim()
+      .map((s) => normalizar({
+        icon: s.icon || "spark",
+        titulo: s.titulo || s.subtitulo || s.title || "",
+        text: s.text || s.desarrollo || s.body || ""
       }))
-      .filter((s) => s.text);
+      .filter(Boolean);
   }
 
   return { ok: true, informe: next, source: ai.provider === "groq" ? "groq" : "gemini" };

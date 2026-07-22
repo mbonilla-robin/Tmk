@@ -125,6 +125,7 @@ function BloqueEjeHeadPDF({ eje, variant = "macro" }) {
 function BloqueEjeLeadPDF({ eje, variant = "macro" }) {
   const { intro } = parseRedactadoABloques(eje.redactado || eje.notas || "");
   const prop = Number(eje.propuestas) || 0;
+  const enEjecucion = Boolean(eje.enEjecucion);
   const hechos = Number(eje.ejecutablesHechos) || 0;
   return (
     <div className={`inf-eje inf-eje--open inf-eje--cols inf-eje--${variant} inf-eje--lead`} data-eje-part="lead">
@@ -134,7 +135,9 @@ function BloqueEjeLeadPDF({ eje, variant = "macro" }) {
             <strong>{prop}</strong>
             <span>Propuestas</span>
           </div>
-          <p className="inf-eje__hechos">{hechos} realizados</p>
+          <p className={`inf-eje__hechos${enEjecucion ? " inf-eje__hechos--curso" : ""}`}>
+            {enEjecucion ? "En ejecución" : `${hechos} realizados`}
+          </p>
         </div>
         <div className="inf-eje__text-col">
           {intro ? <p className="inf-eje__text">{intro}</p> : null}
@@ -481,7 +484,20 @@ function listarBloquesInforme(informe) {
       icon: "improve",
       preferNewPage: true
     });
-    blocks.push({ id: "sug-grid", kind: "sugerencias", items: sugerencias });
+    sugerencias.forEach((s, i) => {
+      const item = typeof normalizarSugerenciaInforme === "function"
+        ? normalizarSugerenciaInforme(s)
+        : s;
+      if (!item) return;
+      blocks.push({
+        id: `sug-item-${i}`,
+        kind: "sugerenciaItem",
+        item,
+        index: i,
+        isFirst: i === 0,
+        isLast: i === sugerencias.length - 1
+      });
+    });
   }
 
   return blocks;
@@ -584,14 +600,40 @@ function renderBloquePagina(block, informe) {
     case "sugerencias":
       return (
         <div key={block.id} className="inf-sug-grid" data-block-id={block.id}>
-          {block.items.map((s, i) => (
-            <div key={`sug-${i}`} className="inf-card inf-sug__item">
-              <span className="inf-sug__mark">0{i + 1}</span>
-              <span>{s.text}</span>
-            </div>
-          ))}
+          {block.items.map((s, i) => {
+            const item = typeof normalizarSugerenciaInforme === "function"
+              ? normalizarSugerenciaInforme(s)
+              : s;
+            if (!item) return null;
+            return (
+              <div key={`sug-${i}`} className="inf-card inf-sug__item">
+                <span className="inf-sug__mark">{String(i + 1).padStart(2, "0")}</span>
+                <div className="inf-sug__body">
+                  {item.titulo ? <p className="inf-sug__title">{item.titulo}</p> : null}
+                  <p className="inf-sug__text">{item.text}</p>
+                </div>
+              </div>
+            );
+          })}
         </div>
       );
+    case "sugerenciaItem": {
+      const item = block.item || {};
+      const n = (block.index || 0) + 1;
+      return (
+        <div
+          key={block.id}
+          className={`inf-card inf-sug__item${block.isFirst ? " inf-sug__item--first" : ""}${block.isLast ? " inf-sug__item--last" : ""}`}
+          data-block-id={block.id}
+        >
+          <span className="inf-sug__mark">{String(n).padStart(2, "0")}</span>
+          <div className="inf-sug__body">
+            {item.titulo ? <p className="inf-sug__title">{item.titulo}</p> : null}
+            <p className="inf-sug__text">{item.text}</p>
+          </div>
+        </div>
+      );
+    }
     default:
       return null;
   }

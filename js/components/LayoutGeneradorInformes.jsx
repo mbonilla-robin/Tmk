@@ -462,61 +462,109 @@ function LayoutGeneradorInformes({
       })
     );
 
+    const ensureInformeFonts = async () => {
+      if (document.fonts?.load) {
+        const faces = [
+          '400 16px "DM Sans"',
+          '500 16px "DM Sans"',
+          '600 16px "DM Sans"',
+          '700 16px "DM Sans"',
+          '600 16px "DM Sans"',
+          '700 16px "DM Sans"'
+        ];
+        await Promise.all(faces.map((f) => document.fonts.load(f).catch(() => null)));
+      }
+      if (document.fonts?.ready) await document.fonts.ready;
+    };
+
     /**
-     * Captura la hoja TAL CUAL se ve en la vista previa (mismo layout y colores).
-     * Sin reflow a 1080, sin transforms, sin recomponer el fondo a mano.
+     * Captura a tamaño CSS real (mismo layout que la preview).
+     * Tipografía embebida en base64 + métricas congeladas → mismo tamaño de letra.
      */
-    const rasterizarHoja = async (sheet) => {
+    const rasterizarHoja = async (sheet, fontEmbedCSS) => {
       const cssW = Math.max(1, Math.round(sheet.getBoundingClientRect().width));
       const cssH = Math.max(1, Math.round(sheet.getBoundingClientRect().height));
-      // Subimos a ~1080px de ancho para nitidez, sin cambiar el layout CSS
-      const pixelRatio = Math.min(3, Math.max(2.5, PAGE_W / cssW));
+      // Solo nitidez: el layout NO se escala. pixelRatio no debe mezclarse con canvasWidth extra.
+      const pixelRatio = Math.min(3, Math.max(2, PAGE_W / cssW));
 
       const prev = {
         borderRadius: sheet.style.borderRadius,
-        boxShadow: sheet.style.boxShadow
+        boxShadow: sheet.style.boxShadow,
+        transform: sheet.style.transform,
+        zoom: sheet.style.zoom
       };
       sheet.classList.add("informe-sheet--export-capture");
       sheet.style.borderRadius = "0";
       sheet.style.boxShadow = "none";
+      sheet.style.transform = "none";
+      sheet.style.zoom = "1";
+
+      const unfreeze =
+        typeof freezeInformeTextMetrics === "function"
+          ? freezeInformeTextMetrics(sheet)
+          : () => {};
+
       await nextFrame();
 
       try {
         const htmlToImage = window.htmlToImage;
         if (htmlToImage && typeof htmlToImage.toCanvas === "function") {
-          return htmlToImage.toCanvas(sheet, {
-            width: cssW,
-            height: cssH,
-            canvasWidth: Math.round(cssW * pixelRatio),
-            canvasHeight: Math.round(cssH * pixelRatio),
+          return await htmlToImage.toCanvas(sheet, {
             pixelRatio,
             cacheBust: true,
-            skipFonts: false,
-            backgroundColor: "#c1121f"
+            // Nuestra CSS base64; no re-escanear Google Fonts (falla y cambia métricas)
+            skipFonts: true,
+            fontEmbedCSS: fontEmbedCSS || "",
+            backgroundColor: "#b91230",
+            style: {
+              transform: "none",
+              zoom: "1",
+              fontFamily: '"DM Sans", system-ui, sans-serif',
+              WebkitPrintColorAdjust: "exact",
+              printColorAdjust: "exact"
+            }
           });
         }
         if (typeof html2canvas === "function") {
-          return html2canvas(sheet, {
+          return await html2canvas(sheet, {
             scale: pixelRatio,
             useCORS: true,
             allowTaint: false,
-            backgroundColor: "#c1121f",
+            backgroundColor: "#b91230",
             logging: false,
-            foreignObjectRendering: true,
+            foreignObjectRendering: false,
             imageTimeout: 20000,
             width: cssW,
             height: cssH,
             windowWidth: cssW,
             windowHeight: cssH,
             scrollX: 0,
-            scrollY: 0
+            scrollY: 0,
+            onclone: (doc) => {
+              if (fontEmbedCSS) {
+                const style = doc.createElement("style");
+                style.textContent = fontEmbedCSS;
+                doc.head.appendChild(style);
+              }
+              const cloned = doc.querySelector(".informe-sheet--export-capture");
+              if (cloned) {
+                cloned.style.transform = "none";
+                cloned.style.zoom = "1";
+                cloned.style.fontFamily = '"DM Sans", system-ui, sans-serif';
+                cloned.style.webkitPrintColorAdjust = "exact";
+                cloned.style.printColorAdjust = "exact";
+              }
+            }
           });
         }
         throw new Error("Sin motor de captura");
       } finally {
+        unfreeze();
         sheet.classList.remove("informe-sheet--export-capture");
         sheet.style.borderRadius = prev.borderRadius;
         sheet.style.boxShadow = prev.boxShadow;
+        sheet.style.transform = prev.transform;
+        sheet.style.zoom = prev.zoom;
       }
     };
 
@@ -529,24 +577,33 @@ function LayoutGeneradorInformes({
         return;
       }
 
-      if (document.fonts?.ready) await document.fonts.ready;
+      await ensureInformeFonts();
       await waitImages(previewRef.current);
       await nextFrame();
+
+      let fontEmbedCSS = "";
+      try {
+        if (typeof loadInformeFontEmbedCSS === "function") {
+          fontEmbedCSS = await loadInformeFontEmbedCSS();
+        }
+      } catch (fontErr) {
+        console.warn("No se pudieron embeber tipografías del informe", fontErr);
+      }
 
       const { jsPDF } = window.jspdf;
       const pdf = new jsPDF({
         orientation: "portrait",
         unit: "pt",
         format: [PAGE_W, PAGE_H],
-        compress: true
+        compress: false
       });
 
       for (let i = 0; i < sheets.length; i += 1) {
-        const canvas = await rasterizarHoja(sheets[i]);
-        // PNG: colores fieles a la preview (JPEG satura/ensucia el rojo del fondo)
+        const canvas = await rasterizarHoja(sheets[i], fontEmbedCSS);
+        // PNG sin compresión agresiva: conserva rojo/blancos del fondo
         const img = canvas.toDataURL("image/png");
         if (i > 0) pdf.addPage([PAGE_W, PAGE_H], "portrait");
-        pdf.addImage(img, "PNG", 0, 0, PAGE_W, PAGE_H, undefined, "FAST");
+        pdf.addImage(img, "PNG", 0, 0, PAGE_W, PAGE_H, undefined, "NONE");
         toast(`Generando PDF… ${i + 1}/${sheets.length}`);
       }
 

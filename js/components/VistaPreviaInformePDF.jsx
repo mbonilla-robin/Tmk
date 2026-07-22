@@ -203,7 +203,11 @@ function etiquetaCortaGrafico(label, maxLen = 16) {
   const s = String(label || "").trim();
   if (!s) return "";
   if (s.length <= maxLen) return s;
-  return `${s.slice(0, Math.max(4, maxLen - 1)).trim()}…`;
+  // Cortar en espacio cuando se pueda (evita "Gamani/a", "Pricin/g")
+  const slice = s.slice(0, Math.max(4, maxLen - 1));
+  const lastSpace = slice.lastIndexOf(" ");
+  const base = lastSpace >= 4 ? slice.slice(0, lastSpace) : slice.trim();
+  return `${base}…`;
 }
 
 function BarrasHorizontalesPropuestas({ items }) {
@@ -620,8 +624,8 @@ function empaquetarPaginasPorAltura(blocks, heights, pageCapacityPx, gapPx) {
       if (chunk.some((b) => b.keepTogether || b.kind === "indicadores" || String(b.kind || "").startsWith("chart"))) break;
       if (pages[i].some((b) => b.keepTogether || b.kind === "indicadores" || String(b.kind || "").startsWith("chart"))) break;
       const nextH = alturaPagina(pages[i].concat(chunk), heights, gapPx);
-      const lim = isCoverOnly(pages[i]) ? pageCapacityPx * 1.12 : pageCapacityPx;
-      if (nextH <= lim) {
+      // Nunca empujar por encima de la capacidad: overflow:hidden corta el eje
+      if (nextH <= pageCapacityPx) {
         pages[i] = pages[i].concat(pages[i + 1].splice(0, chunk.length));
         if (!pages[i + 1].length) pages.splice(i + 1, 1);
         moved = true;
@@ -629,11 +633,14 @@ function empaquetarPaginasPorAltura(blocks, heights, pageCapacityPx, gapPx) {
     }
   }
 
-  // Portada casi vacía: forzar primer eje + títulos
+  // Portada: solo traer el primer eje si CABE (si no, se corta por overflow:hidden)
   if (pages.length > 1 && isCoverOnly(pages[0])) {
     const chunk = takeChunkFrom(pages[1]);
-    pages[0] = pages[0].concat(pages[1].splice(0, chunk.length));
-    if (!pages[1].length) pages.splice(1, 1);
+    const nextH = alturaPagina(pages[0].concat(chunk), heights, gapPx);
+    if (nextH <= pageCapacityPx) {
+      pages[0] = pages[0].concat(pages[1].splice(0, chunk.length));
+      if (!pages[1].length) pages.splice(1, 1);
+    }
   }
 
   for (let i = pages.length - 1; i >= 1; i -= 1) {
@@ -680,12 +687,15 @@ function VistaPreviaInformePDF({ informe, marcaAccent }) {
 
       const heights = {};
       measureRef.current.querySelectorAll("[data-block-id]").forEach((node) => {
-        heights[node.getAttribute("data-block-id")] = Math.ceil(node.getBoundingClientRect().height);
+        // Margen de seguridad: el sheet real suele medir un poco más alto que el measure
+        heights[node.getAttribute("data-block-id")] =
+          Math.ceil(node.getBoundingClientRect().height) + 8;
       });
 
       const sheetH = bookW * (1024 / 576);
-      const capacity = Math.max(340, Math.floor(sheetH * 0.765));
-      const packed = empaquetarPaginasPorAltura(blocks, heights, capacity, 7);
+      // Más margen inferior: evita cortar la primera macro en la portada
+      const capacity = Math.max(320, Math.floor(sheetH * 0.70));
+      const packed = empaquetarPaginasPorAltura(blocks, heights, capacity, 9);
       if (!cancelled) setPages(packed);
     };
 
@@ -720,6 +730,7 @@ function VistaPreviaInformePDF({ informe, marcaAccent }) {
               alt=""
               draggable={false}
               decoding="async"
+              crossOrigin="anonymous"
             />
           )}
           <div className="informe-sheet__inner">

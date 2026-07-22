@@ -1072,7 +1072,7 @@ function LayoutGeneradorInformes({
                     onChange={(e) => patch({ sugerenciasNotas: e.target.value })}
                   />
                   <p className="informe-hint" style={{ marginTop: "0.25rem" }}>
-                    La IA arma un subtítulo + texto desarrollado por idea (sin resumir de más). Sirve de base para los próximos pasos.
+                    Pega el desarrollo completo (párrafos y bullets). La IA debe pulirlo y ampliarlo un poco — no resumirlo. Usa «Regenerar con IA» para forzar el nuevo resultado.
                   </p>
                 </div>
                 {(informe.sugerenciasBullets || []).length > 0 && (

@@ -550,24 +550,52 @@ function redactarTemporalidadIA(eje) {
   return [intro, ...bullets].join("\n");
 }
 
+function elegirIconoSugerencia(titulo, text) {
+  const n = informeNorm(`${titulo || ""} ${text || ""}`);
+  if (!n) return "spark";
+  if (/fecha|plazo|tiempo|entrega|deadline|calendario|cronograma|atraso|oportuno/.test(n)) return "clock";
+  if (/equipo|feedback|colabor|comunic|aline|reunion|coordin/.test(n)) return "users";
+  if (/calidad|riesgo|proteger|stock|proveedor|seguro|control|valid/.test(n)) return "shield";
+  if (/meta|objetivo|foco|prioridad|alcance|brief/.test(n)) return "target";
+  if (/dato|indicador|metric|reporte|analisis|medicion|kpi/.test(n)) return "chart";
+  if (/hito|campana|lanzamiento|flag|prioridad comercial/.test(n)) return "flag";
+  if (/material|pieza|inventario|produccion|pdv|pop|impres/.test(n)) return "box";
+  if (/capa|estructura|organiz|proceso|flujo/.test(n)) return "layers";
+  if (/mejor|oportunidad|propuesta|siguiente|aprendizaje|afinar/.test(n)) return "improve";
+  return "spark";
+}
+
+function iconoSugerenciaPermitido(icon) {
+  const allowed = new Set([
+    ...INFORME_ICONOS_SUGERENCIA,
+    "box", "layers", "grid", "lightbulb", "check"
+  ]);
+  const k = String(icon || "").trim();
+  return allowed.has(k) ? k : "";
+}
+
 function normalizarSugerenciaInforme(item) {
   if (!item) return null;
   if (typeof item === "string") {
     const text = String(item).trim();
     if (!text) return null;
+    const titulo = tituloCortoDesdeTexto(text);
     return {
-      icon: "spark",
-      titulo: tituloCortoDesdeTexto(text),
+      icon: elegirIconoSugerencia(titulo, text),
+      titulo,
       text
     };
   }
   const text = String(item.text || item.desarrollo || item.body || "").trim();
   const titulo = String(item.titulo || item.subtitulo || item.title || "").trim();
   if (!text && !titulo) return null;
+  const tituloFinal = titulo || tituloCortoDesdeTexto(text);
+  const textFinal = text || titulo;
+  const icon = iconoSugerenciaPermitido(item.icon) || elegirIconoSugerencia(tituloFinal, textFinal);
   return {
-    icon: String(item.icon || "spark"),
-    titulo: titulo || tituloCortoDesdeTexto(text),
-    text: text || titulo
+    icon,
+    titulo: tituloFinal,
+    text: textFinal
   };
 }
 
@@ -576,64 +604,90 @@ function tituloCortoDesdeTexto(texto) {
   if (!t) return "Sugerencia";
   const conDosPuntos = t.match(/^(.{6,72}?):\s+/);
   if (conDosPuntos) return pulirTituloInforme(conDosPuntos[1]) || conDosPuntos[1];
-  const primera = t.split(/[.!?\n]/)[0].trim();
+  // Prefer first non-bullet line for title
+  const primeraLinea = String(texto || "")
+    .split("\n")
+    .map((l) => l.replace(/^[•\-\*\d.)]+\s*/, "").trim())
+    .find((l) => l.length > 3) || t;
+  const primera = primeraLinea.split(/[.!?]/)[0].trim();
   if (primera && primera.length <= 72) return pulirTituloInforme(primera) || primera;
-  const words = t.split(/\s+/).slice(0, 8).join(" ");
+  const words = primeraLinea.split(/\s+/).slice(0, 8).join(" ");
   return pulirTituloInforme(words) || words;
 }
 
-/** Parte notas largas de sugerencias sin recortar por comas (conserva desarrollo). */
+/** Pule gramática línea a línea sin aplastar párrafos ni bullets. */
+function pulirTextoSugerenciaLargo(texto) {
+  return String(texto || "")
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => {
+      const raw = line.replace(/\s+$/g, "");
+      if (!raw.trim()) return "";
+      const indent = raw.match(/^\s*/)?.[0] || "";
+      const t = raw.trim();
+      if (/^[•]\s+/.test(t)) {
+        const body = t.replace(/^[•]\s+/, "");
+        return `${indent}• ${pulirFraseInforme(body) || body}`;
+      }
+      if (/^[-*]\s+/.test(t)) {
+        const body = t.replace(/^[-*]\s+/, "");
+        return `${indent}• ${pulirFraseInforme(body) || body}`;
+      }
+      if (/^\d+[.)]\s+/.test(t)) {
+        const m = t.match(/^(\d+[.)])\s*(.*)$/);
+        return `${indent}${m[1]} ${pulirFraseInforme(m[2]) || m[2]}`;
+      }
+      return `${indent}${pulirFraseInforme(t) || t}`;
+    })
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+/**
+ * Parte notas de sugerencias en temas mayores.
+ * Conserva párrafos multi-línea con bullets; no parte cada línea.
+ */
 function partirSugerenciasNotas(texto) {
   const limpio = String(texto || "").replace(/\r\n?/g, "\n").trim();
   if (!limpio) return [];
 
   let partes = limpio.split(/\n\s*\n+/).map((s) => s.trim()).filter(Boolean);
-  if (partes.length === 1 && /^\s*\d+[.)]\s+\S/m.test(limpio)) {
-    partes = limpio
+
+  // Listado numerado de temas (1. 2. 3.) aunque vengan sin línea en blanco
+  if (partes.length === 1 && /(?:^|\n)\s*\d+[.)]\s+\S/.test(limpio)) {
+    const numbered = limpio
       .split(/(?=(?:^|\n)\s*\d+[.)]\s+)/)
       .map((s) => s.trim())
       .filter(Boolean);
+    if (numbered.length > 1) partes = numbered;
   }
-  if (partes.length === 1) {
-    const lineas = limpio.split("\n").map((s) => s.trim()).filter(Boolean);
-    if (lineas.length > 1 && lineas.every((l) => l.length > 12)) {
-      partes = lineas;
-    }
-  }
-  if (partes.length === 1 && /[;•]/.test(limpio) && limpio.length > 180) {
-    partes = limpio
-      .split(/[;•]+/)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 12);
-  }
+
+  // Encabezados tipo "Tema:" seguidos de desarrollo (separados por línea en blanco ya cubierto)
   return partes.length ? partes : [limpio];
 }
 
 function sugerenciasABulletsIA(texto) {
   const partes = partirSugerenciasNotas(texto);
   if (partes.length === 0) return [];
-  return partes.slice(0, 8).map((p, i) => {
+  return partes.slice(0, 10).map((p) => {
     let bloque = String(p || "")
       .replace(/^\d+[.)]\s*/, "")
-      .replace(/^[-•*]\s*/, "")
       .trim();
-    const icon = INFORME_ICONOS_SUGERENCIA[i % INFORME_ICONOS_SUGERENCIA.length];
-    const conTitulo = bloque.match(/^([^:\n]{4,72}):\s*([\s\S]+)$/);
-    if (conTitulo) {
-      return normalizarSugerenciaInforme({
-        icon,
-        titulo: pulirTituloInforme(conTitulo[1]) || conTitulo[1].trim(),
-        text: pulirFraseInforme(conTitulo[2]) || conTitulo[2].trim()
-      });
+    const conTitulo = bloque.match(/^([^\n:]{4,72}):\s*\n?([\s\S]+)$/);
+    let titulo;
+    let body;
+    if (conTitulo && conTitulo[2].trim().length > 20) {
+      titulo = pulirTituloInforme(conTitulo[1]) || conTitulo[1].trim();
+      body = pulirTextoSugerenciaLargo(conTitulo[2]);
+    } else {
+      titulo = tituloCortoDesdeTexto(bloque);
+      body = pulirTextoSugerenciaLargo(bloque);
     }
-    // Conservar el desarrollo: no reducir a una sola frase corta
-    const text = bloque.length > 140
-      ? bloque.replace(/\s+/g, " ").trim()
-      : pulirFraseInforme(bloque);
     return normalizarSugerenciaInforme({
-      icon,
-      titulo: tituloCortoDesdeTexto(bloque),
-      text
+      icon: elegirIconoSugerencia(titulo, body),
+      titulo,
+      text: body
     });
   }).filter(Boolean);
 }
@@ -688,14 +742,23 @@ function prepararInformeParaVista(informe, opts = {}) {
   next.macros = ordenarEjesPorFecha((informe.macros || []).map(mapEje));
   next.micros = ordenarEjesPorFecha((informe.micros || []).map(mapEje));
 
-  if (keepRedactado && Array.isArray(informe.sugerenciasBullets) && informe.sugerenciasBullets.length) {
-    next.sugerenciasBullets = informe.sugerenciasBullets.map(normalizarSugerenciaInforme).filter(Boolean);
-  } else if (String(informe.sugerenciasNotas || "").trim()) {
-    next.sugerenciasBullets = sugerenciasABulletsIA(informe.sugerenciasNotas);
-  } else {
-    next.sugerenciasBullets = Array.isArray(informe.sugerenciasBullets)
+  if (String(informe.sugerenciasNotas || "").trim()) {
+    const desdeNotas = sugerenciasABulletsIA(informe.sugerenciasNotas);
+    const guardadas = Array.isArray(informe.sugerenciasBullets)
       ? informe.sugerenciasBullets.map(normalizarSugerenciaInforme).filter(Boolean)
       : [];
+    const lenNotas = String(informe.sugerenciasNotas || "").trim().length;
+    const lenGuardadas = guardadas.reduce((s, b) => s + String(b.text || "").length, 0);
+    // Si las notas son claramente más ricas que lo guardado (p. ej. IA resumió de más), regenerar
+    if (!keepRedactado || !guardadas.length || lenNotas > Math.max(120, lenGuardadas * 1.25)) {
+      next.sugerenciasBullets = desdeNotas.length ? desdeNotas : guardadas;
+    } else {
+      next.sugerenciasBullets = guardadas;
+    }
+  } else if (Array.isArray(informe.sugerenciasBullets)) {
+    next.sugerenciasBullets = informe.sugerenciasBullets.map(normalizarSugerenciaInforme).filter(Boolean);
+  } else {
+    next.sugerenciasBullets = [];
   }
   return next;
 }
@@ -817,6 +880,8 @@ window.totalesMetricasInforme = totalesMetricasInforme;
 window.redactarTemporalidadIA = redactarTemporalidadIA;
 window.sugerenciasABulletsIA = sugerenciasABulletsIA;
 window.normalizarSugerenciaInforme = normalizarSugerenciaInforme;
+window.elegirIconoSugerencia = elegirIconoSugerencia;
+window.pulirTextoSugerenciaLargo = pulirTextoSugerenciaLargo;
 window.prepararInformeParaVista = prepararInformeParaVista;
 window.informeTieneRedaccionAi = informeTieneRedaccionAi;
 window.ordenarEjesPorFecha = ordenarEjesPorFecha;

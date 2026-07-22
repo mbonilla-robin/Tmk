@@ -173,7 +173,7 @@ Responde SOLO con JSON válido (sin markdown) con esta forma exacta:
 {
   "macros": [{"id":"...","redactado":"párrafo\\n• bullet\\n• bullet"}],
   "micros": [{"id":"...","redactado":"párrafo\\n• bullet\\n• bullet"}],
-  "sugerenciasBullets": [{"icon":"improve|target|chart|spark|users|flag|shield|clock","titulo":"Subtítulo corto","text":"Texto desarrollado en 2 a 5 oraciones"}]
+  "sugerenciasBullets": [{"icon":"improve|target|chart|spark|users|flag|shield|clock|box|layers","titulo":"Subtítulo corto","text":"Párrafo desarrollado\\n• bullet\\n• bullet"}]
 }
 
 Reglas de redacción por eje (macro/micro):
@@ -183,15 +183,16 @@ Reglas de redacción por eje (macro/micro):
 4. NO listes piezas/trabajos en el redactado (van aparte en el PDF). NO inventes métricas, fechas ni entregables que no vengan en los datos.
 5. Conserva el "id" de cada eje. Si un eje no tiene notas, redacta un párrafo breve y fiel a título + métricas disponibles, sin inventar.
 
-Reglas de sugerencias de mejora (crítico — alimentan los próximos pasos):
-1. Parte de "sugerenciasNotas" del formulario y del panorama del periodo. Esa es la fuente de verdad.
-2. NO resumas de más. Conserva el detalle, el contexto y la intención de las notas del equipo.
-3. Cada sugerencia DEBE tener:
-   - "titulo": subtítulo corto (3–8 palabras) que nombre el tema.
-   - "text": desarrollo completo (2–5 oraciones) con el problema/oportunidad y el siguiente paso concreto.
-4. Si las notas traen varias ideas (párrafos, numeración o bullets), genera una sugerencia por idea. No fusiones temas distintos.
-5. Tono: mejora continua y trabajo conjunto. Nunca recriminación ni culpa.
-6. Entre 3 y 8 sugerencias si hay material; si no hay notas, propone 2–3 mejoras generales realistas de Trade Marketing alineadas al periodo (sin inventar hechos del cliente).
+Reglas de sugerencias de mejora (CRÍTICO — alimentan los próximos pasos):
+1. "sugerenciasNotas" es la fuente de verdad. Léelas completas.
+2. PROHIBIDO resumir o acortar. Si el equipo escribió ~10 líneas, el resultado debe tener al menos esa extensión (idealmente un poco más: pulir y ampliar ~10–20%).
+3. Mejora tipografía, ortografía, gramática y claridad, pero conserva TODO el contenido, matices, bullets y estructura.
+4. Cada sugerencia DEBE tener:
+   - "titulo": subtítulo corto (3–8 palabras).
+   - "text": desarrollo COMPLETO con saltos de línea. Usa \\n entre párrafos y \\n• para cada bullet. NO aplanes todo en un solo párrafo.
+   - "icon": elige el SVG más acorde al tema (clock=tiempos/fechas, users=equipos/feedback, shield=calidad/riesgo/stock, target=objetivos/brief, chart=métricas, flag=prioridad/campaña, box=materiales/PDV, improve=mejora general, layers=procesos, spark=idea).
+5. Una sugerencia por tema/idea. No fusiones temas distintos. Conserva los bullets del original (pulidos).
+6. Si no hay notas, propone 2–3 mejoras generales realistas de Trade Marketing (sin inventar hechos del cliente).
 
 Estilo: claro, directo, corporativo. Evita adjetivos vacíos, emojis y frases de relleno.`;
 
@@ -215,7 +216,7 @@ ${sugerenciasNotas ? JSON.stringify(sugerenciasNotas) : "(sin notas; propone mej
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      { temperature: 0.4, max_tokens: 4500, json: true },
+      { temperature: 0.35, max_tokens: 6500, json: true },
     );
 
     if (!result.ok) {

@@ -201,6 +201,74 @@ function bloquesDeEje(eje, variant) {
   return out;
 }
 
+function CuerpoSugerenciaPDF({ text }) {
+  const lines = String(text || "").replace(/\r\n?/g, "\n").split("\n");
+  const nodes = [];
+  let bullets = [];
+
+  const flushBullets = () => {
+    if (!bullets.length) return;
+    const key = `ub-${nodes.length}`;
+    nodes.push(
+      <ul key={key} className="inf-sug__bullets">
+        {bullets.map((b, i) => (
+          <li key={`${key}-${i}`}>{b}</li>
+        ))}
+      </ul>
+    );
+    bullets = [];
+  };
+
+  lines.forEach((raw) => {
+    const l = String(raw || "").trim();
+    if (!l) {
+      flushBullets();
+      return;
+    }
+    if (/^[•\-\*]\s+/.test(l)) {
+      bullets.push(l.replace(/^[•\-\*]\s+/, ""));
+      return;
+    }
+    if (/^\d+[.)]\s+/.test(l) && l.length < 160) {
+      // Numeración corta como bullet; párrafos numerados largos van como texto
+      bullets.push(l.replace(/^\d+[.)]\s+/, ""));
+      return;
+    }
+    flushBullets();
+    nodes.push(
+      <p key={`p-${nodes.length}`} className="inf-sug__p">{l}</p>
+    );
+  });
+  flushBullets();
+
+  if (!nodes.length) {
+    return <p className="inf-sug__p">{String(text || "").trim()}</p>;
+  }
+  return <div className="inf-sug__rich">{nodes}</div>;
+}
+
+function ItemSugerenciaPDF({ item, index, isFirst, isLast, blockId }) {
+  const n = index + 1;
+  const icon = item.icon || "improve";
+  return (
+    <div
+      className={`inf-card inf-sug__item${isFirst ? " inf-sug__item--first" : ""}${isLast ? " inf-sug__item--last" : ""}`}
+      data-block-id={blockId}
+    >
+      <div className="inf-sug__aside">
+        <span className="inf-sug__icon" aria-hidden="true">
+          <InformeIconoSVG name={icon} />
+        </span>
+        <span className="inf-sug__mark">{String(n).padStart(2, "0")}</span>
+      </div>
+      <div className="inf-sug__body">
+        {item.titulo ? <p className="inf-sug__title">{item.titulo}</p> : null}
+        <CuerpoSugerenciaPDF text={item.text} />
+      </div>
+    </div>
+  );
+}
+
 function KpiBandPDF({ totales, ejesCount }) {
   return (
     <div className="inf-kpi-band" data-block-id="kpis">
@@ -606,32 +674,28 @@ function renderBloquePagina(block, informe) {
               : s;
             if (!item) return null;
             return (
-              <div key={`sug-${i}`} className="inf-card inf-sug__item">
-                <span className="inf-sug__mark">{String(i + 1).padStart(2, "0")}</span>
-                <div className="inf-sug__body">
-                  {item.titulo ? <p className="inf-sug__title">{item.titulo}</p> : null}
-                  <p className="inf-sug__text">{item.text}</p>
-                </div>
-              </div>
+              <ItemSugerenciaPDF
+                key={`sug-${i}`}
+                item={item}
+                index={i}
+                isFirst={i === 0}
+                isLast={i === block.items.length - 1}
+              />
             );
           })}
         </div>
       );
     case "sugerenciaItem": {
       const item = block.item || {};
-      const n = (block.index || 0) + 1;
       return (
-        <div
+        <ItemSugerenciaPDF
           key={block.id}
-          className={`inf-card inf-sug__item${block.isFirst ? " inf-sug__item--first" : ""}${block.isLast ? " inf-sug__item--last" : ""}`}
-          data-block-id={block.id}
-        >
-          <span className="inf-sug__mark">{String(n).padStart(2, "0")}</span>
-          <div className="inf-sug__body">
-            {item.titulo ? <p className="inf-sug__title">{item.titulo}</p> : null}
-            <p className="inf-sug__text">{item.text}</p>
-          </div>
-        </div>
+          blockId={block.id}
+          item={item}
+          index={block.index || 0}
+          isFirst={block.isFirst}
+          isLast={block.isLast}
+        />
       );
     }
     default:

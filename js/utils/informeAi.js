@@ -97,13 +97,21 @@ async function prepararInformeConGemini(informeBase) {
     const normalizar = typeof normalizarSugerenciaInforme === "function"
       ? normalizarSugerenciaInforme
       : (s) => s;
-    next.sugerenciasBullets = ai.sugerenciasBullets
+    const notasLen = String(local.sugerenciasNotas || "").trim().length;
+    const mapped = ai.sugerenciasBullets
       .map((s) => normalizar({
         icon: s.icon || "spark",
         titulo: s.titulo || s.subtitulo || s.title || "",
-        text: s.text || s.desarrollo || s.body || ""
+        text: String(s.text || s.desarrollo || s.body || "").replace(/\\n/g, "\n").trim()
       }))
       .filter(Boolean);
+    const aiLen = mapped.reduce((acc, b) => acc + String(b.text || "").length, 0);
+    // Si la IA acortó de más vs las notas, preferir expansión local que conserva estructura
+    if (notasLen > 180 && aiLen < notasLen * 0.85 && typeof sugerenciasABulletsIA === "function") {
+      next.sugerenciasBullets = sugerenciasABulletsIA(local.sugerenciasNotas);
+    } else {
+      next.sugerenciasBullets = mapped;
+    }
   }
 
   return { ok: true, informe: next, source: ai.provider === "groq" ? "groq" : "gemini" };

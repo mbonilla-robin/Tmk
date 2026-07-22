@@ -59,7 +59,7 @@
       });
       // px absolutos = el mismo tamaño que ves en pantalla
       el.style.fontSize = cs.fontSize;
-      el.style.fontFamily = '"DM Sans", system-ui, sans-serif';
+      el.style.fontFamily = '"Quicksand", system-ui, sans-serif';
       el.style.fontWeight = cs.fontWeight;
       el.style.fontStyle = cs.fontStyle;
       el.style.lineHeight = cs.lineHeight;

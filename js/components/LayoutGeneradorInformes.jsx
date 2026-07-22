@@ -465,12 +465,10 @@ function LayoutGeneradorInformes({
     const ensureInformeFonts = async () => {
       if (document.fonts?.load) {
         const faces = [
-          '400 16px "DM Sans"',
-          '500 16px "DM Sans"',
-          '600 16px "DM Sans"',
-          '700 16px "DM Sans"',
-          '600 16px "DM Sans"',
-          '700 16px "DM Sans"'
+          '400 16px "Quicksand"',
+          '500 16px "Quicksand"',
+          '600 16px "Quicksand"',
+          '700 16px "Quicksand"'
         ];
         await Promise.all(faces.map((f) => document.fonts.load(f).catch(() => null)));
       }
@@ -515,11 +513,11 @@ function LayoutGeneradorInformes({
             // Nuestra CSS base64; no re-escanear Google Fonts (falla y cambia métricas)
             skipFonts: true,
             fontEmbedCSS: fontEmbedCSS || "",
-            backgroundColor: "#b91230",
+            backgroundColor: "#9d2036",
             style: {
               transform: "none",
               zoom: "1",
-              fontFamily: '"DM Sans", system-ui, sans-serif',
+              fontFamily: '"Quicksand", system-ui, sans-serif',
               WebkitPrintColorAdjust: "exact",
               printColorAdjust: "exact"
             }
@@ -530,7 +528,7 @@ function LayoutGeneradorInformes({
             scale: pixelRatio,
             useCORS: true,
             allowTaint: false,
-            backgroundColor: "#b91230",
+            backgroundColor: "#9d2036",
             logging: false,
             foreignObjectRendering: false,
             imageTimeout: 20000,
@@ -550,7 +548,7 @@ function LayoutGeneradorInformes({
               if (cloned) {
                 cloned.style.transform = "none";
                 cloned.style.zoom = "1";
-                cloned.style.fontFamily = '"DM Sans", system-ui, sans-serif';
+                cloned.style.fontFamily = '"Quicksand", system-ui, sans-serif';
                 cloned.style.webkitPrintColorAdjust = "exact";
                 cloned.style.printColorAdjust = "exact";
               }
@@ -585,6 +583,9 @@ function LayoutGeneradorInformes({
       try {
         if (typeof loadInformeFontEmbedCSS === "function") {
           fontEmbedCSS = await loadInformeFontEmbedCSS();
+        }
+        if (!fontEmbedCSS || !/Quicksand/i.test(fontEmbedCSS)) {
+          console.warn("Export PDF: Quicksand no está embebida; el texto puede verse distinto");
         }
       } catch (fontErr) {
         console.warn("No se pudieron embeber tipografías del informe", fontErr);

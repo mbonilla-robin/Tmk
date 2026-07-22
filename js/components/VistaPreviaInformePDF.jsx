@@ -110,19 +110,24 @@ function SeccionTituloPDF({ title, icon = "layers", level = "h2", blockId, divid
   );
 }
 
-function BloqueEjePDF({ eje, variant = "macro" }) {
-  const { intro, bullets } = parseRedactadoABloques(eje.redactado || eje.notas || "");
-  const piezas = parsePiezasSeleccionadas(eje.piezas || eje.trabajos || []);
+function BloqueEjeHeadPDF({ eje, variant = "macro" }) {
   const fechaLabel = formatearFechaEjeCorta(eje.fechaFin);
-  const prop = Number(eje.propuestas) || 0;
-  const hechos = Number(eje.ejecutablesHechos) || 0;
-
   return (
-    <article className={`inf-eje inf-eje--open inf-eje--cols inf-eje--${variant}`}>
+    <div className={`inf-eje inf-eje--open inf-eje--${variant} inf-eje--head`} data-eje-part="head">
       <div className="inf-eje__title-bar">
         <h4 className="inf-eje__title">{eje.titulo || "Sin título"}</h4>
         {fechaLabel && <span className="inf-eje__fecha">{fechaLabel}</span>}
       </div>
+    </div>
+  );
+}
+
+function BloqueEjeLeadPDF({ eje, variant = "macro" }) {
+  const { intro } = parseRedactadoABloques(eje.redactado || eje.notas || "");
+  const prop = Number(eje.propuestas) || 0;
+  const hechos = Number(eje.ejecutablesHechos) || 0;
+  return (
+    <div className={`inf-eje inf-eje--open inf-eje--cols inf-eje--${variant} inf-eje--lead`} data-eje-part="lead">
       <div className="inf-eje__body">
         <div className="inf-eje__kpi-col">
           <div className="inf-eje__kpi-item">
@@ -132,28 +137,65 @@ function BloqueEjePDF({ eje, variant = "macro" }) {
           <p className="inf-eje__hechos">{hechos} realizados</p>
         </div>
         <div className="inf-eje__text-col">
-          {intro && <p className="inf-eje__text">{intro}</p>}
-          {bullets.length > 0 && (
-            <ul className="inf-eje__bullets">
-              {bullets.map((b, i) => (
-                <li key={`${eje.id}-${i}`}>{b}</li>
-              ))}
-            </ul>
-          )}
+          {intro ? <p className="inf-eje__text">{intro}</p> : null}
         </div>
       </div>
-      {piezas.length > 0 && (
-        <p className="inf-eje__piezas">
-          {piezas.map((p, i) => (
-            <span key={p.nombre}>
-              {i > 0 ? " · " : ""}
-              {p.nombre}{p.versiones > 1 ? ` ×${p.versiones}` : ""}
-            </span>
-          ))}
-        </p>
-      )}
-    </article>
+    </div>
   );
+}
+
+function BloqueEjeBulletPDF({ text, isFirst, isLast }) {
+  return (
+    <ul
+      className={`inf-eje__bullets inf-eje__bullets--split${isFirst ? " inf-eje__bullets--first" : ""}${isLast ? " inf-eje__bullets--last" : ""}`}
+      data-eje-part="bullet"
+    >
+      <li>{text}</li>
+    </ul>
+  );
+}
+
+function BloqueEjePiezasPDF({ eje }) {
+  const piezas = parsePiezasSeleccionadas(eje.piezas || eje.trabajos || []);
+  if (!piezas.length) return null;
+  return (
+    <p className="inf-eje__piezas" data-eje-part="piezas">
+      {piezas.map((p, i) => (
+        <span key={p.nombre}>
+          {i > 0 ? " · " : ""}
+          {p.nombre}{p.versiones > 1 ? ` ×${p.versiones}` : ""}
+        </span>
+      ))}
+    </p>
+  );
+}
+
+/** Parte un eje en bloques empaquetables (inicio en pág.1, resto en la siguiente). */
+function bloquesDeEje(eje, variant) {
+  const { intro, bullets } = parseRedactadoABloques(eje.redactado || eje.notas || "");
+  const piezas = parsePiezasSeleccionadas(eje.piezas || eje.trabajos || []);
+  const out = [];
+  out.push({ id: `${eje.id}-head`, kind: "ejeHead", eje, variant });
+  out.push({ id: `${eje.id}-lead`, kind: "ejeLead", eje, variant, keepWithPrev: true });
+  bullets.forEach((text, i) => {
+    out.push({
+      id: `${eje.id}-b${i}`,
+      kind: "ejeBullet",
+      eje,
+      text,
+      isFirst: i === 0,
+      isLast: i === bullets.length - 1 && piezas.length === 0,
+      variant
+    });
+  });
+  if (piezas.length) {
+    out.push({ id: `${eje.id}-piezas`, kind: "ejePiezas", eje, variant });
+  }
+  // Si no hay intro ni bullets, el lead aún muestra KPIs
+  if (!intro && !bullets.length && !piezas.length) {
+    // lead ya cubre KPIs
+  }
+  return out;
 }
 
 function KpiBandPDF({ totales, ejesCount }) {
@@ -276,63 +318,78 @@ function BarrasVerticalesEjecutables({ items, altura }) {
   );
 }
 
-function donutArcPath(cx, cy, rOuter, rInner, startAngle, endAngle) {
-  const toXY = (r, angle) => {
-    const a = ((angle - 90) * Math.PI) / 180;
-    return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
-  };
-  const sweep = Math.max(0.01, endAngle - startAngle);
-  const large = sweep > 180 ? 1 : 0;
-  const [x1, y1] = toXY(rOuter, startAngle);
-  const [x2, y2] = toXY(rOuter, endAngle);
-  const [x3, y3] = toXY(rInner, endAngle);
-  const [x4, y4] = toXY(rInner, startAngle);
-  return [
-    `M ${x1} ${y1}`,
-    `A ${rOuter} ${rOuter} 0 ${large} 1 ${x2} ${y2}`,
-    `L ${x3} ${y3}`,
-    `A ${rInner} ${rInner} 0 ${large} 0 ${x4} ${y4}`,
-    "Z"
-  ].join(" ");
-}
-
-function DonutDistribucionInforme({ segments, size = 108 }) {
+/** Dibuja el donut en canvas → PNG (html-to-image falla con SVG stroke-dasharray). */
+function renderDonutPng(segments, size) {
   const data = Array.isArray(segments) ? segments : [];
-  if (!data.length) return null;
+  if (!data.length || typeof document === "undefined") return "";
   const total = data.reduce((s, d) => s + (d.value || 0), 0) || 1;
+  const soft = ["#FFFFFF", "#FFC8C8", "#FF8A8A", "#FF5C5C", "#F0F0F0"];
+  const scale = 3;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(size * scale);
+  canvas.height = Math.round(size * scale);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return "";
+  ctx.scale(scale, scale);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+
   const cx = size / 2;
   const cy = size / 2;
   const rOuter = size * 0.46;
   const rInner = size * 0.28;
-  const soft = ["#FFFFFF", "#FFD6D6", "#FFB4B4", "#F08A8A", "#E5E5E5", "#FFF1F1"];
-  const gapDeg = data.length > 1 ? 2.2 : 0;
-  let angle = 0;
+  const gap = data.length > 1 ? 0.035 : 0; // rad
+  let angle = -Math.PI / 2;
+
+  data.forEach((seg, i) => {
+    const slice = (seg.value / total) * Math.PI * 2;
+    const start = angle + gap / 2;
+    const end = angle + slice - gap / 2;
+    if (end > start) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, rOuter, start, end, false);
+      ctx.arc(cx, cy, rInner, end, start, true);
+      ctx.closePath();
+      ctx.fillStyle = seg.color || soft[i % soft.length];
+      ctx.fill();
+    }
+    angle += slice;
+  });
+
+  return canvas.toDataURL("image/png");
+}
+
+function DonutDistribucionInforme({ segments, size = 108 }) {
+  const data = Array.isArray(segments) ? segments : [];
+  const soft = ["#FFFFFF", "#FFC8C8", "#FF8A8A", "#FF5C5C", "#F0F0F0"];
+  const fingerprint = data.map((d) => `${d.label}:${d.value}:${d.color || ""}`).join("|");
+  const src = useMemo(() => renderDonutPng(data, size), [size, fingerprint]);
+
+  if (!data.length) return null;
 
   return (
     <div className="inf-donut-block">
       <div className="informe-donut" style={{ width: size, height: size }}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
-          <circle cx={cx} cy={cy} r={(rOuter + rInner) / 2} fill="none" stroke="rgba(255,255,255,0.16)" strokeWidth={rOuter - rInner} />
-          {data.map((seg, i) => {
-            const slice = (seg.value / total) * 360;
-            const usable = Math.max(0.4, slice - gapDeg);
-            const start = angle + gapDeg / 2;
-            const end = start + usable;
-            angle += slice;
-            return (
-              <path
-                key={`${seg.label}-${i}`}
-                d={donutArcPath(cx, cy, rOuter, rInner, start, end)}
-                fill={seg.color || soft[i % soft.length]}
-              />
-            );
-          })}
-        </svg>
+        {src ? (
+          <img
+            className="informe-donut__img"
+            src={src}
+            width={size}
+            height={size}
+            alt=""
+            draggable={false}
+            decoding="sync"
+            style={{ display: "block", width: size, height: size }}
+          />
+        ) : null}
       </div>
       <ul className="inf-legend">
         {data.map((d, i) => (
           <li key={d.label}>
-            <span className="inf-legend__swatch" style={{ background: d.color || soft[i % soft.length] }} />
+            <span
+              className="inf-legend__swatch"
+              style={{ background: d.color || soft[i % soft.length] }}
+            />
             <span>{d.label}</span>
             <strong>{d.pct}%</strong>
           </li>
@@ -369,21 +426,15 @@ function listarBloquesInforme(informe) {
   }
   if (macros.length) {
     blocks.push({ id: "macro-title", kind: "subTitle", title: "Macrotemporalidades", icon: "flag" });
-    macros.forEach((e) => blocks.push({
-      id: e.id,
-      kind: "eje",
-      eje: e,
-      variant: "macro"
-    }));
+    macros.forEach((e) => {
+      blocks.push(...bloquesDeEje(e, "macro"));
+    });
   }
   if (micros.length) {
     blocks.push({ id: "micro-title", kind: "subTitle", title: "Microtemporalidades", icon: "box", divider: true });
-    micros.forEach((e) => blocks.push({
-      id: e.id,
-      kind: "eje",
-      eje: e,
-      variant: "micro"
-    }));
+    micros.forEach((e) => {
+      blocks.push(...bloquesDeEje(e, "micro"));
+    });
   }
 
   if (hayIndicadores) {
@@ -481,13 +532,32 @@ function renderBloquePagina(block, informe) {
           divider={!!block.divider}
         />
       );
-    case "eje":
+    case "ejeHead":
+      return (
+        <div key={block.id} className="inf-block--eje-head" data-block-id={block.id}>
+          <BloqueEjeHeadPDF eje={block.eje} variant={block.variant || "macro"} />
+        </div>
+      );
+    case "ejeLead":
       return (
         <div key={block.id} data-block-id={block.id}>
-          <BloqueEjePDF
-            eje={block.eje}
-            variant={block.variant || "macro"}
+          <BloqueEjeLeadPDF eje={block.eje} variant={block.variant || "macro"} />
+        </div>
+      );
+    case "ejeBullet":
+      return (
+        <div key={block.id} data-block-id={block.id}>
+          <BloqueEjeBulletPDF
+            text={block.text}
+            isFirst={block.isFirst}
+            isLast={block.isLast}
           />
+        </div>
+      );
+    case "ejePiezas":
+      return (
+        <div key={block.id} data-block-id={block.id}>
+          <BloqueEjePiezasPDF eje={block.eje} />
         </div>
       );
     case "chartHbars":
@@ -538,7 +608,9 @@ function empaquetarPaginasPorAltura(blocks, heights, pageCapacityPx, gapPx) {
   const hOf = (b) => heights[b.id] || 36;
   const isTitle = (b) => b.kind === "sectionTitle" || b.kind === "subTitle" || b.kind === "header";
   const isOrphanTitle = (b) => b && (b.kind === "sectionTitle" || b.kind === "subTitle");
-  const isCoverOnly = (page) => page.every((b) => b.kind === "header" || b.kind === "kpis");
+  const isCoverOnly = (page) =>
+    page.length > 0 && page.every((b) => b.kind === "header" || b.kind === "kpis");
+  const isEjeStart = (b) => b && (b.kind === "ejeHead" || b.kind === "ejeLead");
 
   const flush = () => {
     if (current.length) pages.push(current);
@@ -549,6 +621,14 @@ function empaquetarPaginasPorAltura(blocks, heights, pageCapacityPx, gapPx) {
   const pushBlock = (b) => {
     const h = hOf(b);
     const extra = current.length > 0 ? gapPx : 0;
+    // keepWithPrev: título del eje no se queda solo en la página anterior
+    if (b.keepWithPrev && current.length > 0 && used + extra + h > pageCapacityPx) {
+      const prev = current.pop();
+      flush();
+      current = [prev, b];
+      used = hOf(prev) + gapPx + h;
+      return;
+    }
     if (current.length > 0 && used + extra + h > pageCapacityPx) flush();
     used += (current.length > 0 ? gapPx : 0) + h;
     current.push(b);
@@ -559,6 +639,16 @@ function empaquetarPaginasPorAltura(blocks, heights, pageCapacityPx, gapPx) {
     const a = list[0];
     const b = list[1];
     const c = list[2];
+    // En portada: títulos + inicio del macro (head+lead)
+    if (isOrphanTitle(a) && b && isOrphanTitle(b) && c && c.kind === "ejeHead") {
+      const lead = list[3] && list[3].kind === "ejeLead" ? list[3] : null;
+      return lead ? [a, b, c, lead] : [a, b, c];
+    }
+    if (isOrphanTitle(a) && b && b.kind === "ejeHead") {
+      const lead = list[2] && list[2].kind === "ejeLead" ? list[2] : null;
+      return lead ? [a, b, lead] : [a, b];
+    }
+    if (a.kind === "ejeHead" && b && b.kind === "ejeLead") return [a, b];
     if (isOrphanTitle(a) && b && isOrphanTitle(b) && c && !isTitle(c)) return [a, b, c];
     if (isOrphanTitle(a) && b && !isTitle(b)) return [a, b];
     return [a];
@@ -571,12 +661,45 @@ function empaquetarPaginasPorAltura(blocks, heights, pageCapacityPx, gapPx) {
       flush();
     }
 
-    // Bloques que no se deben partir ni mezclar (gráficos): página propia si ya hay contenido
     if (block.keepTogether && current.length > 0) {
       flush();
     }
 
     const next = blocks[i + 1];
+    const onCover = isCoverOnly(current);
+
+    // Títulos de sección + inicio de macro (head+lead) en portada
+    if (
+      onCover &&
+      isOrphanTitle(block) &&
+      next &&
+      isOrphanTitle(next) &&
+      blocks[i + 2] &&
+      blocks[i + 2].kind === "ejeHead"
+    ) {
+      const lead = blocks[i + 3] && blocks[i + 3].kind === "ejeLead" ? blocks[i + 3] : null;
+      const chunk = lead
+        ? [block, next, blocks[i + 2], lead]
+        : [block, next, blocks[i + 2]];
+      const chunkH = alturaPagina(chunk, heights, gapPx);
+      const extra = current.length > 0 ? gapPx : 0;
+      // Si el inicio no cabe, igual lo intentamos en esta página partiendo bullets después
+      if (current.length > 0 && used + extra + chunkH > pageCapacityPx) {
+        // Cabe solo títulos + head? o forzar head+lead y dejar bullets para pág.2
+        const mini = [block, next, blocks[i + 2], ...(lead ? [lead] : [])];
+        // Empujar lo que quepa: al menos títulos + head
+        pushBlock(block);
+        pushBlock(next);
+        pushBlock(blocks[i + 2]);
+        if (lead) pushBlock(lead);
+        i += lead ? 3 : 2;
+        continue;
+      }
+      chunk.forEach((b) => pushBlock(b));
+      i += lead ? 3 : 2;
+      continue;
+    }
+
     if (isOrphanTitle(block) && next && isOrphanTitle(next) && blocks[i + 2] && !isTitle(blocks[i + 2])) {
       const trioH = hOf(block) + gapPx + hOf(next) + gapPx + hOf(blocks[i + 2]);
       const extra = current.length > 0 ? gapPx : 0;
@@ -609,6 +732,17 @@ function empaquetarPaginasPorAltura(blocks, heights, pageCapacityPx, gapPx) {
       const t = pages[i].pop();
       pages[i + 1].unshift(t);
     }
+    // No dejar ejeHead solo sin lead al final de página
+    while (
+      pages[i].length &&
+      pages[i][pages[i].length - 1].kind === "ejeHead" &&
+      pages[i + 1] &&
+      pages[i + 1][0] &&
+      pages[i + 1][0].kind === "ejeLead"
+    ) {
+      const t = pages[i].pop();
+      pages[i + 1].unshift(t);
+    }
     if (!pages[i].length) {
       pages.splice(i, 1);
       i -= 1;
@@ -620,12 +754,11 @@ function empaquetarPaginasPorAltura(blocks, heights, pageCapacityPx, gapPx) {
     while (moved && pages[i + 1] && pages[i + 1].length) {
       moved = false;
       const chunk = takeChunkFrom(pages[i + 1]);
-      // No mezclar la página de gráficos con ejes previos
       if (chunk.some((b) => b.keepTogether || b.kind === "indicadores" || String(b.kind || "").startsWith("chart"))) break;
       if (pages[i].some((b) => b.keepTogether || b.kind === "indicadores" || String(b.kind || "").startsWith("chart"))) break;
       const nextH = alturaPagina(pages[i].concat(chunk), heights, gapPx);
-      // Nunca empujar por encima de la capacidad: overflow:hidden corta el eje
-      if (nextH <= pageCapacityPx) {
+      const lim = isCoverOnly(pages[i]) ? pageCapacityPx * 1.02 : pageCapacityPx;
+      if (nextH <= lim) {
         pages[i] = pages[i].concat(pages[i + 1].splice(0, chunk.length));
         if (!pages[i + 1].length) pages.splice(i + 1, 1);
         moved = true;
@@ -633,12 +766,25 @@ function empaquetarPaginasPorAltura(blocks, heights, pageCapacityPx, gapPx) {
     }
   }
 
-  // Portada: solo traer el primer eje si CABE (si no, se corta por overflow:hidden)
+  // Portada solo KPIs → traer títulos + inicio del primer macro (head+lead)
   if (pages.length > 1 && isCoverOnly(pages[0])) {
     const chunk = takeChunkFrom(pages[1]);
     const nextH = alturaPagina(pages[0].concat(chunk), heights, gapPx);
-    if (nextH <= pageCapacityPx) {
-      pages[0] = pages[0].concat(pages[1].splice(0, chunk.length));
+    if (nextH <= pageCapacityPx * 1.02 || chunk.some(isEjeStart)) {
+      // Si no cabe el chunk completo, meter al menos títulos + head (+ lead si cabe)
+      if (nextH <= pageCapacityPx * 1.02) {
+        pages[0] = pages[0].concat(pages[1].splice(0, chunk.length));
+      } else {
+        let n = 0;
+        let acc = pages[0].slice();
+        while (n < chunk.length) {
+          const trial = acc.concat(chunk[n]);
+          if (alturaPagina(trial, heights, gapPx) > pageCapacityPx * 1.02) break;
+          acc = trial;
+          n += 1;
+        }
+        if (n > 0) pages[0] = pages[0].concat(pages[1].splice(0, n));
+      }
       if (!pages[1].length) pages.splice(1, 1);
     }
   }
@@ -648,14 +794,14 @@ function empaquetarPaginasPorAltura(blocks, heights, pageCapacityPx, gapPx) {
     const prev = pages[i - 1];
     const pageH = alturaPagina(page, heights, gapPx);
     const prevH = alturaPagina(prev, heights, gapPx);
-    const contentCount = page.filter((b) => !isTitle(b)).length;
+    const contentCount = page.filter((b) => !isTitle(b) && b.kind !== "ejeBullet").length;
 
     if (contentCount <= 1 && prevH + gapPx + pageH <= pageCapacityPx) {
       pages[i - 1] = prev.concat(page);
       pages.splice(i, 1);
       continue;
     }
-    if (pageH < pageCapacityPx * 0.4 && prevH + gapPx + pageH <= pageCapacityPx) {
+    if (pageH < pageCapacityPx * 0.35 && prevH + gapPx + pageH <= pageCapacityPx) {
       pages[i - 1] = prev.concat(page);
       pages.splice(i, 1);
     }
@@ -682,26 +828,41 @@ function VistaPreviaInformePDF({ informe, marcaAccent }) {
       if (cancelled || !measureRef.current) return;
       const book = measureRef.current.parentElement;
       const bookW = Math.min(400, book?.clientWidth || 400);
-      const contentW = Math.max(280, Math.round(bookW * 0.89));
+      // Mismo ancho útil que .informe-sheet__inner (padding lateral 8.5% + 8.5%)
+      const padX = 0.085;
+      const padTop = 0.32; // % del ANCHO (igual que CSS)
+      const padBottom = 0.08;
+      const contentW = Math.max(280, Math.round(bookW * (1 - padX * 2)));
       measureRef.current.style.width = `${contentW}px`;
 
       const heights = {};
       measureRef.current.querySelectorAll("[data-block-id]").forEach((node) => {
-        // Margen de seguridad: el sheet real suele medir un poco más alto que el measure
         heights[node.getAttribute("data-block-id")] =
-          Math.ceil(node.getBoundingClientRect().height) + 8;
+          Math.ceil(node.getBoundingClientRect().height);
       });
 
       const sheetH = bookW * (1024 / 576);
-      // Más margen inferior: evita cortar la primera macro en la portada
-      const capacity = Math.max(320, Math.floor(sheetH * 0.70));
-      const packed = empaquetarPaginasPorAltura(blocks, heights, capacity, 9);
+      // Capacidad = alto real del body, respetando padding arriba/abajo del sheet
+      const contentH = sheetH - bookW * padTop - bookW * padBottom;
+      // 4% de holgura: overflow:hidden corta si nos pasamos por 1px
+      const capacity = Math.max(280, Math.floor(contentH * 0.96));
+      const packed = empaquetarPaginasPorAltura(blocks, heights, capacity, 5);
       if (!cancelled) setPages(packed);
     };
 
-    medirYEmpaquetar();
+    // Medir con la tipografía ya cargada (si no, los altos mienten y se corta)
+    const run = () => {
+      if (document.fonts?.ready) {
+        document.fonts.ready.then(() => {
+          if (!cancelled) medirYEmpaquetar();
+        });
+      } else {
+        medirYEmpaquetar();
+      }
+    };
+    run();
     const t = window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(medirYEmpaquetar);
+      window.requestAnimationFrame(run);
     });
     return () => {
       cancelled = true;
@@ -726,7 +887,7 @@ function VistaPreviaInformePDF({ informe, marcaAccent }) {
           {esGama && (
             <img
               className="informe-sheet__bg"
-              src="assets/informe/fondo-gama.png?v=5"
+              src="assets/informe/fondo-gama.png?v=6"
               alt=""
               draggable={false}
               decoding="async"
@@ -737,9 +898,6 @@ function VistaPreviaInformePDF({ informe, marcaAccent }) {
             <div className="informe-sheet__body">
               {pageBlocks.map((b) => renderBloquePagina(b, informe))}
             </div>
-            {hojas.length > 1 && (
-              <p className="inf-page-num">{pageIndex + 1} / {hojas.length}</p>
-            )}
           </div>
         </div>
       ))}

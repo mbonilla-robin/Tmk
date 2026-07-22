@@ -9,11 +9,10 @@ const MESES_ES = [
 
 const INFORME_COLORES_DISTRIBUCION = [
   "#FFFFFF",
-  "#FFD6D6",
-  "#FFB4B4",
-  "#F08A8A",
-  "#E5E5E5",
-  "#FFF1F1"
+  "#FFC8C8",
+  "#FF8A8A",
+  "#FF5C5C",
+  "#F0F0F0"
 ];
 
 const INFORME_ICONOS_SUGERENCIA = [

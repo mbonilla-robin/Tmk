@@ -3,6 +3,9 @@ function SelectorPiezasTrade({ seleccionadas = [], onChange }) {
   const [query, setQuery] = useState("");
   const [abierto, setAbierto] = useState(false);
   const [nuevaCantidad, setNuevaCantidad] = useState(1);
+  const [pegado, setPegado] = useState("");
+  const [mostrarPegado, setMostrarPegado] = useState(false);
+  const [msgPegado, setMsgPegado] = useState("");
   const wrapRef = useRef(null);
 
   const lista = parsePiezasSeleccionadas(seleccionadas);
@@ -45,6 +48,35 @@ function SelectorPiezasTrade({ seleccionadas = [], onChange }) {
     setQuery("");
     setNuevaCantidad(1);
     setAbierto(false);
+  };
+
+  const aplicarPegado = () => {
+    if (typeof aplicarPiezasDesdeTextoPegado !== "function") return;
+    const { piezas, catalogo: nextCat, nuevas } = aplicarPiezasDesdeTextoPegado(pegado);
+    if (!piezas.length) {
+      setMsgPegado("No se detectaron piezas. Pega el listado numerado (con o sin (xN)).");
+      return;
+    }
+    setCatalogo(nextCat);
+    // Fusionar con las ya seleccionadas (suma versiones si se repite)
+    const map = new Map(lista.map((p) => [clavePiezaTrade(p.nombre), { ...p }]));
+    piezas.forEach((p) => {
+      const key = clavePiezaTrade(p.nombre);
+      const prev = map.get(key);
+      if (prev) {
+        map.set(key, { nombre: prev.nombre, versiones: (prev.versiones || 1) + (p.versiones || 1) });
+      } else {
+        map.set(key, { nombre: p.nombre, versiones: p.versiones || 1 });
+      }
+    });
+    onChange(Array.from(map.values()));
+    setPegado("");
+    const nNuevas = nuevas.length;
+    setMsgPegado(
+      nNuevas > 0
+        ? `Listo: ${piezas.length} piezas aplicadas · ${nNuevas} nuevas guardadas en catálogo.`
+        : `Listo: ${piezas.length} piezas aplicadas.`
+    );
   };
 
   const setVersiones = (nombre, versiones) => {
@@ -112,6 +144,41 @@ function SelectorPiezasTrade({ seleccionadas = [], onChange }) {
           onChange={(e) => setNuevaCantidad(Math.max(1, Number(e.target.value) || 1))}
         />
       </div>
+
+      <button
+        type="button"
+        className="informe-linkish"
+        onClick={() => {
+          setMostrarPegado((v) => !v);
+          setMsgPegado("");
+        }}
+      >
+        {mostrarPegado ? "Ocultar pegado de listado" : "Pegar listado completo de piezas"}
+      </button>
+
+      {mostrarPegado && (
+        <div className="informe-piezas__paste">
+          <textarea
+            className="informe-textarea"
+            rows={6}
+            value={pegado}
+            placeholder={"Ejemplo:\n1. Vinil Fachada.\n6. Floorgraphic Categorías (x5).\n12. Habladores Carnicería (x11)."}
+            onChange={(e) => {
+              setPegado(e.target.value);
+              setMsgPegado("");
+            }}
+          />
+          <div className="informe-piezas__paste-actions">
+            <button type="button" className="informe-btn-ghost" onClick={aplicarPegado} disabled={!pegado.trim()}>
+              Aplicar listado
+            </button>
+          </div>
+          <p className="informe-hint">
+            Detecta cantidades tipo (x5). Las piezas nuevas se guardan solas en el catálogo.
+          </p>
+          {msgPegado ? <p className="informe-hint informe-piezas__paste-msg">{msgPegado}</p> : null}
+        </div>
+      )}
 
       {lista.length > 0 && (
         <ul className="informe-piezas__lista">

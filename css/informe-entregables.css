@@ -650,6 +650,23 @@
   text-align: center;
 }
 
+.informe-piezas__paste {
+  margin-top: 0.45rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.informe-piezas__paste-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.informe-piezas__paste-msg {
+  color: #166534;
+  font-weight: 600;
+}
+
 .informe-linkish {
   display: inline-block;
   margin-top: 0.25rem;

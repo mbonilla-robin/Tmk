@@ -740,69 +740,31 @@ function LayoutGeneradorInformes({
     ejecutarPreparacion({ forzarAi: true });
   };
 
-  /** PDF nativo solo en desktop: en móvil window.print() saca de la app. */
-  const puedePDFNativo = typeof window.matchMedia === "function"
-    && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
-
-  const exportarPDFNativo = async () => {
-    if (!puedePDFNativo) {
-      toast("En móvil usa «Descargar PDF» (se queda en la app)");
-      return exportarPDF();
+  /** PDF texto: ventana dedicada A4 (no vacía la app) + tipografía real. */
+  const exportarPDFTexto = async () => {
+    const root = previewRef.current;
+    if (!root) return;
+    if (typeof exportarInformePDFTexto !== "function") {
+      toast("No está disponible PDF texto · recarga la página");
+      return;
     }
-
-    const sheets = previewRef.current?.querySelectorAll(".informe-sheet:not(.informe-sheet--ghost)");
-    if (!sheets || sheets.length === 0) return;
     setExportando(true);
-    toast("Abriendo impresión… elige «Guardar como PDF»");
-
-    const bookEl = previewRef.current?.querySelector(".informe-pdf-book");
-    const prevBookScale = bookEl?.style.getPropertyValue("--informe-preview-scale") || "";
-    if (bookEl) bookEl.style.setProperty("--informe-preview-scale", "1");
-
-    const waitImages = (root) => Promise.all(
-      Array.from(root.querySelectorAll("img")).map((img) => {
-        if (img.complete && img.naturalWidth > 0) return Promise.resolve();
-        return new Promise((resolve) => {
-          img.addEventListener("load", resolve, { once: true });
-          img.addEventListener("error", resolve, { once: true });
-        });
-      })
-    );
-
-    let cleaned = false;
-    const cleanup = async (markExported) => {
-      if (cleaned) return;
-      cleaned = true;
-      window.removeEventListener("afterprint", onAfterPrint);
-      document.body.classList.remove("informe-print-mode");
-      if (bookEl) {
-        if (prevBookScale) bookEl.style.setProperty("--informe-preview-scale", prevBookScale);
-        else bookEl.style.removeProperty("--informe-preview-scale");
-      }
-      setExportando(false);
-      if (markExported) {
-        await persistirAhora(informe, { markExported: true });
-        toast(`PDF nativo · ${sheets.length} pág. (texto seleccionable)`);
-      }
-    };
-
-    const onAfterPrint = () => {
-      cleanup(true);
-    };
-
+    toast("Preparando PDF texto… elige «Guardar como PDF»");
     try {
-      if (document.fonts?.ready) await document.fonts.ready;
-      await waitImages(previewRef.current);
-      document.body.classList.add("informe-print-mode");
-      window.addEventListener("afterprint", onAfterPrint);
-      // Si cancela o el sistema no dispara afterprint, recuperar UI pronto
-      window.setTimeout(() => cleanup(false), 8000);
-      window.print();
+      await exportarInformePDFTexto(root, {
+        accent,
+        onDone: async (ok) => {
+          setExportando(false);
+          if (ok) {
+            await persistirAhora(informe, { markExported: true });
+            toast("PDF texto listo");
+          }
+        }
+      });
     } catch (err) {
       console.error(err);
-      await cleanup(false);
-      toast("No se pudo abrir la impresión · se descarga PDF imagen");
-      await exportarPDF();
+      setExportando(false);
+      toast(String(err?.message || "No se pudo abrir PDF texto"));
     }
   };
 
@@ -1549,22 +1511,20 @@ function LayoutGeneradorInformes({
               <div>
                 <h2 className="informe-panel__title">Vista previa</h2>
                 <p className="informe-panel__sub">
-                  Formato A4 · la descarga se queda en la app
+                  Formato A4 · PDF = fiel a la preview · PDF texto = tipografía seleccionable
                 </p>
               </div>
               <div className="informe-preview-toolbar__actions">
                 <button type="button" className="informe-btn-ghost" onClick={() => { setInformeVista(null); setPaso(2); }}>Editar</button>
-                {puedePDFNativo && (
-                  <button
-                    type="button"
-                    className="informe-btn-ghost"
-                    onClick={exportarPDFNativo}
-                    disabled={exportando}
-                    title="Abre el diálogo de impresión · Guardar como PDF (texto seleccionable)"
-                  >
-                    PDF texto
-                  </button>
-                )}
+                <button
+                  type="button"
+                  className="informe-btn-ghost"
+                  onClick={exportarPDFTexto}
+                  disabled={exportando}
+                  title="Abre una vista A4 con todas las hojas · Guardar como PDF"
+                >
+                  PDF texto
+                </button>
                 <button type="button" className="informe-btn-primary" onClick={exportarPDF} disabled={exportando}>
                   <i className={`fa-solid ${exportando ? "fa-spinner fa-spin" : "fa-file-pdf"}`} />
                   Descargar PDF

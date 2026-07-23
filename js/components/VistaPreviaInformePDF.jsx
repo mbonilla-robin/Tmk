@@ -203,6 +203,49 @@ function escapeRegExpInforme(s) {
   return String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/** Parte texto con **negrita** markdown → nodos React. */
+function fragmentosMarkdownNegrita(text) {
+  const raw = String(text || "");
+  if (!raw) return [];
+  const parts = [];
+  // Soporta **negrita** (también con espacios internos)
+  const re = /\*\*([^*]+?)\*\*/g;
+  let last = 0;
+  let m;
+  while ((m = re.exec(raw))) {
+    if (m.index > last) {
+      parts.push({ text: raw.slice(last, m.index), weight: "plain" });
+    }
+    parts.push({ text: m[1], weight: "strong" });
+    last = m.index + m[0].length;
+  }
+  if (last < raw.length) {
+    parts.push({ text: raw.slice(last), weight: "plain" });
+  }
+  if (!parts.length) return [{ text: raw.replace(/\*\*/g, ""), weight: "plain" }];
+  // Limpia asteriscos sueltos que hayan quedado
+  return parts.map((p) => ({
+    ...p,
+    text: String(p.text || "").replace(/\*\*/g, "")
+  })).filter((p) => p.text);
+}
+
+function TextoMarkdownPDF({ text, strongClass = "inf-eje__text-strong", plainClass = "" }) {
+  const parts = fragmentosMarkdownNegrita(text);
+  if (!parts.length) return null;
+  return (
+    <>
+      {parts.map((p, i) => (
+        p.weight === "strong" ? (
+          <strong key={`md-${i}`} className={strongClass}>{p.text}</strong>
+        ) : (
+          <span key={`md-${i}`} className={plainClass || undefined}>{p.text}</span>
+        )
+      ))}
+    </>
+  );
+}
+
 /**
  * Fallback / enriquecimiento de **...** en el intro.
  * Prioriza el “qué se hizo” sobre el título del eje (ya visible en la barra blanca).
@@ -299,25 +342,16 @@ function enriquecerEnfasisSiSoloTitulo(intro, eje) {
 /** Parte intro en strong/light según **marcado por importancia**. */
 function parseIntroConEnfasis(text, eje) {
   const raw = enriquecerEnfasisSiSoloTitulo(text, eje);
-  const parts = [];
-  const re = /\*\*([^*]+)\*\*/g;
-  let last = 0;
-  let m;
-  while ((m = re.exec(raw))) {
-    if (m.index > last) {
-      parts.push({ text: raw.slice(last, m.index), weight: "light" });
-    }
-    parts.push({ text: m[1], weight: "strong" });
-    last = m.index + m[0].length;
+  const md = fragmentosMarkdownNegrita(raw);
+  if (!md.length) return [{ text: String(raw || "").replace(/\*\*/g, ""), weight: "regular" }];
+  const hasStrong = md.some((p) => p.weight === "strong");
+  if (!hasStrong) {
+    return [{ text: md.map((p) => p.text).join(""), weight: "regular" }];
   }
-  if (last < raw.length) {
-    parts.push({ text: raw.slice(last), weight: "light" });
-  }
-  if (!parts.length) return [{ text: raw, weight: "regular" }];
-  if (!parts.some((p) => p.weight === "strong")) {
-    return [{ text: raw.replace(/\*\*/g, ""), weight: "regular" }];
-  }
-  return parts;
+  return md.map((p) => ({
+    text: p.text,
+    weight: p.weight === "strong" ? "strong" : "light"
+  }));
 }
 
 function IntroEjePDF({ text, eje }) {
@@ -382,7 +416,7 @@ function BloqueEjeBulletPDF({ text, isFirst, isLast }) {
       className={`inf-eje__bullets inf-eje__bullets--split${isFirst ? " inf-eje__bullets--first" : ""}${isLast ? " inf-eje__bullets--last" : ""}`}
       data-eje-part="bullet"
     >
-      <li>{text}</li>
+      <li><TextoMarkdownPDF text={text} strongClass="inf-eje__text-strong" /></li>
     </ul>
   );
 }
@@ -456,7 +490,9 @@ function CuerpoSugerenciaPDF({ text }) {
     nodes.push(
       <ul key={key} className="inf-sug__bullets">
         {bullets.map((b, i) => (
-          <li key={`${key}-${i}`}>{b}</li>
+          <li key={`${key}-${i}`}>
+            <TextoMarkdownPDF text={b} strongClass="inf-eje__text-strong" />
+          </li>
         ))}
       </ul>
     );
@@ -480,13 +516,19 @@ function CuerpoSugerenciaPDF({ text }) {
     }
     flushBullets();
     nodes.push(
-      <p key={`p-${nodes.length}`} className="inf-sug__p">{l}</p>
+      <p key={`p-${nodes.length}`} className="inf-sug__p">
+        <TextoMarkdownPDF text={l} strongClass="inf-eje__text-strong" />
+      </p>
     );
   });
   flushBullets();
 
   if (!nodes.length) {
-    return <p className="inf-sug__p">{String(text || "").trim()}</p>;
+    return (
+      <p className="inf-sug__p">
+        <TextoMarkdownPDF text={String(text || "").trim()} strongClass="inf-eje__text-strong" />
+      </p>
+    );
   }
   return <div className="inf-sug__rich">{nodes}</div>;
 }

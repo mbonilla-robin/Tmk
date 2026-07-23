@@ -591,29 +591,40 @@
 }
 
 .informe-steps {
-  display: flex;
-  gap: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   margin-bottom: 1rem;
-  overflow-x: auto;
+  overflow: visible;
 }
 
 .informe-steps__item {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.8rem;
+  justify-content: center;
+  gap: 0.3rem;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.35rem 0.4rem;
   border-radius: 999px;
   border: 1px solid #e4e4e7;
   background: #fff;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: #71717a;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
 }
 
 .informe-steps__item span {
-  width: 1.2rem;
-  height: 1.2rem;
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
   border-radius: 999px;
   background: #f4f4f5;
   display: inline-flex;
@@ -636,6 +647,17 @@
 .informe-steps__item.is-done {
   border-color: #d4d4d8;
   color: #3f3f46;
+}
+
+@media (min-width: 640px) {
+  .informe-steps {
+    gap: 0.5rem;
+  }
+
+  .informe-steps__item {
+    padding: 0.4rem 0.8rem;
+    font-size: 12px;
+  }
 }
 
 .informe-panel {
@@ -2348,11 +2370,22 @@
   print-color-adjust: exact !important;
 }
 
+/* html-to-image pinta mal las sombras → “manchas” rojas detrás de KPIs/barras */
+.informe-sheet--export-capture .inf-kpi-stat,
+.informe-sheet--export-capture .inf-eje__title-bar,
+.informe-sheet--export-capture .inf-eje__metric,
+.informe-sheet--export-capture .inf-chart__name,
+.informe-sheet--export-capture .inf-sug__title-bar,
+.informe-sheet--export-capture .inf-section__ico--chapter,
+.informe-sheet--export-capture .inf-sug__icon {
+  box-shadow: none !important;
+}
+
 .informe-sheet--export-capture .informe-sheet__bg {
   opacity: 1 !important;
   mix-blend-mode: normal !important;
-  /* html-to-image satura de más los rojos; compensamos en la captura */
-  filter: saturate(0.86) brightness(0.96) contrast(0.98) !important;
+  /* Sin filter: el saturate/contrast generaba bandas/rectángulos raros en el rojo */
+  filter: none !important;
   text-shadow: none !important;
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;

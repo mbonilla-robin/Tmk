@@ -179,13 +179,24 @@ Responde SOLO con JSON válido (sin markdown) con esta forma exacta:
 Reglas de redacción por eje (macro/micro):
 1. LEE con atención "notas", "titulo", piezas, propuestas, ejecutablesHechos y enEjecucion del formulario. Esa es la fuente de verdad.
 2. Reescribe en español profesional lo que se hizo: acciones, despliegues, materiales y resultados concretos. Si enEjecucion es true, indícalo como proyecto aún en curso (sin inventar ejecutables realizados).
-3. Formato: 1 párrafo inicial (2–4 oraciones) + bullets de acciones/resultados cuando las notas lo ameriten. No resumas de más: conserva la información útil del formulario.
-4. NO listes piezas/trabajos en el redactado (van aparte en el PDF). NO inventes métricas, fechas ni entregables que no vengan en los datos.
-5. Conserva el "id" de cada eje. Si un eje no tiene notas, redacta un párrafo breve y fiel a título + métricas disponibles, sin inventar.
+3. FIDELIDAD AL CONTENIDO (CRÍTICO — es un reporte de información, no un resumen):
+   - PROHIBIDO “comerse” texto, omitir datos útiles o comprimir de más. Si las notas son ricas, el redactado debe ser rico.
+   - Intro: 1 párrafo con la extensión que haga falta (puede ser 2–6 oraciones o más si las notas lo requieren). Conserva hechos, alcance, partners, fechas/periodos mencionados y matices de las notas.
+   - Bullets: un bullet por acción/resultado concreto dejado en las notas (o claramente derivado de ellas). No fusiones varios puntos en uno si pierdes detalle. No inventes bullets; no dejes fuera los que sí están en las notas.
+   - Si las notas ya traen bullets, consérvalos (puliendo redacción), no los reduzcas a la mitad.
+4. ÉNFASIS EN EL PÁRRAFO INICIAL (negritas con **...**):
+   - Marca 1 a 3 fragmentos cortos (ideal 2–6 palabras c/u) que un cliente leería en un escaneo de 2 segundos.
+   - SÍ resalta: nombre del eje/proyecto/campaña, alianza o partner clave, el “qué se hizo” diferencial.
+   - NO resaltes: verbos sueltos, conectores, “piso de venta”, “PDV”, “foco en”, fechas solas, adjetivos vacíos, ni oraciones enteras.
+   - PROHIBIDO marcar por posición (primera coma/frase). Solo por valor informativo. En bullets NO uses **.
+   - Ej. bueno: "Activación alineada a la alianza con **Gama Club** y el proyecto **Gamania**, con foco en visibilidad y tráfico en góndola."
+   - Ej. malo: marcar todo el párrafo o solo “con foco en…”.
+5. NO listes piezas/trabajos en el redactado (van aparte en el PDF). NO inventes métricas, fechas ni entregables que no vengan en los datos.
+6. Conserva el "id" de cada eje. Si un eje no tiene notas, redacta un párrafo breve y fiel a título + métricas disponibles, sin inventar.
 
 Reglas de sugerencias de mejora (CRÍTICO — alimentan los próximos pasos):
 1. "sugerenciasNotas" es la fuente de verdad. Léelas completas.
-2. PROHIBIDO resumir o acortar. Si el equipo escribió ~10 líneas, el resultado debe tener al menos esa extensión (idealmente un poco más: pulir y ampliar ~10–20%).
+2. PROHIBIDO resumir, acortar u omitir. Si el equipo escribió ~10 líneas, el resultado debe tener al menos esa extensión (idealmente un poco más: pulir y ampliar ~10–20%).
 3. Mejora tipografía, ortografía, gramática y claridad, pero conserva TODO el contenido, matices, bullets y estructura.
 4. Cada sugerencia DEBE tener:
    - "titulo": etiqueta temática CORTA (3–6 palabras). Es el nombre general del bloque (ej. "Fechas y assets", "Alineación de equipos"). PROHIBIDO copiar, parafrasear o repetir la primera frase / bullets del "text". El título NO es un resumen narrativo.
@@ -194,7 +205,7 @@ Reglas de sugerencias de mejora (CRÍTICO — alimentan los próximos pasos):
 5. Una sugerencia por tema/idea. No fusiones temas distintos. Conserva los bullets del original (pulidos).
 6. Si no hay notas, propone 2–3 mejoras generales realistas de Trade Marketing (sin inventar hechos del cliente).
 
-Estilo: claro, directo, corporativo. Evita adjetivos vacíos, emojis y frases de relleno.`;
+Estilo: claro, directo, corporativo. Evita adjetivos vacíos, emojis y frases de relleno. Prioriza información completa sobre brevedad.`;
 
     const userPrompt = `Prepara el informe de entregables Trade Marketing.
 

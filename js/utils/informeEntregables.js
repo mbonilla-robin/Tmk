@@ -239,7 +239,7 @@ function informeRecuperadoGamaJunAgo2026() {
         fechaFin: "2026-06",
         notas: "Despliegue en piso de venta para Mundial Gama entre junio y julio 2026.",
         redactado:
-          "Despliegue en piso de venta para la activación Mundial Gama entre junio y julio 2026, orientado a potenciar descuentos y ofertas especiales.\n• Promoción de descuentos y ofertas especiales en PDV.\n• Diseño y distribución de materiales POP: floor graphics, cenefas y microperforados.\n• Mejora de la experiencia de compra con habladores y danglers atractivos.",
+          "Despliegue en piso de venta para la activación **Mundial Gama** entre junio y julio 2026, orientado a potenciar descuentos y ofertas especiales.\n• Promoción de descuentos y ofertas especiales en PDV.\n• Diseño y distribución de materiales POP: floor graphics, cenefas y microperforados.\n• Mejora de la experiencia de compra con habladores y danglers atractivos.",
         piezas: mundialPiezas,
         trabajos: serial(mundialPiezas),
         propuestas: 6,
@@ -251,7 +251,7 @@ function informeRecuperadoGamaJunAgo2026() {
         fechaFin: "2026-07",
         notas: "Alianza estratégica Gama Club / Gamania.",
         redactado:
-          "Activación alineada a la alianza estratégica con Gama Club y el proyecto Gamania, con foco en visibilidad y tráfico en góndola.\n• Generación de espacio con puntas de góndola.\n• Distribución de habladores y danglers en zonas clave.\n• Inclusión de cartilla promocional de apoyo.",
+          "Activación alineada a la alianza estratégica con **Gama Club** y el proyecto **Gamania**, con foco en visibilidad y tráfico en góndola.\n• Generación de espacio con puntas de góndola.\n• Distribución de habladores y danglers en zonas clave.\n• Inclusión de cartilla promocional de apoyo.",
         piezas: gamaniaPiezas,
         trabajos: serial(gamaniaPiezas),
         propuestas: 5,
@@ -265,7 +265,7 @@ function informeRecuperadoGamaJunAgo2026() {
         fechaFin: "2026-07",
         notas: "Reestructuración de la comunicación de precios en piso de venta.",
         redactado:
-          "Proyecto de reestructuración de la comunicación de precios en piso de venta, con piezas de soporte para claridad y consistencia visual.\n• Actualización de plantillas y preciadores.\n• Refuerzo con microperforados, rompetráficos y separadores.\n• Soportes A4 para comunicación puntual en PDV.",
+          "Proyecto de reestructuración de la **comunicación de precios** en piso de venta, con piezas de soporte para claridad y consistencia visual.\n• Actualización de plantillas y preciadores.\n• Refuerzo con microperforados, rompetráficos y separadores.\n• Soportes A4 para comunicación puntual en PDV.",
         piezas: pricingPiezas,
         trabajos: serial(pricingPiezas),
         propuestas: 26,
@@ -277,7 +277,7 @@ function informeRecuperadoGamaJunAgo2026() {
         fechaFin: "2026-07",
         notas: "Promoción de vinos de alta calidad con materiales POP.",
         redactado:
-          "Promoción de vinos exclusivos de alta calidad mediante materiales POP de alto impacto en PDV.\n• Tótem de marca para destacar la selección.\n• Habladores de apoyo en góndola.",
+          "Promoción de **vinos exclusivos** de alta calidad mediante materiales POP de alto impacto en PDV.\n• Tótem de marca para destacar la selección.\n• Habladores de apoyo en góndola.",
         piezas: vinosPiezas,
         trabajos: serial(vinosPiezas),
         propuestas: 2,

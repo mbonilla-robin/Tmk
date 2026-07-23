@@ -160,18 +160,18 @@ function InformeIconoSVG({ name = "spark", className = "" }) {
 function SeccionTituloPDF({ title, icon = "layers", level = "h2", blockId, divider = false }) {
   const Tag = level === "h3" ? "h3" : "h2";
   const props = blockId ? { "data-block-id": blockId } : {};
-  const esBadge = level === "h3";
+  const esCapitulo = level !== "h3";
   return (
     <div
-      className={`inf-section ${esBadge ? "inf-section--badge" : ""} ${level === "h3" ? "inf-section--sub" : ""}${divider ? " inf-section--divider" : ""}`}
+      className={`inf-section${esCapitulo ? " inf-section--chapter" : " inf-section--sub"}${divider ? " inf-section--divider" : ""}`}
       {...props}
     >
-      {!esBadge && (
-        <span className="inf-section__ico">
+      {esCapitulo ? (
+        <span className="inf-section__ico inf-section__ico--chapter" aria-hidden="true">
           <InformeIconoSVG name={icon} />
         </span>
-      )}
-      <Tag className={esBadge ? "inf-h3-badge" : level === "h3" ? "inf-h3" : "inf-h2"}>
+      ) : null}
+      <Tag className={esCapitulo ? "inf-h2" : "inf-h3"}>
         {title}
       </Tag>
     </div>
@@ -196,6 +196,118 @@ function BloqueEjeHeadPDF({ eje, variant = "macro" }) {
         )}
       </div>
     </div>
+  );
+}
+
+function escapeRegExpInforme(s) {
+  return String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Fallback local si la IA no mandó **...**.
+ * Prefiere frases con valor (título, alianza/proyecto, concepto diferencial), no palabras genéricas.
+ */
+function autoEnfasisIntroPorImportancia(intro, eje) {
+  const s = String(intro || "").trim();
+  if (!s || /\*\*[^*]+\*\*/.test(s)) return s;
+
+  const STOP = new Set([
+    "pdv", "piso", "venta", "foco", "junio", "julio", "agosto", "septiembre",
+    "octubre", "noviembre", "diciembre", "enero", "febrero", "marzo", "abril", "mayo",
+    "especiales", "apoyo", "materiales", "piezas"
+  ]);
+
+  const needles = [];
+  const push = (n) => {
+    let t = String(n || "").trim().replace(/\s+/g, " ");
+    if (t.length < 4 || t.length > 48) return;
+    if (STOP.has(t.toLowerCase())) return;
+    // Evitar monosílabos / una sola palabra demasiado genérica
+    const words = t.split(/\s+/);
+    if (words.length === 1 && t.length < 6) return;
+    if (!needles.some((x) => x.toLowerCase() === t.toLowerCase())) needles.push(t);
+  };
+
+  const titulo = String(eje?.titulo || "").trim();
+  push(titulo);
+
+  // Alianzas / partners / nombres propios multi-palabra
+  const brands = s.match(
+    /\b(?:Gama(?:\s+Club)?|Gamania|Diageo|La\s+Sant[eé]|Robin|Mundial(?:\s+Gama)?|FII|Nida)\b/gi
+  ) || [];
+  brands.forEach(push);
+
+  // “proyecto/activación/campaña X” → núcleo propio
+  const named = s.match(
+    /(?:proyecto|activaci[oó]n|campa[nñ]a|temporalidad)\s+([A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÑ]*(?:\s+[A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÑ]*){0,3})/gi
+  ) || [];
+  named.forEach((chunk) => {
+    const nucleus = String(chunk || "")
+      .replace(/^(?:proyecto|activaci[oó]n|campa[nñ]a|temporalidad)\s+/i, "")
+      .replace(/[.,;:]+$/, "")
+      .trim();
+    if (nucleus.length >= 3) push(nucleus);
+  });
+
+  // Concepto diferencial: “comunicación de precios”, “vinos exclusivos”, etc.
+  const conceptos = s.match(
+    /\b(?:comunicaci[oó]n de precios|vinos exclusivos|puntas de g[oó]ndola|floor graphics?|materiales POP)\b/gi
+  ) || [];
+  conceptos.forEach(push);
+
+  needles.sort((a, b) => b.length - a.length);
+  // Máx. 3 énfasis para no saturar
+  const top = needles.slice(0, 3);
+  if (!top.length) return s;
+
+  const re = new RegExp(`(${top.map(escapeRegExpInforme).join("|")})`, "gi");
+  return s.replace(re, "**$1**");
+}
+
+/** Parte intro en strong/light según **marcado por importancia**. */
+function parseIntroConEnfasis(text, eje) {
+  const raw = autoEnfasisIntroPorImportancia(text, eje);
+  const parts = [];
+  const re = /\*\*([^*]+)\*\*/g;
+  let last = 0;
+  let m;
+  while ((m = re.exec(raw))) {
+    if (m.index > last) {
+      parts.push({ text: raw.slice(last, m.index), weight: "light" });
+    }
+    parts.push({ text: m[1], weight: "strong" });
+    last = m.index + m[0].length;
+  }
+  if (last < raw.length) {
+    parts.push({ text: raw.slice(last), weight: "light" });
+  }
+  if (!parts.length) return [{ text: raw, weight: "regular" }];
+  if (!parts.some((p) => p.weight === "strong")) {
+    return [{ text: raw.replace(/\*\*/g, ""), weight: "regular" }];
+  }
+  return parts;
+}
+
+function IntroEjePDF({ text, eje }) {
+  const parts = parseIntroConEnfasis(text, eje);
+  if (!parts.length) return null;
+  return (
+    <p className="inf-eje__text">
+      {parts.map((p, i) => (
+        <span
+          key={`intro-${i}`}
+          className={
+            p.weight === "strong"
+              ? "inf-eje__text-strong"
+              : p.weight === "light"
+                ? "inf-eje__text-light"
+                : "inf-eje__text-regular"
+          }
+        >
+          {p.text}
+        </span>
+      ))}
+    </p>
   );
 }
 
@@ -227,7 +339,7 @@ function BloqueEjeLeadPDF({ eje, variant = "macro" }) {
           </div>
         </div>
       </div>
-      {intro ? <p className="inf-eje__text">{intro}</p> : null}
+      {intro ? <IntroEjePDF text={intro} eje={eje} /> : null}
     </div>
   );
 }
@@ -249,13 +361,14 @@ function BloqueEjePiezasPDF({ eje }) {
   const iconFor = typeof iconoPiezaTrade === "function"
     ? iconoPiezaTrade
     : () => "check";
+  const chipsMod = piezas.length >= 5 ? "inf-eje__chips--inventory" : "inf-eje__chips--duo";
   return (
     <div className="inf-eje__piezas" data-eje-part="piezas">
       <p className="inf-eje__piezas-label">
         <InformeIconoSVG name="layers" />
         <span>Piezas</span>
       </p>
-      <div className="inf-eje__chips">
+      <div className={`inf-eje__chips ${chipsMod}`}>
         {piezas.map((p) => (
           <span key={p.nombre} className="inf-eje__chip">
             <span className="inf-eje__chip-ico" aria-hidden="true">
@@ -809,6 +922,49 @@ function alturaPagina(page, heights, gapPx) {
   return page.reduce((acc, b, i) => acc + (heights[b.id] || 36) + (i > 0 ? gapPx : 0), 0);
 }
 
+const EJE_BLOCK_KINDS = new Set(["ejeHead", "ejeLead", "ejeBullet", "ejePiezas"]);
+
+/** Agrupa partes consecutivas del mismo eje en una ficha visual (sin caja). */
+function agruparBloquesParaRender(pageBlocks) {
+  const groups = [];
+  let i = 0;
+  const list = pageBlocks || [];
+  while (i < list.length) {
+    const b = list[i];
+    const ejeId = b?.eje?.id;
+    if (EJE_BLOCK_KINDS.has(b.kind) && ejeId) {
+      const variant = b.variant || "macro";
+      const chunk = [];
+      while (i < list.length && EJE_BLOCK_KINDS.has(list[i].kind) && list[i].eje?.id === ejeId) {
+        chunk.push(list[i]);
+        i += 1;
+      }
+      groups.push({ type: "ejeCard", ejeId, variant, blocks: chunk });
+    } else {
+      groups.push({ type: "block", block: b });
+      i += 1;
+    }
+  }
+  return groups;
+}
+
+function renderGruposPagina(pageBlocks, informe) {
+  return agruparBloquesParaRender(pageBlocks).map((g, idx) => {
+    if (g.type === "ejeCard") {
+      return (
+        <div
+          key={`eje-card-${g.ejeId}-${idx}`}
+          className={`inf-eje-card inf-eje-card--${g.variant}`}
+          data-eje-card={g.ejeId}
+        >
+          {g.blocks.map((b) => renderBloquePagina(b, informe))}
+        </div>
+      );
+    }
+    return renderBloquePagina(g.block, informe);
+  });
+}
+
 function empaquetarPaginasPorAltura(blocks, heights, pageCapacityPx, gapPx) {
   const pages = [];
   let current = [];
@@ -965,7 +1121,7 @@ function empaquetarPaginasPorAltura(blocks, heights, pageCapacityPx, gapPx) {
       if (chunk.some((b) => b.keepTogether || b.kind === "indicadores" || String(b.kind || "").startsWith("chart"))) break;
       if (pages[i].some((b) => b.keepTogether || b.kind === "indicadores" || String(b.kind || "").startsWith("chart"))) break;
       const nextH = alturaPagina(pages[i].concat(chunk), heights, gapPx);
-      const lim = isCoverOnly(pages[i]) ? pageCapacityPx * 1.02 : pageCapacityPx;
+      const lim = pageCapacityPx * 0.98;
       if (nextH <= lim) {
         pages[i] = pages[i].concat(pages[i + 1].splice(0, chunk.length));
         if (!pages[i + 1].length) pages.splice(i + 1, 1);
@@ -978,16 +1134,17 @@ function empaquetarPaginasPorAltura(blocks, heights, pageCapacityPx, gapPx) {
   if (pages.length > 1 && isCoverOnly(pages[0])) {
     const chunk = takeChunkFrom(pages[1]);
     const nextH = alturaPagina(pages[0].concat(chunk), heights, gapPx);
-    if (nextH <= pageCapacityPx * 1.02 || chunk.some(isEjeStart)) {
+    const coverLim = pageCapacityPx * 0.98;
+    if (nextH <= coverLim || chunk.some(isEjeStart)) {
       // Si no cabe el chunk completo, meter al menos títulos + head (+ lead si cabe)
-      if (nextH <= pageCapacityPx * 1.02) {
+      if (nextH <= coverLim) {
         pages[0] = pages[0].concat(pages[1].splice(0, chunk.length));
       } else {
         let n = 0;
         let acc = pages[0].slice();
         while (n < chunk.length) {
           const trial = acc.concat(chunk[n]);
-          if (alturaPagina(trial, heights, gapPx) > pageCapacityPx * 1.02) break;
+          if (alturaPagina(trial, heights, gapPx) > coverLim) break;
           acc = trial;
           n += 1;
         }
@@ -1003,13 +1160,14 @@ function empaquetarPaginasPorAltura(blocks, heights, pageCapacityPx, gapPx) {
     const pageH = alturaPagina(page, heights, gapPx);
     const prevH = alturaPagina(prev, heights, gapPx);
     const contentCount = page.filter((b) => !isTitle(b) && b.kind !== "ejeBullet").length;
+    const mergeLim = pageCapacityPx * 0.98;
 
-    if (contentCount <= 1 && prevH + gapPx + pageH <= pageCapacityPx) {
+    if (contentCount <= 1 && prevH + gapPx + pageH <= mergeLim) {
       pages[i - 1] = prev.concat(page);
       pages.splice(i, 1);
       continue;
     }
-    if (pageH < pageCapacityPx * 0.35 && prevH + gapPx + pageH <= pageCapacityPx) {
+    if (pageH < pageCapacityPx * 0.35 && prevH + gapPx + pageH <= mergeLim) {
       pages[i - 1] = prev.concat(page);
       pages.splice(i, 1);
     }
@@ -1052,8 +1210,8 @@ function VistaPreviaInformePDF({ informe, marcaAccent }) {
       const sheetH = bookW * (1024 / 576);
       // Capacidad = alto real del body, respetando padding arriba/abajo del sheet
       const contentH = sheetH - bookW * padTop - bookW * padBottom;
-      // 4% de holgura: overflow:hidden corta si nos pasamos por 1px
-      const capacity = Math.max(280, Math.floor(contentH * 0.96));
+      // Holgura amplia: overflow:hidden corta si nos pasamos; mejor página extra que perder texto
+      const capacity = Math.max(260, Math.floor(contentH * 0.90));
       const packed = empaquetarPaginasPorAltura(blocks, heights, capacity, 5);
       if (!cancelled) setPages(packed);
     };
@@ -1083,7 +1241,7 @@ function VistaPreviaInformePDF({ informe, marcaAccent }) {
   return (
     <div className="informe-pdf-book" style={{ "--informe-accent": marcaAccent || "#DC2626" }}>
       <div className="informe-measure" ref={measureRef} aria-hidden="true">
-        {blocks.map((b) => renderBloquePagina(b, informe))}
+        {renderGruposPagina(blocks, informe)}
       </div>
 
       {hojas.map((pageBlocks, pageIndex) => (
@@ -1104,7 +1262,7 @@ function VistaPreviaInformePDF({ informe, marcaAccent }) {
           )}
           <div className="informe-sheet__inner">
             <div className="informe-sheet__body">
-              {pageBlocks.map((b) => renderBloquePagina(b, informe))}
+              {renderGruposPagina(pageBlocks, informe)}
             </div>
           </div>
         </div>

@@ -341,75 +341,142 @@ function CampoEjeGestion({ eje, onChange, onRemove, tipoLabel }) {
   );
 }
 
+function etiquetaStatusInforme(status) {
+  if (typeof INFORME_STATUS_LABEL !== "undefined" && INFORME_STATUS_LABEL[status]) {
+    return INFORME_STATUS_LABEL[status];
+  }
+  if (status === "con_ia") return "Con IA";
+  if (status === "exportado") return "Exportado";
+  return "Borrador";
+}
+
+function pasoInicialDesdeInforme(inf) {
+  if (!inf) return 1;
+  const tieneAi = typeof informeTieneRedaccionAi === "function"
+    ? informeTieneRedaccionAi(inf)
+    : Boolean(inf.aiGenerado);
+  if (tieneAi) return 3;
+  const tieneEjes = [...(inf.macros || []), ...(inf.micros || [])]
+    .some((e) => e?.titulo || e?.notas || e?.redactado);
+  return tieneEjes ? 2 : 1;
+}
+
 function LayoutGeneradorInformes({
   tareas = [],
   marcasDisponibles = [],
   onBack
 }) {
-  const borradorInicial = useMemo(() => cargarBorradorInforme(), []);
-  const [paso, setPaso] = useState(() => {
-    const inf = borradorInicial?.informe;
-    if (!inf) return 1;
-    const tieneAi = typeof informeTieneRedaccionAi === "function"
-      ? informeTieneRedaccionAi(inf)
-      : Boolean(inf.aiGenerado);
-    if (tieneAi) return 3;
-    const tieneEjes = [...(inf.macros || []), ...(inf.micros || [])]
-      .some((e) => e?.titulo || e?.notas || e?.redactado);
-    return tieneEjes ? 2 : 1;
-  });
-  const [informe, setInforme] = useState(() => (
-    borradorInicial?.informe
-      ? (typeof normalizarInformeDesdeBorrador === "function"
-        ? normalizarInformeDesdeBorrador(borradorInicial.informe)
-        : borradorInicial.informe)
-      : crearInformeVacio("Gama")
-  ));
-  const [informeVista, setInformeVista] = useState(() => {
-    const inf = borradorInicial?.informe;
-    if (!inf) return null;
-    const tieneAi = typeof informeTieneRedaccionAi === "function"
-      ? informeTieneRedaccionAi(inf)
-      : Boolean(inf.aiGenerado);
-    return tieneAi ? (typeof normalizarInformeDesdeBorrador === "function"
-      ? normalizarInformeDesdeBorrador(inf)
-      : inf) : null;
-  });
-  const [borradorAt, setBorradorAt] = useState(() => borradorInicial?.savedAt || null);
+  const [modo, setModo] = useState("home");
+  const [listaInformes, setListaInformes] = useState([]);
+  const [listaCargando, setListaCargando] = useState(true);
+  const [listaError, setListaError] = useState("");
+  const [borradorLocalPendiente, setBorradorLocalPendiente] = useState(null);
+  const [subiendoLocal, setSubiendoLocal] = useState(false);
+  const [informeId, setInformeId] = useState(null);
+  const [statusGuardado, setStatusGuardado] = useState("borrador");
+  const [paso, setPaso] = useState(1);
+  const [informe, setInforme] = useState(() => crearInformeVacio("Gama"));
+  const [informeVista, setInformeVista] = useState(null);
+  const [guardadoAt, setGuardadoAt] = useState(null);
+  const [guardandoNube, setGuardandoNube] = useState(false);
   const [sugerenciasDescartadas, setSugerenciasDescartadas] = useState(() => new Set());
   const [exportando, setExportando] = useState(false);
   const [preparando, setPreparando] = useState(false);
   const [confirmAi, setConfirmAi] = useState(false);
   const [mensaje, setMensaje] = useState("");
-  const [draftsOpen, setDraftsOpen] = useState(false);
+  const [eliminandoId, setEliminandoId] = useState(null);
   const previewRef = useRef(null);
-  const draftsRef = useRef(null);
   const draftTimerRef = useRef(null);
   const skipFirstDraftSave = useRef(true);
+  const informeIdRef = useRef(null);
+  const statusRef = useRef("borrador");
 
   useEffect(() => {
-    if (!draftsOpen) return undefined;
-    const onDoc = (e) => {
-      if (draftsRef.current && !draftsRef.current.contains(e.target)) setDraftsOpen(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [draftsOpen]);
+    informeIdRef.current = informeId;
+  }, [informeId]);
 
   useEffect(() => {
+    statusRef.current = statusGuardado;
+  }, [statusGuardado]);
+
+  const cargarLista = useCallback(async () => {
+    setListaCargando(true);
+    setListaError("");
+    try {
+      if (typeof migrarBorradorLocalSiExiste === "function") {
+        const mig = await migrarBorradorLocalSiExiste();
+        if (mig?.migrated) {
+          setMensaje("Borrador local subido a Informes");
+          window.setTimeout(() => setMensaje(""), 2400);
+        }
+      }
+      if (typeof listarInformes !== "function") {
+        setListaInformes([]);
+        setListaError("Store de informes no disponible");
+        return;
+      }
+      const rows = await listarInformes();
+      const lista = Array.isArray(rows) ? rows : [];
+      setListaInformes(lista);
+      if (typeof borradorLocalDistintoDeNube === "function") {
+        setBorradorLocalPendiente(borradorLocalDistintoDeNube(lista));
+      } else {
+        setBorradorLocalPendiente(null);
+      }
+    } catch (err) {
+      console.error(err);
+      setListaError("No se pudieron cargar los informes");
+      setListaInformes([]);
+    } finally {
+      setListaCargando(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (modo !== "home") return undefined;
+    cargarLista();
+    return undefined;
+  }, [modo, cargarLista]);
+
+  useEffect(() => {
+    if (modo !== "editor") return undefined;
     if (skipFirstDraftSave.current) {
       skipFirstDraftSave.current = false;
       return undefined;
     }
     if (draftTimerRef.current) window.clearTimeout(draftTimerRef.current);
-    draftTimerRef.current = window.setTimeout(() => {
-      const saved = guardarBorradorInforme(informe);
-      if (saved?.savedAt) setBorradorAt(saved.savedAt);
+    draftTimerRef.current = window.setTimeout(async () => {
+      if (typeof guardarInformeEnNube !== "function") return;
+      setGuardandoNube(true);
+      try {
+        const res = await guardarInformeEnNube(informeIdRef.current, informe, {
+          prevStatus: statusRef.current
+        });
+        if (res?.ok && res.informe) {
+          if (!informeIdRef.current && res.informe.id) {
+            setInformeId(res.informe.id);
+            informeIdRef.current = res.informe.id;
+          }
+          if (res.informe.status) {
+            setStatusGuardado(res.informe.status);
+            statusRef.current = res.informe.status;
+          }
+          setGuardadoAt(res.informe.updatedAt || new Date().toISOString());
+        } else if (res && !res.ok) {
+          console.warn("ROBIN: no se pudo guardar informe en nube", res.error);
+          setMensaje(res.error?.includes("Usuario")
+            ? "No se pudo guardar: inicia sesión"
+            : "No se pudo guardar en la nube");
+          window.setTimeout(() => setMensaje(""), 3200);
+        }
+      } finally {
+        setGuardandoNube(false);
+      }
     }, 600);
     return () => {
       if (draftTimerRef.current) window.clearTimeout(draftTimerRef.current);
     };
-  }, [informe]);
+  }, [informe, modo]);
 
   const marcas = useMemo(() => {
     const base = Array.isArray(marcasDisponibles) ? marcasDisponibles.slice() : [];
@@ -458,16 +525,158 @@ function LayoutGeneradorInformes({
     toast(`Anexado: ${sug.eje}`);
   };
 
+  const resumen = useMemo(() => (
+    typeof resumenInformes === "function"
+      ? resumenInformes(listaInformes)
+      : {
+        total: listaInformes.length,
+        borrador: 0,
+        con_ia: 0,
+        exportado: 0,
+        marcas: []
+      }
+  ), [listaInformes]);
+
+  const tieneJunAgoEnLista = useMemo(() => (
+    listaInformes.some((row) => {
+      const p = row.payload || {};
+      const ejes = [...(p.macros || []), ...(p.micros || [])];
+      const titles = new Set(ejes.map((e) => String(e.titulo || "").toLowerCase().trim()));
+      return titles.has("mundial gama") && titles.has("pricing")
+        && row.mesDesde === "2026-06" && row.mesHasta === "2026-08";
+    })
+  ), [listaInformes]);
+
+  const resetEditorState = (listo, { id = null, status = "borrador", updatedAt = null } = {}) => {
+    skipFirstDraftSave.current = true;
+    const norm = typeof normalizarInformeDesdeBorrador === "function"
+      ? normalizarInformeDesdeBorrador(listo)
+      : listo;
+    setInforme(norm);
+    setInformeId(id);
+    informeIdRef.current = id;
+    setStatusGuardado(status);
+    statusRef.current = status;
+    setGuardadoAt(updatedAt);
+    setSugerenciasDescartadas(new Set());
+    setConfirmAi(false);
+    const tieneAi = typeof informeTieneRedaccionAi === "function"
+      ? informeTieneRedaccionAi(norm)
+      : Boolean(norm?.aiGenerado);
+    if (tieneAi) {
+      const vista = typeof prepararInformeParaVista === "function"
+        ? prepararInformeParaVista(norm, { keepRedactado: true })
+        : norm;
+      setInformeVista(vista);
+      setPaso(3);
+    } else {
+      setInformeVista(null);
+      setPaso(pasoInicialDesdeInforme(norm));
+    }
+  };
+
+  const subirBorradorLocal = async () => {
+    if (typeof subirBorradorLocalComoNuevoInforme !== "function") {
+      toast("No se puede subir el borrador local");
+      return;
+    }
+    setSubiendoLocal(true);
+    try {
+      const res = await subirBorradorLocalComoNuevoInforme();
+      if (res?.ok) {
+        setBorradorLocalPendiente(null);
+        toast("Borrador local subido a la nube");
+        await cargarLista();
+      } else {
+        toast(res?.error || "No se pudo subir el borrador");
+      }
+    } finally {
+      setSubiendoLocal(false);
+    }
+  };
+
+  const irAlHome = () => {
+    if (draftTimerRef.current) window.clearTimeout(draftTimerRef.current);
+    setModo("home");
+    setConfirmAi(false);
+    setPreparando(false);
+  };
+
+  const crearNuevoInforme = () => {
+    resetEditorState(crearInformeVacio("Gama"), { id: null, status: "borrador" });
+    setPaso(1);
+    setInformeVista(null);
+    setModo("editor");
+  };
+
+  const abrirInformeDeLista = async (row) => {
+    if (!row?.id) return;
+    let data = row;
+    if (typeof obtenerInforme === "function") {
+      const fresh = await obtenerInforme(row.id);
+      if (fresh) data = fresh;
+    }
+    resetEditorState(data.payload || crearInformeVacio(data.marca || "Gama"), {
+      id: data.id,
+      status: data.status || "borrador",
+      updatedAt: data.updatedAt || null
+    });
+    setModo("editor");
+    toast("Informe abierto");
+  };
+
+  const eliminarInformeDeLista = async (row, e) => {
+    if (e) e.stopPropagation();
+    if (!row?.id || typeof eliminarInforme !== "function") return;
+    if (!window.confirm(`¿Eliminar el informe de ${formatearMarca(row.marca) || "sin marca"}?`)) return;
+    setEliminandoId(row.id);
+    try {
+      const res = await eliminarInforme(row.id);
+      if (!res?.ok) {
+        toast(res?.error || "No se pudo eliminar");
+        return;
+      }
+      setListaInformes((prev) => prev.filter((x) => x.id !== row.id));
+      toast("Informe eliminado");
+    } finally {
+      setEliminandoId(null);
+    }
+  };
+
+  const persistirAhora = async (listo, opts = {}) => {
+    if (typeof guardarInformeEnNube !== "function") return null;
+    setGuardandoNube(true);
+    try {
+      const res = await guardarInformeEnNube(informeIdRef.current, listo, {
+        prevStatus: statusRef.current,
+        ...opts
+      });
+      if (res?.ok && res.informe) {
+        if (!informeIdRef.current && res.informe.id) {
+          setInformeId(res.informe.id);
+          informeIdRef.current = res.informe.id;
+        }
+        if (res.informe.status) {
+          setStatusGuardado(res.informe.status);
+          statusRef.current = res.informe.status;
+        }
+        setGuardadoAt(res.informe.updatedAt || new Date().toISOString());
+      }
+      return res;
+    } finally {
+      setGuardandoNube(false);
+    }
+  };
+
   const aplicarVistaPrevia = (listo, fuente) => {
     setInforme(listo);
     setInformeVista(listo);
     setPaso(3);
     setConfirmAi(false);
-    const saved = guardarBorradorInforme(listo);
-    if (saved?.savedAt) setBorradorAt(saved.savedAt);
+    persistirAhora(listo);
     toast(
       fuente === "gemini" || fuente === "groq"
-        ? "Redactado con IA · guardado en borrador"
+        ? "Redactado con IA · guardado"
         : fuente === "cache"
           ? "Vista previa con redacción guardada"
           : "Textos organizados y ejes ordenados por mes"
@@ -713,8 +922,7 @@ function LayoutGeneradorInformes({
         .trim();
       const fileName = `${safePart(marcaNombre)} - Informe entregables - ${fechaArchivo}.pdf`;
       pdf.save(fileName);
-      const saved = guardarBorradorInforme(informe);
-      if (saved?.savedAt) setBorradorAt(saved.savedAt);
+      await persistirAhora(informe, { markExported: true });
       toast(`PDF listo · ${sheets.length} pág.`);
     } catch (err) {
       console.error(err);
@@ -728,212 +936,270 @@ function LayoutGeneradorInformes({
   };
 
   const rangoPreview = formatearRangoMesesInforme(informe.mesDesde, informe.mesHasta);
-  // Siempre el informe en estado (incluye redactado / piezas del borrador)
   const previewData = informe;
 
-  const mostrarRecuperacion = useMemo(() => {
-    if (typeof informeRecuperadoGamaJunAgo2026 !== "function") return false;
-    const ejes = [...(informe.macros || []), ...(informe.micros || [])];
-    const titles = new Set(ejes.map((e) => String(e.titulo || "").toLowerCase().trim()));
-    // Si ya tiene el set recuperado, no insistir
-    return !(titles.has("mundial gama") && titles.has("pricing"));
-  }, [informe.macros, informe.micros]);
-
-  const eliminarBorrador = () => {
-    borrarBorradorInforme();
-    setBorradorAt(null);
-    setInforme(crearInformeVacio(informe.marca || "Gama"));
-    setInformeVista(null);
-    setSugerenciasDescartadas(new Set());
-    setConfirmAi(false);
-    setPaso(1);
-    setDraftsOpen(false);
-    toast("Borrador eliminado");
-  };
-
-  const abrirBorrador = () => {
-    const draft = cargarBorradorInforme();
-    if (!draft?.informe) {
-      toast("No hay borrador guardado");
-      setDraftsOpen(false);
-      return;
-    }
-    const listo = typeof normalizarInformeDesdeBorrador === "function"
-      ? normalizarInformeDesdeBorrador(draft.informe)
-      : draft.informe;
-
-    skipFirstDraftSave.current = true;
-    setInforme(listo);
-    setBorradorAt(draft.savedAt || null);
-    setSugerenciasDescartadas(new Set());
-    setConfirmAi(false);
-
-    const tieneAi = typeof informeTieneRedaccionAi === "function"
-      ? informeTieneRedaccionAi(listo)
-      : Boolean(listo.aiGenerado);
-    const tieneEjes = [...(listo.macros || []), ...(listo.micros || [])]
-      .some((e) => e?.titulo || e?.notas || e?.redactado);
-
-    if (tieneAi) {
-      const vista = typeof prepararInformeParaVista === "function"
-        ? prepararInformeParaVista(listo, { keepRedactado: true })
-        : listo;
-      vista.aiGenerado = true;
-      vista.aiGeneradoAt = listo.aiGeneradoAt || vista.aiGeneradoAt || null;
-      setInforme(vista);
-      setInformeVista(vista);
-      setPaso(3);
-      const saved = guardarBorradorInforme(vista);
-      if (saved?.savedAt) setBorradorAt(saved.savedAt);
-    } else {
-      setInformeVista(null);
-      setPaso(tieneEjes ? 2 : 1);
-      const saved = guardarBorradorInforme(listo);
-      if (saved?.savedAt) setBorradorAt(saved.savedAt);
-    }
-    setDraftsOpen(false);
-    toast("Borrador abierto · toda la info restaurada");
-  };
-
-  const recuperarBorradorDesdePdf = () => {
+  const recuperarBorradorDesdePdf = async () => {
     if (typeof informeRecuperadoGamaJunAgo2026 !== "function") {
       toast("No hay recuperación disponible");
       return;
     }
     const listo = informeRecuperadoGamaJunAgo2026();
-    skipFirstDraftSave.current = true;
-    setInforme(listo);
-    setInformeVista(listo);
-    setSugerenciasDescartadas(new Set());
-    setConfirmAi(false);
-    setPaso(3);
-    const saved = guardarBorradorInforme(listo);
-    if (saved?.savedAt) setBorradorAt(saved.savedAt);
-    setDraftsOpen(false);
-    toast("Borrador recuperado · Junio–Agosto 2026");
+    resetEditorState(listo, { id: null, status: "con_ia" });
+    setModo("editor");
+    const res = await persistirAhora(listo, { status: "con_ia" });
+    if (res?.ok) toast("Informe recuperado · Junio–Agosto 2026");
+    else toast("Recuperado en editor (revisa la conexión)");
   };
+
+  if (modo === "home") {
+    return (
+      <div className="informe-page informe-page--home">
+        <header className="informe-page__topbar">
+          {onBack && (
+            <button type="button" className="informe-btn-back" onClick={onBack}>
+              <i className="fa-solid fa-arrow-left" aria-hidden="true" />
+              Volver
+            </button>
+          )}
+          <div className="informe-page__title-row">
+            <div className="informe-home__title-block">
+              <h1 className="informe-page__heading">Informes</h1>
+              <p className="informe-home__lead">Entregables guardados en el workspace</p>
+            </div>
+            <button type="button" className="informe-btn-primary informe-btn-primary--home" onClick={crearNuevoInforme}>
+              <i className="fa-solid fa-plus" aria-hidden="true" />
+              Nuevo
+            </button>
+          </div>
+        </header>
+
+        {mensaje && <div className="informe-toast">{mensaje}</div>}
+
+        <div className="informe-home__stack">
+          <section className="home-section informe-home__overview" aria-label="Resumen">
+            <div className="home-section__head">
+              <span className="home-section__title">Resumen</span>
+            </div>
+            <div className="informe-home__stats">
+              <div className="informe-home__stat informe-home__stat--total">
+                <span className="informe-home__stat-top">
+                  <span className="informe-home__stat-dot" aria-hidden="true" />
+                  <span className="informe-home__stat-label">Total</span>
+                </span>
+                <span className="informe-home__stat-value">{resumen.total}</span>
+              </div>
+              <div className="informe-home__stat informe-home__stat--borrador">
+                <span className="informe-home__stat-top">
+                  <span className="informe-home__stat-dot" aria-hidden="true" />
+                  <span className="informe-home__stat-label">Borradores</span>
+                </span>
+                <span className="informe-home__stat-value">{resumen.borrador}</span>
+              </div>
+              <div className="informe-home__stat informe-home__stat--ia">
+                <span className="informe-home__stat-top">
+                  <span className="informe-home__stat-dot" aria-hidden="true" />
+                  <span className="informe-home__stat-label">Con IA</span>
+                </span>
+                <span className="informe-home__stat-value">{resumen.con_ia}</span>
+              </div>
+              <div className="informe-home__stat informe-home__stat--exportado">
+                <span className="informe-home__stat-top">
+                  <span className="informe-home__stat-dot" aria-hidden="true" />
+                  <span className="informe-home__stat-label">Exportados</span>
+                </span>
+                <span className="informe-home__stat-value">{resumen.exportado}</span>
+              </div>
+            </div>
+          </section>
+
+          {(resumen.marcas || []).length > 0 && (
+            <div className="informe-home__marcas" aria-label="Marcas">
+              {(resumen.marcas || []).slice(0, 5).map((m) => (
+                <span key={m.nombre} className="informe-home__marca-chip">
+                  {typeof formatearMarca === "function" ? formatearMarca(m.nombre) : m.nombre}
+                  <span className="informe-home__marca-count">{m.count}</span>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {borradorLocalPendiente && (
+            <div className="informe-recover-banner informe-recover-banner--local">
+              <div>
+                <strong>Borrador local distinto a la nube</strong>
+                <span>
+                  {borradorLocalPendiente.ejesCount} eje{borradorLocalPendiente.ejesCount === 1 ? "" : "s"}
+                  {borradorLocalPendiente.titulos?.length
+                    ? ` · ${borradorLocalPendiente.titulos.slice(0, 4).join(", ")}`
+                    : ""}
+                  {" · "}Este navegador tiene un informe que no está en el workspace. Súbelo como nuevo (no pisa el de la web).
+                </span>
+              </div>
+              <button
+                type="button"
+                className="informe-btn-primary informe-btn-primary--sm"
+                onClick={subirBorradorLocal}
+                disabled={subiendoLocal}
+              >
+                {subiendoLocal ? "Subiendo…" : "Subir a la nube"}
+              </button>
+            </div>
+          )}
+
+          {!tieneJunAgoEnLista && typeof informeRecuperadoGamaJunAgo2026 === "function" && (
+            <div className="informe-recover-banner">
+              <div>
+                <strong>Recuperar informe de ejemplo</strong>
+                <span>Junio–Agosto 2026 · Mundial, Gamania, Pricing, Vinos (4 ejes de muestra)</span>
+              </div>
+              <button type="button" className="informe-btn-primary informe-btn-primary--sm" onClick={recuperarBorradorDesdePdf}>
+                Recuperar ejemplo
+              </button>
+            </div>
+          )}
+
+          <section className="home-section informe-home__list-wrap">
+            <div className="home-section__head">
+              <div className="home-section__head-left">
+                <span className="home-section__title">Todos los informes</span>
+                {listaInformes.length > 0 && (
+                  <span className="home-section__count">{listaInformes.length}</span>
+                )}
+              </div>
+              <button
+                type="button"
+                className="home-section__link informe-home__refresh"
+                onClick={cargarLista}
+                disabled={listaCargando}
+              >
+                <i className={`fa-solid ${listaCargando ? "fa-spinner fa-spin" : "fa-rotate"}`} aria-hidden="true" />
+                Actualizar
+              </button>
+            </div>
+
+            {listaError && <p className="informe-hint informe-hint--error">{listaError}</p>}
+
+            {listaCargando && listaInformes.length === 0 ? (
+              <p className="informe-hint">Cargando informes…</p>
+            ) : listaInformes.length === 0 ? (
+              <button type="button" className="informe-home__empty" onClick={crearNuevoInforme}>
+                <span className="informe-home__empty-title">Aún no hay informes</span>
+                <span className="informe-home__empty-sub">Toca para crear el primero</span>
+              </button>
+            ) : (
+              <ul className="informe-home__list">
+                {listaInformes.map((row) => {
+                  const rango = formatearRangoMesesInforme(row.mesDesde, row.mesHasta);
+                  return (
+                    <li key={row.id} className="informe-home__row">
+                      <button
+                        type="button"
+                        className="informe-home__card"
+                        onClick={() => abrirInformeDeLista(row)}
+                      >
+                        <div className="informe-home__card-main">
+                          <div className="informe-home__card-top">
+                            <strong>{typeof formatearMarca === "function" ? formatearMarca(row.marca) : row.marca}</strong>
+                            <span className={`informe-home__status informe-home__status--${row.status}`}>
+                              {etiquetaStatusInforme(row.status)}
+                            </span>
+                          </div>
+                          <span className="informe-home__card-period">
+                            {rango || "Sin periodo"}
+                            {" · "}
+                            {row.ejesCount} eje{row.ejesCount === 1 ? "" : "s"}
+                          </span>
+                          <span className="informe-home__card-meta">
+                            {row.authorUsername ? `@${row.authorUsername}` : "Sin autor"}
+                            {row.updatedAt
+                              ? ` · ${typeof formatearFechaBorrador === "function" ? formatearFechaBorrador(row.updatedAt) : row.updatedAt}`
+                              : ""}
+                          </span>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        className="informe-home__delete"
+                        title="Eliminar"
+                        aria-label="Eliminar informe"
+                        disabled={eliminandoId === row.id}
+                        onClick={(e) => eliminarInformeDeLista(row, e)}
+                      >
+                        <i className={`fa-solid ${eliminandoId === row.id ? "fa-spinner fa-spin" : "fa-trash"}`} aria-hidden="true" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="informe-page">
       <header className="informe-page__topbar">
-        {onBack && (
-          <button type="button" className="informe-btn-back" onClick={onBack}>
-            <i className="fa-solid fa-arrow-left" aria-hidden="true" />
-            Volver
-          </button>
-        )}
+        <button type="button" className="informe-btn-back" onClick={irAlHome}>
+          <i className="fa-solid fa-arrow-left" aria-hidden="true" />
+          Informes
+        </button>
         <div className="informe-page__title-row">
           <h1 className="informe-page__heading">Informe entregables</h1>
-          <div className="informe-drafts" ref={draftsRef}>
-            <button
-              type="button"
-              className="informe-btn-drafts"
-              aria-expanded={draftsOpen}
-              aria-haspopup="dialog"
-              onClick={() => setDraftsOpen((v) => !v)}
-            >
-              <i className="fa-regular fa-folder-open" aria-hidden="true" />
-              Borradores
-              {borradorAt ? <span className="informe-btn-drafts__dot" aria-hidden="true" /> : null}
-            </button>
-            {draftsOpen && (
-              <div className="informe-drafts__panel" role="dialog" aria-label="Borradores">
-                {borradorAt ? (
-                  <>
-                    <p className="informe-drafts__label">Borrador actual</p>
-                    <button
-                      type="button"
-                      className="informe-drafts__card"
-                      onClick={abrirBorrador}
-                    >
-                      <strong>{formatearMarca(informe.marca) || "Sin marca"}</strong>
-                      <span>
-                        {rangoPreview || "Sin periodo"}
-                        {informe.aiGenerado ? " · IA lista" : ""}
-                      </span>
-                      <span className="informe-drafts__meta">
-                        {(informe.macros || []).length + (informe.micros || []).length} ejes
-                        {" · "}
-                        Guardado · {formatearFechaBorrador(borradorAt)}
-                      </span>
-                      <span className="informe-drafts__hint">Clic para abrir</span>
-                    </button>
-                    <button type="button" className="informe-btn-ghost informe-btn-ghost--sm" onClick={eliminarBorrador}>
-                      Eliminar borrador
-                    </button>
-                  </>
-                ) : (
-                  <p className="informe-drafts__empty">No hay borradores guardados</p>
-                )}
-                <div className="informe-drafts__recover">
-                  <p className="informe-drafts__label">Recuperación</p>
-                  <button
-                    type="button"
-                    className="informe-btn-primary informe-btn-primary--sm"
-                    onClick={recuperarBorradorDesdePdf}
-                  >
-                    Recuperar Junio–Agosto
-                  </button>
-                  <p className="informe-drafts__hint" style={{ marginTop: "0.4rem" }}>
-                    Mundial · Gamania · Pricing · Vinos
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
+          <span className={`informe-home__status informe-home__status--${statusGuardado}`}>
+            {etiquetaStatusInforme(statusGuardado)}
+          </span>
+          <span className="informe-save-meta">
+            {guardandoNube
+              ? "Guardando…"
+              : guardadoAt
+                ? `Guardado · ${typeof formatearFechaBorrador === "function" ? formatearFechaBorrador(guardadoAt) : ""}`
+                : "Sin guardar aún"}
+          </span>
         </div>
       </header>
 
       {mensaje && <div className="informe-toast">{mensaje}</div>}
 
-      {mostrarRecuperacion && (
-        <div className="informe-recover-banner">
-          <div>
-            <strong>¿Perdiste el borrador de ayer?</strong>
-            <span>Puedes restaurar el informe Junio–Agosto (Mundial, Gamania, Pricing, Vinos).</span>
-          </div>
-          <button type="button" className="informe-btn-primary informe-btn-primary--sm" onClick={recuperarBorradorDesdePdf}>
-            Recuperar borrador
-          </button>
-        </div>
-      )}
-
       {confirmAi && (
-        <div className="informe-ai-modal" role="dialog" aria-modal="true" aria-labelledby="informe-ai-title">
-          <div className="informe-ai-modal__card">
-            <h3 id="informe-ai-title">Ya tienes una redacción con IA</h3>
-            <p>
-              Puedes continuar con la versión guardada en el borrador (sin gastar tokens)
-              o regenerar el texto con IA.
-            </p>
-            <div className="informe-ai-modal__actions">
-              <button
-                type="button"
-                className="informe-btn-ghost"
-                disabled={preparando}
-                onClick={() => setConfirmAi(false)}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                className="informe-btn-ghost"
-                disabled={preparando}
-                onClick={() => ejecutarPreparacion({ forzarAi: true })}
-              >
-                Regenerar con IA
-              </button>
-              <button
-                type="button"
-                className="informe-btn-primary"
-                disabled={preparando}
-                onClick={() => ejecutarPreparacion({ forzarAi: false })}
-              >
-                Continuar con la anterior
-              </button>
+        <ModalPortal>
+          <div className="informe-ai-modal" role="dialog" aria-modal="true" aria-labelledby="informe-ai-title">
+            <div className="informe-ai-modal__card">
+              <h3 id="informe-ai-title">Ya tienes una redacción con IA</h3>
+              <p>
+                Puedes continuar con la versión guardada (sin gastar tokens)
+                o regenerar el texto con IA.
+              </p>
+              <div className="informe-ai-modal__actions">
+                <button
+                  type="button"
+                  className="informe-btn-ghost"
+                  disabled={preparando}
+                  onClick={() => setConfirmAi(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="informe-btn-ghost"
+                  disabled={preparando}
+                  onClick={() => ejecutarPreparacion({ forzarAi: true })}
+                >
+                  Regenerar con IA
+                </button>
+                <button
+                  type="button"
+                  className="informe-btn-primary"
+                  disabled={preparando}
+                  onClick={() => ejecutarPreparacion({ forzarAi: false })}
+                >
+                  Continuar con la anterior
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       <nav className="informe-steps" aria-label="Pasos">

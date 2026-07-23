@@ -831,13 +831,116 @@ function LayoutGeneradorInformes({
         frame.style.width = `${designW}px`;
         frame.style.height = `${designH}px`;
       }
-      sheet.classList.add("informe-sheet--export-capture");
       sheet.style.borderRadius = "0";
       sheet.style.boxShadow = "none";
       sheet.style.transform = "none";
       sheet.style.zoom = "1";
       sheet.style.width = `${designW}px`;
       sheet.style.height = `${designH}px`;
+
+      // Convertir gap→márgenes ANTES de --export-capture (esa clase pone gap:0)
+      const restoreCaptureTweaks = [];
+
+      const neutralizeGapsAndShadows = (root) => {
+        const nodes = [root, ...root.querySelectorAll("*")];
+        nodes.forEach((el) => {
+          if (!(el instanceof HTMLElement)) return;
+          const cs = window.getComputedStyle(el);
+
+          if (cs.boxShadow && cs.boxShadow !== "none") {
+            restoreCaptureTweaks.push({
+              el,
+              prop: "boxShadow",
+              prev: el.style.boxShadow
+            });
+            el.style.setProperty("box-shadow", "none", "important");
+          }
+          if (cs.filter && cs.filter !== "none" && !el.classList.contains("informe-sheet__bg")) {
+            restoreCaptureTweaks.push({
+              el,
+              prop: "filter",
+              prev: el.style.filter
+            });
+            el.style.setProperty("filter", "none", "important");
+          }
+
+          const display = cs.display || "";
+          if (!display.includes("flex") && !display.includes("grid")) return;
+
+          const rowGap = parseFloat(cs.rowGap) || 0;
+          const colGap = parseFloat(cs.columnGap) || 0;
+          if (rowGap <= 0 && colGap <= 0) return;
+
+          const flexDir = cs.flexDirection || "row";
+          const isCol =
+            display.includes("flex") &&
+            (flexDir === "column" || flexDir === "column-reverse");
+          const isRow = display.includes("flex") && !isCol;
+          const isGrid = display.includes("grid");
+
+          restoreCaptureTweaks.push({
+            el,
+            prop: "gap",
+            prev: el.style.gap,
+            prevRow: el.style.rowGap,
+            prevCol: el.style.columnGap
+          });
+          el.style.setProperty("gap", "0", "important");
+          el.style.setProperty("row-gap", "0", "important");
+          el.style.setProperty("column-gap", "0", "important");
+
+          const kids = Array.from(el.children).filter((k) => k instanceof HTMLElement);
+          if (isCol || (isGrid && rowGap > 0 && colGap <= 0)) {
+            kids.forEach((kid, i) => {
+              if (i === 0) return;
+              restoreCaptureTweaks.push({
+                el: kid,
+                prop: "marginTop",
+                prev: kid.style.marginTop
+              });
+              const cur = parseFloat(window.getComputedStyle(kid).marginTop) || 0;
+              kid.style.marginTop = `${cur + rowGap}px`;
+            });
+          } else if (isRow || (isGrid && colGap > 0 && rowGap <= 0)) {
+            kids.forEach((kid, i) => {
+              if (i === 0) return;
+              restoreCaptureTweaks.push({
+                el: kid,
+                prop: "marginLeft",
+                prev: kid.style.marginLeft
+              });
+              const cur = parseFloat(window.getComputedStyle(kid).marginLeft) || 0;
+              kid.style.marginLeft = `${cur + colGap}px`;
+            });
+          } else if (isGrid && rowGap > 0 && colGap > 0) {
+            const styles = cs.gridTemplateColumns || "";
+            const cols = Math.max(1, styles.trim().split(/\s+/).filter(Boolean).length);
+            kids.forEach((kid, i) => {
+              if (i % cols !== 0) {
+                restoreCaptureTweaks.push({
+                  el: kid,
+                  prop: "marginLeft",
+                  prev: kid.style.marginLeft
+                });
+                const cur = parseFloat(window.getComputedStyle(kid).marginLeft) || 0;
+                kid.style.marginLeft = `${cur + colGap}px`;
+              }
+              if (i >= cols) {
+                restoreCaptureTweaks.push({
+                  el: kid,
+                  prop: "marginTop",
+                  prev: kid.style.marginTop
+                });
+                const cur = parseFloat(window.getComputedStyle(kid).marginTop) || 0;
+                kid.style.marginTop = `${cur + rowGap}px`;
+              }
+            });
+          }
+        });
+      };
+
+      neutralizeGapsAndShadows(sheet);
+      sheet.classList.add("informe-sheet--export-capture");
 
       const unfreeze =
         typeof freezeInformeTextMetrics === "function"
@@ -850,13 +953,34 @@ function LayoutGeneradorInformes({
       const cssH = Math.max(1, Math.round(sheet.getBoundingClientRect().height) || designH);
       const pixelRatio = Math.min(3, Math.max(2, PAGE_W / cssW));
 
+      const killArtifactsInClone = (doc) => {
+        const style = doc.createElement("style");
+        style.textContent = `
+          .informe-sheet--export-capture,
+          .informe-sheet--export-capture * {
+            box-shadow: none !important;
+            -webkit-box-shadow: none !important;
+            text-shadow: none !important;
+            filter: none !important;
+          }
+          .informe-sheet--export-capture .informe-sheet__bg {
+            filter: none !important;
+          }
+        `;
+        doc.head.appendChild(style);
+        doc.querySelectorAll(".informe-sheet--export-capture, .informe-sheet--export-capture *").forEach((el) => {
+          if (!(el.style)) return;
+          el.style.setProperty("box-shadow", "none", "important");
+          el.style.setProperty("filter", "none", "important");
+        });
+      };
+
       try {
         const htmlToImage = window.htmlToImage;
         if (htmlToImage && typeof htmlToImage.toCanvas === "function") {
           return await htmlToImage.toCanvas(sheet, {
             pixelRatio,
             cacheBust: true,
-            // Nuestra CSS base64; no re-escanear Google Fonts (falla y cambia métricas)
             skipFonts: true,
             fontEmbedCSS: fontEmbedCSS || "",
             backgroundColor: "#9d2036",
@@ -867,6 +991,7 @@ function LayoutGeneradorInformes({
               zoom: "1",
               width: `${cssW}px`,
               height: `${cssH}px`,
+              boxShadow: "none",
               fontFamily: '"Quicksand", system-ui, sans-serif',
               WebkitPrintColorAdjust: "exact",
               printColorAdjust: "exact"
@@ -894,6 +1019,7 @@ function LayoutGeneradorInformes({
                 style.textContent = fontEmbedCSS;
                 doc.head.appendChild(style);
               }
+              killArtifactsInClone(doc);
               const cloned = doc.querySelector(".informe-sheet--export-capture");
               if (cloned) {
                 cloned.style.transform = "none";
@@ -903,6 +1029,7 @@ function LayoutGeneradorInformes({
                 cloned.style.fontFamily = '"Quicksand", system-ui, sans-serif';
                 cloned.style.webkitPrintColorAdjust = "exact";
                 cloned.style.printColorAdjust = "exact";
+                cloned.style.boxShadow = "none";
               }
             }
           });
@@ -910,6 +1037,28 @@ function LayoutGeneradorInformes({
         throw new Error("Sin motor de captura");
       } finally {
         unfreeze();
+        // Restaurar en orden inverso
+        for (let i = restoreCaptureTweaks.length - 1; i >= 0; i -= 1) {
+          const t = restoreCaptureTweaks[i];
+          if (t.prop === "gap") {
+            t.el.style.removeProperty("gap");
+            t.el.style.removeProperty("row-gap");
+            t.el.style.removeProperty("column-gap");
+            if (t.prev) t.el.style.gap = t.prev;
+            if (t.prevRow) t.el.style.rowGap = t.prevRow;
+            if (t.prevCol) t.el.style.columnGap = t.prevCol;
+          } else if (t.prop === "boxShadow") {
+            t.el.style.removeProperty("box-shadow");
+            if (t.prev) t.el.style.boxShadow = t.prev;
+          } else if (t.prop === "filter") {
+            t.el.style.removeProperty("filter");
+            if (t.prev) t.el.style.filter = t.prev;
+          } else if (t.prop === "marginTop") {
+            t.el.style.marginTop = t.prev || "";
+          } else if (t.prop === "marginLeft") {
+            t.el.style.marginLeft = t.prev || "";
+          }
+        }
         sheet.classList.remove("informe-sheet--export-capture");
         sheet.style.borderRadius = prev.borderRadius;
         sheet.style.boxShadow = prev.boxShadow;

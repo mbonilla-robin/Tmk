@@ -88,7 +88,7 @@
 
     const cssLinks = [
       absUrl("css/informe-fonts.css?v=5"),
-      absUrl("css/informe-entregables.css?v=106")
+      absUrl("css/informe-entregables.css?v=107")
     ];
 
     const pages = Array.from(sheets).map((sheet) => {

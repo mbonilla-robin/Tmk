@@ -1290,6 +1290,7 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
+  /* gap lo convierte a márgenes en export (html-to-image pinta gap como bandas) */
   gap: 0.22rem;
   overflow: hidden;
 }
@@ -1323,15 +1324,16 @@
   color: #18181b;
   border-radius: 10px;
   border: 0;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+  box-shadow: none;
   overflow: visible;
 }
 
-/* KPIs: 3 rectángulos blancos, tipografía en rojo del fondo (sin hairlines) */
+/* KPIs: 3 rectángulos blancos.
+   Sin CSS gap ni box-shadow: html-to-image los pinta como bandas/manchas rojas. */
 .inf-kpi-band {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.32rem;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
   padding: 0.2rem 0;
   margin: 0.14rem 0 0.22rem;
   border: 0;
@@ -1342,17 +1344,25 @@
 
 .inf-kpi-stat {
   position: relative;
+  flex: 1 1 0;
+  min-width: 0;
   text-align: center;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.18rem;
+  gap: 0;
+  row-gap: 0;
   padding: 0.55rem 0.35rem 0.5rem;
   border: 0;
   border-radius: 7px;
   background: #ffffff;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+  box-shadow: none;
+  filter: none;
+}
+
+.inf-kpi-stat + .inf-kpi-stat {
+  margin-left: 0.32rem;
 }
 
 .inf-kpi-stat:not(:last-child)::after {
@@ -1361,6 +1371,7 @@
 
 .inf-kpi-stat strong {
   display: block;
+  margin-bottom: 0.18rem;
   font-family: "Quicksand", system-ui, sans-serif;
   font-size: 40px;
   font-weight: 800;
@@ -1424,7 +1435,7 @@
   border-radius: 4px;
   background: #ffffff;
   color: #9d2036;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  box-shadow: none;
 }
 
 .inf-section__ico--chapter svg {
@@ -1601,7 +1612,11 @@
 .inf-eje-card--micro .inf-eje__metrics {
   margin: 0.12rem 0 0.14rem;
   padding: 0;
-  gap: 0.22rem;
+  gap: 0;
+}
+
+.inf-eje-card--micro .inf-eje__metric + .inf-eje__metric {
+  margin-left: 0.22rem;
 }
 
 .inf-eje-card--micro .inf-eje__metric {
@@ -1626,7 +1641,7 @@
   padding: 0.45rem 0.6rem;
   background: #ffffff;
   border-radius: 7px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+  box-shadow: none;
   margin-bottom: 0.22rem;
   overflow: hidden;
   min-height: 1.85rem;
@@ -1682,11 +1697,11 @@
   flex-shrink: 0;
 }
 
-/* Resultado del eje: 2 chips blancos, más bajos que el título; texto oscuro (sin rojo) */
+/* Resultado del eje: 2 chips blancos (sin gap: evita bandas en PDF) */
 .inf-eje__metrics {
   display: flex;
   align-items: stretch;
-  gap: 0.28rem;
+  gap: 0;
   margin: 0.14rem 0 0.16rem;
   padding: 0;
   border: 0;
@@ -1702,7 +1717,11 @@
   padding: 0.18rem 0.28rem;
   border-radius: 4px;
   background: #ffffff;
-  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.08);
+  box-shadow: none;
+}
+
+.inf-eje__metric + .inf-eje__metric {
+  margin-left: 0.28rem;
 }
 
 .inf-eje__metric-sep {
@@ -2091,7 +2110,7 @@
   padding: 0.3rem 0.48rem;
   background: #ffffff;
   border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: none;
   min-height: 1.45rem;
 }
 
@@ -2287,7 +2306,7 @@
   color: #18181b;
   background: #ffffff;
   border-radius: 7px;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+  box-shadow: none;
   overflow: hidden;
   position: relative;
   z-index: 2;
@@ -2366,19 +2385,33 @@
   text-shadow: none !important;
   -webkit-text-stroke: 0 !important;
   filter: none !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
   -webkit-print-color-adjust: exact !important;
   print-color-adjust: exact !important;
 }
 
-/* html-to-image pinta mal las sombras → “manchas” rojas detrás de KPIs/barras */
+/* Por si algún motor ignora el * — forzar en tarjetas blancas */
 .informe-sheet--export-capture .inf-kpi-stat,
+.informe-sheet--export-capture .inf-kpi-band,
 .informe-sheet--export-capture .inf-eje__title-bar,
 .informe-sheet--export-capture .inf-eje__metric,
+.informe-sheet--export-capture .inf-eje__metrics,
 .informe-sheet--export-capture .inf-chart__name,
 .informe-sheet--export-capture .inf-sug__title-bar,
 .informe-sheet--export-capture .inf-section__ico--chapter,
-.informe-sheet--export-capture .inf-sug__icon {
+.informe-sheet--export-capture .inf-sug__icon,
+.informe-sheet--export-capture .inf-card {
   box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  filter: none !important;
+}
+
+.informe-sheet--export-capture .inf-kpi-band,
+.informe-sheet--export-capture .inf-eje__metrics {
+  gap: 0 !important;
+  row-gap: 0 !important;
+  column-gap: 0 !important;
 }
 
 .informe-sheet--export-capture .informe-sheet__bg {

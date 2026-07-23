@@ -80,10 +80,13 @@ async function prepararInformeConGemini(informeBase) {
 
   const mergeEjes = (locales, remotos) => {
     const byId = new Map((remotos || []).map((r) => [r.id, r]));
+    const filtrar = typeof filtrarBulletsKpiDelRedactado === "function"
+      ? filtrarBulletsKpiDelRedactado
+      : (t) => t;
     return (locales || []).map((e) => {
       const remote = byId.get(e.id);
       if (!remote || !remote.redactado) return e;
-      return { ...e, redactado: String(remote.redactado).trim() };
+      return { ...e, redactado: filtrar(String(remote.redactado).trim()) };
     });
   };
 

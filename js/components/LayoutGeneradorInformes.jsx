@@ -740,14 +740,80 @@ function LayoutGeneradorInformes({
     ejecutarPreparacion({ forzarAi: true });
   };
 
+  /** PDF nativo solo en desktop: en móvil window.print() saca de la app. */
+  const puedePDFNativo = typeof window.matchMedia === "function"
+    && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+  const exportarPDFNativo = async () => {
+    if (!puedePDFNativo) {
+      toast("En móvil usa «Descargar PDF» (se queda en la app)");
+      return exportarPDF();
+    }
+
+    const sheets = previewRef.current?.querySelectorAll(".informe-sheet:not(.informe-sheet--ghost)");
+    if (!sheets || sheets.length === 0) return;
+    setExportando(true);
+    toast("Abriendo impresión… elige «Guardar como PDF»");
+
+    const bookEl = previewRef.current?.querySelector(".informe-pdf-book");
+    const prevBookScale = bookEl?.style.getPropertyValue("--informe-preview-scale") || "";
+    if (bookEl) bookEl.style.setProperty("--informe-preview-scale", "1");
+
+    const waitImages = (root) => Promise.all(
+      Array.from(root.querySelectorAll("img")).map((img) => {
+        if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+        return new Promise((resolve) => {
+          img.addEventListener("load", resolve, { once: true });
+          img.addEventListener("error", resolve, { once: true });
+        });
+      })
+    );
+
+    let cleaned = false;
+    const cleanup = async (markExported) => {
+      if (cleaned) return;
+      cleaned = true;
+      window.removeEventListener("afterprint", onAfterPrint);
+      document.body.classList.remove("informe-print-mode");
+      if (bookEl) {
+        if (prevBookScale) bookEl.style.setProperty("--informe-preview-scale", prevBookScale);
+        else bookEl.style.removeProperty("--informe-preview-scale");
+      }
+      setExportando(false);
+      if (markExported) {
+        await persistirAhora(informe, { markExported: true });
+        toast(`PDF nativo · ${sheets.length} pág. (texto seleccionable)`);
+      }
+    };
+
+    const onAfterPrint = () => {
+      cleanup(true);
+    };
+
+    try {
+      if (document.fonts?.ready) await document.fonts.ready;
+      await waitImages(previewRef.current);
+      document.body.classList.add("informe-print-mode");
+      window.addEventListener("afterprint", onAfterPrint);
+      // Si cancela o el sistema no dispara afterprint, recuperar UI pronto
+      window.setTimeout(() => cleanup(false), 8000);
+      window.print();
+    } catch (err) {
+      console.error(err);
+      await cleanup(false);
+      toast("No se pudo abrir la impresión · se descarga PDF imagen");
+      await exportarPDF();
+    }
+  };
+
   const exportarPDF = async () => {
     const sheets = previewRef.current?.querySelectorAll(".informe-sheet:not(.informe-sheet--ghost)");
     if (!sheets || sheets.length === 0) return;
     setExportando(true);
     toast("Generando PDF…");
 
-    const PAGE_W = 1080;
-    const PAGE_H = 1920;
+    const PAGE_W = typeof window.INFORME_PDF_PAGE_W === "number" ? window.INFORME_PDF_PAGE_W : 2408;
+    const PAGE_H = typeof window.INFORME_PDF_PAGE_H === "number" ? window.INFORME_PDF_PAGE_H : 3508;
 
     const nextFrame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
 
@@ -775,26 +841,41 @@ function LayoutGeneradorInformes({
     };
 
     /**
-     * Captura a tamaño CSS real (mismo layout que la preview).
+     * Captura a tamaño CSS de diseño (mismo layout que la preview “print”).
      * Tipografía embebida en base64 + métricas congeladas → mismo tamaño de letra.
      */
     const rasterizarHoja = async (sheet, fontEmbedCSS) => {
-      const cssW = Math.max(1, Math.round(sheet.getBoundingClientRect().width));
-      const cssH = Math.max(1, Math.round(sheet.getBoundingClientRect().height));
-      // Solo nitidez: el layout NO se escala. pixelRatio no debe mezclarse con canvasWidth extra.
-      const pixelRatio = Math.min(3, Math.max(2, PAGE_W / cssW));
+      const designW = typeof window.INFORME_SHEET_DESIGN_W === "number"
+        ? window.INFORME_SHEET_DESIGN_W
+        : 560;
+      const designH = Math.round(designW * (window.INFORME_SHEET_ASPECT_H || 3508 / 2408));
 
+      const frame = sheet.closest(".informe-sheet-frame");
       const prev = {
         borderRadius: sheet.style.borderRadius,
         boxShadow: sheet.style.boxShadow,
         transform: sheet.style.transform,
-        zoom: sheet.style.zoom
+        zoom: sheet.style.zoom,
+        width: sheet.style.width,
+        height: sheet.style.height,
+        frameOverflow: frame?.style.overflow || "",
+        frameWidth: frame?.style.width || "",
+        frameHeight: frame?.style.height || ""
       };
+
+      // El book ya está en scale 1 durante el export; solo expandimos el frame de esta hoja
+      if (frame) {
+        frame.style.overflow = "visible";
+        frame.style.width = `${designW}px`;
+        frame.style.height = `${designH}px`;
+      }
       sheet.classList.add("informe-sheet--export-capture");
       sheet.style.borderRadius = "0";
       sheet.style.boxShadow = "none";
       sheet.style.transform = "none";
       sheet.style.zoom = "1";
+      sheet.style.width = `${designW}px`;
+      sheet.style.height = `${designH}px`;
 
       const unfreeze =
         typeof freezeInformeTextMetrics === "function"
@@ -802,6 +883,10 @@ function LayoutGeneradorInformes({
           : () => {};
 
       await nextFrame();
+
+      const cssW = Math.max(1, Math.round(sheet.getBoundingClientRect().width) || designW);
+      const cssH = Math.max(1, Math.round(sheet.getBoundingClientRect().height) || designH);
+      const pixelRatio = Math.min(3, Math.max(2, PAGE_W / cssW));
 
       try {
         const htmlToImage = window.htmlToImage;
@@ -813,9 +898,13 @@ function LayoutGeneradorInformes({
             skipFonts: true,
             fontEmbedCSS: fontEmbedCSS || "",
             backgroundColor: "#9d2036",
+            width: cssW,
+            height: cssH,
             style: {
               transform: "none",
               zoom: "1",
+              width: `${cssW}px`,
+              height: `${cssH}px`,
               fontFamily: '"Quicksand", system-ui, sans-serif',
               WebkitPrintColorAdjust: "exact",
               printColorAdjust: "exact"
@@ -847,6 +936,8 @@ function LayoutGeneradorInformes({
               if (cloned) {
                 cloned.style.transform = "none";
                 cloned.style.zoom = "1";
+                cloned.style.width = `${cssW}px`;
+                cloned.style.height = `${cssH}px`;
                 cloned.style.fontFamily = '"Quicksand", system-ui, sans-serif';
                 cloned.style.webkitPrintColorAdjust = "exact";
                 cloned.style.printColorAdjust = "exact";
@@ -862,17 +953,27 @@ function LayoutGeneradorInformes({
         sheet.style.boxShadow = prev.boxShadow;
         sheet.style.transform = prev.transform;
         sheet.style.zoom = prev.zoom;
+        sheet.style.width = prev.width;
+        sheet.style.height = prev.height;
+        if (frame) {
+          frame.style.overflow = prev.frameOverflow;
+          frame.style.width = prev.frameWidth;
+          frame.style.height = prev.frameHeight;
+        }
       }
     };
 
+    const bookEl = previewRef.current?.querySelector(".informe-pdf-book");
+    const prevBookScale = bookEl?.style.getPropertyValue("--informe-preview-scale") || "";
+
     try {
       if (!window.jspdf?.jsPDF) {
-        document.body.classList.add("informe-print-mode");
-        window.print();
-        document.body.classList.remove("informe-print-mode");
-        toast("Usa «Guardar como PDF» en el diálogo");
+        setExportando(false);
+        toast("Falta el motor PDF · recarga la página");
         return;
       }
+
+      if (bookEl) bookEl.style.setProperty("--informe-preview-scale", "1");
 
       await ensureInformeFonts();
       await waitImages(previewRef.current);
@@ -926,11 +1027,12 @@ function LayoutGeneradorInformes({
       toast(`PDF listo · ${sheets.length} pág.`);
     } catch (err) {
       console.error(err);
-      document.body.classList.add("informe-print-mode");
-      window.print();
-      document.body.classList.remove("informe-print-mode");
-      toast("Fallback: impresión del navegador (más fiel al preview)");
+      toast("No se pudo generar el PDF · reintenta");
     } finally {
+      if (bookEl) {
+        if (prevBookScale) bookEl.style.setProperty("--informe-preview-scale", prevBookScale);
+        else bookEl.style.removeProperty("--informe-preview-scale");
+      }
       setExportando(false);
     }
   };
@@ -1447,11 +1549,22 @@ function LayoutGeneradorInformes({
               <div>
                 <h2 className="informe-panel__title">Vista previa</h2>
                 <p className="informe-panel__sub">
-                  Estilo clásico · páginas al tamaño del fondo · sin cortar tarjetas
+                  Formato A4 · la descarga se queda en la app
                 </p>
               </div>
               <div className="informe-preview-toolbar__actions">
                 <button type="button" className="informe-btn-ghost" onClick={() => { setInformeVista(null); setPaso(2); }}>Editar</button>
+                {puedePDFNativo && (
+                  <button
+                    type="button"
+                    className="informe-btn-ghost"
+                    onClick={exportarPDFNativo}
+                    disabled={exportando}
+                    title="Abre el diálogo de impresión · Guardar como PDF (texto seleccionable)"
+                  >
+                    PDF texto
+                  </button>
+                )}
                 <button type="button" className="informe-btn-primary" onClick={exportarPDF} disabled={exportando}>
                   <i className={`fa-solid ${exportando ? "fa-spinner fa-spin" : "fa-file-pdf"}`} />
                   Descargar PDF

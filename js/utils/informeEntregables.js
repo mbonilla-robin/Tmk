@@ -546,8 +546,35 @@ function redactarTemporalidadIA(eje) {
   }
 
   const intro = pulirFraseInforme(partes[0]);
-  const bullets = partes.slice(1, 6).map((p) => `• ${pulirFraseInforme(p)}`);
+  const bullets = partes.slice(1, 6)
+    .filter((p) => !esBulletSoloKpiInforme(p))
+    .map((p) => `• ${pulirFraseInforme(p)}`);
   return [intro, ...bullets].join("\n");
+}
+
+/** Bullets que solo repiten KPIs ya visibles arriba (propuestas/realizados/fecha). */
+function esBulletSoloKpiInforme(text) {
+  const n = informeNorm(String(text || "").replace(/^[•\-\*]\s*/, ""));
+  if (!n) return false;
+  if (/\b\d+\s*(propuestas?|ejecutables?|realizados?)\b/.test(n)) return true;
+  if (/se (crearon|ejecutaron|realizaron|propusieron|generaron)\s+\d+/.test(n)) return true;
+  if (/(propuestas?|ejecutables?|realizados?)\s*(del proyecto|propuestos)?\s*:?\s*\d+/.test(n)) return true;
+  if (/el proyecto (finaliz|cerr|termin)/.test(n) && /\b(20\d{2}|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/.test(n)) {
+    return true;
+  }
+  if (/^en ejecuci[oó]n\b/.test(n) && n.length < 48) return true;
+  return false;
+}
+
+function filtrarBulletsKpiDelRedactado(redactado) {
+  const lines = String(redactado || "").split("\n");
+  const kept = lines.filter((line) => {
+    const t = line.trim();
+    if (!/^[•\-\*]/.test(t)) return true;
+    return !esBulletSoloKpiInforme(t);
+  });
+  // Evitar dejar intro + líneas vacías de más
+  return kept.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 function elegirIconoSugerencia(titulo, text) {
@@ -856,6 +883,12 @@ function prepararInformeParaVista(informe, opts = {}) {
     const { piezas, trabajos } = normalizarPiezasEje(e);
     const suma = typeof sumaVersionesPiezas === "function" ? sumaVersionesPiezas(piezas) : 0;
     const redactadoExistente = String(e.redactado || "").trim();
+    const redactadoRaw = keepRedactado && redactadoExistente
+      ? redactadoExistente
+      : redactarTemporalidadIA({ ...e, piezas, trabajos });
+    const redactado = typeof filtrarBulletsKpiDelRedactado === "function"
+      ? filtrarBulletsKpiDelRedactado(redactadoRaw)
+      : redactadoRaw;
     return {
       ...e,
       titulo: pulirTituloInforme(e.titulo) || e.titulo,
@@ -863,9 +896,7 @@ function prepararInformeParaVista(informe, opts = {}) {
       piezas,
       trabajos,
       propuestas: suma > 0 ? suma : (Number(e.propuestas) || 0),
-      redactado: keepRedactado && redactadoExistente
-        ? redactadoExistente
-        : redactarTemporalidadIA({ ...e, piezas, trabajos })
+      redactado
     };
   };
 
@@ -1008,6 +1039,8 @@ window.seriesPropuestasPorEje = seriesPropuestasPorEje;
 window.seriesEjecutablesComparativa = seriesEjecutablesComparativa;
 window.totalesMetricasInforme = totalesMetricasInforme;
 window.redactarTemporalidadIA = redactarTemporalidadIA;
+window.esBulletSoloKpiInforme = esBulletSoloKpiInforme;
+window.filtrarBulletsKpiDelRedactado = filtrarBulletsKpiDelRedactado;
 window.sugerenciasABulletsIA = sugerenciasABulletsIA;
 window.normalizarSugerenciaInforme = normalizarSugerenciaInforme;
 window.elegirIconoSugerencia = elegirIconoSugerencia;

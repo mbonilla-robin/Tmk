@@ -179,18 +179,22 @@ Responde SOLO con JSON válido (sin markdown) con esta forma exacta:
 Reglas de redacción por eje (macro/micro):
 1. LEE con atención "notas", "titulo", piezas, propuestas, ejecutablesHechos y enEjecucion del formulario. Esa es la fuente de verdad.
 2. Reescribe en español profesional lo que se hizo: acciones, despliegues, materiales y resultados concretos. Si enEjecucion es true, indícalo como proyecto aún en curso (sin inventar ejecutables realizados).
-3. FIDELIDAD AL CONTENIDO (CRÍTICO — es un reporte de información, no un resumen):
+3. FIDELIDAD AL CONTENIDO (CRÍTICO — es un reporte de información, no un resumen vacío):
    - PROHIBIDO “comerse” texto, omitir datos útiles o comprimir de más. Si las notas son ricas, el redactado debe ser rico.
    - Intro: 1 párrafo con la extensión que haga falta (puede ser 2–6 oraciones o más si las notas lo requieren). Conserva hechos, alcance, partners, fechas/periodos mencionados y matices de las notas.
-   - Bullets: un bullet por acción/resultado concreto dejado en las notas (o claramente derivado de ellas). No fusiones varios puntos en uno si pierdes detalle. No inventes bullets; no dejes fuera los que sí están en las notas.
-   - Si las notas ya traen bullets, consérvalos (puliendo redacción), no los reduzcas a la mitad.
-4. ÉNFASIS EN EL PÁRRAFO INICIAL (negritas con **...**):
-   - Marca 1 a 3 fragmentos cortos (ideal 2–6 palabras c/u) que un cliente leería en un escaneo de 2 segundos.
-   - SÍ resalta: nombre del eje/proyecto/campaña, alianza o partner clave, el “qué se hizo” diferencial.
-   - NO resaltes: verbos sueltos, conectores, “piso de venta”, “PDV”, “foco en”, fechas solas, adjetivos vacíos, ni oraciones enteras.
-   - PROHIBIDO marcar por posición (primera coma/frase). Solo por valor informativo. En bullets NO uses **.
-   - Ej. bueno: "Activación alineada a la alianza con **Gama Club** y el proyecto **Gamania**, con foco en visibilidad y tráfico en góndola."
-   - Ej. malo: marcar todo el párrafo o solo “con foco en…”.
+   - Bullets: resumen de lo MÁS IMPORTANTE del brief/notas (acciones, materiales, foco comercial, partners, entregables cualitativos). Un bullet por idea concreta del brief.
+   - PROHIBIDO en bullets repetir KPIs o métricas que ya van arriba en el PDF (propuestas, realizados/ejecutables, “en ejecución”, fechas de cierre, conteos). Ej. MALO: "Se crearon 26 propuestas", "Se ejecutaron 26 ejecutables", "El proyecto finalizó en julio de 2026".
+   - Si las notas ya traen bullets de contenido, consérvalos (puliendo redacción); no los sustituyas por métricas.
+   - Si el brief solo tiene métricas y casi no hay notas, escribe 1–2 bullets de valor a partir del título/alcance — nunca copies las cifras del KPI.
+4. ÉNFASIS EN EL PÁRRAFO INICIAL (negritas con **...** — CRÍTICO):
+   - El título del eje YA aparece en la barra blanca del PDF. NO gastes la única negrita solo repitiendo ese nombre (ej. no dejes únicamente **Mundial Gama**).
+   - Marca 2 a 3 fragmentos cortos (ideal 2–7 palabras) con valor de escaneo: el “qué se hizo”, el objetivo comercial o el diferencial del despliegue.
+   - SÍ resalta: acciones/resultados concretos (despliegue, ambientación, impacto visual, comunicación de precios), objetivo de shopper (categorías de compra, tráfico en góndola), alianzas/partners que NO sean solo el título del eje.
+   - NO resaltes: el título del eje solo, verbos sueltos, conectores, “piso de venta”, “PDV”, “foco en”, fechas, adjetivos vacíos, ni oraciones enteras.
+   - En bullets NO uses **.
+   - Ej. bueno (campaña Mundial): "La campaña Mundial Gama impulsó las **categorías de compra clave** del evento con un **despliegue integral de ambientación** e **impacto visual** en piso de venta."
+   - Ej. bueno (alianza): "Activación alineada a **Gama Club** con foco en **visibilidad y tráfico en góndola**."
+   - Ej. malo: "La campaña **Mundial Gama** se llevó a cabo…" (solo el nombre; el cliente ya lo leyó en el encabezado).
 5. NO listes piezas/trabajos en el redactado (van aparte en el PDF). NO inventes métricas, fechas ni entregables que no vengan en los datos.
 6. Conserva el "id" de cada eje. Si un eje no tiene notas, redacta un párrafo breve y fiel a título + métricas disponibles, sin inventar.
 

@@ -204,59 +204,65 @@ function escapeRegExpInforme(s) {
 }
 
 /**
- * Fallback local si la IA no mandó **...**.
- * Prefiere frases con valor (título, alianza/proyecto, concepto diferencial), no palabras genéricas.
+ * Fallback / enriquecimiento de **...** en el intro.
+ * Prioriza el “qué se hizo” sobre el título del eje (ya visible en la barra blanca).
  */
-function autoEnfasisIntroPorImportancia(intro, eje) {
+function autoEnfasisIntroPorImportancia(intro, eje, opts = {}) {
+  const skipTitle = Boolean(opts.skipTitle);
   const s = String(intro || "").trim();
-  if (!s || /\*\*[^*]+\*\*/.test(s)) return s;
+  if (!s) return s;
+  if (/\*\*[^*]+\*\*/.test(s) && !opts.force) return s;
 
   const STOP = new Set([
     "pdv", "piso", "venta", "foco", "junio", "julio", "agosto", "septiembre",
     "octubre", "noviembre", "diciembre", "enero", "febrero", "marzo", "abril", "mayo",
-    "especiales", "apoyo", "materiales", "piezas"
+    "especiales", "apoyo", "materiales", "piezas", "campaña", "campana", "temporada"
   ]);
 
   const needles = [];
   const push = (n) => {
     let t = String(n || "").trim().replace(/\s+/g, " ");
-    if (t.length < 4 || t.length > 48) return;
+    if (t.length < 4 || t.length > 56) return;
     if (STOP.has(t.toLowerCase())) return;
-    // Evitar monosílabos / una sola palabra demasiado genérica
     const words = t.split(/\s+/);
-    if (words.length === 1 && t.length < 6) return;
+    if (words.length === 1 && t.length < 7) return;
     if (!needles.some((x) => x.toLowerCase() === t.toLowerCase())) needles.push(t);
   };
 
   const titulo = String(eje?.titulo || "").trim();
-  push(titulo);
 
-  // Alianzas / partners / nombres propios multi-palabra
-  const brands = s.match(
-    /\b(?:Gama(?:\s+Club)?|Gamania|Diageo|La\s+Sant[eé]|Robin|Mundial(?:\s+Gama)?|FII|Nida)\b/gi
-  ) || [];
-  brands.forEach(push);
-
-  // “proyecto/activación/campaña X” → núcleo propio
-  const named = s.match(
-    /(?:proyecto|activaci[oó]n|campa[nñ]a|temporalidad)\s+([A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÑ]*(?:\s+[A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÑ]*){0,3})/gi
-  ) || [];
-  named.forEach((chunk) => {
-    const nucleus = String(chunk || "")
-      .replace(/^(?:proyecto|activaci[oó]n|campa[nñ]a|temporalidad)\s+/i, "")
-      .replace(/[.,;:]+$/, "")
-      .trim();
-    if (nucleus.length >= 3) push(nucleus);
-  });
-
-  // Concepto diferencial: “comunicación de precios”, “vinos exclusivos”, etc.
+  // Acciones / impacto (prioridad alta)
   const conceptos = s.match(
-    /\b(?:comunicaci[oó]n de precios|vinos exclusivos|puntas de g[oó]ndola|floor graphics?|materiales POP)\b/gi
+    /\b(?:despliegue integral(?: de ambientaci[oó]n)?|ambientaci[oó]n(?: e impacto visual)?|impacto visual|categor[ií]as de compra(?: clave)?|comunicaci[oó]n de precios|visibilidad(?: y tr[aá]fico)?(?: en g[oó]ndola)?|tr[aá]fico en g[oó]ndola|visibilidades exteriores|combinaci[oó]n estrat[eé]gica(?: de materiales)?|vinos exclusivos|puntas de g[oó]ndola|floor graphics?|materiales POP|revestimientos|impresos)\b/gi
   ) || [];
   conceptos.forEach(push);
 
+  // Partners / alianzas (si no son solo el título)
+  const brands = s.match(
+    /\b(?:Gama(?:\s+Club)?|Gamania|Diageo|La\s+Sant[eé]|Robin|FII|Nida)\b/gi
+  ) || [];
+  brands.forEach((b) => {
+    if (titulo && b.toLowerCase() === titulo.toLowerCase()) return;
+    push(b);
+  });
+
+  const named = s.match(
+    /(?:proyecto|alianza(?: estrat[eé]gica)?(?: con)?)\s+([A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÑ]*(?:\s+[A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÑ]*){0,3})/gi
+  ) || [];
+  named.forEach((chunk) => {
+    const nucleus = String(chunk || "")
+      .replace(/^(?:proyecto|alianza(?: estrat[eé]gica)?(?: con)?)\s+/i, "")
+      .replace(/[.,;:]+$/, "")
+      .trim();
+    if (nucleus.length >= 3 && (!titulo || nucleus.toLowerCase() !== titulo.toLowerCase())) {
+      push(nucleus);
+    }
+  });
+
+  // Título solo si no hay nada mejor (último recurso)
+  if (!skipTitle && needles.length === 0 && titulo) push(titulo);
+
   needles.sort((a, b) => b.length - a.length);
-  // Máx. 3 énfasis para no saturar
   const top = needles.slice(0, 3);
   if (!top.length) return s;
 
@@ -264,9 +270,35 @@ function autoEnfasisIntroPorImportancia(intro, eje) {
   return s.replace(re, "**$1**");
 }
 
+/** Si la IA solo marcó el título del eje, reescribe el énfasis hacia acciones. */
+function enriquecerEnfasisSiSoloTitulo(intro, eje) {
+  const s = String(intro || "").trim();
+  if (!s) return s;
+  const titulo = String(eje?.titulo || "").trim().toLowerCase();
+  const marks = [];
+  s.replace(/\*\*([^*]+)\*\*/g, (_, m) => {
+    marks.push(String(m || "").trim().toLowerCase());
+    return _;
+  });
+  if (!marks.length) {
+    return autoEnfasisIntroPorImportancia(s, eje, { skipTitle: true, force: true });
+  }
+  const soloTitulo = Boolean(titulo) && marks.every((m) => (
+    m === titulo
+    || titulo.includes(m)
+    || m.includes(titulo)
+    || m === `campaña ${titulo}`
+    || m === `activación ${titulo}`
+    || m === `activacion ${titulo}`
+  ));
+  if (!soloTitulo) return s;
+  const limpio = s.replace(/\*\*([^*]+)\*\*/g, "$1");
+  return autoEnfasisIntroPorImportancia(limpio, eje, { skipTitle: true, force: true });
+}
+
 /** Parte intro en strong/light según **marcado por importancia**. */
 function parseIntroConEnfasis(text, eje) {
-  const raw = autoEnfasisIntroPorImportancia(text, eje);
+  const raw = enriquecerEnfasisSiSoloTitulo(text, eje);
   const parts = [];
   const re = /\*\*([^*]+)\*\*/g;
   let last = 0;
@@ -794,8 +826,8 @@ function renderBloquePagina(block, informe) {
       return (
         <header key={block.id} className="inf-header" data-block-id={block.id}>
           <h1 className="inf-title">
-            <span className="inf-title__line">{linea1}</span>
-            {linea2 && <span className="inf-title__line">{linea2}</span>}
+            <span className="inf-title__line inf-title__line--medium">{linea1}</span>
+            {linea2 && <span className="inf-title__line inf-title__line--bold">{linea2}</span>}
           </h1>
           {rango && <p className="inf-periodo">{rango}</p>}
         </header>
@@ -1176,6 +1208,12 @@ function empaquetarPaginasPorAltura(blocks, heights, pageCapacityPx, gapPx) {
   return pages.length ? pages : [blocks.slice(0, 1)];
 }
 
+/** A4 Gama: fondo 2408×3508. Layout CSS fijo; PDF export a esos px. */
+const INFORME_SHEET_DESIGN_W = 560;
+const INFORME_SHEET_ASPECT_H = 3508 / 2408;
+const INFORME_PDF_PAGE_W = 2408;
+const INFORME_PDF_PAGE_H = 3508;
+
 function VistaPreviaInformePDF({ informe, marcaAccent }) {
   const esGama = typeof marcasCoinciden === "function"
     ? marcasCoinciden(informe.marca, "Gama")
@@ -1184,6 +1222,34 @@ function VistaPreviaInformePDF({ informe, marcaAccent }) {
   const blocks = useMemo(() => listarBloquesInforme(informe), [informe]);
   const [pages, setPages] = useState(() => [blocks]);
   const measureRef = useRef(null);
+  const bookRef = useRef(null);
+
+  // Escala solo visual: encaja en el stage sin cambiar el layout (print preview).
+  useLayoutEffect(() => {
+    const book = bookRef.current;
+    if (!book) return undefined;
+    const stage = book.closest(".informe-preview-stage") || book.parentElement;
+    if (!stage) return undefined;
+
+    const updateScale = () => {
+      const style = window.getComputedStyle(stage);
+      const padX = (parseFloat(style.paddingLeft) || 0) + (parseFloat(style.paddingRight) || 0);
+      const available = Math.max(120, stage.clientWidth - padX);
+      const scale = Math.min(1, available / INFORME_SHEET_DESIGN_W);
+      book.style.setProperty("--informe-preview-scale", String(scale));
+    };
+
+    updateScale();
+    const ro = typeof ResizeObserver === "function"
+      ? new ResizeObserver(updateScale)
+      : null;
+    if (ro) ro.observe(stage);
+    window.addEventListener("resize", updateScale);
+    return () => {
+      if (ro) ro.disconnect();
+      window.removeEventListener("resize", updateScale);
+    };
+  }, []);
 
   useLayoutEffect(() => {
     let cancelled = false;
@@ -1192,13 +1258,11 @@ function VistaPreviaInformePDF({ informe, marcaAccent }) {
 
     const medirYEmpaquetar = () => {
       if (cancelled || !measureRef.current) return;
-      const book = measureRef.current.parentElement;
-      const bookW = Math.min(400, book?.clientWidth || 400);
-      // Mismo ancho útil que .informe-sheet__inner (padding lateral 8.5% + 8.5%)
-      const padX = 0.085;
-      const padTop = 0.32; // % del ANCHO (igual que CSS)
-      const padBottom = 0.08;
-      const contentW = Math.max(280, Math.round(bookW * (1 - padX * 2)));
+      const bookW = INFORME_SHEET_DESIGN_W;
+      const padX = 0.09;
+      const padTop = 0.34; // debajo del carrito/logo — no invadir esa zona
+      const padBottom = 0.05;
+      const contentW = Math.max(320, Math.round(bookW * (1 - padX * 2)));
       measureRef.current.style.width = `${contentW}px`;
 
       const heights = {};
@@ -1207,16 +1271,13 @@ function VistaPreviaInformePDF({ informe, marcaAccent }) {
           Math.ceil(node.getBoundingClientRect().height);
       });
 
-      const sheetH = bookW * (1024 / 576);
-      // Capacidad = alto real del body, respetando padding arriba/abajo del sheet
+      const sheetH = bookW * INFORME_SHEET_ASPECT_H;
       const contentH = sheetH - bookW * padTop - bookW * padBottom;
-      // Holgura amplia: overflow:hidden corta si nos pasamos; mejor página extra que perder texto
-      const capacity = Math.max(260, Math.floor(contentH * 0.90));
+      const capacity = Math.max(320, Math.floor(contentH * 0.94));
       const packed = empaquetarPaginasPorAltura(blocks, heights, capacity, 5);
       if (!cancelled) setPages(packed);
     };
 
-    // Medir con la tipografía ya cargada (si no, los altos mienten y se corta)
     const run = () => {
       if (document.fonts?.ready) {
         document.fonts.ready.then(() => {
@@ -1239,30 +1300,36 @@ function VistaPreviaInformePDF({ informe, marcaAccent }) {
   const hojas = pages.length ? pages : [blocks];
 
   return (
-    <div className="informe-pdf-book" style={{ "--informe-accent": marcaAccent || "#DC2626" }}>
+    <div
+      className="informe-pdf-book"
+      ref={bookRef}
+      style={{ "--informe-accent": marcaAccent || "#DC2626" }}
+      data-informe-design-w={INFORME_SHEET_DESIGN_W}
+    >
       <div className="informe-measure" ref={measureRef} aria-hidden="true">
         {renderGruposPagina(blocks, informe)}
       </div>
 
       {hojas.map((pageBlocks, pageIndex) => (
-        <div
-          key={`sheet-${pageIndex}`}
-          className={`informe-sheet ${esGama ? "informe-sheet--gama" : "informe-sheet--plain"}`}
-          data-informe-page={pageIndex + 1}
-        >
-          {esGama && (
-            <img
-              className="informe-sheet__bg"
-              src="assets/informe/fondo-gama.png?v=6"
-              alt=""
-              draggable={false}
-              decoding="async"
-              crossOrigin="anonymous"
-            />
-          )}
-          <div className="informe-sheet__inner">
-            <div className="informe-sheet__body">
-              {renderGruposPagina(pageBlocks, informe)}
+        <div className="informe-sheet-frame" key={`frame-${pageIndex}`}>
+          <div
+            className={`informe-sheet ${esGama ? "informe-sheet--gama" : "informe-sheet--plain"}`}
+            data-informe-page={pageIndex + 1}
+          >
+            {esGama && (
+              <img
+                className="informe-sheet__bg"
+                src="assets/informe/fondo-gama-a4.png?v=1"
+                alt=""
+                draggable={false}
+                decoding="async"
+                crossOrigin="anonymous"
+              />
+            )}
+            <div className="informe-sheet__inner">
+              <div className="informe-sheet__body">
+                {renderGruposPagina(pageBlocks, informe)}
+              </div>
             </div>
           </div>
         </div>
@@ -1270,6 +1337,11 @@ function VistaPreviaInformePDF({ informe, marcaAccent }) {
     </div>
   );
 }
+
+window.INFORME_SHEET_DESIGN_W = INFORME_SHEET_DESIGN_W;
+window.INFORME_SHEET_ASPECT_H = INFORME_SHEET_ASPECT_H;
+window.INFORME_PDF_PAGE_W = INFORME_PDF_PAGE_W;
+window.INFORME_PDF_PAGE_H = INFORME_PDF_PAGE_H;
 
 window.VistaPreviaInformePDF = VistaPreviaInformePDF;
 window.DonutDistribucionInforme = DonutDistribucionInforme;

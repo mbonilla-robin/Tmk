@@ -203,8 +203,12 @@ function App() {
   const [perfilCorreo, setPerfilCorreo] = useState(() => migrarNombreCompletoAPerfil(initialPrefs).perfilCorreo || "");
   const [perfilAvatar, setPerfilAvatar] = useState(() => migrarNombreCompletoAPerfil(initialPrefs).perfilAvatar || "");
 
-  const [marcasMetadata, setMarcasMetadata] = useState({});
-  const [widgets, setWidgets] = useState([]);
+  const [marcasMetadata, setMarcasMetadata] = useState(() => (
+    typeof cargarMarcasLocales === "function" ? cargarMarcasLocales() : {}
+  ));
+  const [widgets, setWidgets] = useState(() => (
+    typeof cargarWidgetsLocales === "function" ? cargarWidgetsLocales() : []
+  ));
 
   const [usuariosConectados, setUsuariosConectados] = useState([]);
   const [presenceEstado, setPresenceEstado] = useState("idle");
@@ -236,7 +240,10 @@ function App() {
   const [listaSubclientes, setListaSubclientes] = useState(() => cargarListaSubclientes());
 
   const palabraEstadoSync = useMemo(() => {
-    if (!isApiConfigured()) return "Sin API";
+    const backendOk = typeof backendRobinListo === "function"
+      ? backendRobinListo()
+      : (typeof entregablesSupabaseListos === "function" && entregablesSupabaseListos());
+    if (!backendOk) return "Sin API";
     if (hayPendientesLocales) return "Pendiente";
     if (loading || syncing) return "Sincronizando";
     if (apiError) return "Sin conexión";
@@ -478,25 +485,37 @@ function App() {
   useEffect(() => {
     if (!usuario || !hasRobinApiSession()) return;
 
-    const apiUrl = getConfiguredApiUrl();
-    if (!isApiConfigured()) {
+    const backendOk = typeof backendRobinListo === "function"
+      ? backendRobinListo()
+      : (typeof entregablesSupabaseListos === "function" && entregablesSupabaseListos());
+    if (!backendOk) {
       setPresenceEstado("error");
       return;
     }
 
+    let cancelled = false;
     setPresenceEstado("connecting");
-    enviarHeartbeatPresencia(apiUrl, usuario, nombreCompleto);
-    setPresenceEstado("ready");
+    enviarHeartbeatPresencia(getConfiguredApiUrl(), usuario, nombreCompleto)
+      .then(() => { if (!cancelled) setPresenceEstado("ready"); })
+      .catch(() => { if (!cancelled) setPresenceEstado("error"); });
 
     const heartbeatInterval = setInterval(() => {
-      enviarHeartbeatPresencia(apiUrl, usuario, nombreCompleto);
+      enviarHeartbeatPresencia(getConfiguredApiUrl(), usuario, nombreCompleto);
     }, 20000);
 
-    const presencePollInterval = setInterval(() => {
-      sincronizarEnSegundoPlano();
-    }, 60000);
+    const presencePollInterval = setInterval(async () => {
+      if (typeof cargarPresenciaSupabase !== "function") return;
+      try {
+        const presencia = await cargarPresenciaSupabase();
+        if (!cancelled) {
+          setUsuariosConectados(obtenerUsuariosEnLinea([], [], presencia));
+          setPresenceEstado("ready");
+        }
+      } catch (e) { /* ignore */ }
+    }, 20000);
 
     return () => {
+      cancelled = true;
       clearInterval(heartbeatInterval);
       clearInterval(presencePollInterval);
       setUsuariosConectados([]);
@@ -523,6 +542,7 @@ function App() {
     if (stored && hasRobinApiSession()) {
       repararColaSyncMarcas();
       repararColaSyncActualizacionesFantasma();
+      if (typeof compactarColaSync === "function") compactarColaSync();
       repararFlagsSyncSinCola();
       setHayPendientesLocales(calcularHayPendientesLocales());
       setUsuario(stored);
@@ -998,40 +1018,36 @@ function App() {
     aplicarEntradaPasoInduccion(paso);
   }, [induccionActiva, induccionPaso, pasosInduccionFiltrados, aplicarEntradaPasoInduccion]);
 
+  const persistirWidgetsLocal = (lista) => {
+    const limpios = filtrarWidgetsReales(lista || []).map(normalizarWidgetDesdeApi).filter(Boolean);
+    if (typeof guardarWidgetsLocales === "function") guardarWidgetsLocales(limpios);
+    return limpios;
+  };
+
+  const persistirMarcasLocal = (mapa) => {
+    if (typeof guardarMarcasLocales === "function") guardarMarcasLocales(mapa || {});
+    return mapa;
+  };
+
   const handleAddWidget = async (nuevoWidget) => {
     if (!isConfigOnlyAdmin) {
       showToast("Solo el administrador puede gestionar enlaces", "error");
       return;
     }
-    setWidgets([...widgets, nuevoWidget]);
+    setWidgets((prev) => persistirWidgetsLocal([...prev, nuevoWidget]));
     showToast("Registrando enlace...", "info");
 
-    const effectiveUrl = getConfiguredApiUrl();
-    if (!isApiConfigured() || apiError) {
+    if (typeof upsertWidgetsSupabase !== "function") {
       showToast("Enlace de área añadido localmente", "success");
       return;
     }
 
     setSyncing(true);
     try {
-      await fetchRobinApi(effectiveUrl, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain; charset=utf-8" },
-        body: JSON.stringify({
-          marca: "Config_Marcas",
-          idTarea: nuevoWidget.id,
-          info: nuevoWidget.titulo,
-          detalles: nuevoWidget.link,
-          categoria: empaquetarWidgetCategoria(nuevoWidget.seccion, nuevoWidget.icon),
-          personas: nuevoWidget.color,
-          widgetMarca: nuevoWidget.marca || "",
-          campo: "todo"
-        })
-      });
-      showToast("Sincronizado", "success");
-      fetchData(true);
+      await upsertWidgetsSupabase([nuevoWidget], usuario);
+      showToast("Enlace guardado", "success");
     } catch (e) {
-      showToast("Error al guardar enlace", "error");
+      showToast("Guardado local; se reintentará", "error");
     } finally {
       setSyncing(false);
     }
@@ -1042,26 +1058,18 @@ function App() {
       showToast("Solo el administrador puede gestionar enlaces", "error");
       return;
     }
-    setWidgets(prev => prev.filter(w => w.id !== id));
+    setWidgets((prev) => persistirWidgetsLocal(prev.filter((w) => w.id !== id)));
     showToast("Eliminando enlace...", "info");
 
-    const effectiveUrl = getConfiguredApiUrl();
-    if (!isApiConfigured() || apiError) {
+    if (typeof borrarWidgetSupabase !== "function") {
       showToast("Enlace eliminado", "info");
       return;
     }
 
     setSyncing(true);
     try {
-      await fetchRobinApi(effectiveUrl, {
-        method: "POST", mode: "cors", redirect: "follow",
-        headers: { "Content-Type": "text/plain; charset=utf-8" },
-        body: JSON.stringify({
-          marca: "Config_Marcas", idTarea: id, info: titulo, campo: "eliminar"
-        })
-      });
+      await borrarWidgetSupabase(id);
       showToast("Eliminado", "success");
-      fetchData(true);
     } catch (e) {
       showToast("Error al eliminar enlace", "error");
     } finally {
@@ -1074,33 +1082,18 @@ function App() {
       showToast("Solo el administrador puede gestionar enlaces", "error");
       return;
     }
-    setWidgets(prev => prev.map(w => w.id === widgetActualizado.id ? widgetActualizado : w));
+    setWidgets((prev) => persistirWidgetsLocal(prev.map((w) => w.id === widgetActualizado.id ? widgetActualizado : w)));
     showToast("Actualizando enlace...", "info");
 
-    const effectiveUrl = getConfiguredApiUrl();
-    if (!isApiConfigured() || apiError) {
+    if (typeof upsertWidgetsSupabase !== "function") {
       showToast("Enlace actualizado localmente", "success");
       return;
     }
 
     setSyncing(true);
     try {
-      await fetchRobinApi(effectiveUrl, {
-        method: "POST", mode: "cors", redirect: "follow",
-        headers: { "Content-Type": "text/plain; charset=utf-8" },
-        body: JSON.stringify({
-          marca: "Config_Marcas",
-          idTarea: widgetActualizado.id,
-          info: widgetActualizado.titulo,
-          detalles: widgetActualizado.link,
-          categoria: empaquetarWidgetCategoria(widgetActualizado.seccion, widgetActualizado.icon),
-          personas: widgetActualizado.color,
-          widgetMarca: widgetActualizado.marca || "",
-          campo: "todo"
-        })
-      });
+      await upsertWidgetsSupabase([widgetActualizado], usuario);
       showToast("Enlace actualizado", "success");
-      fetchData(true);
     } catch (e) {
       showToast("Error al actualizar enlace", "error");
     } finally {
@@ -1243,30 +1236,20 @@ function App() {
       return;
     }
     const normalizada = normalizarMetadataMarcaEntry(newMeta);
-    const actualizados = { ...marcasMetadata, [formatearMarca(brand)]: normalizada };
+    const actualizados = persistirMarcasLocal({ ...marcasMetadata, [formatearMarca(brand)]: normalizada });
     setMarcasMetadata(actualizados);
     setListaPersonas((prev) => registrarPersonasEnLista(prev, extraerNombresDesdeMetadataMarca(normalizada)));
     showToast("Actualizando ficha de cliente...", "info");
 
-    const effectiveUrl = getConfiguredApiUrl();
-    if (!isApiConfigured() || apiError) {
+    if (typeof upsertMarcaSupabase !== "function") {
       showToast("Ficha guardada localmente", "success");
       return;
     }
 
-    const payloadApi = serializarMetadataParaApi(newMeta);
     setSyncing(true);
     try {
-      await fetchRobinApi(effectiveUrl, {
-        method: "POST", mode: "cors", redirect: "follow",
-        headers: { "Content-Type": "text/plain; charset=utf-8" },
-        body: JSON.stringify({
-          campo: "crearMarca",
-          nuevaMarca: formatearMarca(brand),
-          ...payloadApi
-        })
-      });
-      showToast("Ficha guardada en Google Sheets", "success");
+      await upsertMarcaSupabase(brand, normalizada, usuario);
+      showToast("Ficha guardada", "success");
     } catch (e) {
       showToast("Guardado local (Falla de red)", "error");
     } finally {
@@ -1289,6 +1272,7 @@ function App() {
       Object.keys(next).forEach(k => {
         if (marcasCoinciden(k, nombreMarca)) delete next[k];
       });
+      persistirMarcasLocal(next);
       return next;
     });
     setTareas(prev => prev.filter(t => !marcasCoinciden(t.marca, nombreMarca)));
@@ -1306,8 +1290,7 @@ function App() {
       "info"
     );
 
-    const effectiveUrl = getConfiguredApiUrl();
-    if (!isApiConfigured() || apiError) {
+    if (typeof borrarMarcaSupabase !== "function") {
       showToast("Cliente eliminado localmente", "success");
       setClientesReset(n => n + 1);
       return true;
@@ -1315,24 +1298,11 @@ function App() {
 
     setSyncing(true);
     try {
-      const res = await fetchRobinApi(effectiveUrl, {
-        method: "POST", mode: "cors", redirect: "follow",
-        headers: { "Content-Type": "text/plain; charset=utf-8" },
-        body: JSON.stringify({
-          campo: "eliminarMarca",
-          nuevaMarca: nombreMarca
-        })
-      });
-      const json = await res.json();
-      if (json.success) {
-        showToast("Cliente eliminado de Google Sheets", "success");
-        await fetchData(true);
-        setClientesReset(n => n + 1);
-        return true;
-      }
-      showToast(json.error || "Error al eliminar cliente en Sheets", "error");
+      await borrarMarcaSupabase(nombreMarca);
+      showToast("Cliente eliminado", "success");
       await fetchData(true);
-      return false;
+      setClientesReset(n => n + 1);
+      return true;
     } catch (e) {
       showToast("Falla de conexión al eliminar cliente", "error");
       await fetchData(true);
@@ -1347,36 +1317,25 @@ function App() {
       showToast("Solo el usuario admin puede crear clientes", "error");
       return;
     }
-    showToast("Insertando nueva hoja en Sheets...", "info");
     const nombreMarca = formatearMarca(brandPayload.nuevaMarca);
     const metaInicial = normalizarMetadataMarcaEntry(brandPayload);
-    const effectiveUrl = getConfiguredApiUrl();
-    if (!isApiConfigured() || apiError) {
-      setMarcasMetadata({
-        ...marcasMetadata,
-        [nombreMarca]: metaInicial
-      });
+    const actualizados = persistirMarcasLocal({
+      ...marcasMetadata,
+      [nombreMarca]: metaInicial
+    });
+    setMarcasMetadata(actualizados);
+    showToast("Creando cliente...", "info");
+
+    if (typeof upsertMarcaSupabase !== "function") {
       showToast("Cliente creado localmente", "success");
       return;
     }
 
-    const payloadApi = serializarMetadataParaApi(metaInicial);
     setSyncing(true);
     try {
-      const res = await fetchRobinApi(effectiveUrl, {
-        method: "POST", mode: "cors", redirect: "follow",
-        headers: { "Content-Type": "text/plain; charset=utf-8" },
-        body: JSON.stringify({
-          campo: "crearMarca",
-          nuevaMarca: nombreMarca,
-          ...payloadApi
-        })
-      });
-      const json = await res.json();
-      if (json.success) {
-        showToast("Nueva pestaña creada en Sheets", "success");
-        await fetchData(true);
-      }
+      await upsertMarcaSupabase(nombreMarca, metaInicial, usuario);
+      showToast("Cliente creado", "success");
+      await fetchData(true);
     } catch (e) {
       showToast("Falla de red al crear marca", "error");
     } finally {
@@ -1414,6 +1373,7 @@ function App() {
     setRobinApiSession(validation.username, claveInput);
     repararColaSyncMarcas();
     repararColaSyncActualizacionesFantasma();
+    if (typeof compactarColaSync === "function") compactarColaSync();
     setUsuario(validation.username);
     setLoginError("");
     setClaveInput("");
@@ -1450,69 +1410,9 @@ function App() {
     showToast("Sesión cerrada", "info");
   };
 
-  const esErrorBackendUsuariosDesactualizado = (mensaje) => {
-    const txt = String(mensaje || "").toLowerCase();
-    return txt.includes("marca es requerida") || txt.includes("hoja de destino");
-  };
-
-  const actualizarUsuariosRemotos = async ({ usuario, rol, accion }) => {
-    const effectiveUrl = getConfiguredApiUrl();
-    if (!isApiConfigured() || apiError) return { ok: false, skipped: true };
-
-    try {
-      const res = await fetchRobinApi(effectiveUrl, {
-        method: "POST",
-        mode: "cors",
-        redirect: "follow",
-        headers: { "Content-Type": "text/plain; charset=utf-8" },
-        body: JSON.stringify({
-          campo: "actualizarUsuarios",
-          usuario,
-          rol,
-          accion
-        })
-      });
-
-      const rawText = await res.text();
-      let json;
-      try {
-        json = JSON.parse(rawText);
-      } catch (parseErr) {
-        throw new Error("Respuesta inválida del servidor al actualizar usuarios.");
-      }
-
-      if (!json || json.success !== true) {
-        throw new Error(json?.error || "No se pudo actualizar usuarios en el backend");
-      }
-      return { ok: true };
-    } catch (err) {
-      const mensaje = err?.message || String(err || "");
-      if (esErrorBackendUsuariosDesactualizado(mensaje)) {
-        return { ok: false, backendDesactualizado: true };
-      }
-      throw err;
-    }
-  };
-
-  const sincronizarUsuarioAdmin = async ({ usuario, rol, accion, onExitoLocal }) => {
-    try {
-      const remoto = await actualizarUsuariosRemotos({ usuario, rol, accion });
-      onExitoLocal();
-      if (remoto.backendDesactualizado) {
-        showToast(
-          "Usuario guardado aquí. Falta actualizar Google Apps Script (ver instrucciones abajo).",
-          "info"
-        );
-        return;
-      }
-      if (remoto.skipped) {
-        showToast("Usuario guardado en este dispositivo (sin conexión al backend).", "info");
-        return;
-      }
-      showToast(accion === "remove" ? "Usuario actualizado" : "Usuario autorizado", "success");
-    } catch (err) {
-      showToast(err?.message || "Error al actualizar backend", "error");
-    }
+  const sincronizarUsuarioAdmin = async ({ accion, onExitoLocal }) => {
+    onExitoLocal();
+    showToast(accion === "remove" ? "Usuario actualizado" : "Usuario autorizado", "success");
   };
 
   const persistirListasUsuariosLocal = ({ ejecutivos, contenido, disenadores }) => {
@@ -1754,20 +1654,84 @@ function App() {
     setRelacionesTareas((prev) => agregarRelacionALista(prev, fila));
   };
 
+  const aplicarRolesDesdeAuth = (auth) => {
+    if (!auth) return;
+    const execs = Array.isArray(auth.executives) ? auth.executives : null;
+    const contentAuth = Array.isArray(auth.content) ? auth.content : null;
+    const dis = Array.isArray(auth.designers) ? auth.designers : null;
+    const setContentDefault = new Set(getDefaultContentUsers().map(normalizeRobinUsername));
+
+    if (execs) {
+      const normalizados = execs.map(normalizeRobinUsername).filter(Boolean);
+      const locales = leerListaLocalContenido().map(normalizeRobinUsername).filter(Boolean);
+      const contentAuthNorm = Array.isArray(contentAuth)
+        ? contentAuth.map(normalizeRobinUsername).filter(Boolean)
+        : [];
+      const contenidoFusion = Array.from(new Set(
+        contentAuthNorm.length
+          ? contentAuthNorm
+          : [
+            ...setContentDefault,
+            ...locales,
+            ...normalizados.filter((u) => setContentDefault.has(u) || locales.includes(u))
+          ]
+      )).filter((u) => u && u !== "admin");
+      const setContent = new Set(contenidoFusion);
+      const ejecutivos = normalizados.filter((u) => u === "admin" || !setContent.has(u));
+
+      setListaEjecutivos(ejecutivos);
+      setListaContenido(contenidoFusion);
+      setLocalStorageItemSafe("robin_lista_ejecutivos", JSON.stringify(ejecutivos));
+      setLocalStorageItemSafe("robin_lista_contenido", JSON.stringify(contenidoFusion));
+    }
+    if (dis) {
+      const normalizados = dis.map(normalizeRobinUsername).filter(Boolean);
+      setListaDisenadores(normalizados);
+      setLocalStorageItemSafe("robin_lista_disenadores", JSON.stringify(normalizados));
+    }
+  };
+
+  const aplicarTareasRemotas = (remotas) => {
+    reconciliarTareasLocalesConRemotas(remotas);
+    repararColaSyncActualizacionesFantasma();
+    setTareas((prevTareas) => {
+      const base = combinarLocalesParaFusion(prevTareas, cargarTareasLocales());
+      const fusionadas = limpiarListaFlagsSyncObsoletos(
+        fusionarTareasRemotasYLocales(remotas, base),
+        remotas
+      );
+      guardarTareasLocales(fusionadas);
+      return fusionadas;
+    });
+    const fusionadas = cargarTareasLocales();
+    const colaVacia = cargarColaSync().length === 0;
+    setHayPendientesLocales(calcularHayPendientesLocales());
+    if (colaVacia && !hayTareasPendientesLocales(fusionadas)) {
+      setApiError(null);
+      setApiErrorDetail("");
+    }
+    return fusionadas;
+  };
+
   const fetchData = async (isBackground = false) => {
     if (!isBackground) setLoading(true);
     if (!isBackground) setSyncing(true);
     if (isBackground) setApiError(null);
 
-    const effectiveUrl = getConfiguredApiUrl();
-    if (!isApiConfigured()) {
+    const backendOk = typeof backendRobinListo === "function"
+      ? backendRobinListo()
+      : (typeof entregablesSupabaseListos === "function" && entregablesSupabaseListos());
+
+    if (!backendOk) {
       const backup = cargarTareasLocales();
       if (backup.length) {
         setTareas((prev) => (prev.length ? prev : backup));
       }
       if (!isBackground) showToast("Base de datos no configurada — datos locales", "info");
-      if (!isBackground) setLoading(false);
-      if (!isBackground) setSyncing(false);
+      if (!isBackground) {
+        setLoading(false);
+        setSyncing(false);
+      }
       return;
     }
 
@@ -1779,180 +1743,140 @@ function App() {
       return;
     }
 
-    const maxIntentos = isBackground ? 1 : 3;
-    let ultimoError = null;
-
-    for (let intento = 1; intento <= maxIntentos; intento++) {
-      try {
-        const res = await fetchRobinApi(effectiveUrl, { method: "GET", mode: "cors", redirect: "follow", cache: "no-store" });
-        const rawText = await res.text();
-        let json;
-        try {
-          json = JSON.parse(rawText);
-        } catch (parseErr) {
-          throw new Error(
-            rawText && rawText.indexOf("Sign in") >= 0
-              ? "El Web App del Sheet exige login de Google en cada petición. Cambia el despliegue a «Cualquiera» (la seguridad la da el token ROBIN)."
-              : "Respuesta inválida del servidor Sheets."
-          );
-        }
-
-        if (json.success && json.data) {
-          const widgetsLimpios = filtrarWidgetsReales(json.widgets || []).map(normalizarWidgetDesdeApi).filter(Boolean);
-          setWidgets(widgetsLimpios);
-
-          // Seed de roles desde backend (PropertiesService).
-          if (json.auth) {
-            const execs = Array.isArray(json.auth.executives) ? json.auth.executives : null;
-            const contentAuth = Array.isArray(json.auth.content) ? json.auth.content : null;
-            const dis = Array.isArray(json.auth.designers) ? json.auth.designers : null;
-            const setContentDefault = new Set(getDefaultContentUsers().map(normalizeRobinUsername));
-
-            if (execs) {
-              const normalizados = execs.map(normalizeRobinUsername).filter(Boolean);
-              const locales = leerListaLocalContenido().map(normalizeRobinUsername).filter(Boolean);
-              const contentAuthNorm = Array.isArray(contentAuth)
-                ? contentAuth.map(normalizeRobinUsername).filter(Boolean)
-                : [];
-              // Si el backend aún no trae `content`, sacamos a Daniela/Sofía/Douglas de ejecutivos.
-              const contenidoFusion = Array.from(new Set(
-                contentAuthNorm.length
-                  ? contentAuthNorm
-                  : [
-                    ...setContentDefault,
-                    ...locales,
-                    ...normalizados.filter((u) => setContentDefault.has(u) || locales.includes(u))
-                  ]
-              )).filter((u) => u && u !== "admin");
-              const setContent = new Set(contenidoFusion);
-              const ejecutivos = normalizados.filter((u) => u === "admin" || !setContent.has(u));
-
-              setListaEjecutivos(ejecutivos);
-              setListaContenido(contenidoFusion);
-              setLocalStorageItemSafe("robin_lista_ejecutivos", JSON.stringify(ejecutivos));
-              setLocalStorageItemSafe("robin_lista_contenido", JSON.stringify(contenidoFusion));
-            }
-            if (dis) {
-              const normalizados = dis.map(normalizeRobinUsername).filter(Boolean);
-              setListaDisenadores(normalizados);
-              setLocalStorageItemSafe("robin_lista_disenadores", JSON.stringify(normalizados));
-            }
-          }
-
-          setUsuariosConectados(obtenerUsuariosEnLinea(json.data, json.widgets, json.presencia));
-          setPresenceEstado("ready");
-
-          if (usuario) {
-            const nombreRemoto = obtenerNombrePerfilDesdePresencia(json.data, usuario);
-            if (nombreRemoto) {
-              setNombreCompleto(prev => (prev.trim() ? prev : nombreRemoto));
-            }
-          }
-
-          const remotas = normalizarTareasDesdeApi(json.data);
-          reconciliarTareasLocalesConRemotas(remotas);
-          repararColaSyncActualizacionesFantasma();
-          setTareas((prevTareas) => {
-            const base = combinarLocalesParaFusion(prevTareas, cargarTareasLocales());
-            const fusionadas = limpiarListaFlagsSyncObsoletos(
-              fusionarTareasRemotasYLocales(remotas, base),
-              remotas
-            );
-            guardarTareasLocales(fusionadas);
-            return fusionadas;
-          });
-          const fusionadas = cargarTareasLocales();
-          const colaVacia = cargarColaSync().length === 0;
-          setHayPendientesLocales(calcularHayPendientesLocales());
-          if (colaVacia && !hayTareasPendientesLocales(fusionadas)) {
-            setApiError(null);
-            setApiErrorDetail("");
-          }
-
-          if (json.marcasMetadata) {
-            const normalizado = {};
-            Object.keys(json.marcasMetadata).forEach(k => {
-              normalizado[formatearMarca(k)] = normalizarMetadataMarcaEntry(json.marcasMetadata[k]);
-            });
-            setMarcasMetadata(normalizado);
-            setListaPersonas((prev) => sincronizarListaPersonasConMarcas(prev, normalizado));
-          }
-          if (!isBackground) showToast("Sincronizado", "success");
-          setApiError(null);
-          setApiErrorDetail("");
-          setUltimaSyncOk(new Date().toISOString());
+    try {
+      let seed = { skipped: true, widgets: [], marcas: {}, tareas: [], auth: null };
+      if (typeof intentarSemillaDesdeSheets === "function") {
+        seed = await intentarSemillaDesdeSheets();
+        if (seed && seed.auth) aplicarRolesDesdeAuth(seed.auth);
+        if (seed && !seed.skipped) {
           registrarDiagnosticoRobin(
-            "sheets",
-            "Sincronización correcta",
-            `Remotas: ${remotas.length} · Fusionadas: ${fusionadas.length} · Cola: ${cargarColaSync().length}`
+            "migrate",
+            "Semilla puntual desde Sheets",
+            `widgets ${(seed.widgets || []).length} · marcas ${Object.keys(seed.marcas || {}).length} · tareas ${(seed.tareas || []).length}`
           );
-          if (!isBackground) setLoading(false);
-          if (!isBackground) setSyncing(false);
-          return;
-        }
-
-        throw new Error(json.error || "Formato de datos erróneo");
-      } catch (e) {
-        ultimoError = e;
-        console.warn(`Sheets sync intento ${intento}/${maxIntentos}`, e);
-        if (intento < maxIntentos) {
-          await new Promise(resolve => setTimeout(resolve, intento * 1000));
         }
       }
-    }
 
-    console.error("Sheets sync error", ultimoError);
-    const detalleError = ultimoError?.message || String(ultimoError || "Error desconocido");
-    registrarDiagnosticoRobin("sheets", "Error de sincronización", detalleError);
+      if (typeof asegurarMigracionYCargarWorkspace === "function") {
+        const ws = await asegurarMigracionYCargarWorkspace({
+          sheetsWidgets: seed.widgets || [],
+          sheetsMarcas: seed.marcas || {},
+          usuario
+        });
+        const widgetsLimpios = persistirWidgetsLocal(ws.widgets || []);
+        setWidgets(widgetsLimpios);
+        if (ws.marcas) {
+          persistirMarcasLocal(ws.marcas);
+          setMarcasMetadata(ws.marcas);
+          setListaPersonas((prev) => sincronizarListaPersonasConMarcas(prev, ws.marcas));
+        }
+        setUsuariosConectados(obtenerUsuariosEnLinea([], [], ws.presencia || []));
+        setPresenceEstado("ready");
+        if (ws.error) registrarDiagnosticoRobin("supabase", "Workspace Supabase", ws.error);
+      }
 
-    if (isBackground) {
-      setApiError((prev) => prev || "Sin conexión con Google Sheets");
-      setApiErrorDetail((prev) => prev || detalleError);
-    } else {
-      const backup = cargarTareasLocales();
-      if (backup.length) {
-        setTareas((prev) => (prev.length ? prev : backup));
-        setApiError("Sin conexión — mostrando datos guardados");
-        setApiErrorDetail(detalleError);
-        showToast("Sin conexión. Se muestran los datos guardados en este dispositivo.", "info");
+      const locales = combinarLocalesParaFusion(tareas, cargarTareasLocales());
+      const mig = await asegurarMigracionYCargarEntregables({
+        locales,
+        sheets: seed.tareas || [],
+        usuario
+      });
+      if (!mig.ok || !Array.isArray(mig.tareas)) {
+        throw new Error(mig.error || "No se pudieron leer los entregables");
+      }
+
+      const fusionadas = aplicarTareasRemotas(mig.tareas);
+      if (mig.migradas) {
+        registrarDiagnosticoRobin("supabase", "Entregables migrados a Supabase", `${mig.migradas} filas escritas`);
+        const cola = cargarColaSync().filter((op) => typeof operacionColaEsEntregable === "function" && !operacionColaEsEntregable(op));
+        guardarColaSync(cola);
+        if (typeof repararFlagsSyncSinCola === "function") repararFlagsSyncSinCola();
+      }
+
+      setApiError(null);
+      setApiErrorDetail("");
+      setUltimaSyncOk(new Date().toISOString());
+      const colaActual = cargarColaSync().length;
+      registrarDiagnosticoRobin(
+        "sync",
+        colaActual > 0 ? "Lectura correcta · escritura pendiente" : "Sincronización correcta",
+        `Remotas: ${mig.tareas.length} · Fusionadas: ${fusionadas.length} · Cola: ${colaActual}`
+      );
+      if (!isBackground) showToast("Sincronizado", "success");
+    } catch (e) {
+      const detalleError = e?.message || String(e || "Error desconocido");
+      registrarDiagnosticoRobin("supabase", "Error de sincronización", detalleError);
+      if (isBackground) {
+        setApiError((prev) => prev || "Sin conexión con la base de datos");
+        setApiErrorDetail((prev) => prev || detalleError);
       } else {
-        setApiError("Error de conexión con Google Sheets");
-        setApiErrorDetail(detalleError);
-        showToast(detalleError, "error");
+        const backup = cargarTareasLocales();
+        if (backup.length) {
+          setTareas((prev) => (prev.length ? prev : backup));
+          setApiError("Sin conexión — mostrando datos guardados");
+          setApiErrorDetail(detalleError);
+          showToast("Sin conexión. Se muestran los datos guardados en este dispositivo.", "info");
+        } else {
+          setApiError("Error de conexión con la base de datos");
+          setApiErrorDetail(detalleError);
+          showToast(detalleError, "error");
+        }
       }
-      setLoading(false);
-      setSyncing(false);
+    } finally {
+      if (!isBackground) {
+        setLoading(false);
+        setSyncing(false);
+      }
     }
   };
 
   const sincronizarEnSegundoPlano = () => {
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     syncTimerRef.current = setTimeout(async () => {
-      if (syncMutexRef.current || !isApiConfigured() || !hasRobinApiSession()) return;
+      const backendOk = typeof backendRobinListo === "function"
+        ? backendRobinListo()
+        : (typeof entregablesSupabaseListos === "function" && entregablesSupabaseListos());
+      if (syncMutexRef.current || !backendOk || !hasRobinApiSession()) return;
       syncMutexRef.current = true;
       try {
-        const resultado = await procesarColaSync();
+        let totalProcessed = 0;
+        let remaining = cargarColaSync().length;
+        for (let paso = 0; paso < 30 && remaining > 0; paso += 1) {
+          compactarColaSync();
+          const resultado = await procesarColaSync({ limite: 8 });
+          totalProcessed += resultado.processed || 0;
+          remaining = resultado.remaining || 0;
+          setHayPendientesLocales(calcularHayPendientesLocales());
+          if (resultado.sessionMissing) return;
+          if ((resultado.processed || 0) === 0 && remaining > 0) break;
+          if (remaining > 0) {
+            await new Promise((resolve) => setTimeout(resolve, 450));
+          }
+        }
+
         reconciliarTareasLocalesConRemotas([]);
         setHayPendientesLocales(calcularHayPendientesLocales());
-        if (resultado.sessionMissing) return;
-        if (resultado.errores && resultado.errores.length > 0) {
-          const detalle = resultado.errores.map((e) => e.error || e.type).join(" · ");
-          registrarDiagnosticoRobin("sheets_cola", "No se pudo guardar en Google Sheets", detalle);
-          setApiError((prev) => prev || "Cambios pendientes en Google Sheets");
+        const colaFinal = cargarColaSync().length;
+        if (colaFinal > 0) {
+          const detalle = `Quedan ${colaFinal} envíos pendientes`;
+          registrarDiagnosticoRobin("sync_cola", "Cola de escritura pendiente", detalle);
+          setApiError((prev) => prev || "Cambios pendientes de guardar");
           setApiErrorDetail((prev) => prev || detalle);
-          showToast("No se pudo guardar en Google Sheets. Se reintentará automáticamente.", "error");
-        } else {
-          if (resultado.processed > 0) {
-            showToast("Cambios guardados en Google Sheets", "success");
-            await new Promise((resolve) => setTimeout(resolve, 1500));
-          }
+        } else if (totalProcessed > 0) {
+          showToast(`${totalProcessed} cambio(s) guardados`, "success");
+          await new Promise((resolve) => setTimeout(resolve, 800));
           setApiError(null);
           setApiErrorDetail("");
         }
         await fetchData(true);
+        if (cargarColaSync().length > 0) {
+          syncTimerRef.current = setTimeout(() => {
+            if (!syncMutexRef.current) sincronizarEnSegundoPlano();
+          }, 2500);
+        }
       } catch (e) {
         console.warn("ROBIN: sync en segundo plano", e);
-        registrarDiagnosticoRobin("sheets", "Error de sincronización en segundo plano", e?.message || String(e));
+        registrarDiagnosticoRobin("supabase", "Error de sincronización en segundo plano", e?.message || String(e));
       } finally {
         syncMutexRef.current = false;
         setHayPendientesLocales(calcularHayPendientesLocales());
@@ -2046,6 +1970,32 @@ function App() {
     setHayPendientesLocales(true);
     sincronizarEnSegundoPlano();
     showToast(tipo === "propuesta" ? "Propuesta enviada. Quedó en espera de comentarios." : "Arte final enviado. Tarea completada.", "success");
+  };
+
+  const handleGuardarComentarioEstatus = (tarea, comentario) => {
+    if (isDesigner) return;
+    if (typeof aplicarComentarioEstatus !== "function") return;
+    const original = resolverTareaActual(tareas, tarea);
+    if (!original) return;
+    const index = encontrarIndiceTarea(tareas, original);
+    if (index === -1) return;
+
+    const actualizada = marcarTareaPendiente(normalizarTareaCampos(
+      aplicarComentarioEstatus(original, comentario, usuario)
+    ));
+    const temp = [...tareas];
+    temp[index] = actualizada;
+    persistTareas(temp);
+
+    encolarSync({
+      type: "update",
+      taskKey: getTaskSelectionKey(actualizada),
+      taskKeyOriginal: getTaskSelectionKey(original),
+      payload: construirPayloadSyncTarea(original, actualizada, { campoSync: "todo" })
+    });
+    setHayPendientesLocales(true);
+    sincronizarEnSegundoPlano();
+    showToast("Comentario guardado", "success");
   };
 
   const handleConfirmComplete = async () => {
@@ -2536,7 +2486,10 @@ function App() {
   useEffect(() => {
     if (isDesigner || !usuario) return;
     if (loading) return;
-    if (isApiConfigured() && !ultimaSyncOk && !apiError) return;
+    const backendOk = typeof backendRobinListo === "function"
+      ? backendRobinListo()
+      : (typeof entregablesSupabaseListos === "function" && entregablesSupabaseListos());
+    if (backendOk && !ultimaSyncOk && !apiError) return;
     if (pendientesImportEstatus <= 0) {
       restauroEstatusRef.current = 0;
       return;
@@ -2563,6 +2516,10 @@ function App() {
     const next = tareas.map((t) => {
       const item = keysPlan.get(getTaskSelectionKey(t));
       if (!item) return t;
+      if (typeof tareaEstaEnColaSync === "function" && tareaEstaEnColaSync(t, cargarColaSync())) {
+        alineadasEstatusRef.current.add(getTaskSelectionKey(t));
+        return t;
+      }
       alineadasEstatusRef.current.add(getTaskSelectionKey(t));
       const parsed = typeof parseDetalles === "function" ? parseDetalles(t.detalles || "") : { notas: t.detalles || "", subtareas: [], historial: [], link: t.link, subcliente: t.subcliente };
       const importKey = item.importKey || parsed.importKey || t.importKey || "";
@@ -2620,6 +2577,10 @@ function App() {
     const next = tareas.map((t) => {
       const item = keysPlan.get(getTaskSelectionKey(t));
       if (!item) return t;
+      if (typeof tareaEstaEnColaSync === "function" && tareaEstaEnColaSync(t, cargarColaSync())) {
+        normalizadasImportEstatusRef.current.add(getTaskSelectionKey(t));
+        return t;
+      }
       normalizadasImportEstatusRef.current.add(getTaskSelectionKey(t));
       const actualizada = marcarTareaPendiente(normalizarTareaCampos({
         ...t,
@@ -3149,31 +3110,34 @@ function App() {
     let icono = "fa-cloud";
     let colorIcono = "is-ok";
     let titulo = "Todo al día";
-    let mensaje = "Tus entregables están sincronizados con Google Sheets.";
+    let mensaje = "Tus entregables están sincronizados con Supabase.";
+    const backendOk = typeof backendRobinListo === "function"
+      ? backendRobinListo()
+      : (typeof entregablesSupabaseListos === "function" && entregablesSupabaseListos());
 
-    if (!isApiConfigured()) {
+    if (!backendOk) {
       icono = "fa-cloud";
       colorIcono = "is-warn";
-      titulo = "Sin conexión a Sheets";
-      mensaje = "Esta instalación no tiene configurada la base de datos de Google Sheets.";
+      titulo = "Sin conexión a la base";
+      mensaje = "Esta instalación no tiene configurada la base de datos.";
     } else if (sincronizando) {
       icono = "fa-cloud-arrow-up";
       colorIcono = "is-syncing";
       titulo = "Sincronizando";
-      mensaje = "Estamos actualizando la información con Google Sheets.";
+      mensaje = "Estamos actualizando los entregables.";
     } else if (apiError) {
       icono = "fa-cloud-arrow-down";
       colorIcono = "is-error";
       titulo = "Sin conexión";
-      mensaje = "No pudimos conectar con Google Sheets. Tus cambios están guardados aquí y se reintentarán solos.";
+      mensaje = "No pudimos conectar. Tus cambios están guardados aquí y se reintentarán solos.";
     } else if (colaPendiente > 0 || hayPendientesLocales) {
       icono = "fa-cloud-arrow-up";
       colorIcono = "is-pending";
       titulo = "Subiendo cambios";
       mensaje = colaPendiente > 0
         ? (colaPendiente === 1
-          ? "Hay 1 cambio esperando subirse a Google Sheets."
-          : `Hay ${colaPendiente} cambios esperando subirse a Google Sheets.`)
+          ? "Hay 1 cambio esperando subirse."
+          : `Hay ${colaPendiente} cambios esperando subirse.`)
         : "Finalizando la sincronización local…";
     }
 
@@ -3640,6 +3604,8 @@ function App() {
               mostrarEstatusGeneral={typeof marcasCoinciden === "function" ? marcasCoinciden(filtroMarca, "La Santé") : true}
               listaDisenadores={listaDisenadores}
               onEnviarCliente={isDesigner ? undefined : handleEnviarEstatusCliente}
+              onGuardarComentario={isDesigner ? undefined : handleGuardarComentarioEstatus}
+              onAbrirEstatus={isDesigner ? undefined : () => setShowGeneradorEstatus(true)}
             />
           )}
 

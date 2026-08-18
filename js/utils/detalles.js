@@ -293,3 +293,15 @@ function linkificarHtmlNotas(html) {
 
   return div.innerHTML;
 }
+
+function htmlNotasAPlainText(html) {
+  const raw = String(html || "").trim();
+  if (!raw) return "";
+  if (typeof document === "undefined" || !/<[a-z][\s\S]*>/i.test(raw)) return raw;
+  const div = document.createElement("div");
+  div.innerHTML = raw;
+  return (div.innerText || div.textContent || "")
+    .replace(/\u00a0/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}

@@ -167,7 +167,7 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
           </h4>
           <p className="text-xs text-zinc-500 leading-relaxed font-semibold">
             ¿Eliminar permanentemente a <span className="text-zinc-800">{formatearMarca(marcaAEliminar)}</span>?
-            Se borrará su pestaña en Google Sheets y todos sus entregables.
+            Se borrarán la ficha y todos sus entregables.
           </p>
           <div className="flex gap-2 justify-end">
             <button

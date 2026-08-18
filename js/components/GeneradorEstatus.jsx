@@ -291,7 +291,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                       Formato: <span className="font-mono">*@Persona*</span>, luego{" "}
                       <span className="font-mono">*Subcliente*</span> y{" "}
                       <span className="font-mono">- Título | _Estado_ | link</span>.
-                      Los ejecutivos solo aparecen si la tarea no tiene diseño ni contenido.
+                      Diseño {'>'} contenido {'>'} ejecutivo. Si hay varios del mismo rol, aparecen todos.
                     </>
                   ) : (
                     <>

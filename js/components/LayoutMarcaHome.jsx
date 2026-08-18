@@ -124,7 +124,9 @@ function LayoutMarcaHome({
   listaSubclientes = [],
   mostrarEstatusGeneral = false,
   listaDisenadores = [],
-  onEnviarCliente
+  onEnviarCliente,
+  onGuardarComentario,
+  onAbrirEstatus
 }) {
   const marcaEstilo = getMarcaStyle(marca);
   const nombreMarca = formatearMarca(marca);
@@ -147,10 +149,51 @@ function LayoutMarcaHome({
     () => agruparTareasPorSubcliente(tareasMarca, marca),
     [tareasMarca, marca]
   );
+  const tareasEntregablesMarca = useMemo(() => {
+    const tHoy = obtenerTiempoHoyLocal();
+    return tareasMarca.filter((t) => {
+      const esCompletada = cleanEstado(t.estado) === "completada";
+      if (esTareaSuspendida(t)) return false;
+
+      if (filtroTiempo === "HOY") {
+        if (!esRelevanteHoyTarea(t, tHoy)) return false;
+      } else if (filtroTiempo === "ATRASADAS") {
+        if (!cuentaComoAtrasada(t, tHoy)) return false;
+      } else if (filtroTiempo === "FUTURAS") {
+        const tDeadline = obtenerTiempoFecha(t.deadline);
+        const esFutura = tDeadline !== Infinity && tDeadline > tHoy;
+        if (!esFutura) return false;
+      }
+
+      if (filtroEstado !== "TODOS") {
+        if (cleanEstado(t.estado) !== cleanEstado(filtroEstado)) return false;
+      } else if (esCompletada) {
+        return false;
+      }
+      if (filtroPrioridad !== "TODAS" && normalizarPrioridad(t.prioridad) !== normalizarPrioridad(filtroPrioridad)) return false;
+      if (filtroPersona === "SIN_DISENADOR") {
+        if (!tareaSinDisenadorAsignado(t)) return false;
+      } else if (filtroPersona !== "TODAS" && !tareaIncluyePersonaFiltro(t.personas || "", filtroPersona)) return false;
+
+      if (searchQuery.trim() !== "") {
+        const q = searchQuery.toLowerCase();
+        return (
+          (t.info || "").toLowerCase().includes(q) ||
+          (t.detalles && (t.detalles || "").toLowerCase().includes(q)) ||
+          (t.personas && (t.personas || "").toLowerCase().includes(q)) ||
+          (t.categoria && (t.categoria || "").toLowerCase().includes(q)) ||
+          (obtenerSubclienteTarea(t) || "").toLowerCase().includes(q)
+        );
+      }
+
+      return true;
+    });
+  }, [tareasMarca, filtroTiempo, filtroEstado, filtroPrioridad, filtroPersona, searchQuery]);
+
   const tareasVista = useMemo(() => {
-    if (filtroSubcliente === "TODOS") return tareasFiltradas;
-    return tareasFiltradas.filter((t) => subclientesCoinciden(obtenerSubclienteTarea(t), filtroSubcliente));
-  }, [tareasFiltradas, filtroSubcliente]);
+    if (filtroSubcliente === "TODOS") return tareasEntregablesMarca;
+    return tareasEntregablesMarca.filter((t) => subclientesCoinciden(obtenerSubclienteTarea(t), filtroSubcliente));
+  }, [tareasEntregablesMarca, filtroSubcliente]);
 
   const tareasActivasMarca = useMemo(() => {
     return tareasMarca.filter(t => !esTareaCompletada(t) && !esTareaSuspendida(t)).length;
@@ -207,6 +250,53 @@ function LayoutMarcaHome({
     setFiltroSubcliente("TODOS");
     if (onLimpiarFiltros) onLimpiarFiltros();
   };
+
+  const abrirEstatusMarca = () => {
+    if (mostrarEstatusGeneral) {
+      setVistaSubpagina("estatus");
+      return;
+    }
+    if (typeof onAbrirEstatus === "function") onAbrirEstatus();
+  };
+
+  const mostrarLinkEstatus = mostrarEstatusGeneral || typeof onAbrirEstatus === "function";
+
+  const marcaQuickNav = (
+    <nav className="marca-home-quick-nav" aria-label="Accesos de marca">
+      <span className="marca-home-quick-sep" aria-hidden="true">/</span>
+      {mostrarLinkEstatus ? (
+        <>
+          <button
+            type="button"
+            onClick={abrirEstatusMarca}
+            className={`marca-home-quick-link ${vistaSubpagina === "estatus" ? "is-active" : ""}`}
+          >
+            <SVGIcon.FileText className="marca-home-quick-icon" />
+            <span>Estatus</span>
+          </button>
+          <span className="marca-home-quick-sep" aria-hidden="true">/</span>
+        </>
+      ) : null}
+      <button
+        type="button"
+        onClick={() => setVistaSubpagina("subclientes")}
+        className={`marca-home-quick-link ${vistaSubpagina === "subclientes" ? "is-active" : ""}`}
+      >
+        <SVGIcon.Store className="marca-home-quick-icon" />
+        <span>Subclientes</span>
+      </button>
+      <span className="marca-home-quick-sep" aria-hidden="true">/</span>
+      <button
+        type="button"
+        onClick={() => setVistaSubpagina("info")}
+        className={`marca-home-quick-link ${vistaSubpagina === "info" ? "is-active" : ""}`}
+      >
+        <SVGIcon.InfoCircle className="marca-home-quick-icon" />
+        <span>Información</span>
+      </button>
+      <span className="marca-home-quick-sep" aria-hidden="true">/</span>
+    </nav>
+  );
 
   const entregablesToolbar = (
     <>
@@ -319,6 +409,7 @@ function LayoutMarcaHome({
           listaDisenadores={listaDisenadores}
           puedeEditar={typeof onEnviarCliente === "function"}
           onEnviarCliente={onEnviarCliente}
+          onGuardarComentario={onGuardarComentario}
         />
       </div>
     );
@@ -411,47 +502,13 @@ function LayoutMarcaHome({
     <div className="marca-home animate-fade-in">
       <header className="marca-home-hero" style={{ background: gradienteHeader }}>
         <div className="marca-home-hero-inner">
-          <span className="marca-home-hero-spacer" aria-hidden="true" />
           <h1 className="marca-home-hero-title">{nombreMarca}</h1>
-          <div className="marca-home-hero-actions">
-            {mostrarEstatusGeneral && (
-              <button
-                type="button"
-                onClick={() => setVistaSubpagina("estatus")}
-                className="marca-home-subclientes-btn"
-                title="Estatus general"
-                aria-label="Estatus general"
-              >
-                <i className="fa-solid fa-chart-pie" />
-                <span className="marca-home-subclientes-btn-label">Estatus</span>
-              </button>
-            )}
-            {tieneSubclientes && (
-              <button
-                type="button"
-                onClick={() => setVistaSubpagina("subclientes")}
-                className="marca-home-subclientes-btn"
-                title="Ver subclientes"
-                aria-label="Ver subclientes"
-              >
-                <i className="fa-solid fa-store" />
-                <span className="marca-home-subclientes-btn-label">Subclientes</span>
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setVistaSubpagina("info")}
-              className="marca-home-info-btn"
-              title="Ver información del cliente"
-              aria-label="Ver información del cliente"
-            >
-              <i className="fa-solid fa-circle-info" />
-            </button>
-          </div>
         </div>
       </header>
 
       <div className="marca-home-body">
+        {marcaQuickNav}
+
         <div className="area-stat-card marca-glass-panel">
           <div className="area-stat-header">
             <span>Resumen de la marca</span>
@@ -611,7 +668,11 @@ function LayoutMarcaHome({
                   </div>
                 )}
                 {vistaModo === "TABLE" ? (
-                  <LayoutTablaAgrupada {...layoutTablaProps} tareas={tareasVista} />
+                  <LayoutTablaAgrupada
+                    {...layoutTablaProps}
+                    tareas={tareasVista}
+                    agruparPor={tieneSubclientes ? "subcliente" : "marca"}
+                  />
                 ) : (
                   <LayoutKanban tareas={tareasVista} ordenPrioridad={kanbanOrdenPrioridadActivo} onUpdateField={onUpdateField} onSelectTask={onSelectTask} onDeleteTask={onDeleteTask} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
                 )}
@@ -622,7 +683,11 @@ function LayoutMarcaHome({
           <div className="robin-desktop-only flex-col gap-4">
             {entregablesToolbar}
             {vistaModo === "TABLE" ? (
-              <LayoutTablaAgrupada {...layoutTablaProps} tareas={tareasVista} />
+              <LayoutTablaAgrupada
+                {...layoutTablaProps}
+                tareas={tareasVista}
+                agruparPor={tieneSubclientes ? "subcliente" : "marca"}
+              />
             ) : (
               <LayoutKanban tareas={tareasVista} ordenPrioridad={kanbanOrdenPrioridadActivo} onUpdateField={onUpdateField} onSelectTask={onSelectTask} onDeleteTask={onDeleteTask} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
             )}

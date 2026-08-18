@@ -199,6 +199,11 @@ function construirPayloadSyncTarea(original, actualizada, opciones = {}) {
     payload.esNuevo = true;
   }
 
+  if (typeof obtenerImportKeyTarea === "function") {
+    const importKey = obtenerImportKeyTarea(act) || obtenerImportKeyTarea(orig);
+    if (importKey) payload.importKey = importKey;
+  }
+
   return payload;
 }
 
@@ -207,6 +212,7 @@ function encolarSync(operacion) {
   const taskKey = operacion.taskKey || "";
   const taskKeyOriginal = operacion.taskKeyOriginal || "";
   const tipo = operacion.type || "update";
+  const importKey = String(operacion?.payload?.importKey || "").trim();
 
   if (tipo === "delete") {
     cola = cola.filter((op) => {
@@ -218,6 +224,10 @@ function encolarSync(operacion) {
     cola = cola.filter((op) => {
       if (op.type === tipo && (op.taskKey === taskKey || (taskKeyOriginal && op.taskKey === taskKeyOriginal))) {
         return false;
+      }
+      if (tipo === "create" && op.type === "create" && importKey) {
+        const opKey = String(op?.payload?.importKey || "").trim();
+        if (opKey && opKey === importKey) return false;
       }
       return true;
     });
@@ -360,11 +370,9 @@ function repararFlagsSyncSinCola(remotas) {
 }
 
 function calcularHayPendientesLocales() {
+  repararColaSyncActualizacionesFantasma();
   if (hayPendientesSync()) return true;
-  const tareas = cargarTareasLocales();
-  if (tareas.some(tareaTieneFlagsSyncHuerfanos)) {
-    repararFlagsSyncSinCola();
-  }
+  repararFlagsSyncSinCola();
   return hayTareasPendientesLocales(cargarTareasLocales());
 }
 
@@ -650,30 +658,119 @@ function repararColaSyncActualizacionesFantasma() {
   return cambio;
 }
 
-async function procesarColaSync() {
+function compactarColaSync() {
+  const tareas = cargarTareasLocales();
+  let cola = cargarColaSync().map(normalizarOperacionSyncCola);
+  if (!cola.length) return 0;
+
+  cola = cola.filter((op) => {
+    if (op.type !== "create") return true;
+    if (typeof entregablesSupabaseListos === "function" && entregablesSupabaseListos()) return true;
+    const local = tareas.find((t) => tareaCoincideConOperacionSync(t, op));
+    if (!local) return true;
+    const id = idTareaParaApi(local) || String(local.idTarea || "").trim();
+    return !id || id.startsWith("STB-") || id.startsWith("IMP-");
+  });
+
+  const vistosImport = new Set();
+  const vistosTask = new Map();
+  const compacta = [];
+
+  cola.forEach((op) => {
+    const payload = op.payload || {};
+    const importKey = String(payload.importKey || "").trim()
+      || (typeof obtenerImportKeyTarea === "function"
+        ? obtenerImportKeyTarea({ detalles: payload.detalles, importKey: payload.importKey })
+        : "");
+    const taskKey = op.taskKey || op.taskKeyOriginal || "";
+
+    if (op.type === "create" && importKey) {
+      if (vistosImport.has(importKey)) return;
+      vistosImport.add(importKey);
+    }
+
+    if (taskKey && (op.type === "update" || op.type === "create")) {
+      const prevIdx = vistosTask.get(`${op.type}:${taskKey}`);
+      if (prevIdx != null) {
+        compacta[prevIdx] = op;
+        return;
+      }
+      vistosTask.set(`${op.type}:${taskKey}`, compacta.length);
+    }
+
+    compacta.push(op);
+  });
+
+  guardarColaSync(compacta);
+  return compacta.length;
+}
+
+async function procesarColaSync(opciones = {}) {
+  const limite = Math.max(1, Number(opciones.limite) || 9999);
+  compactarColaSync();
+
+  const supabaseListo = typeof entregablesSupabaseListos === "function" && entregablesSupabaseListos();
+  const usuarioSync = typeof getRobinApiUsername === "function" ? getRobinApiUsername() : "";
+  let processed = 0;
+  const errores = [];
+
+  if (supabaseListo && typeof procesarColaEntregablesSupabase === "function") {
+    const resultadoSb = await procesarColaEntregablesSupabase(cargarColaSync(), usuarioSync);
+    guardarColaSync(resultadoSb.remainingOps || []);
+    processed += resultadoSb.processed || 0;
+    (resultadoSb.errores || []).forEach((err) => errores.push(err));
+  }
+
+  if (supabaseListo && typeof procesarColaWorkspaceSupabase === "function") {
+    const resultadoWs = await procesarColaWorkspaceSupabase(cargarColaSync(), usuarioSync);
+    guardarColaSync(resultadoWs.remainingOps || []);
+    processed += resultadoWs.processed || 0;
+    (resultadoWs.errores || []).forEach((err) => errores.push(err));
+  }
+
+  if (supabaseListo) {
+    const remaining = (cargarColaSync() || []).filter((op) => {
+      const id = String(op?.payload?.idTarea || "").trim().toUpperCase();
+      return !id.startsWith("PRESENCE-");
+    });
+    guardarColaSync(remaining);
+    if (remaining.length === 0) repararFlagsSyncSinCola();
+    return {
+      ok: remaining.length === 0,
+      processed,
+      remaining: remaining.length,
+      errores
+    };
+  }
+
   const apiUrl = getConfiguredApiUrl();
   if (!isApiConfigured() || !apiUrl) {
-    return { ok: false, processed: 0, remaining: cargarColaSync().length, errores: [] };
+    return { ok: false, processed, remaining: cargarColaSync().length, errores };
   }
   if (!hasRobinApiSession()) {
     return {
       ok: false,
-      processed: 0,
+      processed,
       remaining: cargarColaSync().length,
-      errores: [],
+      errores,
       sessionMissing: true
     };
   }
 
   repararColaSyncActualizacionesFantasma();
-  const cola = cargarColaSync();
-  if (!cola.length) return { ok: true, processed: 0, remaining: 0, errores: [] };
+  const colaCompleta = cargarColaSync();
+  if (!colaCompleta.length) return { ok: true, processed: 0, remaining: 0, errores: [] };
 
-  const restantes = [];
-  const errores = [];
-  let processed = 0;
+  const cola = colaCompleta.slice(0, limite);
+  const colaRestante = colaCompleta.slice(limite);
+
+  const restantes = [...colaRestante];
 
   for (const op of cola) {
+    if (typeof operacionColaEsEntregable === "function" && operacionColaEsEntregable(op) && typeof entregablesSupabaseListos === "function" && entregablesSupabaseListos()) {
+      restantes.push(op);
+      continue;
+    }
     let payload = normalizarPayloadSyncMarca(op.payload);
     let exito = false;
     let ultimoError = "Error desconocido";

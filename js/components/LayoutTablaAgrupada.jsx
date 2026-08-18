@@ -222,15 +222,18 @@ function LayoutTablaAgrupada({
   getMarcaStyle,
   currentTheme,
   modoAgrupacion = "estado",
+  agruparPor = "marca",
   tareasSeleccionadas = new Set(),
   onToggleSeleccion = () => {},
   onToggleSeleccionGrupo = () => {},
   listaCategorias = []
 }) {
-  const tareasAgrupadasPorMarca = useMemo(
-    () => agruparTareasPorMarcaOrdenadas(tareas, modoAgrupacion),
-    [tareas, modoAgrupacion]
-  );
+  const tareasAgrupadas = useMemo(() => {
+    if (agruparPor === "subcliente") {
+      return agruparTareasPorSubclienteOrdenadas(tareas, modoAgrupacion);
+    }
+    return agruparTareasPorMarcaOrdenadas(tareas, modoAgrupacion);
+  }, [tareas, modoAgrupacion, agruparPor]);
 
   const grupoCompletamenteSeleccionado = (lista) =>
     lista.length > 0 && lista.every(t => tareaEstaSeleccionada(t, tareasSeleccionadas));
@@ -246,40 +249,60 @@ function LayoutTablaAgrupada({
     );
   }
 
+  const gruposOrdenados = useMemo(() => {
+    const keys = Object.keys(tareasAgrupadas);
+    if (agruparPor !== "subcliente") {
+      return keys.sort((a, b) => a.localeCompare(b, "es"));
+    }
+    return keys.sort((a, b) => {
+      if (a === "Sin subcliente") return 1;
+      if (b === "Sin subcliente") return -1;
+      return a.localeCompare(b, "es");
+    });
+  }, [tareasAgrupadas, agruparPor]);
+
   return (
     <div className={`notion-task-list ${currentTheme.text}`}>
-      {Object.keys(tareasAgrupadasPorMarca).sort((a, b) => a.localeCompare(b, "es")).map((marca, marcaIndex) => {
-        const tareasDeMarca = tareasAgrupadasPorMarca[marca];
-        const badgeStyle = getMarcaStyle(marca);
-        const todoGrupo = grupoCompletamenteSeleccionado(tareasDeMarca);
-        const parcialGrupo = grupoParcialmenteSeleccionado(tareasDeMarca);
+      {gruposOrdenados.map((grupoKey, grupoIndex) => {
+        const tareasDeGrupo = tareasAgrupadas[grupoKey];
+        const badgeStyle = agruparPor === "subcliente"
+          ? { surface: "marca-surface-otros", accent: "#71717A" }
+          : getMarcaStyle(grupoKey);
+        const todoGrupo = grupoCompletamenteSeleccionado(tareasDeGrupo);
+        const parcialGrupo = grupoParcialmenteSeleccionado(tareasDeGrupo);
+        const tituloGrupo = agruparPor === "subcliente"
+          ? grupoKey
+          : formatearMarca(grupoKey);
 
         return (
-          <section key={marca} className="notion-group">
+          <section key={grupoKey} className="notion-group">
             <header
               className={`notion-group-header ${badgeStyle.surface}`}
               style={{ borderLeftColor: badgeStyle.accent }}
-              data-induccion={onToggleSeleccion && marcaIndex === 0 ? "seleccion-masiva" : undefined}
+              data-induccion={onToggleSeleccion && grupoIndex === 0 ? "seleccion-masiva" : undefined}
             >
               <input
                 type="checkbox"
                 checked={todoGrupo}
                 ref={el => { if (el) el.indeterminate = parcialGrupo; }}
-                onChange={() => onToggleSeleccionGrupo(tareasDeMarca, !todoGrupo)}
+                onChange={() => onToggleSeleccionGrupo(tareasDeGrupo, !todoGrupo)}
                 onClick={(e) => e.stopPropagation()}
                 className="notion-task-check notion-group-check"
                 title="Seleccionar grupo"
               />
               <h3 className="notion-group-title">
-                {formatearMarca(marca)}
+                {agruparPor === "subcliente" && grupoKey !== "Sin subcliente" && (
+                  <i className="fa-solid fa-store text-[11px] text-zinc-400 mr-1.5" aria-hidden="true" />
+                )}
+                {tituloGrupo}
               </h3>
               <span className="notion-group-count" style={{ color: badgeStyle.accent }}>
-                {tareasDeMarca.length}
+                {tareasDeGrupo.length}
               </span>
             </header>
 
             <div className="notion-group-items">
-              {tareasDeMarca.map(t => {
+              {tareasDeGrupo.map(t => {
                 const selKey = getTaskSelectionKey(t);
                 return (
                   <NotionTaskRow

@@ -518,6 +518,24 @@ function agruparTareasPorMarcaOrdenadas(tareas, modoAgrupacion) {
   return agrupamiento;
 }
 
+function agruparTareasPorSubclienteOrdenadas(tareas, modoAgrupacion) {
+  const agrupamiento = {};
+  (tareas || []).forEach(t => {
+    const sub = typeof obtenerSubclienteTarea === "function"
+      ? obtenerSubclienteTarea(t)
+      : String(t.subcliente || "").trim();
+    const grupoKey = sub || "Sin subcliente";
+    if (!agrupamiento[grupoKey]) agrupamiento[grupoKey] = [];
+    agrupamiento[grupoKey].push(t);
+  });
+
+  Object.keys(agrupamiento).forEach((key) => {
+    agrupamiento[key] = ordenarTareasPorModo(agrupamiento[key], modoAgrupacion);
+  });
+
+  return agrupamiento;
+}
+
 function tareaSinDisenadorAsignado(tarea) {
   const roles = dividirCampoPersonasPorRol(tarea?.personas || "");
   return !String(roles.disenadores || "").trim();
@@ -560,3 +578,6 @@ window.obtenerEstadosKanban = obtenerEstadosKanban;
 window.obtenerEstadosFiltroLista = obtenerEstadosFiltroLista;
 window.obtenerEstadosGeneradorEstatus = obtenerEstadosGeneradorEstatus;
 window.cuentaComoAtrasada = cuentaComoAtrasada;
+window.ordenarTareasPorModo = ordenarTareasPorModo;
+window.agruparTareasPorMarcaOrdenadas = agruparTareasPorMarcaOrdenadas;
+window.agruparTareasPorSubclienteOrdenadas = agruparTareasPorSubclienteOrdenadas;

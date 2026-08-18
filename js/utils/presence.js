@@ -8,7 +8,11 @@ function presenceIdForUser(username) {
 }
 
 function enviarHeartbeatPresencia(apiUrl, usuario, nombreCompleto) {
-  if (!apiUrl || !usuario) return Promise.resolve();
+  if (!usuario) return Promise.resolve();
+  if (typeof enviarHeartbeatPresenciaSupabase === "function") {
+    return enviarHeartbeatPresenciaSupabase(usuario, nombreCompleto).catch(() => {});
+  }
+  if (!apiUrl) return Promise.resolve();
 
   const username = String(usuario).replace(/^@/, "").trim();
   const payload = {

@@ -1,13 +1,24 @@
 const ESTATUS_LA_SANTE_IMPORT_ROWS = [
   {
     "cadena": "ALAMO",
+    "entregable": "BANNER 1",
+    "solicitud": "23/04/2026",
+    "entrega": "29/04/2026",
+    "status": "Espera por cliente",
+    "responsable": "David",
+    "detalles": "FOTO EN CORREO",
+    "comentarios": "Se debe realizar un corporeo para está farmacia en cuanto la cliente envie la información, en cuanto a las medidas lo subo a cor",
+    "link": "https://robin-agency.cor.works/tasks/11616750"
+  },
+  {
+    "cadena": "ALAMO",
     "entregable": "BANNER 2",
     "solicitud": "24/04/2026",
     "entrega": "29/04/2026",
     "status": "Espera por cliente",
     "responsable": "David",
     "detalles": "FOTO EN CORREO",
-    "comentarios": "Se debe realizar un corporeo para está farmacia en cuanto la cliente envie la información, en cuanto a las medidas lo subo a cor",
+    "comentarios": "",
     "link": "https://robin-agency.cor.works/tasks/11616750"
   },
   {
@@ -51,6 +62,17 @@ const ESTATUS_LA_SANTE_IMPORT_ROWS = [
     "status": "Espera por cliente",
     "responsable": "Aaron",
     "detalles": "VITAMINA C",
+    "comentarios": "Enviado a cliente, espera de comentarios",
+    "link": "https://robin-agency.cor.works/tasks/12223407"
+  },
+  {
+    "cadena": "BIGFARMA",
+    "entregable": "MICROPERFORADO ANCHO 2.27 X ALTO 1.81",
+    "solicitud": "03/08/2026",
+    "entrega": "05/08/2026",
+    "status": "Espera por cliente",
+    "responsable": "Aaron",
+    "detalles": "LA SANTE",
     "comentarios": "Enviado a cliente, espera de comentarios",
     "link": "https://robin-agency.cor.works/tasks/12223407"
   },
@@ -309,10 +331,21 @@ const ESTATUS_LA_SANTE_IMPORT_ROWS = [
   },
   {
     "cadena": "FARMACIA AHINOA",
+    "entregable": "AVISOS EXTERIOR",
+    "solicitud": "01/07/2026",
+    "entrega": "",
+    "status": "Espera por cliente",
+    "responsable": "Aaron",
+    "detalles": "Adjunto fotos (faltan medidas)",
+    "comentarios": "Esperando medidas del muro",
+    "link": "https://robin-agency.cor.works/tasks/12116899"
+  },
+  {
+    "cadena": "FARMACIA AHINOA",
     "entregable": "AVISO DE FARMACIA (LA SANTE)",
     "solicitud": "04/08/2026",
     "entrega": "",
-    "status": "Diseñar",
+    "status": "No iniciado",
     "responsable": "Aaron",
     "detalles": "Medidas  8.50 x 1,40 alto\n\nLA SANTE; + más que una farmacia; @farmaciaahinoa",
     "comentarios": "Enviado ajuste a cliente",
@@ -320,14 +353,25 @@ const ESTATUS_LA_SANTE_IMPORT_ROWS = [
   },
   {
     "cadena": "FARMACIA AHINOA",
-    "entregable": "CENEFA",
-    "solicitud": "01/07/2026",
+    "entregable": "MICROPERFORADO",
+    "solicitud": "04/08/2026",
     "entrega": "",
-    "status": "Entregado a cliente",
+    "status": "Espera por cliente",
     "responsable": "Aaron",
-    "detalles": "Adjunto fotos (faltan medidas)",
-    "comentarios": "Enviado a cliente",
-    "link": "https://robin-agency.cor.works/tasks/12116899"
+    "detalles": "Probioticos",
+    "comentarios": "Enviado ajuste a cliente",
+    "link": "https://robin-agency.cor.works/tasks/12223187"
+  },
+  {
+    "cadena": "FARMACIA AHINOA",
+    "entregable": "MICROPERFORADO",
+    "solicitud": "04/08/2026",
+    "entrega": "",
+    "status": "Espera por cliente",
+    "responsable": "Aaron",
+    "detalles": "Vitamina C",
+    "comentarios": "Enviado ajuste a cliente",
+    "link": "https://robin-agency.cor.works/tasks/12223187"
   },
   {
     "cadena": "FARMACIA GRUPO INSIDE",
@@ -430,6 +474,17 @@ const ESTATUS_LA_SANTE_IMPORT_ROWS = [
   },
   {
     "cadena": "FARMAECONOMICA",
+    "entregable": "Impresión de microperforado 21x1,19 ful color (puerta lado derecho) 2 28,00 56,00",
+    "solicitud": "14/07/2026",
+    "entrega": "",
+    "status": "Espera por cliente",
+    "responsable": "David",
+    "detalles": "Vitamina C",
+    "comentarios": "Pendiente comentarios",
+    "link": "https://robin-agency.cor.works/tasks/12104469"
+  },
+  {
+    "cadena": "FARMAECONOMICA",
     "entregable": "Impresión de microperforado 48x72 ful color (puerta lado derecho) 2 19,00 38,00",
     "solicitud": "14/07/2026",
     "entrega": "",
@@ -437,7 +492,18 @@ const ESTATUS_LA_SANTE_IMPORT_ROWS = [
     "responsable": "David",
     "detalles": "Vitamina C",
     "comentarios": "",
-    "link": ""
+    "link": "https://robin-agency.cor.works/tasks/12104469"
+  },
+  {
+    "cadena": "FARMAECONOMICA",
+    "entregable": "Impresión de microperforado 72x1,19 ful color (puerta lado derecho) 4 37,00 148,00",
+    "solicitud": "14/07/2026",
+    "entrega": "",
+    "status": "Espera por cliente",
+    "responsable": "David",
+    "detalles": "Vitamina C",
+    "comentarios": "",
+    "link": "https://robin-agency.cor.works/tasks/12104469"
   },
   {
     "cadena": "FARMAECONOMICA",
@@ -448,7 +514,7 @@ const ESTATUS_LA_SANTE_IMPORT_ROWS = [
     "responsable": "David",
     "detalles": "Vitamina C",
     "comentarios": "",
-    "link": ""
+    "link": "https://robin-agency.cor.works/tasks/12104469"
   },
   {
     "cadena": "FARMAEXPRESS MARGARITA",
@@ -1156,6 +1222,17 @@ const ESTATUS_LA_SANTE_IMPORT_ROWS = [
   },
   {
     "cadena": "MULTIMARCA",
+    "entregable": "3 PLANCHAS",
+    "solicitud": "01/07/2026",
+    "entrega": "",
+    "status": "Diseñar",
+    "responsable": "David",
+    "detalles": "FRENTILLO MULTIMARCA (OTC PHQ LS)",
+    "comentarios": "",
+    "link": "https://robin-agency.cor.works/tasks/12050134"
+  },
+  {
+    "cadena": "MULTIMARCA",
     "entregable": "2 PLACHAS",
     "solicitud": "01/07/2026",
     "entrega": "",
@@ -1212,13 +1289,13 @@ const ESTATUS_LA_SANTE_IMPORT_ROWS = [
   {
     "cadena": "OTC",
     "entregable": "Ristra Broxol",
-    "solicitud": "",
+    "solicitud": "28/07/2026",
     "entrega": "",
     "status": "Por enviar a cliente",
     "responsable": "David",
     "detalles": "",
-    "comentarios": "Por enviar a cliente",
-    "link": ""
+    "comentarios": "Por enviar",
+    "link": "https://robin-agency.cor.works/tasks/12167971"
   },
   {
     "cadena": "OTC",
@@ -1406,5 +1483,126 @@ const ESTATUS_LA_SANTE_IMPORT_ROWS = [
     "detalles": "Se desarrollará sin las medidas reales",
     "comentarios": "Ok por enviar AF",
     "link": ""
+  },
+  {
+    "cadena": "ANALPER",
+    "entregable": "RISTRA",
+    "solicitud": "03/08/2026",
+    "entrega": "05/08/2026",
+    "status": "Ajuste",
+    "responsable": "David",
+    "detalles": "",
+    "comentarios": "En diseño",
+    "link": "https://robin-agency.cor.works/tasks/12223701"
+  },
+  {
+    "cadena": "CAMPAÑA ESOZ",
+    "entregable": "Encartes",
+    "solicitud": "15/05/2026",
+    "entrega": "",
+    "status": "Stand-by",
+    "responsable": "Dani",
+    "detalles": "Medidas por definir",
+    "comentarios": "",
+    "link": "https://robin-agency.cor.works/tasks/11761314"
+  },
+  {
+    "cadena": "FARMACIA RUPERTO LUGO",
+    "entregable": "REVESTIMIENTO",
+    "solicitud": "14/07/2026",
+    "entrega": "",
+    "status": "Espera por cliente",
+    "responsable": "Aaron",
+    "detalles": "",
+    "comentarios": "Preguntar sobre claim a Yessica",
+    "link": "https://robin-agency.cor.works/tasks/12103886"
+  },
+  {
+    "cadena": "LA SANTÉ",
+    "entregable": "CATALAGÓ LA SANTÉ",
+    "solicitud": "04/08/2026",
+    "entrega": "13/08/2026",
+    "status": "En desarrollo",
+    "responsable": "Migue",
+    "detalles": "",
+    "comentarios": "Actualizar PDF / Carpeta con AF",
+    "link": "https://robin-agency.cor.works/tasks/11632927"
+  },
+  {
+    "cadena": "LA SANTÉ",
+    "entregable": "Frentillos (Planograma)",
+    "solicitud": "03/08/2026",
+    "entrega": "04/08/2026",
+    "status": "Espera por cliente",
+    "responsable": "Dani",
+    "detalles": "",
+    "comentarios": "Enviado a cliente y consultar",
+    "link": "https://robin-agency.cor.works/tasks/12211419"
+  },
+  {
+    "cadena": "LA SANTÉ",
+    "entregable": "PPTO Grabaciones para canal Dronena",
+    "solicitud": "20/05/2026",
+    "entrega": "22/05/2026",
+    "status": "En proceso",
+    "responsable": "Melanie",
+    "detalles": "",
+    "comentarios": "Se esta ejecutando en otra tarea",
+    "link": "https://robin-agency.cor.works/tasks/11777209"
+  },
+  {
+    "cadena": "LA SANTÉ",
+    "entregable": "Propuesta La Santé (humanizar)",
+    "solicitud": "03/08/2026",
+    "entrega": "12/08/2026",
+    "status": "En desarrollo",
+    "responsable": "Dani",
+    "detalles": "",
+    "comentarios": "",
+    "link": "https://robin-agency.cor.works/tasks/12224977"
+  },
+  {
+    "cadena": "LA SANTÉ",
+    "entregable": "Propuesta automercados",
+    "solicitud": "31/07/2026",
+    "entrega": "",
+    "status": "En desarrollo",
+    "responsable": "Dani",
+    "detalles": "",
+    "comentarios": "",
+    "link": "https://robin-agency.cor.works/tasks/12186549"
+  },
+  {
+    "cadena": "PROBIÓTICOS",
+    "entregable": "Colgantes (0,60 alto X 0,15 ancho)",
+    "solicitud": "19/05/2026",
+    "entrega": "",
+    "status": "Diseñar",
+    "responsable": "David",
+    "detalles": "",
+    "comentarios": "Por realizar",
+    "link": "https://robin-agency.cor.works/tasks/11772917"
+  },
+  {
+    "cadena": "RATTAN MARGARITA",
+    "entregable": "Revestimiento de pared (Escaleras)",
+    "solicitud": "19/05/2026",
+    "entrega": "27/05/2026",
+    "status": "En desarrollo",
+    "responsable": "Dani",
+    "detalles": "MIX VITAMINA C (MUÑEQUITOS) PROLARDII/PROCILUS",
+    "comentarios": "Pendiente contenido por parte de Dani",
+    "link": "https://robin-agency.cor.works/tasks/11785118"
+  },
+  {
+    "cadena": "SAN ANSELMO",
+    "entregable": "(Frentillos) Cenefas con pestaña de seguridad en la parte inferior",
+    "solicitud": "13/05/2026",
+    "entrega": "20/05/2026",
+    "status": "Stand-by",
+    "responsable": "Aaron",
+    "detalles": "LA SANTE - OTC (Genericos) con colores o diseños similares",
+    "comentarios": "OK / Por enviar AF / Pendiente comentarios",
+    "link": "https://robin-agency.cor.works/tasks/11756167"
   }
 ];

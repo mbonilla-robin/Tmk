@@ -181,20 +181,26 @@ function handlesResponsablesEstatus(tarea) {
     : [];
   if (!handles.length) return ["sin-asignar"];
 
-  const productores = [];
+  const disenadores = [];
+  const contenido = [];
   const ejecutivos = [];
 
   handles.forEach((handle) => {
     const key = claveHandleEstatus(handle);
     if (esHandleEspecialEstatus(key)) return;
-    if (esHandleDisenadorEstatus(key) || esHandleContenidoEstatus(key)) {
-      if (!productores.includes(key)) productores.push(key);
+    if (esHandleDisenadorEstatus(key)) {
+      if (!disenadores.includes(key)) disenadores.push(key);
+      return;
+    }
+    if (esHandleContenidoEstatus(key)) {
+      if (!contenido.includes(key)) contenido.push(key);
       return;
     }
     if (!ejecutivos.includes(key)) ejecutivos.push(key);
   });
 
-  if (productores.length) return productores;
+  if (disenadores.length) return disenadores;
+  if (contenido.length) return contenido;
   if (ejecutivos.length) return ejecutivos;
   return ["sin-asignar"];
 }

@@ -47,11 +47,15 @@ function resumirEstadoSyncRobin(opts) {
     colaPendiente
   } = opts || {};
 
-  if (!isApiConfigured()) {
+  const backendOk = typeof backendRobinListo === "function"
+    ? backendRobinListo()
+    : (typeof entregablesSupabaseListos === "function" && entregablesSupabaseListos());
+
+  if (!backendOk) {
     return {
       estado: "sin_api",
       titulo: "Base de datos no configurada",
-      detalle: "No hay URL del Web App de Google Sheets en esta instalación.",
+      detalle: "No hay proyecto de Supabase configurado en esta instalación.",
       severidad: "warn"
     };
   }
@@ -59,7 +63,7 @@ function resumirEstadoSyncRobin(opts) {
   if (syncing || loading) {
     return {
       estado: "sincronizando",
-      titulo: "Sincronizando con Google Sheets…",
+      titulo: "Sincronizando entregables…",
       detalle: "",
       severidad: "info"
     };
@@ -73,7 +77,7 @@ function resumirEstadoSyncRobin(opts) {
     return {
       estado: "error",
       titulo: apiError,
-      detalle: apiErrorDetail || "Los cambios se guardan en este dispositivo y se reintentará el envío a Sheets.",
+      detalle: apiErrorDetail || "Los cambios se guardan en este dispositivo y se reintentará el envío.",
       severidad: "error"
     };
   }
@@ -81,7 +85,7 @@ function resumirEstadoSyncRobin(opts) {
   if (pendientes > 0) {
     return {
       estado: "pendiente",
-      titulo: "Cambios pendientes de subir a Sheets",
+      titulo: "Cambios pendientes de subir",
       detalle: `${pendientes} operación(es) en cola local. Se reintentará automáticamente.`,
       severidad: "warn"
     };
@@ -89,7 +93,7 @@ function resumirEstadoSyncRobin(opts) {
 
   return {
     estado: "ok",
-    titulo: "Sincronizado con Google Sheets",
+    titulo: "Sincronizado con Supabase",
     detalle: "La información de este dispositivo está al día con la base de datos.",
     severidad: "ok"
   };

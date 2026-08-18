@@ -107,6 +107,80 @@ function BuscadorRelacionarTareas({ tareas, query, onQueryChange, onSeleccionar,
   );
 }
 
+function FilaHermanaSubcliente({ tarea, onAbrir }) {
+  const titulo = tituloDisplayTarea(tarea);
+  const estado = ESTADOS_MAPA.find((e) => cleanEstado(e.id) === cleanEstado(tarea.estado)) || ESTADOS_MAPA[0];
+  const hecha = typeof esTareaCompletada === "function" && esTareaCompletada(tarea);
+  const suspendida = typeof esTareaSuspendida === "function" && esTareaSuspendida(tarea);
+
+  return (
+    <button
+      type="button"
+      className={`task-siblings-row${hecha || suspendida ? " is-done" : ""}`}
+      onClick={() => onAbrir(tarea)}
+      title={titulo}
+    >
+      <span className={`task-siblings-row__dot ${estado.dot}`} aria-hidden="true" />
+      <span className="task-siblings-row__body">
+        <span className="task-siblings-row__title">{titulo}</span>
+        <span className="task-siblings-row__meta">
+          {normalizarEstado(tarea.estado) || "Sin estado"}
+          {tarea.deadline ? ` · ${formatearFecha(tarea.deadline)}` : ""}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function ListaHermanasSubcliente({
+  subcliente,
+  hermanas,
+  relacionadas,
+  onAbrir,
+  getMarcaStyle,
+  variant = "card"
+}) {
+  const keysHermanas = new Set(hermanas.map((t) => getTaskSelectionKey(t)));
+  const vinculadasOtras = relacionadas.filter((t) => !keysHermanas.has(getTaskSelectionKey(t)));
+  const esCard = variant === "card";
+
+  return (
+    <div className={esCard ? "task-siblings-card" : "task-siblings-inline"}>
+      <div className="task-siblings-card__header">
+        <div className="task-siblings-card__heading">
+          <span className="task-siblings-card__kicker">Mismo subcliente</span>
+          <span className="task-siblings-card__title">{subcliente}</span>
+        </div>
+        <span className="task-siblings-card__count">{hermanas.length}</span>
+      </div>
+      <div className="task-siblings-card__list">
+        {hermanas.map((t) => (
+          <FilaHermanaSubcliente
+            key={getTaskSelectionKey(t)}
+            tarea={t}
+            onAbrir={onAbrir}
+          />
+        ))}
+      </div>
+      {vinculadasOtras.length > 0 && (
+        <div className="task-siblings-card__linked">
+          <div className="task-related-group__label">Vinculadas</div>
+          <div className="task-related-pills">
+            {vinculadasOtras.map((t) => (
+              <ChipTareaRelacionada
+                key={getTaskSelectionKey(t)}
+                tarea={t}
+                onAbrir={onAbrir}
+                getMarcaStyle={getMarcaStyle}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TareasRelacionadas({
   tarea,
   tareas,
@@ -116,21 +190,22 @@ function TareasRelacionadas({
   onAbrirTarea,
   onToast,
   getMarcaStyle,
-  zona = "controls"
+  zona = "controls",
+  subcliente = "",
+  marca = ""
 }) {
   const [buscadorAbierto, setBuscadorAbierto] = useState(false);
   const [query, setQuery] = useState("");
   const [guardando, setGuardando] = useState(false);
-  const [sugerenciasOcultas, setSugerenciasOcultas] = useState(0);
 
   const relacionadas = useMemo(
     () => resolverTareasRelacionadas(tarea, tareas, relaciones),
     [tarea, tareas, relaciones]
   );
 
-  const sugerencias = useMemo(
-    () => sugerirTareasRelacionadas(tarea, tareas, relaciones),
-    [tarea, tareas, relaciones, sugerenciasOcultas]
+  const hermanas = useMemo(
+    () => listarTareasMismoSubcliente(tarea, tareas, { subcliente, marca }),
+    [tarea, tareas, subcliente, marca]
   );
 
   const resultadosBusqueda = useMemo(
@@ -160,34 +235,6 @@ function TareasRelacionadas({
     }
   };
 
-  const handleDescartar = (otra) => {
-    const keyA = resolverTaskKeyRelacion(tarea);
-    const keyB = resolverTaskKeyRelacion(otra);
-    guardarSugerenciaDescartada(keyA, keyB);
-    setSugerenciasOcultas((n) => n + 1);
-  };
-
-  const chipsVinculadas = relacionadas.map((t) => (
-    <ChipTareaRelacionada
-      key={getTaskSelectionKey(t)}
-      tarea={t}
-      onAbrir={onAbrirTarea}
-      getMarcaStyle={getMarcaStyle}
-    />
-  ));
-
-  const chipsSugeridas = sugerencias.map((t) => (
-    <ChipTareaRelacionada
-      key={`sug-${getTaskSelectionKey(t)}`}
-      tarea={t}
-      sugerida
-      onAbrir={onAbrirTarea}
-      onAceptar={crearRelacion}
-      onDescartar={handleDescartar}
-      getMarcaStyle={getMarcaStyle}
-    />
-  ));
-
   if (zona === "controls") {
     return (
       <div className="task-related-controls">
@@ -214,19 +261,31 @@ function TareasRelacionadas({
   }
 
   if (zona === "internal") {
-    if (!relacionadas.length && !sugerencias.length) return null;
+    if (!hermanas.length && !relacionadas.length) return null;
     return (
-      <div className="task-related-internal lg:hidden">
-        {relacionadas.length > 0 && (
+      <div className="task-related-internal">
+        {hermanas.length > 0 ? (
+          <ListaHermanasSubcliente
+            subcliente={subcliente || obtenerSubclienteTarea(tarea)}
+            hermanas={hermanas}
+            relacionadas={relacionadas}
+            onAbrir={onAbrirTarea}
+            getMarcaStyle={getMarcaStyle}
+            variant="inline"
+          />
+        ) : (
           <div className="task-related-group">
-            <div className="task-related-group__label">Relacionadas</div>
-            <div className="task-related-pills">{chipsVinculadas}</div>
-          </div>
-        )}
-        {sugerencias.length > 0 && (
-          <div className="task-related-group task-related-group--suggested">
-            <div className="task-related-group__label">Sugeridas</div>
-            <div className="task-related-pills">{chipsSugeridas}</div>
+            <div className="task-related-group__label">Vinculadas</div>
+            <div className="task-related-pills">
+              {relacionadas.map((t) => (
+                <ChipTareaRelacionada
+                  key={getTaskSelectionKey(t)}
+                  tarea={t}
+                  onAbrir={onAbrirTarea}
+                  getMarcaStyle={getMarcaStyle}
+                />
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -234,21 +293,40 @@ function TareasRelacionadas({
   }
 
   if (zona === "external") {
-    if (!relacionadas.length && !sugerencias.length) return null;
+    if (!hermanas.length && !relacionadas.length) return null;
     return (
-      <div className="task-related-external hidden lg:block">
-        {relacionadas.length > 0 && (
-          <div className="task-related-dock">
-            <div className="task-related-pills">{chipsVinculadas}</div>
+      <aside className="task-related-external" aria-label="Otros entregables del mismo subcliente">
+        {hermanas.length > 0 ? (
+          <ListaHermanasSubcliente
+            subcliente={subcliente || obtenerSubclienteTarea(tarea)}
+            hermanas={hermanas}
+            relacionadas={relacionadas}
+            onAbrir={onAbrirTarea}
+            getMarcaStyle={getMarcaStyle}
+            variant="card"
+          />
+        ) : (
+          <div className="task-siblings-card">
+            <div className="task-siblings-card__header">
+              <div className="task-siblings-card__heading">
+                <span className="task-siblings-card__kicker">Vinculadas</span>
+                <span className="task-siblings-card__title">Otras tareas</span>
+              </div>
+              <span className="task-siblings-card__count">{relacionadas.length}</span>
+            </div>
+            <div className="task-related-pills task-siblings-card__linked-only">
+              {relacionadas.map((t) => (
+                <ChipTareaRelacionada
+                  key={getTaskSelectionKey(t)}
+                  tarea={t}
+                  onAbrir={onAbrirTarea}
+                  getMarcaStyle={getMarcaStyle}
+                />
+              ))}
+            </div>
           </div>
         )}
-        {sugerencias.length > 0 && (
-          <div className="task-related-dock task-related-dock--suggested">
-            <span className="task-related-dock__hint">Sugeridas</span>
-            <div className="task-related-pills">{chipsSugeridas}</div>
-          </div>
-        )}
-      </div>
+      </aside>
     );
   }
 

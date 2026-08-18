@@ -189,6 +189,40 @@ async function cargarSubclientesRemotos() {
   }
 }
 
+function pesoEstadoHermanasSubcliente(tarea) {
+  const estado = typeof cleanEstado === "function" ? cleanEstado(tarea?.estado) : "";
+  if (estado === "completada" || estado === "suspendido") return 2;
+  if (estado === "en pausa") return 1;
+  return 0;
+}
+
+function listarTareasMismoSubcliente(tarea, tareas, opciones = {}) {
+  const sub = opciones.subcliente != null
+    ? normalizarNombreSubcliente(opciones.subcliente)
+    : obtenerSubclienteTarea(tarea);
+  const marca = opciones.marca != null ? opciones.marca : tarea?.marca;
+  if (!sub) return [];
+
+  return (tareas || [])
+    .filter((t) => {
+      if (!t) return false;
+      if (typeof sonLaMismaTarea === "function" && sonLaMismaTarea(tarea, t)) return false;
+      if (typeof marcasCoinciden === "function" && !marcasCoinciden(marca, t.marca)) return false;
+      return subclientesCoinciden(sub, obtenerSubclienteTarea(t));
+    })
+    .sort((a, b) => {
+      const pa = pesoEstadoHermanasSubcliente(a);
+      const pb = pesoEstadoHermanasSubcliente(b);
+      if (pa !== pb) return pa - pb;
+      const ta = typeof obtenerTiempoFecha === "function" ? obtenerTiempoFecha(a.deadline) : Infinity;
+      const tb = typeof obtenerTiempoFecha === "function" ? obtenerTiempoFecha(b.deadline) : Infinity;
+      if (ta !== tb) return ta - tb;
+      const tituloA = typeof tituloDisplayTarea === "function" ? tituloDisplayTarea(a) : String(a.info || "");
+      const tituloB = typeof tituloDisplayTarea === "function" ? tituloDisplayTarea(b) : String(b.info || "");
+      return tituloA.localeCompare(tituloB, "es");
+    });
+}
+
 async function insertarSubclienteRemoto(marca, nombre) {
   if (typeof isSupabaseConfigured !== "function" || !isSupabaseConfigured()) return false;
   const url = typeof SUPABASE_URL !== "undefined" ? SUPABASE_URL : "";

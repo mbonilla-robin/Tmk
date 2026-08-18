@@ -309,7 +309,9 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     onRelacionCreada,
     onAbrirTarea: abrirRelacionada,
     onToast,
-    getMarcaStyle
+    getMarcaStyle,
+    subcliente,
+    marca
   };
 
   return (

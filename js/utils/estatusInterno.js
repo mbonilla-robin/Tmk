@@ -175,8 +175,14 @@ function fechaDesdeCsvEstatus(val) {
   return s;
 }
 
+function entregableLegibleEstatus(valor) {
+  return typeof textoEstatusLegible === "function"
+    ? textoEstatusLegible(valor)
+    : String(valor || "").replace(/\s+/g, " ").trim();
+}
+
 function truncarSubclienteEstatus(nombre) {
-  const limpio = String(nombre || "").replace(/\s+/g, " ").trim();
+  const limpio = entregableLegibleEstatus(nombre) || String(nombre || "").replace(/\s+/g, " ").trim();
   if (!limpio) return "";
   if (typeof normalizarNombreSubcliente === "function") {
     const norm = normalizarNombreSubcliente(limpio);
@@ -371,7 +377,9 @@ function construirNotasEstatus(detalles, comentarios) {
 
 function construirTareaDesdeFilaEstatus(fila, usuario) {
   const subcliente = truncarSubclienteEstatus(fila.cadena);
-  const estado = mapearEstadoDesdeCsv(fila.status);
+  const estado = typeof normalizarEstado === "function"
+    ? normalizarEstado(mapearEstadoDesdeCsv(fila.status))
+    : mapearEstadoDesdeCsv(fila.status);
   const flujo = flujoDesdeStatusCsv(fila.status);
   const importKey = claveImportacionEstatus(fila);
   const fechaInicio = fechaDesdeCsvEstatus(fila.solicitud);
@@ -381,7 +389,7 @@ function construirTareaDesdeFilaEstatus(fila, usuario) {
   const notas = responsableClave.includes("melanie")
     ? [notasBase, "Responsable original: Melanie"].filter(Boolean).join("\n\n")
     : notasBase;
-  const prioridad = ["Pendiente", "En revisión", "En progreso"].includes(estado) ? "Alta" : "Media";
+  const prioridad = "Media";
   const historial = [];
   if (usuario) {
     const hoy = new Date();
@@ -397,7 +405,7 @@ function construirTareaDesdeFilaEstatus(fila, usuario) {
     marca: ESTATUS_INTERNO_MARCA,
     categoria: "Solicitud",
     subcliente,
-    info: String(fila.entregable || "").trim(),
+    info: entregableLegibleEstatus(fila.entregable),
     personas: personasDesdeResponsableCsv(fila.responsable),
     detalles,
     link: fila.link || "",
@@ -661,6 +669,36 @@ function aplicarEnvioClienteEstatus(tarea, tipo, usuario) {
     importKey,
     detalles
   };
+}
+
+function listarTareasEstatusNormalizarImport(tareas, filas) {
+  const resultado = [];
+  (tareas || []).forEach((t) => {
+    const importKey = obtenerImportKeyTarea(t);
+    const esImport = Boolean(importKey) || String(t.idTarea || "").startsWith("IMP-");
+    if (!esImport) return;
+    const fila = (filas || []).find((f) => tareaCoincideFilaEstatus(t, f));
+    const infoObjetivo = fila
+      ? entregableLegibleEstatus(fila.entregable)
+      : entregableLegibleEstatus(t.info);
+    const infoActual = String(t.info || "").trim();
+    const needsInfo = infoObjetivo && infoObjetivo !== infoActual;
+    const prioridadActual = typeof normalizarPrioridad === "function"
+      ? normalizarPrioridad(t.prioridad)
+      : String(t.prioridad || "");
+    const needsPrioridad = prioridadActual === "Alta";
+    if (!needsInfo && !needsPrioridad) return;
+    resultado.push({
+      tarea: t,
+      fila,
+      flujoCsv: "",
+      estadoCsv: "",
+      infoNuevo: needsInfo ? infoObjetivo : "",
+      prioridadNueva: needsPrioridad ? "Media" : "",
+      importKey: importKey || (fila ? claveImportacionEstatus(fila) : "")
+    });
+  });
+  return resultado;
 }
 
 function listarTareasEstatusARealinear(tareas, filas) {

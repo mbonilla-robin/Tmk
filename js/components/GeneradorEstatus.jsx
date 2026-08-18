@@ -8,6 +8,8 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
   const [subclientesFiltro, setSubclientesFiltro] = useState([]);
   const [filtroTiempo, setFiltroTiempo] = useState("todas");
   const [ordenarPor, setOrdenarPor] = useState("estado");
+  const [organizarPor, setOrganizarPor] = useState("subcliente");
+  const [subclientesDesplegados, setSubclientesDesplegados] = useState(false);
   const [textoGenerado, setTextoGenerado] = useState("");
   const [copiado, setCopiado] = useState(false);
   const [compartido, setCompartido] = useState(false);
@@ -58,16 +60,21 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
   const handleGenerar = (e) => {
     e.preventDefault();
     if (marcasSeleccionadas.length === 0) return;
+    generarConOpciones(organizarPor);
+  };
 
+  const generarConOpciones = (modoOrganizar = organizarPor) => {
     const texto = generarTextoEstatus(tareas, {
       marcas: marcasSeleccionadas,
       estados: estadosSeleccionados,
       filtroTiempo: filtroTiempo === "todas" ? "" : filtroTiempo,
       ordenarPor,
+      organizarPor: modoOrganizar,
       personas: personasFiltroArray,
       subclientes: subclientesFiltro
     });
 
+    setOrganizarPor(modoOrganizar);
     setTextoGenerado(texto || "No hay tareas que coincidan con los filtros seleccionados.");
     setVista("resultado");
     setCopiado(false);
@@ -114,6 +121,14 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
       prev.filter((s) => subclientesDisponibles.some((d) => subclientesCoinciden(d, s)))
     );
   }, [subclientesDisponibles]);
+
+  useEffect(() => {
+    if (subclientesDisponibles.length > 0) {
+      setSubclientesDesplegados(true);
+    } else {
+      setSubclientesDesplegados(false);
+    }
+  }, [subclientesDisponibles.length]);
 
   return (
     <ModalPortal>
@@ -197,32 +212,95 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
               </div>
 
               {subclientesDisponibles.length > 0 && (
-                <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-2">
-                    Subclientes <span className="font-normal normal-case">(opcional)</span>
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {subclientesDisponibles.map((nombre) => {
-                      const seleccionado = subclientesFiltro.some((s) => subclientesCoinciden(s, nombre));
-                      return (
-                        <button
-                          key={nombre}
-                          type="button"
-                          onClick={() => toggleSubcliente(nombre)}
-                          className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
-                            seleccionado
-                              ? "bg-zinc-100 text-zinc-800 ring-2 ring-offset-1 ring-zinc-300 border-zinc-300"
-                              : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
-                          }`}
-                        >
-                          <i className="fa-solid fa-store text-[9px] opacity-60" />
-                          {nombre}
-                        </button>
-                      );
-                    })}
-                  </div>
+                <div className="rounded-lg border border-zinc-200 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setSubclientesDesplegados((v) => !v)}
+                    className="w-full flex items-center justify-between gap-3 px-3 py-2.5 bg-zinc-50 hover:bg-zinc-100 transition-colors text-left"
+                    aria-expanded={subclientesDesplegados}
+                  >
+                    <span className="flex items-center gap-2 min-w-0">
+                      <i
+                        className={`fa-solid ${subclientesDesplegados ? "fa-chevron-down" : "fa-chevron-right"} text-[9px] text-zinc-400 shrink-0`}
+                        aria-hidden="true"
+                      />
+                      <span className="text-[10px] font-bold text-zinc-400 uppercase">
+                        Subclientes{" "}
+                        <span className="font-normal normal-case text-zinc-500">(opcional)</span>
+                      </span>
+                    </span>
+                    <span className="text-[11px] font-semibold text-zinc-500 shrink-0">
+                      {subclientesFiltro.length > 0
+                        ? `${subclientesFiltro.length} de ${subclientesDisponibles.length}`
+                        : `${subclientesDisponibles.length} disponibles`}
+                    </span>
+                  </button>
+
+                  {subclientesDesplegados && (
+                    <div className="px-3 py-2.5 border-t border-zinc-200 max-h-36 overflow-y-auto">
+                      <div className="flex flex-wrap gap-2">
+                        {subclientesDisponibles.map((nombre) => {
+                          const seleccionado = subclientesFiltro.some((s) => subclientesCoinciden(s, nombre));
+                          return (
+                            <button
+                              key={nombre}
+                              type="button"
+                              onClick={() => toggleSubcliente(nombre)}
+                              className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                                seleccionado
+                                  ? "bg-zinc-100 text-zinc-800 ring-2 ring-offset-1 ring-zinc-300 border-zinc-300"
+                                  : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                              }`}
+                            >
+                              <i className="fa-solid fa-store text-[9px] opacity-60" />
+                              {nombre}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
+
+              <div>
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-2">Organizar estatus</label>
+                <div className="flex flex-wrap gap-2">
+                  {(typeof ORGANIZAR_ESTATUS_OPCIONES !== "undefined" ? ORGANIZAR_ESTATUS_OPCIONES : [
+                    { id: "marca", label: "Por marca" },
+                    { id: "subcliente", label: "Por subcliente" },
+                    { id: "persona", label: "Por personas" }
+                  ]).map((opcion) => (
+                    <button
+                      key={opcion.id}
+                      type="button"
+                      onClick={() => setOrganizarPor(opcion.id)}
+                      className={`text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                        organizarPor === opcion.id
+                          ? "bg-zinc-900 text-white border-zinc-900"
+                          : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                      }`}
+                    >
+                      {opcion.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-2 text-[10px] text-zinc-400 leading-relaxed">
+                  {organizarPor === "persona" ? (
+                    <>
+                      Formato: <span className="font-mono">*@Persona*</span>, luego{" "}
+                      <span className="font-mono">*Subcliente*</span> y{" "}
+                      <span className="font-mono">- Título | _Estado_ | link</span>.
+                      Los ejecutivos solo aparecen si la tarea no tiene diseño ni contenido.
+                    </>
+                  ) : (
+                    <>
+                      Formato: <span className="font-mono">*Grupo*</span> y luego{" "}
+                      <span className="font-mono">- Título | _Estado_ | link</span>
+                    </>
+                  )}
+                </p>
+              </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -275,6 +353,29 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
             </form>
           ) : (
             <div className="flex flex-col gap-4 p-5 overflow-y-auto">
+              <div>
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-2">Organizar estatus</label>
+                <div className="flex flex-wrap gap-2">
+                  {(typeof ORGANIZAR_ESTATUS_OPCIONES !== "undefined" ? ORGANIZAR_ESTATUS_OPCIONES : [
+                    { id: "marca", label: "Por marca" },
+                    { id: "subcliente", label: "Por subcliente" },
+                    { id: "persona", label: "Por personas" }
+                  ]).map((opcion) => (
+                    <button
+                      key={opcion.id}
+                      type="button"
+                      onClick={() => generarConOpciones(opcion.id)}
+                      className={`text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                        organizarPor === opcion.id
+                          ? "bg-zinc-900 text-white border-zinc-900"
+                          : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                      }`}
+                    >
+                      {opcion.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <pre className="text-[12px] text-[#37352F] leading-relaxed whitespace-pre-wrap font-mono bg-zinc-50 border border-zinc-200 rounded-lg p-4 max-h-[50vh] overflow-y-auto">
                 {textoGenerado}
               </pre>

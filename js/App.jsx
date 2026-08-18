@@ -165,6 +165,7 @@ function App() {
   const csvEstatusInputRef = useRef(null);
   const restauroEstatusRef = useRef(0);
   const alineadasEstatusRef = useRef(new Set());
+  const normalizadasImportEstatusRef = useRef(new Set());
   
   const [filtroTiempo, setFiltroTiempo] = useState(() => initialPrefs.filtroTiempo || "TODAS"); 
   const [filtroMarca, setFiltroMarca] = useState(() => initialPrefs.filtroMarca || "TODAS");
@@ -2576,6 +2577,7 @@ function App() {
       const actualizada = marcarTareaPendiente(normalizarTareaCampos({
         ...t,
         info,
+        prioridad: item.prioridadNueva || t.prioridad,
         flujo,
         importKey,
         estado: item.estadoCsv || t.estado,
@@ -2597,6 +2599,45 @@ function App() {
         payload: construirPayloadSyncTarea(original, actualizada, campoSync === "estado"
           ? { campoSync: "estado", valor }
           : { campoSync: "todo" })
+      });
+    });
+    setHayPendientesLocales(true);
+    sincronizarEnSegundoPlano();
+  }, [isDesigner, usuario, tareas]);
+
+  useEffect(() => {
+    if (isDesigner || !usuario) return;
+    if (typeof listarTareasEstatusNormalizarImport !== "function") return;
+    const filas = typeof ESTATUS_LA_SANTE_IMPORT_ROWS !== "undefined" ? ESTATUS_LA_SANTE_IMPORT_ROWS : [];
+    const pendientes = listarTareasEstatusNormalizarImport(tareas, filas).filter((item) => {
+      const key = getTaskSelectionKey(item.tarea);
+      return !normalizadasImportEstatusRef.current.has(key);
+    });
+    if (!pendientes.length) return;
+
+    const keysPlan = new Map(pendientes.map((item) => [getTaskSelectionKey(item.tarea), item]));
+    const cambios = [];
+    const next = tareas.map((t) => {
+      const item = keysPlan.get(getTaskSelectionKey(t));
+      if (!item) return t;
+      normalizadasImportEstatusRef.current.add(getTaskSelectionKey(t));
+      const actualizada = marcarTareaPendiente(normalizarTareaCampos({
+        ...t,
+        info: item.infoNuevo || t.info,
+        prioridad: item.prioridadNueva || t.prioridad
+      }));
+      cambios.push({ original: t, actualizada });
+      return actualizada;
+    });
+    if (!cambios.length) return;
+
+    persistTareas(next);
+    cambios.forEach(({ original, actualizada }) => {
+      encolarSync({
+        type: "update",
+        taskKey: getTaskSelectionKey(actualizada),
+        taskKeyOriginal: getTaskSelectionKey(original),
+        payload: construirPayloadSyncTarea(original, actualizada, { campoSync: "todo" })
       });
     });
     setHayPendientesLocales(true);

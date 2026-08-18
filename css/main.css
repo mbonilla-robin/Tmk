@@ -7803,6 +7803,35 @@
       overflow: hidden;
     }
 
+    .bulk-estatus-organizar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .bulk-estatus-organizar-btn {
+      padding: 0.4rem 0.75rem;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--robin-text-muted, #71717a);
+      background: var(--robin-bg, #fafafa);
+      border: 1px solid var(--robin-border, #e4e4e7);
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+
+    .bulk-estatus-organizar-btn:hover {
+      color: var(--robin-text, #37352f);
+      border-color: var(--robin-border-strong, #d4d4d8);
+    }
+
+    .bulk-estatus-organizar-btn.is-active {
+      color: #fff;
+      background: var(--robin-text, #37352f);
+      border-color: var(--robin-text, #37352f);
+    }
+
     .bulk-estatus-text {
       flex: 1 1 auto;
       min-height: 0;

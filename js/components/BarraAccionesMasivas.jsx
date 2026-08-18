@@ -10,6 +10,7 @@ function BarraAccionesMasivas({
   const [ancla, setAncla] = useState(null);
   const [modalEstatus, setModalEstatus] = useState(false);
   const [textoEstatus, setTextoEstatus] = useState("");
+  const [organizarPor, setOrganizarPor] = useState("subcliente");
   const [copiado, setCopiado] = useState(false);
   const [compartido, setCompartido] = useState(false);
   const barRef = useRef(null);
@@ -88,8 +89,9 @@ function BarraAccionesMasivas({
     setMenuAbierto(null);
   };
 
-  const abrirEstatus = () => {
-    const texto = generarTextoEstatusDesdeSeleccion(tareasSeleccionadas);
+  const abrirEstatus = (modoOrganizar = organizarPor) => {
+    const texto = generarTextoEstatusDesdeSeleccion(tareasSeleccionadas, { organizarPor: modoOrganizar });
+    setOrganizarPor(modoOrganizar);
     setTextoEstatus(texto || "No hay tareas seleccionadas.");
     setCopiado(false);
     setCompartido(false);
@@ -265,6 +267,22 @@ function BarraAccionesMasivas({
             </div>
 
             <div className="bulk-estatus-body">
+              <div className="bulk-estatus-organizar">
+                {(typeof ORGANIZAR_ESTATUS_OPCIONES !== "undefined" ? ORGANIZAR_ESTATUS_OPCIONES : [
+                  { id: "marca", label: "Por marca" },
+                  { id: "subcliente", label: "Por subcliente" },
+                  { id: "persona", label: "Por personas" }
+                ]).map((opcion) => (
+                  <button
+                    key={opcion.id}
+                    type="button"
+                    className={`bulk-estatus-organizar-btn ${organizarPor === opcion.id ? "is-active" : ""}`}
+                    onClick={() => abrirEstatus(opcion.id)}
+                  >
+                    {opcion.label}
+                  </button>
+                ))}
+              </div>
               <pre className="bulk-estatus-text">{textoEstatus}</pre>
 
               <div className="bulk-estatus-actions">

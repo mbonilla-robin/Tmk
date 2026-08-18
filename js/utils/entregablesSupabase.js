@@ -15,14 +15,19 @@ function claveEntregableMigracion(tarea) {
 
 function idTareaEstableEntregable(tarea) {
   const raw = String(tarea?.idTarea || "").trim();
-  if (raw && typeof isValidIdTarea === "function" && isValidIdTarea(raw)) return raw;
-  if (raw.startsWith("STB-") || raw.startsWith("IMP-")) return raw;
+  if (raw) return raw;
   if (typeof getTaskSelectionKey === "function") {
     const key = String(getTaskSelectionKey(tarea) || "").trim();
     if (key) return key.slice(0, 120);
   }
   const marca = String(tarea?.marca || "TSK").substring(0, 3).toUpperCase().replace(/[^A-Z]/g, "X");
-  return `STB-${marca}-${Date.now().toString(36)}`;
+  const semilla = `${marca}|${tarea?.info || ""}|${tarea?.subcliente || ""}`;
+  let hash = 0;
+  for (let i = 0; i < semilla.length; i += 1) {
+    hash = ((hash << 5) - hash) + semilla.charCodeAt(i);
+    hash |= 0;
+  }
+  return `STB-${marca}-${Math.abs(hash) % 100000}`;
 }
 
 function tareaDesdeFilaSupabase(row) {
@@ -318,10 +323,10 @@ async function procesarColaEntregablesSupabase(cola, usuario) {
     }
     const local = locales.find((t) => typeof tareaCoincideConOperacionSync === "function" && tareaCoincideConOperacionSync(t, op));
     const payload = op.payload || {};
-    const tarea = local || {
+    const base = local || {
       idTarea: payload.idTarea || op.taskKey,
       marca: payload.marca,
-      info: payload.info,
+      info: payload.originalInfo || payload.info,
       categoria: payload.categoria,
       personas: payload.personas,
       detalles: payload.detalles,
@@ -331,7 +336,10 @@ async function procesarColaEntregablesSupabase(cola, usuario) {
       prioridad: payload.prioridad,
       importKey: payload.importKey
     };
-    upserts.push({ op, tarea });
+    upserts.push({
+      op,
+      tarea: { ...base, idTarea: idTareaEstableEntregable(base) }
+    });
   });
 
   if (upserts.length) {

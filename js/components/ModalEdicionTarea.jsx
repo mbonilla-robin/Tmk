@@ -49,7 +49,11 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   const [guardando, setGuardando] = useState(false);
   const [copiadoEnlace, setCopiadoEnlace] = useState(false);
   const [historialAbierto, setHistorialAbierto] = useState(false);
+  const [autosaveEstado, setAutosaveEstado] = useState("");
   const titleRef = useRef(null);
+  const listoAutosaveRef = useRef(false);
+  const persistirCambiosRef = useRef(null);
+  const taskKey = getTaskSelectionKey(tarea);
 
   const filasTitulo = useMemo(() => {
     if (!info) return 2;
@@ -108,6 +112,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   );
 
   useEffect(() => {
+    if (!listoAutosaveRef.current) return;
     const detalles = tarea.detalles || "";
     const parsedDetalles = parseDetalles(detalles);
     let categoriaInicial = tarea.categoria || "";
@@ -147,19 +152,8 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     setSubtareas(parsedDetalles.subtareas);
     setLink(parsedDetalles.link || "");
     setSubcliente(obtenerSubclienteTarea(tarea) || parsedDetalles.subcliente || "");
-  }, [
-    tarea.idTarea,
-    tarea.info,
-    tarea.categoria,
-    tarea.marca,
-    tarea.prioridad,
-    tarea.estado,
-    tarea.deadline,
-    tarea.fechaInicio,
-    tarea.personas,
-    tarea.detalles,
-    tarea.subcliente
-  ]);
+    setAutosaveEstado("");
+  }, [taskKey]);
 
   const estadoVisual = useMemo(() => {
     return ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(estado)) || ESTADOS_MAPA[0];
@@ -202,64 +196,110 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    await persistirCambios({ keepOpen: true });
+  };
+
+  const armarTareaDesdeFormulario = () => {
     const tFinal = serializarConMeta(notes, subtareas, parsed.historial, link, subcliente);
     const subclienteNorm = normalizarNombreSubcliente(subcliente);
 
     if (soloLectura || modoDisenador) {
-      const tareaPreparada = prepararTareaConCategoria({
-        ...tarea,
-        ...(modoDisenador ? { estado: normalizarEstado(estado) } : {}),
-        subcliente: subclienteNorm,
-        detalles: tFinal
-      });
-      setGuardando(true);
-      try {
-        await Promise.resolve(onSave(tareaPreparada));
-      } finally {
-        setGuardando(false);
-      }
-      return;
+      return {
+        ok: true,
+        tarea: prepararTareaConCategoria({
+          ...tarea,
+          ...(modoDisenador ? { estado: normalizarEstado(estado) } : {}),
+          subcliente: subclienteNorm,
+          detalles: tFinal
+        })
+      };
     }
 
     const fechaNorm = normalizarDeadline(deadline);
     if (!fechaNorm) {
-      setDeadlineError(deadline.trim() ? "Fecha no válida. Ej: 16/06/2026" : "La fecha de entrega es obligatoria");
-      return;
+      return {
+        ok: false,
+        deadlineError: deadline.trim() ? "Fecha no válida. Ej: 16/06/2026" : "La fecha de entrega es obligatoria"
+      };
     }
     const inicioNorm = fechaInicio.trim()
       ? normalizarDeadline(fechaInicio)
       : normalizarDeadline(resolverFechaInicioTarea({ ...tarea, detalles: tFinal }) || fechaHoyDisplay());
     if (!inicioNorm) {
-      setFechaInicioError("Fecha no válida. Ej: 16/06/2026");
-      return;
+      return { ok: false, fechaInicioError: "Fecha no válida. Ej: 16/06/2026" };
     }
     if (inicioNorm && obtenerTiempoFecha(inicioNorm) > obtenerTiempoFecha(fechaNorm)) {
-      setFechaInicioError("El inicio no puede ser después de la entrega");
-      return;
+      return { ok: false, fechaInicioError: "El inicio no puede ser después de la entrega" };
+    }
+    const personas = combinarRolesPersonas(personasEjecutivos, personasContenido, personasDisenadores);
+    return {
+      ok: true,
+      tarea: prepararTareaConCategoria({
+        ...tarea,
+        info: info.trim(),
+        categoria,
+        subcliente: subclienteNorm,
+        marca: normalizarMarca(marca),
+        prioridad: normalizarPrioridad(prioridad),
+        estado: normalizarEstado(estado),
+        deadline: fechaNorm,
+        fechaInicio: inicioNorm,
+        personas,
+        detalles: tFinal
+      })
+    };
+  };
+
+  const persistirCambios = async (opciones = {}) => {
+    const resultado = armarTareaDesdeFormulario();
+    if (!resultado.ok) {
+      setDeadlineError(resultado.deadlineError || "");
+      setFechaInicioError(resultado.fechaInicioError || "");
+      return false;
     }
     setDeadlineError("");
     setFechaInicioError("");
-    const personas = combinarRolesPersonas(personasEjecutivos, personasContenido, personasDisenadores);
-    const tareaPreparada = prepararTareaConCategoria({
-      ...tarea,
-      info: info.trim(),
-      categoria,
-      subcliente: subclienteNorm,
-      marca: normalizarMarca(marca),
-      prioridad: normalizarPrioridad(prioridad),
-      estado: normalizarEstado(estado),
-      deadline: fechaNorm,
-      fechaInicio: inicioNorm,
-      personas,
-      detalles: tFinal
-    });
-    setGuardando(true);
+    setAutosaveEstado("saving");
     try {
-      await Promise.resolve(onSave(tareaPreparada));
-    } finally {
-      setGuardando(false);
+      await Promise.resolve(onSave(resultado.tarea, { keepOpen: true, silencioso: true, ...opciones }));
+      setAutosaveEstado("saved");
+      return true;
+    } catch (err) {
+      setAutosaveEstado("error");
+      return false;
     }
   };
+  persistirCambiosRef.current = persistirCambios;
+
+  useEffect(() => {
+    if (soloLectura && !modoDisenador) return undefined;
+    if (!listoAutosaveRef.current) {
+      listoAutosaveRef.current = true;
+      return undefined;
+    }
+    setAutosaveEstado("saving");
+    const timer = setTimeout(() => {
+      if (typeof persistirCambiosRef.current === "function") persistirCambiosRef.current();
+    }, 550);
+    return () => clearTimeout(timer);
+  }, [
+    info,
+    categoria,
+    marca,
+    prioridad,
+    estado,
+    deadline,
+    fechaInicio,
+    personasEjecutivos,
+    personasContenido,
+    personasDisenadores,
+    notes,
+    subtareas,
+    link,
+    subcliente,
+    soloLectura,
+    modoDisenador
+  ]);
 
   const inputPropClass = "w-full bg-transparent border-0 text-ui-sm text-[#37352F] focus:outline-none cursor-pointer font-medium";
   const inputPropTextClass = "w-full bg-transparent border-0 text-ui-sm text-[#37352F] focus:outline-none font-medium placeholder-zinc-400";
@@ -277,7 +317,8 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     });
     setGuardando(true);
     try {
-      await Promise.resolve(onSave(tareaPreparada));
+      await Promise.resolve(onSave(tareaPreparada, { keepOpen: true, silencioso: true }));
+      setAutosaveEstado("saved");
     } finally {
       setGuardando(false);
     }
@@ -669,21 +710,17 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
                 {copiadoEnlace ? "Copiado" : "Compartir"}
               </button>
             </div>
-            <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-3 py-1.5 text-ui-sm font-medium text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 rounded transition-colors"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={guardando}
-              className="px-4 py-1.5 bg-[#37352F] text-white text-ui-sm font-medium rounded hover:bg-[#2c2a26] disabled:opacity-50 transition-colors min-w-[88px]"
-            >
-              {guardando ? "Guardando…" : "Guardar"}
-            </button>
+            <div className="flex items-center gap-3">
+              <span className="text-[11px] text-zinc-400 min-w-[72px]">
+                {autosaveEstado === "saving" ? "Guardando…" : autosaveEstado === "saved" ? "Guardado" : autosaveEstado === "error" ? "No se pudo guardar" : ""}
+              </span>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-3 py-1.5 text-ui-sm font-medium text-zinc-500 hover:text-zinc-800 hover:bg-zinc-50 rounded transition-colors"
+              >
+                Cerrar
+              </button>
             </div>
           </div>
         </form>

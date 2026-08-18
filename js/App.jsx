@@ -1830,7 +1830,7 @@ function App() {
     }
   };
 
-  const sincronizarEnSegundoPlano = () => {
+  const sincronizarEnSegundoPlano = (opciones = {}) => {
     if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
     syncTimerRef.current = setTimeout(async () => {
       const backendOk = typeof backendRobinListo === "function"
@@ -1863,15 +1863,17 @@ function App() {
           setApiError((prev) => prev || "Cambios pendientes de guardar");
           setApiErrorDetail((prev) => prev || detalle);
         } else if (totalProcessed > 0) {
-          showToast(`${totalProcessed} cambio(s) guardados`, "success");
-          await new Promise((resolve) => setTimeout(resolve, 800));
+          if (!opciones.silencioso) {
+            showToast(`${totalProcessed} cambio(s) guardados`, "success");
+            await new Promise((resolve) => setTimeout(resolve, 800));
+          }
           setApiError(null);
           setApiErrorDetail("");
         }
-        await fetchData(true);
+        if (!opciones.sinRecarga) await fetchData(true);
         if (cargarColaSync().length > 0) {
           syncTimerRef.current = setTimeout(() => {
-            if (!syncMutexRef.current) sincronizarEnSegundoPlano();
+            if (!syncMutexRef.current) sincronizarEnSegundoPlano(opciones);
           }, 2500);
         }
       } catch (e) {
@@ -1894,7 +1896,9 @@ function App() {
     const index = encontrarIndiceTarea(tareas, original);
     if (index === -1) return;
 
-    const taskTargetId = original.idTarea || generateBrandId(original.marca);
+    const taskTargetId = original.idTarea
+      || (typeof idTareaEstableEntregable === "function" ? idTareaEstableEntregable(original) : "")
+      || original.idTarea;
     const taskKeyOriginal = getTaskSelectionKey(original);
 
     let detallesConHistorial = original.detalles || "";
@@ -1938,7 +1942,7 @@ function App() {
       payload: construirPayloadSyncTarea(original, actualizada, { campoSync, valor: valorFinal })
     });
     setHayPendientesLocales(true);
-    sincronizarEnSegundoPlano();
+    sincronizarEnSegundoPlano({ silencioso: true, sinRecarga: true });
   };
 
   const handleEnviarEstatusCliente = (tarea, tipo) => {
@@ -2104,7 +2108,9 @@ function App() {
     [tareas, tareasSeleccionadas]
   );
 
-  const handleSaveTaskModal = async (editedTask) => {
+  const handleSaveTaskModal = async (editedTask, opciones = {}) => {
+    const keepOpen = Boolean(opciones.keepOpen);
+    const silencioso = Boolean(opciones.silencioso) || keepOpen;
     if (guardandoRef.current) return;
     guardandoRef.current = true;
 
@@ -2112,20 +2118,55 @@ function App() {
       const original = resolverTareaActual(tareas, editedTask);
       const index = encontrarIndiceTarea(tareas, original);
       if (index === -1) {
-        showToast("No se encontró el entregable para guardar", "error");
+        if (!silencioso) showToast("No se encontró el entregable para guardar", "error");
         return;
       }
+
+      const parsedOrig = typeof parseDetalles === "function"
+        ? parseDetalles(original.detalles || "")
+        : { notas: original.detalles || "", subtareas: [], historial: [], importKey: original.importKey };
+      const parsedEdit = typeof parseDetalles === "function"
+        ? parseDetalles(editedTask.detalles || "")
+        : { notas: editedTask.detalles || "", subtareas: [], historial: [], importKey: editedTask.importKey };
+      const importKey = (typeof obtenerImportKeyTarea === "function" ? obtenerImportKeyTarea(original) : "")
+        || parsedOrig.importKey
+        || parsedEdit.importKey
+        || original.importKey
+        || "";
+      const idEstable = original.idTarea
+        || (typeof idTareaEstableEntregable === "function" ? idTareaEstableEntregable(original) : "")
+        || editedTask.idTarea;
+
+      const serializarDetallesGuardado = (notasVal, subtareasVal, historialVal, linkVal, subclienteVal, flujoVal) => (
+        typeof serializeDetalles === "function"
+          ? serializeDetalles(notasVal, subtareasVal, historialVal, linkVal, subclienteVal, {
+            flujo: flujoVal || parsedEdit.flujo || parsedOrig.flujo || "",
+            importKey
+          })
+          : (editedTask.detalles || original.detalles || "")
+      );
 
       if (isDesigner) {
         const estadoCambio = normalizarEstado(original.estado) !== normalizarEstado(editedTask.estado);
         const hoy = new Date();
         const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, "0")}`;
-        let detallesFinal = editedTask.detalles || original.detalles || "";
+        const historial = [...(parsedOrig.historial || [])];
         if (estadoCambio) {
-          detallesFinal += `\n• [${timestamp}] Estado cambiado a "${normalizarEstado(editedTask.estado)}" por @${usuario}`;
+          const linea = `• [${timestamp}] Estado cambiado a "${normalizarEstado(editedTask.estado)}" por @${usuario}`;
+          if (historial[historial.length - 1] !== linea) historial.push(linea);
         }
+        const detallesFinal = serializarDetallesGuardado(
+          parsedEdit.notas || parsedEdit.notes,
+          parsedEdit.subtareas || [],
+          historial,
+          parsedEdit.link || original.link,
+          parsedEdit.subcliente || original.subcliente,
+          parsedEdit.flujo
+        );
         const taskConDetalles = marcarTareaPendiente(normalizarTareaCampos({
           ...original,
+          idTarea: idEstable,
+          importKey,
           ...(estadoCambio ? { estado: normalizarEstado(editedTask.estado) } : {}),
           detalles: detallesFinal
         }));
@@ -2150,16 +2191,17 @@ function App() {
           notificarCambioEstadoTarea(taskConFlujo, usuario, original.estado, editedTask.estado)
             .then(() => refrescarNotificaciones());
         }
-        setIsEditing(false);
-        setActiveTask(null);
-        showToast(estadoCambio ? "Estado actualizado" : "Notas guardadas", "success");
-        sincronizarEnSegundoPlano();
+        if (!keepOpen) {
+          setIsEditing(false);
+          setActiveTask(null);
+        }
+        if (!silencioso) showToast(estadoCambio ? "Estado actualizado" : "Notas guardadas", "success");
+        sincronizarEnSegundoPlano({ silencioso: true, sinRecarga: keepOpen });
         return;
       }
 
       const hoy = new Date();
-      const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
-      let detallesAudoria = editedTask.detalles || "";
+      const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, "0")}`;
       const cambios = [];
       if (original.info !== editedTask.info && tituloLimpioTarea(original) !== tituloLimpioTarea(editedTask)) cambios.push("título");
       if (original.categoria !== editedTask.categoria) cambios.push("categoría");
@@ -2171,13 +2213,24 @@ function App() {
       const prioridadNormalizada = normalizarPrioridad(editedTask.prioridad);
       if (normalizarPrioridad(original.prioridad) !== prioridadNormalizada) cambios.push("prioridad");
 
+      const historial = [...(parsedOrig.historial || [])];
       if (cambios.length > 0) {
-        detallesAudoria += `\n• [${timestamp}] Editado (${cambios.join(", ")}) por @${usuario}`;
+        const linea = `• [${timestamp}] Editado (${cambios.join(", ")}) por @${usuario}`;
+        if (historial[historial.length - 1] !== linea) historial.push(linea);
       }
+      const detallesAudoria = serializarDetallesGuardado(
+        parsedEdit.notas || parsedEdit.notes,
+        parsedEdit.subtareas || [],
+        historial,
+        parsedEdit.link || original.link,
+        parsedEdit.subcliente || editedTask.subcliente || original.subcliente,
+        parsedEdit.flujo
+      );
 
       let taskConHistorial = marcarTareaPendiente(normalizarTareaCampos(prepararTareaConCategoria({
         ...editedTask,
-        idTarea: original.idTarea,
+        idTarea: idEstable,
+        importKey,
         prioridad: prioridadNormalizada,
         fechaInicio: normalizarDeadline(editedTask.fechaInicio || resolverFechaInicioTarea(editedTask) || fechaHoyDisplay()),
         detalles: detallesAudoria
@@ -2226,11 +2279,13 @@ function App() {
         return registrarCategoriasEnLista(prev, [{ nombre: parsed.principal, color: asignarColorCategoria(parsed.principal, prev) }]);
       });
 
-      setIsEditing(false);
-      setActiveTask(null);
-      sincronizarEnSegundoPlano();
+      if (!keepOpen) {
+        setIsEditing(false);
+        setActiveTask(null);
+      }
+      sincronizarEnSegundoPlano({ silencioso: true, sinRecarga: keepOpen });
     } finally {
-      setTimeout(() => { guardandoRef.current = false; }, 250);
+      guardandoRef.current = false;
     }
   };
 

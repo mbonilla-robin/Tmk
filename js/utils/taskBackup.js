@@ -156,11 +156,16 @@ function construirPayloadSyncTarea(original, actualizada, opciones = {}) {
     act.fechaInicio || orig.fechaInicio || resolverFechaInicioTarea(act) || ""
   );
 
-  const idApi = idTareaParaApi(orig) || idTareaParaApi(act);
+  const idApi = String(orig.idTarea || act.idTarea || "").trim()
+    || (typeof idTareaEstableEntregable === "function" ? idTareaEstableEntregable(act) : "")
+    || idTareaParaApi(orig)
+    || idTareaParaApi(act);
 
-    const info = typeof infoTareaUnicaParaSheet === "function"
-      ? infoTareaUnicaParaSheet(act)
-      : (act.info || orig.info);
+    const info = (typeof entregablesSupabaseListos === "function" && entregablesSupabaseListos())
+      ? (act.info || orig.info)
+      : (typeof infoTareaUnicaParaSheet === "function"
+        ? infoTareaUnicaParaSheet(act)
+        : (act.info || orig.info));
 
     const payload = {
       marca: marcaParaSheet(act.marca || orig.marca),
@@ -587,12 +592,12 @@ function fusionarTareasRemotasYLocales(remotas, locales) {
   });
 
   localesConPins.forEach((t) => {
-    const idRaw = String(t.idTarea || "").trim();
-    const tieneImport = typeof obtenerImportKeyTarea === "function" && obtenerImportKeyTarea(t);
-    const esImportLocal = idRaw.startsWith("STB-") || idRaw.startsWith("IMP-") || Boolean(tieneImport);
-    if (!tareaEsPendienteLocal(t) && !tareaTieneFechasLocalesPendientes(t) && !esImportLocal) return;
     const key = getTaskSelectionKey(t);
-    if (!mapa.has(key)) mapa.set(key, normalizarTareaCampos(t));
+    if (mapa.has(key)) return;
+    const yaRemota = Array.from(mapa.values()).some((r) => sonLaMismaTarea(r, t, { estricto: false }));
+    if (yaRemota) return;
+    if (!tareaEsPendienteLocal(t) && !tareaTieneFechasLocalesPendientes(t)) return;
+    mapa.set(key, normalizarTareaCampos(t));
   });
 
   localesConPins.forEach((local) => {
@@ -642,6 +647,7 @@ function payloadSyncComoCreacion(payload) {
 }
 
 function repararColaSyncActualizacionesFantasma() {
+  if (typeof entregablesSupabaseListos === "function" && entregablesSupabaseListos()) return false;
   const cola = cargarColaSync();
   let cambio = false;
   const reparada = cola.map((op) => {

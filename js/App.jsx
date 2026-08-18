@@ -4016,7 +4016,7 @@ function App() {
         <ModalPortal>
           <ModalEdicionTarea 
             key={getTaskSelectionKey(activeTask)}
-            tarea={normalizarTareaCampos(resolverTareaActual(tareas, activeTask))}
+            tarea={normalizarTareaCampos(resolverTareaActual(tareas, activeTask) || activeTask)}
             onClose={() => { setIsEditing(false); setActiveTask(null); }}
             onSave={handleSaveTaskModal}
             listaPersonas={listaPersonas}

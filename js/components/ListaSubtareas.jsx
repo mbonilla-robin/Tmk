@@ -1,49 +1,50 @@
 function ListaSubtareas({ subtareas, onChange }) {
+  const lista = Array.isArray(subtareas) ? subtareas : [];
   const [nuevoSubtareaText, setNuevoSubtareaText] = useState("");
   const [completadasAbiertas, setCompletadasAbiertas] = useState(false);
 
-  const subtareasCompletadas = useMemo(() => subtareas.filter(s => s.completed).length, [subtareas]);
-  const subtareasProgreso = subtareas.length > 0 ? (subtareasCompletadas / subtareas.length) * 100 : 0;
+  const subtareasCompletadas = useMemo(() => lista.filter(s => s.completed).length, [lista]);
+  const subtareasProgreso = lista.length > 0 ? (subtareasCompletadas / lista.length) * 100 : 0;
 
   const { pendientes, completadas } = useMemo(() => {
     const pend = [];
     const comp = [];
-    subtareas.forEach((s, index) => {
+    lista.forEach((s, index) => {
       const item = { ...s, index };
       if (s.completed) comp.push(item);
       else pend.push(item);
     });
     return { pendientes: pend, completadas: comp };
-  }, [subtareas]);
+  }, [lista]);
 
   const handleAddSubtarea = (e) => {
     e.preventDefault();
     if (!nuevoSubtareaText.trim()) return;
-    onChange([...subtareas, { text: nuevoSubtareaText.trim(), completed: false }]);
+    onChange([...lista, { text: nuevoSubtareaText.trim(), completed: false }]);
     setNuevoSubtareaText("");
   };
 
   const handleToggleSubtarea = (index) => {
-    onChange(subtareas.map((s, i) => i === index ? { ...s, completed: !s.completed } : s));
+    onChange(lista.map((s, i) => i === index ? { ...s, completed: !s.completed } : s));
   };
 
   const handleEditSubtarea = (index, text) => {
-    onChange(subtareas.map((s, i) => i === index ? { ...s, text } : s));
+    onChange(lista.map((s, i) => i === index ? { ...s, text } : s));
   };
 
   const handleBlurSubtarea = (index, text) => {
     const trimmed = text.trim();
     if (!trimmed) {
-      onChange(subtareas.filter((_, i) => i !== index));
+      onChange(lista.filter((_, i) => i !== index));
       return;
     }
-    if (trimmed !== subtareas[index].text) {
-      onChange(subtareas.map((s, i) => i === index ? { ...s, text: trimmed } : s));
+    if (trimmed !== lista[index].text) {
+      onChange(lista.map((s, i) => i === index ? { ...s, text: trimmed } : s));
     }
   };
 
   const handleDeleteSubtarea = (index) => {
-    onChange(subtareas.filter((_, i) => i !== index));
+    onChange(lista.filter((_, i) => i !== index));
   };
 
   const renderSubtarea = (s, { secundaria = false } = {}) => (
@@ -92,14 +93,14 @@ function ListaSubtareas({ subtareas, onChange }) {
           <i className="fa-regular fa-square-check text-zinc-400 text-[11px]" />
           <span>Subtareas</span>
         </div>
-        {subtareas.length > 0 && (
+        {lista.length > 0 && (
           <span className="text-[11px] text-zinc-400 tabular-nums">
-            {subtareasCompletadas}/{subtareas.length}
+            {subtareasCompletadas}/{lista.length}
           </span>
         )}
       </div>
 
-      {subtareas.length > 0 && (
+      {lista.length > 0 && (
         <div className="h-0.5 bg-zinc-100 rounded-full mb-3 overflow-hidden">
           <div
             className="h-full bg-emerald-400 rounded-full transition-all duration-300"

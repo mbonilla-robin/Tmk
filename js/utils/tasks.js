@@ -431,6 +431,7 @@ function limpiarFechasLocalesSiConfirmadas(tarea, remota) {
 }
 
 function normalizarTareaCampos(t) {
+  if (!t || typeof t !== "object") return t || {};
   const subcliente = typeof obtenerSubclienteTarea === "function"
     ? obtenerSubclienteTarea(t)
     : (typeof obtenerSubclienteDesdeDetalles === "function"

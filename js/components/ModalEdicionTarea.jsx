@@ -10,16 +10,43 @@ function PropertyRow({ icon, label, children }) {
   );
 }
 
-function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNuevaPersona, listaCategorias, registrarNuevaCategoria, listaSubclientes, registrarNuevoSubcliente, marcasDisponibles, usuario, nombreUsuario, onComentarioPublicado, onToast, soloLectura = false, modoDisenador = false, tareas = [], relacionesTareas = [], onRelacionCreada, onAbrirTareaRelacionada, getMarcaStyle }) {
+function parseDetallesSeguro(raw) {
+  try {
+    if (typeof parseDetalles === "function") {
+      const parsed = parseDetalles(raw || "") || {};
+      return {
+        notes: parsed.notes || parsed.notas || "",
+        notas: parsed.notas || parsed.notes || "",
+        subtareas: Array.isArray(parsed.subtareas) ? parsed.subtareas : [],
+        historial: Array.isArray(parsed.historial) ? parsed.historial : [],
+        link: parsed.link || "",
+        subcliente: parsed.subcliente || "",
+        flujo: parsed.flujo || "",
+        importKey: parsed.importKey || ""
+      };
+    }
+  } catch (err) {
+    console.warn("ROBIN: no se pudieron leer los detalles del entregable", err);
+  }
+  return { notes: "", notas: "", subtareas: [], historial: [], link: "", subcliente: "", flujo: "", importKey: "" };
+}
+
+function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, listaPersonas, registrarNuevaPersona, listaCategorias, registrarNuevaCategoria, listaSubclientes, registrarNuevoSubcliente, marcasDisponibles, usuario, nombreUsuario, onComentarioPublicado, onToast, soloLectura = false, modoDisenador = false, tareas = [], relacionesTareas = [], onRelacionCreada, onAbrirTareaRelacionada, getMarcaStyle }) {
+  const tarea = tareaProp && typeof tareaProp === "object" ? tareaProp : {};
   const resolverEstadoInicial = () => {
     let categoriaInicial = tarea.categoria || "";
-    let infoInicial = extraerTituloLimpio(tarea.info, tarea.categoria);
-    if (!parseCategoriasTarea(categoriaInicial).principal) {
+    let infoInicial = typeof extraerTituloLimpio === "function"
+      ? extraerTituloLimpio(tarea.info, tarea.categoria)
+      : String(tarea.info || "");
+    if (typeof parseCategoriasTarea === "function" && !parseCategoriasTarea(categoriaInicial).principal) {
       const match = String(tarea.info || "").match(/^([^|]+)\s*\|\s*(.+)$/);
       if (match) {
-        const inferida = resolverCategoriaCanonica(match[1]) || normalizarNombreCategoria(match[1]);
+        const inferida = (typeof resolverCategoriaCanonica === "function" && resolverCategoriaCanonica(match[1]))
+          || (typeof normalizarNombreCategoria === "function" && normalizarNombreCategoria(match[1]));
         if (inferida) {
-          categoriaInicial = serializarCategoriasTarea(inferida, parseCategoriasTarea(categoriaInicial).subcategorias);
+          categoriaInicial = typeof serializarCategoriasTarea === "function"
+            ? serializarCategoriasTarea(inferida, parseCategoriasTarea(categoriaInicial).subcategorias)
+            : inferida;
           infoInicial = match[2].trim();
         }
       }
@@ -27,17 +54,40 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     return { infoInicial, categoriaInicial };
   };
 
-  const inicial = resolverEstadoInicial();
+  let inicial = { infoInicial: String(tarea.info || ""), categoriaInicial: tarea.categoria || "" };
+  try {
+    inicial = resolverEstadoInicial();
+  } catch (err) {
+    console.warn("ROBIN: no se pudo resolver el título del entregable", err);
+  }
+  const detallesIniciales = parseDetallesSeguro(tarea.detalles || "");
   const [info, setInfo] = useState(inicial.infoInicial);
   const [categoria, setCategoria] = useState(inicial.categoriaInicial);
-  const [marca, setMarca] = useState(normalizarMarca(tarea.marca));
-  const [prioridad, setPrioridad] = useState(normalizarPrioridad(tarea.prioridad));
-  const [estado, setEstado] = useState(normalizarEstado(tarea.estado));
-  const [deadline, setDeadline] = useState(deadlineParaEdicion(tarea.deadline));
-  const [fechaInicio, setFechaInicio] = useState(() => deadlineParaEdicion(resolverFechaInicioTarea(tarea) || tarea.fechaInicio));
+  const [marca, setMarca] = useState(() => {
+    try { return normalizarMarca(tarea.marca); } catch (_) { return tarea.marca || ""; }
+  });
+  const [prioridad, setPrioridad] = useState(() => {
+    try { return normalizarPrioridad(tarea.prioridad); } catch (_) { return tarea.prioridad || ""; }
+  });
+  const [estado, setEstado] = useState(() => {
+    try { return normalizarEstado(tarea.estado); } catch (_) { return tarea.estado || ""; }
+  });
+  const [deadline, setDeadline] = useState(() => {
+    try { return deadlineParaEdicion(tarea.deadline); } catch (_) { return tarea.deadline || ""; }
+  });
+  const [fechaInicio, setFechaInicio] = useState(() => {
+    try { return deadlineParaEdicion(resolverFechaInicioTarea(tarea) || tarea.fechaInicio); } catch (_) { return ""; }
+  });
   const [deadlineError, setDeadlineError] = useState("");
   const [fechaInicioError, setFechaInicioError] = useState("");
-  const rolesIniciales = dividirCampoPersonasPorRol(tarea.personas || "");
+  let rolesIniciales = { ejecutivos: "", contenido: "", disenadores: "" };
+  try {
+    if (typeof dividirCampoPersonasPorRol === "function") {
+      rolesIniciales = dividirCampoPersonasPorRol(tarea.personas || "") || rolesIniciales;
+    }
+  } catch (err) {
+    console.warn("ROBIN: no se pudieron leer las personas del entregable", err);
+  }
   const [personasEjecutivos, setPersonasEjecutivos] = useState(rolesIniciales.ejecutivos);
   const [personasContenido, setPersonasContenido] = useState(rolesIniciales.contenido);
   const [personasDisenadores, setPersonasDisenadores] = useState(rolesIniciales.disenadores);
@@ -50,10 +100,21 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   const [copiadoEnlace, setCopiadoEnlace] = useState(false);
   const [historialAbierto, setHistorialAbierto] = useState(false);
   const [autosaveEstado, setAutosaveEstado] = useState("");
+  const [notes, setNotes] = useState(detallesIniciales.notes || detallesIniciales.notas || "");
+  const [subtareas, setSubtareas] = useState(() => Array.isArray(detallesIniciales.subtareas) ? detallesIniciales.subtareas : []);
+  const [link, setLink] = useState(detallesIniciales.link || "");
+  const [subcliente, setSubcliente] = useState(() => {
+    try {
+      if (typeof obtenerSubclienteTarea === "function") {
+        return obtenerSubclienteTarea(tarea) || detallesIniciales.subcliente || "";
+      }
+    } catch (_) {}
+    return detallesIniciales.subcliente || "";
+  });
   const titleRef = useRef(null);
   const listoAutosaveRef = useRef(false);
   const persistirCambiosRef = useRef(null);
-  const taskKey = getTaskSelectionKey(tarea);
+  const taskKey = typeof getTaskSelectionKey === "function" ? getTaskSelectionKey(tarea) : String(tarea.idTarea || "");
 
   const filasTitulo = useMemo(() => {
     if (!info) return 2;
@@ -81,7 +142,7 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   const metadatosSoloLectura = soloLectura || modoDisenador;
   const estadosDisponibles = useMemo(() => {
     if (!modoDisenador) return LISTA_ESTADOS_VALIDOS;
-    const base = [...ESTADOS_DISENADOR_PERMITIDOS];
+    const base = Array.isArray(ESTADOS_DISENADOR_PERMITIDOS) ? [...ESTADOS_DISENADOR_PERMITIDOS] : [];
     const actual = normalizarEstado(estado);
     if (actual && !base.some((e) => cleanEstado(e) === cleanEstado(actual))) {
       base.unshift(actual);
@@ -89,32 +150,34 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     return base;
   }, [modoDisenador, estado]);
 
-  const listaEjecutivos = useMemo(
-    () => fusionarListasPersonas(obtenerListaEjecutivosActiva(), partesCampoPersonas(personasEjecutivos)),
-    [personasEjecutivos]
-  );
-  const listaContenido = useMemo(
-    () => fusionarListasPersonas(obtenerListaContenidoActiva(), partesCampoPersonas(personasContenido)),
-    [personasContenido]
-  );
-  const listaDisenadores = useMemo(
-    () => fusionarListasPersonas(obtenerListaDisenadoresActiva(), partesCampoPersonas(personasDisenadores)),
-    [personasDisenadores]
-  );
+  const listaEjecutivos = useMemo(() => {
+    try {
+      return fusionarListasPersonas(obtenerListaEjecutivosActiva(), partesCampoPersonas(personasEjecutivos));
+    } catch (_) {
+      return [];
+    }
+  }, [personasEjecutivos]);
+  const listaContenido = useMemo(() => {
+    try {
+      return fusionarListasPersonas(obtenerListaContenidoActiva(), partesCampoPersonas(personasContenido));
+    } catch (_) {
+      return [];
+    }
+  }, [personasContenido]);
+  const listaDisenadores = useMemo(() => {
+    try {
+      return fusionarListasPersonas(obtenerListaDisenadoresActiva(), partesCampoPersonas(personasDisenadores));
+    } catch (_) {
+      return [];
+    }
+  }, [personasDisenadores]);
 
-  const parsed = useMemo(() => parseDetalles(rawDetalles), [rawDetalles]);
-  
-  const [notes, setNotes] = useState(parsed.notes || parsed.notas);
-  const [subtareas, setSubtareas] = useState(parsed.subtareas);
-  const [link, setLink] = useState(parsed.link || "");
-  const [subcliente, setSubcliente] = useState(
-    () => obtenerSubclienteTarea(tarea) || parsed.subcliente || ""
-  );
+  const parsed = useMemo(() => parseDetallesSeguro(rawDetalles), [rawDetalles]);
 
   useEffect(() => {
     if (!listoAutosaveRef.current) return;
     const detalles = tarea.detalles || "";
-    const parsedDetalles = parseDetalles(detalles);
+    const parsedDetalles = parseDetallesSeguro(detalles);
     let categoriaInicial = tarea.categoria || "";
     let infoInicial = extraerTituloLimpio(tarea.info, tarea.categoria);
 
@@ -148,19 +211,20 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
     setAutoAbrirDisenadores(false);
     setHistorialAbierto(false);
     setRawDetalles(detalles);
-    setNotes(parsedDetalles.notes || parsedDetalles.notas);
-    setSubtareas(parsedDetalles.subtareas);
+    setNotes(parsedDetalles.notes || parsedDetalles.notas || "");
+    setSubtareas(Array.isArray(parsedDetalles.subtareas) ? parsedDetalles.subtareas : []);
     setLink(parsedDetalles.link || "");
     setSubcliente(obtenerSubclienteTarea(tarea) || parsedDetalles.subcliente || "");
     setAutosaveEstado("");
   }, [taskKey]);
 
   const estadoVisual = useMemo(() => {
-    return ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(estado)) || ESTADOS_MAPA[0];
+    const mapa = Array.isArray(ESTADOS_MAPA) ? ESTADOS_MAPA : [];
+    return mapa.find(e => cleanEstado(e.id) === cleanEstado(estado)) || mapa[0] || { id: estado, dot: "" };
   }, [estado]);
 
   const opcionesMarca = useMemo(() => {
-    const base = [...marcasDisponibles];
+    const base = Array.isArray(marcasDisponibles) ? [...marcasDisponibles] : [];
     const actual = normalizarMarca(marca);
     if (actual && !base.some(opt => marcasCoinciden(opt, actual))) {
       base.unshift(actual);

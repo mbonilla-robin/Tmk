@@ -198,20 +198,35 @@ function TareasRelacionadas({
   const [query, setQuery] = useState("");
   const [guardando, setGuardando] = useState(false);
 
-  const relacionadas = useMemo(
-    () => resolverTareasRelacionadas(tarea, tareas, relaciones),
-    [tarea, tareas, relaciones]
-  );
+  const relacionadas = useMemo(() => {
+    try {
+      const lista = resolverTareasRelacionadas(tarea, tareas, relaciones);
+      return Array.isArray(lista) ? lista : [];
+    } catch (_) {
+      return [];
+    }
+  }, [tarea, tareas, relaciones]);
 
-  const hermanas = useMemo(
-    () => listarTareasMismoSubcliente(tarea, tareas, { subcliente, marca }),
-    [tarea, tareas, subcliente, marca]
-  );
+  const hermanas = useMemo(() => {
+    try {
+      if (typeof listarTareasMismoSubcliente === "function") {
+        const lista = listarTareasMismoSubcliente(tarea, tareas, { subcliente, marca });
+        return Array.isArray(lista) ? lista : [];
+      }
+    } catch (err) {
+      console.warn("ROBIN: no se pudieron listar entregables del mismo subcliente", err);
+    }
+    return [];
+  }, [tarea, tareas, subcliente, marca]);
 
-  const resultadosBusqueda = useMemo(
-    () => filtrarTareasParaRelacionar(tareas, tarea, query, relaciones),
-    [tareas, tarea, query, relaciones]
-  );
+  const resultadosBusqueda = useMemo(() => {
+    try {
+      const lista = filtrarTareasParaRelacionar(tareas, tarea, query, relaciones);
+      return Array.isArray(lista) ? lista : [];
+    } catch (_) {
+      return [];
+    }
+  }, [tareas, tarea, query, relaciones]);
 
   const crearRelacion = async (otra) => {
     if (!otra || guardando) return;

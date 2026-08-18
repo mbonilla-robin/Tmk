@@ -1,5 +1,7 @@
 const ROBIN_LINK_RE = /<!--\s*robin-link:([^>]+?)\s*-->/i;
 const ROBIN_SUBCLIENTE_RE = /<!--\s*robin-subcliente:([^>]+?)\s*-->/i;
+const ROBIN_FLUJO_RE = /<!--\s*robin-flujo:([^>]+?)\s*-->/i;
+const ROBIN_IMPORT_KEY_RE = /<!--\s*robin-import-key:([^>]+?)\s*-->/i;
 const HISTORIAL_LINE_RE = /^•\s*\[(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})\]\s*(.+)$/;
 
 function extraerMarcadorLink(text) {
@@ -25,9 +27,33 @@ function extraerMarcadorSubcliente(text) {
   };
 }
 
+function extraerMarcadorFlujo(text) {
+  const raw = String(text || "");
+  const match = raw.match(ROBIN_FLUJO_RE);
+  if (!match) return { flujo: "", resto: raw };
+  return {
+    flujo: String(match[1] || "").trim().toLowerCase(),
+    resto: raw.replace(ROBIN_FLUJO_RE, "").trim()
+  };
+}
+
+function extraerMarcadorImportKey(text) {
+  const raw = String(text || "");
+  const match = raw.match(ROBIN_IMPORT_KEY_RE);
+  if (!match) return { importKey: "", resto: raw };
+  return {
+    importKey: String(match[1] || "").trim(),
+    resto: raw.replace(ROBIN_IMPORT_KEY_RE, "").trim()
+  };
+}
+
 function parseDetalles(detallesRaw) {
   const sinLink = extraerMarcadorLink(detallesRaw || "");
-  const { subcliente, resto } = extraerMarcadorSubcliente(sinLink.resto);
+  const sinSub = extraerMarcadorSubcliente(sinLink.resto);
+  const sinFlujo = extraerMarcadorFlujo(sinSub.resto);
+  const { importKey, resto } = extraerMarcadorImportKey(sinFlujo.resto);
+  const subcliente = sinSub.subcliente;
+  const flujo = sinFlujo.flujo;
   const lines = resto.split("\n");
   const notasLines = [];
   const subtareas = [];
@@ -49,13 +75,15 @@ function parseDetalles(detallesRaw) {
   return {
     link: sinLink.link,
     subcliente,
+    flujo,
+    importKey,
     notas: notasLines.join("\n"),
     subtareas,
     historial
   };
 }
 
-function serializeDetalles(notas, subtareas, historial, link, subcliente) {
+function serializeDetalles(notas, subtareas, historial, link, subcliente, extras) {
   let text = (notas || "").trim();
   if (subtareas && subtareas.length > 0) {
     const subtasksText = subtareas.map(s => `- [${s.completed ? "x" : " "}] ${s.text}`).join("\n");
@@ -72,6 +100,10 @@ function serializeDetalles(notas, subtareas, historial, link, subcliente) {
     ? normalizarNombreSubcliente(subcliente)
     : String(subcliente || "").trim();
   if (subNorm) markers.push(`<!--robin-subcliente:${subNorm}-->`);
+  const flujoNorm = String(extras?.flujo || "").trim().toLowerCase();
+  if (flujoNorm) markers.push(`<!--robin-flujo:${flujoNorm}-->`);
+  const importKeyNorm = String(extras?.importKey || "").trim();
+  if (importKeyNorm) markers.push(`<!--robin-import-key:${importKeyNorm}-->`);
   if (markers.length) {
     const prefix = markers.join("\n");
     text = text ? `${prefix}\n${text}` : prefix;

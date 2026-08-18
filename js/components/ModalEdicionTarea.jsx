@@ -175,7 +175,10 @@ function ModalEdicionTarea({ tarea, onClose, onSave, listaPersonas, registrarNue
   }, [marcasDisponibles, marca]);
 
   const serializarConMeta = (notasVal, subtareasVal, historialVal, linkVal, subclienteVal) =>
-    serializeDetalles(notasVal, subtareasVal, historialVal, linkVal, subclienteVal);
+    serializeDetalles(notasVal, subtareasVal, historialVal, linkVal, subclienteVal, {
+      flujo: parsed.flujo || "",
+      importKey: parsed.importKey || ""
+    });
 
   const handleSubtareasChange = (nuevas) => {
     setSubtareas(nuevas);

@@ -1102,6 +1102,26 @@ function extraerTituloDeInfo_(info) {
   return txt;
 }
 
+function categoriaParaSheetApps_(categoria) {
+  var raw = String(categoria || "").trim();
+  var permitidas = { "Reunión": true, "Solicitud": true, "Visita PDV": true, "Ideas": true, "Otro": true, "Robin": true };
+  if (permitidas[raw]) return raw;
+  var clave = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, "");
+  if (clave === "reunion") return "Reunión";
+  if (clave === "solicitud") return "Solicitud";
+  if (clave === "visitapdv" || clave === "pdv" || clave === "visita") return "Visita PDV";
+  if (clave === "ideas") return "Ideas";
+  if (clave === "robin") return "Robin";
+  if (clave === "otro") return "Otro";
+  return "Solicitud";
+}
+
+function extraerMarcadorDetalles_(detalles, nombre) {
+  var re = new RegExp("robin-" + nombre + ":([^>]+)");
+  var m = String(detalles || "").match(re);
+  return m ? String(m[1] || "").trim() : "";
+}
+
 function buscarFilaTareaEnHoja_(sheet, payload) {
   var lastRow = sheet.getLastRow();
   if (lastRow < 3) return -1;
@@ -1118,21 +1138,41 @@ function buscarFilaTareaEnHoja_(sheet, payload) {
     }
   }
 
+  var importKey = extraerMarcadorDetalles_(payload.detalles, "import-key");
+  if (importKey) {
+    for (i = 0; i < brandData.length; i++) {
+      if (extraerMarcadorDetalles_(brandData[i][5], "import-key") === importKey) return i + 3;
+    }
+  }
+
+  if (payload.esNuevo) return -1;
+
   var valInfo = normalizarTextoBusqueda_(payload.info);
   var valInfoOriginal = normalizarTextoBusqueda_(payload.originalInfo);
   var valCat = normalizarTextoBusqueda_(payload.originalCategoria || payload.categoria);
   var valTitulo = normalizarTextoBusqueda_(extraerTituloDeInfo_(payload.info));
   var valTituloOriginal = normalizarTextoBusqueda_(extraerTituloDeInfo_(payload.originalInfo));
+  var subPayload = extraerMarcadorDetalles_(payload.detalles, "subcliente");
 
   if (valInfoOriginal) {
     for (i = 0; i < brandData.length; i++) {
-      if (normalizarTextoBusqueda_(brandData[i][3]) === valInfoOriginal) return i + 3;
+      if (normalizarTextoBusqueda_(brandData[i][3]) !== valInfoOriginal) continue;
+      if (subPayload) {
+        var subFila = extraerMarcadorDetalles_(brandData[i][5], "subcliente");
+        if (subFila && subFila !== subPayload) continue;
+      }
+      return i + 3;
     }
   }
 
   if (valInfo) {
     for (i = 0; i < brandData.length; i++) {
-      if (normalizarTextoBusqueda_(brandData[i][3]) === valInfo) return i + 3;
+      if (normalizarTextoBusqueda_(brandData[i][3]) !== valInfo) continue;
+      if (subPayload) {
+        var subFila2 = extraerMarcadorDetalles_(brandData[i][5], "subcliente");
+        if (subFila2 && subFila2 !== subPayload) continue;
+      }
+      return i + 3;
     }
   }
 
@@ -1365,6 +1405,8 @@ function doPost(e) {
         // Preservar IDs de presencia; no reemplazarlos por ROB-xxx.
         if (esHeartbeatPresencia) {
           idTarea = idEntranteNuevo;
+        } else if (idEntranteNuevo.indexOf("IMP-") === 0) {
+          idTarea = idEntranteNuevo;
         } else {
           var prefijoNuevo = (marca === "Config_Marcas") ? "WID" : marca.substring(0, 3).toUpperCase();
           idTarea = prefijoNuevo + "-" + Math.floor(100 + Math.random() * 900);
@@ -1381,7 +1423,7 @@ function doPost(e) {
         targetSheet.getRange(targetRow, 6).setValue(payload.detalles || "");
       } else if (campo === "todo") {
         targetSheet.getRange(targetRow, 1).setValue(marca);
-        targetSheet.getRange(targetRow, 2).setValue(payload.categoria || "");
+        targetSheet.getRange(targetRow, 2).setValue(categoriaParaSheetApps_(payload.categoria));
 
         if (payload.fechaInicio !== undefined) {
           if (payload.fechaInicio) {
@@ -1410,7 +1452,7 @@ function doPost(e) {
       var idGenerado = idTarea || (prefijo + "-" + Math.floor(100 + Math.random() * 900));
 
       targetSheet.getRange(targetRow, 1).setValue(marca);
-      targetSheet.getRange(targetRow, 2).setValue(payload.categoria || "");
+      targetSheet.getRange(targetRow, 2).setValue(categoriaParaSheetApps_(payload.categoria));
       if (payload.fechaInicio) {
         setFechaSafe(targetSheet, targetRow, 3, payload.fechaInicio);
       } else {
@@ -1432,8 +1474,10 @@ function doPost(e) {
         .requireValueInList(LISTA_ESTADOS_VALIDOS, true)
         .build();
       targetSheet.getRange(targetRow, 7).setDataValidation(rule);
-      ordenarHojaPorEstado(targetSheet);
-      aplicarEstilosFila(targetSheet);
+      if (!payload.esNuevo) {
+        ordenarHojaPorEstado(targetSheet);
+        aplicarEstilosFila(targetSheet);
+      }
     }
 
     if (!esPresencia) {

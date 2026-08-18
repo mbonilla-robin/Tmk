@@ -121,7 +121,10 @@ function LayoutMarcaHome({
   kanbanOrdenPrioridad,
   onVerFichaCliente,
   onLimpiarFiltros,
-  listaSubclientes = []
+  listaSubclientes = [],
+  mostrarEstatusGeneral = false,
+  listaDisenadores = [],
+  onEnviarCliente
 }) {
   const marcaEstilo = getMarcaStyle(marca);
   const nombreMarca = formatearMarca(marca);
@@ -304,9 +307,26 @@ function LayoutMarcaHome({
     </>
   );
 
+  if (vistaSubpagina === "estatus") {
+    return (
+      <div className="marca-home marca-home--subpage animate-fade-in">
+        <LayoutEstatusGeneral
+          marca={marca}
+          tareas={tareasMarca}
+          onSelectTask={onSelectTask}
+          onBack={() => setVistaSubpagina(null)}
+          nombreMarca={nombreMarca}
+          listaDisenadores={listaDisenadores}
+          puedeEditar={typeof onEnviarCliente === "function"}
+          onEnviarCliente={onEnviarCliente}
+        />
+      </div>
+    );
+  }
+
   if (vistaSubpagina === "info") {
     return (
-      <div className="marca-home animate-fade-in">
+      <div className="marca-home marca-home--subpage animate-fade-in">
         <MobileSubpageBar
           title="Info del cliente"
           onBack={() => setVistaSubpagina(null)}
@@ -394,6 +414,18 @@ function LayoutMarcaHome({
           <span className="marca-home-hero-spacer" aria-hidden="true" />
           <h1 className="marca-home-hero-title">{nombreMarca}</h1>
           <div className="marca-home-hero-actions">
+            {mostrarEstatusGeneral && (
+              <button
+                type="button"
+                onClick={() => setVistaSubpagina("estatus")}
+                className="marca-home-subclientes-btn"
+                title="Estatus general"
+                aria-label="Estatus general"
+              >
+                <i className="fa-solid fa-chart-pie" />
+                <span className="marca-home-subclientes-btn-label">Estatus</span>
+              </button>
+            )}
             {tieneSubclientes && (
               <button
                 type="button"

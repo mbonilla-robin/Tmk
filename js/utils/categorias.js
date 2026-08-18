@@ -38,6 +38,21 @@ const CATEGORIAS_CATALOGO = [
   { nombre: "Otro", color: "zinc", orden: 15 }
 ];
 
+const CATEGORIAS_SHEET_VALIDAS = ["Reunión", "Solicitud", "Visita PDV", "Ideas", "Otro", "Robin"];
+
+function categoriaParaSheet(categoria) {
+  const raw = String(categoria || "").trim();
+  if (CATEGORIAS_SHEET_VALIDAS.includes(raw)) return raw;
+  const clave = claveCategoria(raw);
+  if (clave === "reunion") return "Reunión";
+  if (clave === "solicitud") return "Solicitud";
+  if (clave === "visitapdv" || clave === "pdv" || clave === "visita") return "Visita PDV";
+  if (clave === "ideas") return "Ideas";
+  if (clave === "robin") return "Robin";
+  if (clave === "otro") return "Otro";
+  return "Solicitud";
+}
+
 const CATEGORIAS_INVALIDAS = new Set([
   "pagopendiente",
   "status",

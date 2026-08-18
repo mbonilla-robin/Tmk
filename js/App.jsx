@@ -158,9 +158,13 @@ function App() {
   const [apiErrorDetail, setApiErrorDetail] = useState("");
   const [ultimaSyncOk, setUltimaSyncOk] = useState(null);
   const [hayPendientesLocales, setHayPendientesLocales] = useState(() => calcularHayPendientesLocales());
+  const [importandoEstatus, setImportandoEstatus] = useState(false);
   const syncMutexRef = useRef(false);
   const syncTimerRef = useRef(null);
   const guardandoRef = useRef(false);
+  const csvEstatusInputRef = useRef(null);
+  const restauroEstatusRef = useRef(0);
+  const alineadasEstatusRef = useRef(new Set());
   
   const [filtroTiempo, setFiltroTiempo] = useState(() => initialPrefs.filtroTiempo || "TODAS"); 
   const [filtroMarca, setFiltroMarca] = useState(() => initialPrefs.filtroMarca || "TODAS");
@@ -1983,6 +1987,9 @@ function App() {
       [campo]: valorFinal,
       detalles: campo === "estado" ? detallesConHistorial : original.detalles
     });
+    if (campo === "estado" && typeof aplicarFlujoSegunEstadoEstatus === "function") {
+      actualizada = aplicarFlujoSegunEstadoEstatus(actualizada, valorFinal);
+    }
     if (campo === "deadline" || campo === "fechaInicio") {
       actualizada = registrarEdicionFechasLocales(actualizada, { [campo]: valorFinal });
     }
@@ -1996,7 +2003,9 @@ function App() {
         .then(() => refrescarNotificaciones());
     }
 
-    const campoSync = (campo === "estado" || campo === "deadline" || campo === "prioridad" || campo === "fechaInicio") ? campo : "todo";
+    const campoSync = campo === "estado"
+      ? "todo"
+      : ((campo === "deadline" || campo === "prioridad" || campo === "fechaInicio") ? campo : "todo");
     encolarSync({
       type: "update",
       taskKey: getTaskSelectionKey(actualizada),
@@ -2005,6 +2014,37 @@ function App() {
     });
     setHayPendientesLocales(true);
     sincronizarEnSegundoPlano();
+  };
+
+  const handleEnviarEstatusCliente = (tarea, tipo) => {
+    if (isDesigner) return;
+    if (typeof aplicarEnvioClienteEstatus !== "function") return;
+    const original = resolverTareaActual(tareas, tarea);
+    if (!original) return;
+    const index = encontrarIndiceTarea(tareas, original);
+    if (index === -1) return;
+
+    const actualizada = marcarTareaPendiente(normalizarTareaCampos(
+      aplicarEnvioClienteEstatus(original, tipo, usuario)
+    ));
+    const temp = [...tareas];
+    temp[index] = actualizada;
+    persistTareas(temp);
+
+    if (normalizarEstado(original.estado) !== normalizarEstado(actualizada.estado)) {
+      notificarCambioEstadoTarea(actualizada, usuario, original.estado, actualizada.estado)
+        .then(() => refrescarNotificaciones());
+    }
+
+    encolarSync({
+      type: "update",
+      taskKey: getTaskSelectionKey(actualizada),
+      taskKeyOriginal: getTaskSelectionKey(original),
+      payload: construirPayloadSyncTarea(original, actualizada, { campoSync: "todo" })
+    });
+    setHayPendientesLocales(true);
+    sincronizarEnSegundoPlano();
+    showToast(tipo === "propuesta" ? "Propuesta enviada. Quedó en espera de comentarios." : "Arte final enviado. Tarea completada.", "success");
   };
 
   const handleConfirmComplete = async () => {
@@ -2019,11 +2059,14 @@ function App() {
       const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, "0")}`;
       let detalles = original.detalles || "";
       detalles += `\n• [${timestamp}] Estado cambiado a "Completada" por @${usuario}`;
-      const actualizada = marcarTareaPendiente(normalizarTareaCampos({
+      let actualizada = marcarTareaPendiente(normalizarTareaCampos({
         ...original,
         estado: "Completada",
         detalles
       }));
+      if (typeof aplicarFlujoSegunEstadoEstatus === "function") {
+        actualizada = aplicarFlujoSegunEstadoEstatus(actualizada, "Completada");
+      }
       const index = encontrarIndiceTarea(tareas, original);
       if (index === -1) return;
       const copiaTareas = [...tareas];
@@ -2135,22 +2178,25 @@ function App() {
           ...(estadoCambio ? { estado: normalizarEstado(editedTask.estado) } : {}),
           detalles: detallesFinal
         }));
+        const taskConFlujo = estadoCambio && typeof aplicarFlujoSegunEstadoEstatus === "function"
+          ? aplicarFlujoSegunEstadoEstatus(taskConDetalles, editedTask.estado)
+          : taskConDetalles;
         const taskKeyOriginal = getTaskSelectionKey(original);
         const copiaTareas = [...tareas];
-        copiaTareas[index] = taskConDetalles;
+        copiaTareas[index] = taskConFlujo;
         persistTareas(copiaTareas);
 
         encolarSync({
           type: "update",
-          taskKey: getTaskSelectionKey(taskConDetalles),
+          taskKey: getTaskSelectionKey(taskConFlujo),
           taskKeyOriginal,
-          payload: construirPayloadSyncTarea(original, taskConDetalles, {
+          payload: construirPayloadSyncTarea(original, taskConFlujo, {
             campoSync: estadoCambio ? "todo" : "detalles"
           })
         });
         setHayPendientesLocales(true);
         if (estadoCambio) {
-          notificarCambioEstadoTarea(taskConDetalles, usuario, original.estado, editedTask.estado)
+          notificarCambioEstadoTarea(taskConFlujo, usuario, original.estado, editedTask.estado)
             .then(() => refrescarNotificaciones());
         }
         setIsEditing(false);
@@ -2185,6 +2231,10 @@ function App() {
         fechaInicio: normalizarDeadline(editedTask.fechaInicio || resolverFechaInicioTarea(editedTask) || fechaHoyDisplay()),
         detalles: detallesAudoria
       })));
+      if (normalizarEstado(original.estado) !== normalizarEstado(editedTask.estado)
+        && typeof aplicarFlujoSegunEstadoEstatus === "function") {
+        taskConHistorial = aplicarFlujoSegunEstadoEstatus(taskConHistorial, editedTask.estado);
+      }
 
       const fechasEditadas = {};
       if (normalizarDeadline(original.deadline) !== normalizarDeadline(editedTask.deadline)) {
@@ -2358,6 +2408,200 @@ function App() {
     await handleCreateTask(fakeEvent, detallesSerializados, tareaPreparada);
     setFormularioRapidoVisible(false);
   };
+
+  const pendientesImportEstatus = useMemo(() => {
+    if (typeof prepararImportacionEstatus !== "function") return 0;
+    const filas = typeof ESTATUS_LA_SANTE_IMPORT_ROWS !== "undefined" ? ESTATUS_LA_SANTE_IMPORT_ROWS : [];
+    if (!filas.length) return 0;
+    return prepararImportacionEstatus(filas, tareas, usuario).nuevas.length;
+  }, [tareas, usuario]);
+
+  const importarFilasEstatusInterno = (filas, extraMsg) => {
+    if (isDesigner) return;
+    if (typeof prepararImportacionEstatus !== "function") {
+      showToast("No se pudo preparar la importación", "error");
+      return;
+    }
+    const { nuevas, omitidasDuplicadas } = prepararImportacionEstatus(filas, tareas, usuario);
+    if (!nuevas.length) {
+      showToast(
+        omitidasDuplicadas.length ? "Esas filas ya estaban cargadas" : "No hay filas con entregable para cargar",
+        "info"
+      );
+      return;
+    }
+
+    setImportandoEstatus(true);
+    try {
+      const creadas = nuevas.map((t) => {
+        const autoId = String(t.idTarea || "").startsWith("IMP-")
+          ? t.idTarea
+          : generateBrandId(t.marca);
+        const normalizada = typeof normalizarTareaCampos === "function"
+          ? normalizarTareaCampos({ ...t, idTarea: autoId, categoria: t.categoria || "Solicitud" })
+          : { ...t, idTarea: autoId, categoria: t.categoria || "Solicitud" };
+        return marcarTareaPendiente(normalizada);
+      });
+
+      persistTareas((prev) => [...creadas, ...prev]);
+
+      const subclientes = [];
+      creadas.forEach((t) => {
+        const taskKey = getTaskSelectionKey(t);
+        encolarSync({
+          type: "create",
+          taskKey,
+          payload: construirPayloadSyncTarea(t, t, { esNuevo: true, campoSync: "todo" })
+        });
+        const sub = typeof obtenerSubclienteTarea === "function" ? obtenerSubclienteTarea(t) : t.subcliente;
+        if (sub && !subclientes.some((s) => typeof subclientesCoinciden === "function" ? subclientesCoinciden(s, sub) : s === sub)) {
+          subclientes.push(sub);
+        }
+      });
+
+      if (subclientes.length) {
+        setListaSubclientes((prev) => registrarSubclientesEnLista(prev, subclientes.map((nombre) => ({
+          marca: "La Santé",
+          nombre
+        }))));
+        subclientes.forEach((nombre) => insertarSubclienteRemoto("La Santé", nombre));
+      }
+
+      setHayPendientesLocales(true);
+      sincronizarEnSegundoPlano();
+      const extra = extraMsg ? ` ${extraMsg}` : "";
+      showToast(`${creadas.length} entregables cargados en La Santé.${extra}`, "success");
+    } finally {
+      setImportandoEstatus(false);
+    }
+  };
+
+  const handleImportarEstatusPaquete = () => {
+    const filas = typeof ESTATUS_LA_SANTE_IMPORT_ROWS !== "undefined" ? ESTATUS_LA_SANTE_IMPORT_ROWS : [];
+    importarFilasEstatusInterno(filas);
+  };
+
+  const handleImportarEstatusCsv = async (file) => {
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = extraerFilasEstatusDesdeCsv(text);
+      const extra = parsed.omitidasVacias || parsed.omitidasSinEntregable
+        ? `Se omitieron ${parsed.omitidasVacias + parsed.omitidasSinEntregable} filas vacías.`
+        : "";
+      importarFilasEstatusInterno(parsed.filas, extra);
+    } catch (e) {
+      showToast("No se pudo leer el CSV", "error");
+    }
+  };
+
+  useEffect(() => {
+    if (isDesigner || !usuario) return;
+    if (typeof listarTareasDisenarPendientesACorregir !== "function") return;
+    const filas = typeof ESTATUS_LA_SANTE_IMPORT_ROWS !== "undefined" ? ESTATUS_LA_SANTE_IMPORT_ROWS : [];
+    const aCorregir = listarTareasDisenarPendientesACorregir(tareas, filas);
+    if (!aCorregir.length) return;
+
+    const keys = new Set(aCorregir.map((t) => getTaskSelectionKey(t)));
+    const hoy = new Date();
+    const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, "0")}`;
+    const cambios = [];
+    const next = tareas.map((t) => {
+      if (!keys.has(getTaskSelectionKey(t))) return t;
+      if ((typeof cleanEstado === "function" ? cleanEstado(t.estado) : "") !== "pendiente") return t;
+      const actualizada = marcarTareaPendiente(normalizarTareaCampos({
+        ...t,
+        estado: "En progreso",
+        detalles: `${t.detalles || ""}\n• [${timestamp}] Estado cambiado a "En progreso" por @${usuario}`
+      }));
+      cambios.push({ original: t, actualizada });
+      return actualizada;
+    });
+    if (!cambios.length) return;
+
+    persistTareas(next);
+    cambios.forEach(({ original, actualizada }) => {
+      encolarSync({
+        type: "update",
+        taskKey: getTaskSelectionKey(actualizada),
+        taskKeyOriginal: getTaskSelectionKey(original),
+        payload: construirPayloadSyncTarea(original, actualizada, { campoSync: "estado", valor: "En progreso" })
+      });
+    });
+    setHayPendientesLocales(true);
+    sincronizarEnSegundoPlano();
+  }, [isDesigner, usuario, tareas]);
+
+  useEffect(() => {
+    if (isDesigner || !usuario) return;
+    if (loading) return;
+    if (isApiConfigured() && !ultimaSyncOk && !apiError) return;
+    if (pendientesImportEstatus <= 0) {
+      restauroEstatusRef.current = 0;
+      return;
+    }
+    if (restauroEstatusRef.current === pendientesImportEstatus) return;
+    restauroEstatusRef.current = pendientesImportEstatus;
+    handleImportarEstatusPaquete();
+  }, [pendientesImportEstatus, usuario, isDesigner, loading, ultimaSyncOk, apiError]);
+
+  useEffect(() => {
+    if (isDesigner || !usuario) return;
+    if (typeof listarTareasEstatusARealinear !== "function") return;
+    const filas = typeof ESTATUS_LA_SANTE_IMPORT_ROWS !== "undefined" ? ESTATUS_LA_SANTE_IMPORT_ROWS : [];
+    const pendientes = listarTareasEstatusARealinear(tareas, filas).filter((item) => {
+      const key = getTaskSelectionKey(item.tarea);
+      return !alineadasEstatusRef.current.has(key);
+    });
+    if (!pendientes.length) return;
+
+    const hoy = new Date();
+    const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, "0")}`;
+    const keysPlan = new Map(pendientes.map((item) => [getTaskSelectionKey(item.tarea), item]));
+    const cambios = [];
+    const next = tareas.map((t) => {
+      const item = keysPlan.get(getTaskSelectionKey(t));
+      if (!item) return t;
+      alineadasEstatusRef.current.add(getTaskSelectionKey(t));
+      const parsed = typeof parseDetalles === "function" ? parseDetalles(t.detalles || "") : { notas: t.detalles || "", subtareas: [], historial: [], link: t.link, subcliente: t.subcliente };
+      const importKey = item.importKey || parsed.importKey || t.importKey || "";
+      const flujo = (item.flujoCsv != null && item.flujoCsv !== undefined)
+        ? item.flujoCsv
+        : (parsed.flujo || t.flujo || "");
+      const sub = parsed.subcliente || (typeof obtenerSubclienteTarea === "function" ? obtenerSubclienteTarea(t) : t.subcliente);
+      const detalles = typeof serializeDetalles === "function"
+        ? serializeDetalles(parsed.notas, parsed.subtareas || [], parsed.historial || [], parsed.link || t.link, sub, { flujo, importKey })
+        : t.detalles;
+      const info = item.infoNuevo || t.info;
+      const actualizada = marcarTareaPendiente(normalizarTareaCampos({
+        ...t,
+        info,
+        flujo,
+        importKey,
+        estado: item.estadoCsv || t.estado,
+        detalles: item.estadoCsv
+          ? `${detalles}\n• [${timestamp}] Estado cambiado a "${item.estadoCsv}" por @${usuario}`
+          : detalles
+      }));
+      cambios.push({ original: t, actualizada, campoSync: "todo", valor: item.estadoCsv || "" });
+      return actualizada;
+    });
+    if (!cambios.length) return;
+
+    persistTareas(next);
+    cambios.forEach(({ original, actualizada, campoSync, valor }) => {
+      encolarSync({
+        type: "update",
+        taskKey: getTaskSelectionKey(actualizada),
+        taskKeyOriginal: getTaskSelectionKey(original),
+        payload: construirPayloadSyncTarea(original, actualizada, campoSync === "estado"
+          ? { campoSync: "estado", valor }
+          : { campoSync: "todo" })
+      });
+    });
+    setHayPendientesLocales(true);
+    sincronizarEnSegundoPlano();
+  }, [isDesigner, usuario, tareas]);
 
   if (!usuario) {
     return (
@@ -2809,6 +3053,34 @@ function App() {
           </button>
         </div>
 
+        {!isDesigner && (
+          <div className={`border-t ${currentTheme.border} pt-3 flex flex-col gap-2`}>
+            <p className={`font-semibold ${currentTheme.text}`}>Estatus La Santé</p>
+            <p className={`${currentTheme.mutedText} leading-relaxed`}>
+              Sube un CSV de status interno para crear entregables en La Santé. Las cadenas quedan como subclientes.
+            </p>
+            <input
+              ref={csvEstatusInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              hidden
+              onChange={(e) => {
+                const file = e.target.files && e.target.files[0];
+                if (file) handleImportarEstatusCsv(file);
+                e.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => csvEstatusInputRef.current && csvEstatusInputRef.current.click()}
+              disabled={importandoEstatus || loading || syncing}
+              className="px-3 py-1.5 rounded border border-zinc-200 bg-white text-zinc-700 font-semibold self-start"
+            >
+              {importandoEstatus ? "Cargando CSV…" : "Subir otro CSV"}
+            </button>
+          </div>
+        )}
+
         {logs.length > 0 && (
           <div className={`border-t ${currentTheme.border} pt-2`}>
             <p className={`font-semibold ${currentTheme.text} mb-1`}>Últimos eventos</p>
@@ -3210,7 +3482,11 @@ function App() {
                     ? "robin-mobile-main robin-main-tmknews max-w-3xl mx-auto"
                     : "robin-mobile-main max-w-6xl mx-auto"
         }`}>
-          {syncDetalleVisible && renderSyncSubpage()}
+          {syncDetalleVisible && (
+            typeof ModalPortal === "function"
+              ? <ModalPortal>{renderSyncSubpage()}</ModalPortal>
+              : renderSyncSubpage()
+          )}
           
           {!isConfigOnlyAdmin && paginaActiva === "home" && (
             <LayoutHome
@@ -3320,6 +3596,9 @@ function App() {
                 setFiltroPersona("TODAS");
                 setSearchQuery("");
               }}
+              mostrarEstatusGeneral={typeof marcasCoinciden === "function" ? marcasCoinciden(filtroMarca, "La Santé") : true}
+              listaDisenadores={listaDisenadores}
+              onEnviarCliente={isDesigner ? undefined : handleEnviarEstatusCliente}
             />
           )}
 

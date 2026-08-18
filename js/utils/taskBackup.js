@@ -96,11 +96,36 @@ function cargarColaSync() {
   }
 }
 
+function categoriaSeguraParaSheet(valor, marca) {
+  if (String(marca || "").trim() === "Config_Marcas") return String(valor || "").trim();
+  const permitidas = ["Reunión", "Solicitud", "Visita PDV", "Ideas", "Otro", "Robin"];
+  let raw = String(valor || "").trim();
+  if (raw.includes("|")) raw = raw.split("|")[0].trim();
+  if (raw.includes(",")) raw = raw.split(",")[0].trim();
+  if (typeof categoriaParaSheet === "function") {
+    raw = categoriaParaSheet(raw);
+  }
+  if (permitidas.indexOf(raw) >= 0) return raw;
+  const clave = raw
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "");
+  if (clave === "reunion") return "Reunión";
+  if (clave === "visitapdv" || clave === "pdv" || clave === "visita") return "Visita PDV";
+  if (clave === "ideas") return "Ideas";
+  if (clave === "robin") return "Robin";
+  if (clave === "otro") return "Otro";
+  return "Solicitud";
+}
+
 function normalizarPayloadSyncMarca(payload) {
   if (!payload || typeof payload !== "object") return payload;
-  const marcaSheet = marcaParaSheet(payload.marca);
-  if (!marcaSheet || marcaSheet === payload.marca) return payload;
-  return { ...payload, marca: marcaSheet };
+  const marcaSheet = typeof marcaParaSheet === "function" ? marcaParaSheet(payload.marca) : payload.marca;
+  const next = { ...payload };
+  if (marcaSheet && marcaSheet !== payload.marca) next.marca = marcaSheet;
+  next.categoria = categoriaSeguraParaSheet(payload.categoria, next.marca);
+  return next;
 }
 
 function normalizarOperacionSyncCola(op) {
@@ -133,13 +158,17 @@ function construirPayloadSyncTarea(original, actualizada, opciones = {}) {
 
   const idApi = idTareaParaApi(orig) || idTareaParaApi(act);
 
-  const payload = {
-    marca: marcaParaSheet(act.marca || orig.marca),
-    idTarea: idApi || "",
-    info: act.info || orig.info,
-    originalInfo: orig.info || act.info,
+    const info = typeof infoTareaUnicaParaSheet === "function"
+      ? infoTareaUnicaParaSheet(act)
+      : (act.info || orig.info);
+
+    const payload = {
+      marca: marcaParaSheet(act.marca || orig.marca),
+      idTarea: idApi || "",
+      info,
+      originalInfo: orig.info || info,
     originalCategoria: orig.categoria || "",
-    categoria: act.categoria || orig.categoria,
+    categoria: categoriaSeguraParaSheet(act.categoria || orig.categoria, act.marca || orig.marca),
     personas: act.personas || orig.personas,
     detalles: act.detalles || orig.detalles,
     estado: normalizarEstado(act.estado || orig.estado),
@@ -235,9 +264,10 @@ function tareaCoincideConOperacionSync(tarea, op) {
 
   const payload = op.payload || {};
   if (!marcasCoinciden(tarea.marca, payload.marca)) return false;
-  if (infoTareaCoincide(tarea.info, payload.info)) return true;
-  if (infoTareaCoincide(tarea.info, payload.originalInfo)) return true;
-  return false;
+  const mismoInfo = infoTareaCoincide(tarea.info, payload.info)
+    || infoTareaCoincide(tarea.info, payload.originalInfo);
+  if (!mismoInfo) return false;
+  return subclientesPayloadCoinciden(tarea, { detalles: payload.detalles, subcliente: payload.subcliente });
 }
 
 function confirmarTareaLocalTrasSync(op, respuesta) {
@@ -342,6 +372,18 @@ function infoTareaCoincide(a, b) {
   return String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
 }
 
+function subclientesPayloadCoinciden(remota, payloadOTarea) {
+  const subR = typeof obtenerSubclienteTarea === "function"
+    ? obtenerSubclienteTarea(remota)
+    : String(remota?.subcliente || "").trim();
+  const subP = typeof obtenerSubclienteTarea === "function"
+    ? obtenerSubclienteTarea(payloadOTarea)
+    : String(payloadOTarea?.subcliente || "").trim();
+  if (!subR && !subP) return true;
+  if (typeof subclientesCoinciden === "function") return subclientesCoinciden(subR, subP);
+  return String(subR).trim().toLowerCase() === String(subP).trim().toLowerCase();
+}
+
 function remotaCorrespondeAPendiente(remota, op) {
   if (!remota || !op) return false;
   const payload = op.payload || {};
@@ -351,13 +393,18 @@ function remotaCorrespondeAPendiente(remota, op) {
   const payloadId = String(payload.idTarea || "").trim();
   if (payloadId && remotaId && payloadId === remotaId) return true;
 
+  if (typeof obtenerImportKeyTarea === "function") {
+    const keyR = obtenerImportKeyTarea(remota);
+    const keyP = obtenerImportKeyTarea({ detalles: payload.detalles, importKey: payload.importKey });
+    if (keyR && keyP) return keyR === keyP;
+  }
+
   const rInfo = String(remota.info || "").trim().toLowerCase();
   const infoNueva = String(payload.info || "").trim().toLowerCase();
   const infoOriginal = String(payload.originalInfo || "").trim().toLowerCase();
-
-  if (infoNueva && rInfo === infoNueva) return true;
-  if (infoOriginal && rInfo === infoOriginal) return true;
-  return false;
+  const mismoTitulo = (infoNueva && rInfo === infoNueva) || (infoOriginal && rInfo === infoOriginal);
+  if (!mismoTitulo) return false;
+  return subclientesPayloadCoinciden(remota, { detalles: payload.detalles, subcliente: payload.subcliente });
 }
 
 function remotaCorrespondeATareaLocal(remota, local, cola) {
@@ -365,7 +412,9 @@ function remotaCorrespondeATareaLocal(remota, local, cola) {
   if (sonLaMismaTarea(remota, local, { estricto: false })) return true;
 
   if (!marcasCoinciden(remota.marca, local.marca)) return false;
-  if (infoTareaCoincide(remota.info, local.info)) return true;
+  if (infoTareaCoincide(remota.info, local.info)) {
+    return subclientesPayloadCoinciden(remota, local);
+  }
 
   const idLocal = idTareaParaApi(local);
   const idRemota = String(remota.idTarea || "").trim();
@@ -374,8 +423,11 @@ function remotaCorrespondeATareaLocal(remota, local, cola) {
   for (const op of cola) {
     if (remotaCorrespondeAPendiente(remota, op)) {
       const payload = op.payload || {};
-      if (infoTareaCoincide(local.info, payload.info)) return true;
-      if (infoTareaCoincide(local.info, payload.originalInfo)) return true;
+      const mismoInfo = infoTareaCoincide(local.info, payload.info)
+        || infoTareaCoincide(local.info, payload.originalInfo);
+      if (mismoInfo && subclientesPayloadCoinciden(local, { detalles: payload.detalles, subcliente: payload.subcliente })) {
+        return true;
+      }
     }
   }
   return false;
@@ -527,8 +579,12 @@ function fusionarTareasRemotasYLocales(remotas, locales) {
   });
 
   localesConPins.forEach((t) => {
-    if (!tareaEsPendienteLocal(t) && !tareaTieneFechasLocalesPendientes(t)) return;
-    mapa.set(getTaskSelectionKey(t), normalizarTareaCampos(t));
+    const idRaw = String(t.idTarea || "").trim();
+    const tieneImport = typeof obtenerImportKeyTarea === "function" && obtenerImportKeyTarea(t);
+    const esImportLocal = idRaw.startsWith("STB-") || idRaw.startsWith("IMP-") || Boolean(tieneImport);
+    if (!tareaEsPendienteLocal(t) && !tareaTieneFechasLocalesPendientes(t) && !esImportLocal) return;
+    const key = getTaskSelectionKey(t);
+    if (!mapa.has(key)) mapa.set(key, normalizarTareaCampos(t));
   });
 
   localesConPins.forEach((local) => {
@@ -649,6 +705,11 @@ async function procesarColaSync() {
         }
 
         ultimoError = (json && json.error) ? String(json.error) : (rawText || `HTTP ${res.status}`).slice(0, 200);
+
+        if (/validaci[oó]n de datos/i.test(ultimoError) && /celda B/i.test(ultimoError)) {
+          payload = { ...payload, categoria: "Solicitud" };
+          continue;
+        }
 
         if (!intentoCreacion && /no se encontr[oó]/i.test(ultimoError)) {
           payload = payloadSyncComoCreacion(payload);

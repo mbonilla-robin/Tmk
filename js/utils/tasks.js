@@ -67,11 +67,29 @@ function sonLaMismaTarea(a, b, opciones = {}) {
 
   if (!marcasCoinciden(a.marca, b.marca)) return false;
 
+  const importA = typeof obtenerImportKeyTarea === "function" ? obtenerImportKeyTarea(a) : "";
+  const importB = typeof obtenerImportKeyTarea === "function" ? obtenerImportKeyTarea(b) : "";
+  if (importA && importB) return importA === importB;
+
+  const subA = typeof obtenerSubclienteTarea === "function" ? obtenerSubclienteTarea(a) : String(a.subcliente || "").trim();
+  const subB = typeof obtenerSubclienteTarea === "function" ? obtenerSubclienteTarea(b) : String(b.subcliente || "").trim();
+  const mismosSubclientes = () => {
+    if (!subA && !subB) return true;
+    if (typeof subclientesCoinciden === "function") return subclientesCoinciden(subA, subB);
+    return String(subA).trim().toLowerCase() === String(subB).trim().toLowerCase();
+  };
+
   const tituloA = tituloLimpioTarea(a);
   const tituloB = tituloLimpioTarea(b);
-  if (tituloA && tituloB && tituloA === tituloB) return true;
+  if (tituloA && tituloB && tituloA === tituloB) {
+    if (subA || subB) return mismosSubclientes();
+    return true;
+  }
 
-  if (infoTareaCoincide(a.info, b.info)) return true;
+  if (infoTareaCoincide(a.info, b.info)) {
+    if (subA || subB) return mismosSubclientes();
+    return true;
+  }
 
   if (estricto) {
     return getTaskSelectionKey(a) === getTaskSelectionKey(b);

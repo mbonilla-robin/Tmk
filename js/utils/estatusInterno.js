@@ -255,6 +255,10 @@ function obtenerImportKeyTarea(tarea) {
   return "";
 }
 
+function claveImportNormalizada(valor) {
+  return String(valor || "").trim().toLowerCase();
+}
+
 function idImportacionEstatus(fila) {
   const key = claveImportacionEstatus(fila);
   let hash = 0;
@@ -427,13 +431,13 @@ function construirTareaDesdeFilaEstatus(fila, usuario) {
 }
 
 function tareaYaImportadaEstatus(existentes, fila) {
-  const idImport = idImportacionEstatus(fila);
-  const keyImport = claveImportacionEstatus(fila);
+  const idImport = claveImportNormalizada(idImportacionEstatus(fila));
+  const keyImport = claveImportNormalizada(claveImportacionEstatus(fila));
   return (existentes || []).some((t) => {
     if (!t) return false;
     // Guard fuerte: si ya existe mismo IMP o mismo importKey, no recrear.
-    if (String(t.idTarea || "").trim() === idImport) return true;
-    if (obtenerImportKeyTarea(t) === keyImport) return true;
+    if (claveImportNormalizada(t.idTarea) === idImport) return true;
+    if (claveImportNormalizada(obtenerImportKeyTarea(t)) === keyImport) return true;
     return tareaCoincideFilaEstatus(t, fila);
   });
 }
@@ -441,14 +445,14 @@ function tareaYaImportadaEstatus(existentes, fila) {
 function prepararImportacionEstatus(filas, tareasExistentes, usuario) {
   const nuevas = [];
   const omitidasDuplicadas = [];
-  const idsExistentes = new Set((tareasExistentes || []).map((t) => String(t?.idTarea || "").trim()).filter(Boolean));
-  const keysExistentes = new Set((tareasExistentes || []).map((t) => obtenerImportKeyTarea(t)).filter(Boolean));
+  const idsExistentes = new Set((tareasExistentes || []).map((t) => claveImportNormalizada(t?.idTarea)).filter(Boolean));
+  const keysExistentes = new Set((tareasExistentes || []).map((t) => claveImportNormalizada(obtenerImportKeyTarea(t))).filter(Boolean));
   const idsNuevas = new Set();
   const keysNuevas = new Set();
   (filas || []).forEach((fila) => {
     if (!String(fila.entregable || "").trim()) return;
-    const idFila = idImportacionEstatus(fila);
-    const keyFila = claveImportacionEstatus(fila);
+    const idFila = claveImportNormalizada(idImportacionEstatus(fila));
+    const keyFila = claveImportNormalizada(claveImportacionEstatus(fila));
     const yaExistePorClave = idsExistentes.has(idFila) || keysExistentes.has(keyFila);
     const yaAgregadaEnLote = idsNuevas.has(idFila) || keysNuevas.has(keyFila);
     if (yaExistePorClave || yaAgregadaEnLote || tareaYaImportadaEstatus(tareasExistentes, fila)) {
@@ -701,10 +705,10 @@ function listasOperativasEstatus(tareas, filas) {
 
   const claveItemOperativo = (item) => {
     const t = item?.tarea || {};
-    const keyImport = obtenerImportKeyTarea(t);
+    const keyImport = claveImportNormalizada(obtenerImportKeyTarea(t));
     if (keyImport) return `imp:${keyImport}`;
     if (typeof getTaskSelectionKey === "function") {
-      const keyTask = getTaskSelectionKey(t);
+      const keyTask = claveImportNormalizada(getTaskSelectionKey(t));
       if (keyTask) return `task:${keyTask}`;
     }
     const cadena = typeof claveSubcliente === "function"

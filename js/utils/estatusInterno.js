@@ -427,19 +427,38 @@ function construirTareaDesdeFilaEstatus(fila, usuario) {
 }
 
 function tareaYaImportadaEstatus(existentes, fila) {
-  return (existentes || []).some((t) => tareaCoincideFilaEstatus(t, fila));
+  const idImport = idImportacionEstatus(fila);
+  const keyImport = claveImportacionEstatus(fila);
+  return (existentes || []).some((t) => {
+    if (!t) return false;
+    // Guard fuerte: si ya existe mismo IMP o mismo importKey, no recrear.
+    if (String(t.idTarea || "").trim() === idImport) return true;
+    if (obtenerImportKeyTarea(t) === keyImport) return true;
+    return tareaCoincideFilaEstatus(t, fila);
+  });
 }
 
 function prepararImportacionEstatus(filas, tareasExistentes, usuario) {
   const nuevas = [];
   const omitidasDuplicadas = [];
+  const idsExistentes = new Set((tareasExistentes || []).map((t) => String(t?.idTarea || "").trim()).filter(Boolean));
+  const keysExistentes = new Set((tareasExistentes || []).map((t) => obtenerImportKeyTarea(t)).filter(Boolean));
+  const idsNuevas = new Set();
+  const keysNuevas = new Set();
   (filas || []).forEach((fila) => {
     if (!String(fila.entregable || "").trim()) return;
-    if (tareaYaImportadaEstatus(tareasExistentes, fila)) {
+    const idFila = idImportacionEstatus(fila);
+    const keyFila = claveImportacionEstatus(fila);
+    const yaExistePorClave = idsExistentes.has(idFila) || keysExistentes.has(keyFila);
+    const yaAgregadaEnLote = idsNuevas.has(idFila) || keysNuevas.has(keyFila);
+    if (yaExistePorClave || yaAgregadaEnLote || tareaYaImportadaEstatus(tareasExistentes, fila)) {
       omitidasDuplicadas.push(fila);
       return;
     }
-    nuevas.push(construirTareaDesdeFilaEstatus(fila, usuario));
+    const nueva = construirTareaDesdeFilaEstatus(fila, usuario);
+    nuevas.push(nueva);
+    if (idFila) idsNuevas.add(idFila);
+    if (keyFila) keysNuevas.add(keyFila);
   });
   return { nuevas, omitidasDuplicadas };
 }

@@ -2556,6 +2556,10 @@ function App() {
 
   useEffect(() => {
     if (isDesigner || !usuario) return;
+    // Hotfix: desactivamos la realineación automática del import de estatus.
+    // Estaba sobreescribiendo cambios manuales de estado y contribuyendo a duplicados.
+    const AUTO_REALINEAR_ESTATUS_IMPORT = false;
+    if (!AUTO_REALINEAR_ESTATUS_IMPORT) return;
     if (typeof listarTareasEstatusARealinear !== "function") return;
     const filas = typeof ESTATUS_LA_SANTE_IMPORT_ROWS !== "undefined" ? ESTATUS_LA_SANTE_IMPORT_ROWS : [];
     const pendientes = listarTareasEstatusARealinear(tareas, filas).filter((item) => {

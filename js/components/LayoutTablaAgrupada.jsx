@@ -241,14 +241,6 @@ function LayoutTablaAgrupada({
   const grupoParcialmenteSeleccionado = (lista) =>
     lista.some(t => tareaEstaSeleccionada(t, tareasSeleccionadas)) && !grupoCompletamenteSeleccionado(lista);
 
-  if (tareas.length === 0) {
-    return (
-      <div className="notion-task-list-empty">
-        No hay entregables registrados en esta vista.
-      </div>
-    );
-  }
-
   const gruposOrdenados = useMemo(() => {
     const keys = Object.keys(tareasAgrupadas);
     if (agruparPor !== "subcliente") {
@@ -260,6 +252,14 @@ function LayoutTablaAgrupada({
       return a.localeCompare(b, "es");
     });
   }, [tareasAgrupadas, agruparPor]);
+
+  if (tareas.length === 0) {
+    return (
+      <div className="notion-task-list-empty">
+        No hay entregables registrados en esta vista.
+      </div>
+    );
+  }
 
   return (
     <div className={`notion-task-list ${currentTheme.text}`}>

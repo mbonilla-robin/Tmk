@@ -5598,6 +5598,30 @@
       gap: 0.15rem;
     }
 
+    .estatus-enviar-tipo {
+      flex-shrink: 0;
+      align-self: center;
+      margin-right: 0.85rem;
+      padding: 0.2rem 0.45rem;
+      border: none;
+      background: transparent;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: #18181b;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .estatus-enviar-tipo--static {
+      cursor: default;
+    }
+
+    .estatus-enviar-tipo:hover:not(.estatus-enviar-tipo--static) {
+      color: #2F7A4E;
+    }
+
     .estatus-check-btn {
       width: 2rem;
       height: 2rem;

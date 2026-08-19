@@ -164,6 +164,7 @@ function App() {
   const guardandoRef = useRef(false);
   const csvEstatusInputRef = useRef(null);
   const restauroEstatusRef = useRef(0);
+  const importEstatusInicialRef = useRef(false);
   const alineadasEstatusRef = useRef(new Set());
   const normalizadasImportEstatusRef = useRef(new Set());
   
@@ -1945,6 +1946,31 @@ function App() {
     sincronizarEnSegundoPlano({ silencioso: true, sinRecarga: true });
   };
 
+  const handleCambiarEnvioTipo = (tarea, tipo) => {
+    if (isDesigner) return;
+    if (typeof aplicarEnvioTipoEstatus !== "function") return;
+    const original = resolverTareaActual(tareas, tarea);
+    if (!original) return;
+    const index = encontrarIndiceTarea(tareas, original);
+    if (index === -1) return;
+
+    const actualizada = marcarTareaPendiente(normalizarTareaCampos(
+      aplicarEnvioTipoEstatus(original, tipo)
+    ));
+    const temp = [...tareas];
+    temp[index] = actualizada;
+    persistTareas(temp);
+
+    encolarSync({
+      type: "update",
+      taskKey: getTaskSelectionKey(actualizada),
+      taskKeyOriginal: getTaskSelectionKey(original),
+      payload: construirPayloadSyncTarea(original, actualizada, { campoSync: "todo" })
+    });
+    setHayPendientesLocales(true);
+    sincronizarEnSegundoPlano({ silencioso: true, sinRecarga: true });
+  };
+
   const handleEnviarEstatusCliente = (tarea, tipo) => {
     if (isDesigner) return;
     if (typeof aplicarEnvioClienteEstatus !== "function") return;
@@ -2549,23 +2575,17 @@ function App() {
   }, [isDesigner, usuario, tareas]);
 
   useEffect(() => {
-    if (isDesigner || !usuario) return;
-    // Hotfix: detener importación automática en segundo plano del paquete
-    // estatus; solo debe correrse manualmente para evitar altas repetidas.
-    const AUTO_IMPORTAR_ESTATUS_PAQUETE = false;
-    if (!AUTO_IMPORTAR_ESTATUS_PAQUETE) return;
-    if (loading) return;
+    if (isDesigner || !usuario || loading) return;
+    // Carga faltantes del paquete estatus una sola vez por sesión (sin bucle).
+    if (importEstatusInicialRef.current) return;
+    if (pendientesImportEstatus <= 0) return;
     const backendOk = typeof backendRobinListo === "function"
       ? backendRobinListo()
       : (typeof entregablesSupabaseListos === "function" && entregablesSupabaseListos());
     if (backendOk && !ultimaSyncOk && !apiError) return;
-    if (pendientesImportEstatus <= 0) {
-      restauroEstatusRef.current = 0;
-      return;
-    }
-    if (restauroEstatusRef.current === pendientesImportEstatus) return;
-    restauroEstatusRef.current = pendientesImportEstatus;
-    handleImportarEstatusPaquete();
+    importEstatusInicialRef.current = true;
+    const filas = typeof ESTATUS_LA_SANTE_IMPORT_ROWS !== "undefined" ? ESTATUS_LA_SANTE_IMPORT_ROWS : [];
+    importarFilasEstatusInterno(filas, "", { silencioso: true });
   }, [pendientesImportEstatus, usuario, isDesigner, loading, ultimaSyncOk, apiError]);
 
   useEffect(() => {
@@ -3682,6 +3702,7 @@ function App() {
               listaDisenadores={listaDisenadores}
               onEnviarCliente={isDesigner ? undefined : handleEnviarEstatusCliente}
               onGuardarComentario={isDesigner ? undefined : handleGuardarComentarioEstatus}
+              onCambiarEnvioTipo={isDesigner ? undefined : handleCambiarEnvioTipo}
               onAbrirEstatus={isDesigner ? undefined : () => setShowGeneradorEstatus(true)}
             />
           )}

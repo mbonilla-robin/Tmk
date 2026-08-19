@@ -391,7 +391,11 @@ function localTieneEdicionEstadoSinConfirmar(local, remota) {
   const estLocal = normalizarEstado(local?.estado);
   const estRemota = normalizarEstado(remota?.estado);
   if (!estLocal || !estRemota || estLocal === estRemota) return false;
-  return /estado cambiado a\s*"/i.test(String(local.detalles || ""));
+  const blob = String(local.detalles || "");
+  const claveLocal = typeof claveEstatusInterno === "function"
+    ? claveEstatusInterno(estLocal)
+    : estLocal.toLowerCase();
+  return new RegExp(`estado cambiado a\\s*"${claveLocal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`, "i").test(blob);
 }
 
 function localDebeGanarSobreRemota(local, remota, cola) {
@@ -399,7 +403,13 @@ function localDebeGanarSobreRemota(local, remota, cola) {
   if (tareaEsPendienteLocal(local) || tareaTieneFechasLocalesPendientes(local)) return true;
   if (tareaEstaEnColaSync(local, cola || cargarColaSync())) return true;
   if (!remota) {
-    return /estado cambiado a\s*"/i.test(String(local.detalles || ""));
+    const estLocal = normalizarEstado(local?.estado);
+    const blob = String(local.detalles || "");
+    if (!estLocal) return false;
+    const claveLocal = typeof claveEstatusInterno === "function"
+      ? claveEstatusInterno(estLocal)
+      : estLocal.toLowerCase();
+    return new RegExp(`estado cambiado a\\s*"${claveLocal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}"`, "i").test(blob);
   }
   return localTieneEdicionEstadoSinConfirmar(local, remota);
 }

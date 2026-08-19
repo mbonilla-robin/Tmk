@@ -126,6 +126,7 @@ function LayoutMarcaHome({
   listaDisenadores = [],
   onEnviarCliente,
   onGuardarComentario,
+  onCambiarEnvioTipo,
   onAbrirEstatus
 }) {
   const marcaEstilo = getMarcaStyle(marca);
@@ -410,6 +411,7 @@ function LayoutMarcaHome({
           puedeEditar={typeof onEnviarCliente === "function"}
           onEnviarCliente={onEnviarCliente}
           onGuardarComentario={onGuardarComentario}
+          onCambiarEnvioTipo={onCambiarEnvioTipo}
         />
       </div>
     );

@@ -7,7 +7,8 @@ function LayoutEstatusGeneral({
   listaDisenadores = [],
   puedeEditar = false,
   onEnviarCliente,
-  onGuardarComentario
+  onGuardarComentario,
+  onCambiarEnvioTipo
 }) {
   const tareasActivas = useMemo(
     () => (tareas || []).filter((t) => (
@@ -64,6 +65,22 @@ function LayoutEstatusGeneral({
   const [esperaExpandida, setEsperaExpandida] = useState(false);
   const [faltaExpandida, setFaltaExpandida] = useState(false);
   const [panelSnapshot, setPanelSnapshot] = useState(null);
+  const filasEstatus = useMemo(
+    () => (typeof filasEstatusReferencia === "function" ? filasEstatusReferencia() : []),
+    []
+  );
+
+  const etiquetaEnvio = (tarea) => (
+    typeof etiquetaEnvioTipoEstatus === "function"
+      ? etiquetaEnvioTipoEstatus(tarea, filasEstatus)
+      : ""
+  );
+
+  const alternarEnvioTipo = (tarea) => {
+    if (!onCambiarEnvioTipo) return;
+    const actual = typeof obtenerEnvioTipoTarea === "function" ? obtenerEnvioTipoTarea(tarea) : "";
+    onCambiarEnvioTipo(tarea, actual === "arte-final" ? "propuesta" : "arte-final");
+  };
   const LISTA_VISIBLE_INICIAL = 5;
 
   const nombresGrupos = grupos.map((g) => g.nombre).join("|");
@@ -503,6 +520,22 @@ function LayoutEstatusGeneral({
                     <span className="estatus-item-title">{tituloEntregable(item.entregable, item.cadena)}</span>
                     <span className="estatus-item-subtitle">{titulo(item.cadena) || "Sin cadena"}</span>
                   </button>
+                  {etiquetaEnvio(item.tarea) ? (
+                    puedeEditar && onCambiarEnvioTipo ? (
+                      <button
+                        type="button"
+                        className="estatus-enviar-tipo"
+                        onClick={() => alternarEnvioTipo(item.tarea)}
+                        title="Clic para cambiar entre propuesta y arte final"
+                      >
+                        {etiquetaEnvio(item.tarea)}
+                      </button>
+                    ) : (
+                      <span className="estatus-enviar-tipo estatus-enviar-tipo--static">
+                        {etiquetaEnvio(item.tarea)}
+                      </span>
+                    )
+                  ) : null}
                 </div>
                 {abierto ? (
                   <div className="estatus-enviar-menu">

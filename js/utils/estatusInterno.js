@@ -255,6 +255,57 @@ function obtenerImportKeyTarea(tarea) {
   return "";
 }
 
+function obtenerEnvioTipoTarea(tarea) {
+  if (!tarea) return "";
+  if (tarea.envioTipo) return String(tarea.envioTipo).trim().toLowerCase();
+  if (typeof parseDetalles === "function") {
+    return parseDetalles(tarea.detalles || "").envioTipo || "";
+  }
+  return "";
+}
+
+function inferirEnvioTipoEstatus(t, fila, blob) {
+  const previo = obtenerEnvioTipoTarea(t);
+  if (previo === "propuesta" || previo === "arte-final") return previo;
+  const texto = claveEstatusInterno([
+    blob,
+    fila?.comentarios,
+    fila?.status,
+    fila?.detalles,
+    t?.info
+  ].filter(Boolean).join(" "));
+  if (texto.includes("arte final") || texto.includes("enviar af") || /\baf\b/.test(texto)) return "arte-final";
+  if (texto.includes("propuesta")) return "propuesta";
+  if (texto.includes("ajuste") && texto.includes("cor")) return "arte-final";
+  return "propuesta";
+}
+
+function etiquetaEnvioTipoEstatus(tarea, filasRef) {
+  const fila = (filasRef || []).find((f) => tareaCoincideFilaEstatus(tarea, f));
+  const parsed = typeof parseDetalles === "function" ? parseDetalles(tarea?.detalles || "") : { notas: tarea?.detalles || "" };
+  const partes = notasYComentarioEstatus(parsed.notas);
+  const blob = [partes.comentario, partes.notas, fila && fila.comentarios, fila && fila.status].filter(Boolean).join("\n");
+  const tipo = inferirEnvioTipoEstatus(tarea, fila, blob);
+  if (tipo === "arte-final") return "Arte final";
+  if (tipo === "propuesta") return "Propuesta";
+  return "";
+}
+
+function aplicarEnvioTipoEstatus(tarea, tipo, extras) {
+  if (!tarea) return tarea;
+  const parsed = typeof parseDetalles === "function"
+    ? parseDetalles(tarea.detalles || "")
+    : { notas: tarea.detalles || "", subtareas: [], historial: [], link: tarea.link, subcliente: tarea.subcliente, importKey: tarea.importKey, flujo: tarea.flujo, envioTipo: tarea.envioTipo };
+  const envioTipo = tipo === "arte-final" ? "arte-final" : (tipo === "propuesta" ? "propuesta" : "");
+  const importKey = parsed.importKey || tarea.importKey || "";
+  const sub = parsed.subcliente || (typeof obtenerSubclienteTarea === "function" ? obtenerSubclienteTarea(tarea) : tarea.subcliente);
+  const flujo = extras?.flujo != null ? extras.flujo : (parsed.flujo || tarea.flujo || "");
+  const detalles = typeof serializeDetalles === "function"
+    ? serializeDetalles(parsed.notas, parsed.subtareas || [], parsed.historial || [], parsed.link || tarea.link, sub, { flujo, importKey, envioTipo })
+    : tarea.detalles;
+  return { ...tarea, envioTipo, flujo, importKey, detalles };
+}
+
 function claveImportNormalizada(valor) {
   return String(valor || "").trim().toLowerCase();
 }
@@ -298,6 +349,12 @@ function esTituloRistraBroxol(info, cadena) {
   return cad.includes("otc") && titulo.includes("ristra") && titulo.includes("broxol") && !titulo.includes("exhibidor");
 }
 
+function esTituloTiqueteraStickers(info, cadena) {
+  const titulo = tituloEstatusParaMatch(info, cadena);
+  if (!titulo.includes("tiquetera") && !titulo.includes("ticketera")) return false;
+  return titulo.includes("sticker") || titulo.includes("671") || titulo.includes("la-671");
+}
+
 function titulosEstatusEquivalentes(infoTarea, entregableFila, cadena) {
   const a = tituloEstatusParaMatch(infoTarea, cadena);
   const b = tituloEstatusParaMatch(entregableFila, cadena);
@@ -306,6 +363,7 @@ function titulosEstatusEquivalentes(infoTarea, entregableFila, cadena) {
   if (a.startsWith(`${b} (`) || b.startsWith(`${a} (`)) return true;
   if (esTituloRistraBroxol(infoTarea, cadena) && esTituloRistraBroxol(entregableFila, cadena)) return true;
   if (esTituloExhibidorBroxol(infoTarea, cadena) && esTituloExhibidorBroxol(entregableFila, cadena)) return true;
+  if (esTituloTiqueteraStickers(infoTarea, cadena) && esTituloTiqueteraStickers(entregableFila, cadena)) return true;
   return false;
 }
 
@@ -356,19 +414,43 @@ function aplicarFlujoSegunEstadoEstatus(tarea, estadoNuevo) {
   const flujo = flujoDesdeEstadoRobin(estado);
   const parsed = typeof parseDetalles === "function"
     ? parseDetalles(tarea.detalles || "")
-    : { notas: tarea.detalles || "", subtareas: [], historial: [], link: tarea.link, subcliente: tarea.subcliente, importKey: tarea.importKey };
+    : { notas: tarea.detalles || "", subtareas: [], historial: [], link: tarea.link, subcliente: tarea.subcliente, importKey: tarea.importKey, envioTipo: tarea.envioTipo };
   const importKey = parsed.importKey || tarea.importKey || "";
   const sub = parsed.subcliente || (typeof obtenerSubclienteTarea === "function" ? obtenerSubclienteTarea(tarea) : tarea.subcliente);
+  const filas = filasEstatusReferencia();
+  const fila = filas.find((f) => tareaCoincideFilaEstatus(tarea, f));
+  const partes = notasYComentarioEstatus(parsed.notas);
+  const blob = [partes.comentario, partes.notas, fila && fila.comentarios, fila && fila.status].filter(Boolean).join("\n");
+  let envioTipo = parsed.envioTipo || tarea.envioTipo || "";
+  if (flujo === ESTATUS_FLUJO_POR_ENVIAR) {
+    envioTipo = inferirEnvioTipoEstatus(tarea, fila, blob) || "propuesta";
+  } else if (flujo !== ESTATUS_FLUJO_ESPERA) {
+    envioTipo = "";
+  }
   const detalles = typeof serializeDetalles === "function"
-    ? serializeDetalles(parsed.notas, parsed.subtareas || [], parsed.historial || [], parsed.link || tarea.link, sub, { flujo, importKey })
+    ? serializeDetalles(parsed.notas, parsed.subtareas || [], parsed.historial || [], parsed.link || tarea.link, sub, { flujo, importKey, envioTipo })
     : tarea.detalles;
-  return { ...tarea, estado, flujo, importKey, detalles };
+  return { ...tarea, estado, flujo, importKey, envioTipo, detalles };
 }
 
 function textoIndicaPorEnviar(texto) {
   const clave = claveEstatusInterno(texto);
   if (!clave || clave.includes("ok por enviar")) return false;
   return clave.includes("por enviar a cliente") || /^por enviar(\s|\||$)/.test(clave);
+}
+
+function usuarioMarcoEnRevisionEstatus(tarea) {
+  return usuarioMarcoEstadoEstatus(tarea, "En revision")
+    || usuarioMarcoEstadoEstatus(tarea, "En revisión");
+}
+
+function debeIrPorEnviarEstatus(t, filasRef, flujo, estado, blob, fila) {
+  if (flujo === ESTATUS_FLUJO_POR_ENVIAR) return true;
+  if (fila && flujoDesdeStatusCsv(fila.status) === ESTATUS_FLUJO_POR_ENVIAR) return true;
+  if (textoIndicaPorEnviar(blob)) return true;
+  // Tareas manuales (sin fila CSV) marcadas en revision por el usuario.
+  if (estado === "en revision" && !fila && usuarioMarcoEnRevisionEstatus(t)) return true;
+  return false;
 }
 
 function filasEstatusReferencia(filas) {
@@ -416,9 +498,13 @@ function construirTareaDesdeFilaEstatus(fila, usuario) {
     const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, "0")}`;
     historial.push(`• [${timestamp}] Creado por @${String(usuario).replace(/^@/, "")}`);
   }
+  const blob = [fila.comentarios, fila.status, fila.detalles].filter(Boolean).join("\n");
+  const envioTipo = flujo === ESTATUS_FLUJO_POR_ENVIAR
+    ? inferirEnvioTipoEstatus({ info: fila.entregable, detalles: notas }, fila, blob)
+    : "";
 
   const detalles = typeof serializeDetalles === "function"
-    ? serializeDetalles(notas, [], historial, fila.link, subcliente, { flujo, importKey })
+    ? serializeDetalles(notas, [], historial, fila.link, subcliente, { flujo, importKey, envioTipo })
     : notas;
 
   return {
@@ -432,6 +518,7 @@ function construirTareaDesdeFilaEstatus(fila, usuario) {
     estado,
     flujo,
     importKey,
+    envioTipo,
     idTarea: idImportacionEstatus(fila),
     deadline,
     fechaInicio,
@@ -697,14 +784,7 @@ function etapaOperativaEstatus(t, filasRef) {
   if (estado === "seguimiento" || flujo === ESTATUS_FLUJO_ESPERA) return "cliente";
   if (estado === "pendiente" || estado === "en progreso") return "diseno";
   if (estado === "en pausa") return "";
-  const flujoDesdeEstado = flujoDesdeEstadoRobin(estado);
-  const csvPorEnviar = fila && flujoDesdeStatusCsv(fila.status) === ESTATUS_FLUJO_POR_ENVIAR;
-  if (
-    flujo === ESTATUS_FLUJO_POR_ENVIAR
-    || flujoDesdeEstado === ESTATUS_FLUJO_POR_ENVIAR
-    || csvPorEnviar
-    || textoIndicaPorEnviar(blob)
-  ) return "por-enviar";
+  if (debeIrPorEnviarEstatus(t, filasRef, flujo, estado, blob, fila)) return "por-enviar";
   return "diseno";
 }
 

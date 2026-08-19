@@ -2503,6 +2503,10 @@ function App() {
 
   useEffect(() => {
     if (isDesigner || !usuario) return;
+    // Hotfix: desactivamos este autocorrector de "Diseñar" porque pisa
+    // estados manuales y provoca comportamientos inesperados en estatus.
+    const AUTO_CORREGIR_DISENAR_A_EN_PROGRESO = false;
+    if (!AUTO_CORREGIR_DISENAR_A_EN_PROGRESO) return;
     if (typeof listarTareasDisenarPendientesACorregir !== "function") return;
     const filas = typeof ESTATUS_LA_SANTE_IMPORT_ROWS !== "undefined" ? ESTATUS_LA_SANTE_IMPORT_ROWS : [];
     const aCorregir = listarTareasDisenarPendientesACorregir(tareas, filas);
@@ -2540,6 +2544,10 @@ function App() {
 
   useEffect(() => {
     if (isDesigner || !usuario) return;
+    // Hotfix: detener importación automática en segundo plano del paquete
+    // estatus; solo debe correrse manualmente para evitar altas repetidas.
+    const AUTO_IMPORTAR_ESTATUS_PAQUETE = false;
+    if (!AUTO_IMPORTAR_ESTATUS_PAQUETE) return;
     if (loading) return;
     const backendOk = typeof backendRobinListo === "function"
       ? backendRobinListo()

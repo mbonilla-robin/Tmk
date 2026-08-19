@@ -2637,6 +2637,10 @@ function App() {
 
   useEffect(() => {
     if (isDesigner || !usuario) return;
+    // Notion-like behavior: evitar normalizaciones automáticas que puedan
+    // reescribir tareas después de una edición manual.
+    const AUTO_NORMALIZAR_IMPORT_ESTATUS = false;
+    if (!AUTO_NORMALIZAR_IMPORT_ESTATUS) return;
     if (typeof listarTareasEstatusNormalizarImport !== "function") return;
     const filas = typeof ESTATUS_LA_SANTE_IMPORT_ROWS !== "undefined" ? ESTATUS_LA_SANTE_IMPORT_ROWS : [];
     const pendientes = listarTareasEstatusNormalizarImport(tareas, filas).filter((item) => {

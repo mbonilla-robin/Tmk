@@ -2546,7 +2546,7 @@ function App() {
     if (isDesigner || !usuario) return;
     // Hotfix: detener importación automática en segundo plano del paquete
     // estatus; solo debe correrse manualmente para evitar altas repetidas.
-    const AUTO_IMPORTAR_ESTATUS_PAQUETE = false;
+    const AUTO_IMPORTAR_ESTATUS_PAQUETE = true;
     if (!AUTO_IMPORTAR_ESTATUS_PAQUETE) return;
     if (loading) return;
     const backendOk = typeof backendRobinListo === "function"

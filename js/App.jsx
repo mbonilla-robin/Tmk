@@ -2422,18 +2422,22 @@ function App() {
     return prepararImportacionEstatus(filas, tareas, usuario).nuevas.length;
   }, [tareas, usuario]);
 
-  const importarFilasEstatusInterno = (filas, extraMsg) => {
+  const importarFilasEstatusInterno = (filas, extraMsg, opciones = {}) => {
     if (isDesigner) return;
+    if (importandoEstatus) return;
+    const silencioso = Boolean(opciones?.silencioso);
     if (typeof prepararImportacionEstatus !== "function") {
-      showToast("No se pudo preparar la importación", "error");
+      if (!silencioso) showToast("No se pudo preparar la importación", "error");
       return;
     }
     const { nuevas, omitidasDuplicadas } = prepararImportacionEstatus(filas, tareas, usuario);
     if (!nuevas.length) {
-      showToast(
-        omitidasDuplicadas.length ? "Esas filas ya estaban cargadas" : "No hay filas con entregable para cargar",
-        "info"
-      );
+      if (!silencioso) {
+        showToast(
+          omitidasDuplicadas.length ? "Esas filas ya estaban cargadas" : "No hay filas con entregable para cargar",
+          "info"
+        );
+      }
       return;
     }
 
@@ -2475,8 +2479,10 @@ function App() {
 
       setHayPendientesLocales(true);
       sincronizarEnSegundoPlano();
-      const extra = extraMsg ? ` ${extraMsg}` : "";
-      showToast(`${creadas.length} entregables cargados en La Santé.${extra}`, "success");
+      if (!silencioso) {
+        const extra = extraMsg ? ` ${extraMsg}` : "";
+        showToast(`${creadas.length} entregables cargados en La Santé.${extra}`, "success");
+      }
     } finally {
       setImportandoEstatus(false);
     }
@@ -2546,7 +2552,7 @@ function App() {
     if (isDesigner || !usuario) return;
     // Hotfix: detener importación automática en segundo plano del paquete
     // estatus; solo debe correrse manualmente para evitar altas repetidas.
-    const AUTO_IMPORTAR_ESTATUS_PAQUETE = true;
+    const AUTO_IMPORTAR_ESTATUS_PAQUETE = false;
     if (!AUTO_IMPORTAR_ESTATUS_PAQUETE) return;
     if (loading) return;
     const backendOk = typeof backendRobinListo === "function"

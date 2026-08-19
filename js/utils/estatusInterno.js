@@ -261,20 +261,29 @@ function claveImportNormalizada(valor) {
 
 function idImportacionEstatus(fila) {
   const key = claveImportacionEstatus(fila);
-  let hash = 0;
+  let hashA = 0;
+  let hashB = 5381;
   for (let i = 0; i < key.length; i++) {
-    hash = ((hash << 5) - hash) + key.charCodeAt(i);
-    hash |= 0;
+    const ch = key.charCodeAt(i);
+    hashA = ((hashA << 5) - hashA) + ch;
+    hashA |= 0;
+    hashB = ((hashB * 33) ^ ch) >>> 0;
   }
   const cadena = claveEstatusInterno(fila.cadena).replace(/[^a-z0-9]/g, "").slice(0, 8);
-  return `IMP-${Math.abs(hash).toString(36)}${cadena ? `-${cadena}` : ""}`;
+  const parteA = Math.abs(hashA).toString(36);
+  const parteB = Math.abs(hashB).toString(36);
+  const huella = `${parteA}${parteB}`.slice(0, 16);
+  return `IMP-${huella}${cadena ? `-${cadena}` : ""}`;
 }
 
 function tituloEstatusParaMatch(info, cadena) {
   const limpio = typeof textoEstatusEntregable === "function"
     ? textoEstatusEntregable(info, cadena)
     : String(info || "");
-  return claveEstatusInterno(limpio);
+  const sinCategoria = typeof extraerTituloLimpio === "function"
+    ? extraerTituloLimpio(limpio)
+    : limpio;
+  return claveEstatusInterno(sinCategoria);
 }
 
 function esTituloExhibidorBroxol(info, cadena) {

@@ -435,9 +435,12 @@ function tareaYaImportadaEstatus(existentes, fila) {
   const keyImport = claveImportNormalizada(claveImportacionEstatus(fila));
   return (existentes || []).some((t) => {
     if (!t) return false;
-    // Guard fuerte: si ya existe mismo IMP o mismo importKey, no recrear.
-    if (claveImportNormalizada(t.idTarea) === idImport) return true;
+    // Clave canónica: importKey (estable y específica de la fila CSV).
     if (claveImportNormalizada(obtenerImportKeyTarea(t)) === keyImport) return true;
+    // El IMP puede colisionar en casos raros; no bloquear por IMP solo.
+    if (claveImportNormalizada(t.idTarea) === idImport) {
+      return tareaCoincideFilaEstatus(t, fila);
+    }
     return tareaCoincideFilaEstatus(t, fila);
   });
 }
@@ -445,23 +448,19 @@ function tareaYaImportadaEstatus(existentes, fila) {
 function prepararImportacionEstatus(filas, tareasExistentes, usuario) {
   const nuevas = [];
   const omitidasDuplicadas = [];
-  const idsExistentes = new Set((tareasExistentes || []).map((t) => claveImportNormalizada(t?.idTarea)).filter(Boolean));
   const keysExistentes = new Set((tareasExistentes || []).map((t) => claveImportNormalizada(obtenerImportKeyTarea(t))).filter(Boolean));
-  const idsNuevas = new Set();
   const keysNuevas = new Set();
   (filas || []).forEach((fila) => {
     if (!String(fila.entregable || "").trim()) return;
-    const idFila = claveImportNormalizada(idImportacionEstatus(fila));
     const keyFila = claveImportNormalizada(claveImportacionEstatus(fila));
-    const yaExistePorClave = idsExistentes.has(idFila) || keysExistentes.has(keyFila);
-    const yaAgregadaEnLote = idsNuevas.has(idFila) || keysNuevas.has(keyFila);
+    const yaExistePorClave = keysExistentes.has(keyFila);
+    const yaAgregadaEnLote = keysNuevas.has(keyFila);
     if (yaExistePorClave || yaAgregadaEnLote || tareaYaImportadaEstatus(tareasExistentes, fila)) {
       omitidasDuplicadas.push(fila);
       return;
     }
     const nueva = construirTareaDesdeFilaEstatus(fila, usuario);
     nuevas.push(nueva);
-    if (idFila) idsNuevas.add(idFila);
     if (keyFila) keysNuevas.add(keyFila);
   });
   return { nuevas, omitidasDuplicadas };
@@ -705,16 +704,22 @@ function listasOperativasEstatus(tareas, filas) {
 
   const claveItemOperativo = (item) => {
     const t = item?.tarea || {};
+    const idImp = claveImportNormalizada(t.idTarea);
+    const cadenaBiz = typeof claveSubcliente === "function"
+      ? claveSubcliente(item?.cadena || "")
+      : String(item?.cadena || "").trim().toLowerCase();
+    const tituloBiz = claveEstatusInterno(item?.entregable || t?.info || "");
+    if (idImp.startsWith("imp-") && (cadenaBiz || tituloBiz)) {
+      return `impbiz:${idImp}|${cadenaBiz}|${tituloBiz}`;
+    }
     const keyImport = claveImportNormalizada(obtenerImportKeyTarea(t));
     if (keyImport) return `imp:${keyImport}`;
     if (typeof getTaskSelectionKey === "function") {
       const keyTask = claveImportNormalizada(getTaskSelectionKey(t));
       if (keyTask) return `task:${keyTask}`;
     }
-    const cadena = typeof claveSubcliente === "function"
-      ? claveSubcliente(item?.cadena || "")
-      : String(item?.cadena || "").trim().toLowerCase();
-    const titulo = claveEstatusInterno(item?.entregable || t?.info || "");
+    const cadena = cadenaBiz;
+    const titulo = tituloBiz;
     const fecha = String(item?.fecha || t?.deadline || t?.fechaInicio || "").trim();
     return `fallback:${cadena}|${titulo}|${fecha}`;
   };

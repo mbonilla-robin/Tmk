@@ -520,18 +520,50 @@ function agruparTareasPorMarcaOrdenadas(tareas, modoAgrupacion) {
 }
 
 function agruparTareasPorSubclienteOrdenadas(tareas, modoAgrupacion) {
-  const agrupamiento = {};
+  // Importante: agrupar por una clave case-insensitive evita que "ABC" y "abc"
+  // terminen como dos grupos distintos en la vista TABLE.
+  const grupos = new Map(); // keyNorm -> { nombre: displayName, tareas: [] }
+
+  const canonDisplay = (sub) => {
+    const limpio = typeof normalizarNombreSubcliente === "function"
+      ? normalizarNombreSubcliente(sub)
+      : String(sub || "").trim();
+    if (!limpio) return "";
+    // Canoniza el display para que sea consistente (aunque el backend/DB guarde otras variantes).
+    const lower = limpio.toLocaleLowerCase("es");
+    return lower
+      .split(" ")
+      .filter(Boolean)
+      .map((w) => w.charAt(0).toLocaleUpperCase("es") + w.slice(1))
+      .join(" ");
+  };
+
+  const keyNorm = (sub) => {
+    if (typeof claveSubcliente === "function") return claveSubcliente(sub);
+    return String(sub || "").trim().toLowerCase();
+  };
+
   (tareas || []).forEach(t => {
     const sub = typeof obtenerSubclienteTarea === "function"
       ? obtenerSubclienteTarea(t)
       : String(t.subcliente || "").trim();
-    const grupoKey = sub || "Sin subcliente";
-    if (!agrupamiento[grupoKey]) agrupamiento[grupoKey] = [];
-    agrupamiento[grupoKey].push(t);
+
+    if (!sub) {
+      const k = "__sin_subcliente__";
+      if (!grupos.has(k)) grupos.set(k, { nombre: "Sin subcliente", tareas: [] });
+      grupos.get(k).tareas.push(t);
+      return;
+    }
+
+    const k = keyNorm(sub);
+    const display = canonDisplay(sub) || sub;
+    if (!grupos.has(k)) grupos.set(k, { nombre: display, tareas: [] });
+    grupos.get(k).tareas.push(t);
   });
 
-  Object.keys(agrupamiento).forEach((key) => {
-    agrupamiento[key] = ordenarTareasPorModo(agrupamiento[key], modoAgrupacion);
+  const agrupamiento = {};
+  grupos.forEach(({ nombre, tareas: lista }) => {
+    agrupamiento[nombre] = ordenarTareasPorModo(lista, modoAgrupacion);
   });
 
   return agrupamiento;

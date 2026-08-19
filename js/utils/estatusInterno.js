@@ -331,7 +331,9 @@ function estadoRobinEstatus(tarea) {
 function flujoDesdeEstadoRobin(estadoRaw) {
   const estado = typeof cleanEstado === "function" ? cleanEstado(estadoRaw) : String(estadoRaw || "").toLowerCase();
   if (estado === "seguimiento") return ESTATUS_FLUJO_ESPERA;
-  if (estado === "en revisión") return ESTATUS_FLUJO_POR_ENVIAR;
+  // cleanEstado suele normalizar como "en revision" (sin tilde).
+  // Aceptamos ambas variantes por compatibilidad.
+  if (estado === "en revision" || estado === "en revisión") return ESTATUS_FLUJO_POR_ENVIAR;
   return "";
 }
 

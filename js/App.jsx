@@ -543,7 +543,6 @@ function App() {
       repararColaSyncMarcas();
       repararColaSyncActualizacionesFantasma();
       if (typeof compactarColaSync === "function") compactarColaSync();
-      repararFlagsSyncSinCola();
       setHayPendientesLocales(calcularHayPendientesLocales());
       setUsuario(stored);
       return;
@@ -1703,6 +1702,7 @@ function App() {
       guardarTareasLocales(fusionadas);
       return fusionadas;
     });
+    if (typeof repararFlagsSyncSinCola === "function") repararFlagsSyncSinCola(remotas);
     const fusionadas = cargarTareasLocales();
     const colaVacia = cargarColaSync().length === 0;
     setHayPendientesLocales(calcularHayPendientesLocales());
@@ -1790,7 +1790,7 @@ function App() {
         registrarDiagnosticoRobin("supabase", "Entregables migrados a Supabase", `${mig.migradas} filas escritas`);
         const cola = cargarColaSync().filter((op) => typeof operacionColaEsEntregable === "function" && !operacionColaEsEntregable(op));
         guardarColaSync(cola);
-        if (typeof repararFlagsSyncSinCola === "function") repararFlagsSyncSinCola();
+        if (typeof repararFlagsSyncSinCola === "function") repararFlagsSyncSinCola(mig.tareas);
       }
 
       setApiError(null);

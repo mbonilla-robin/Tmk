@@ -65,8 +65,12 @@ function limpiarFlagsSyncObsoletos(tarea, remotas) {
   const cola = cargarColaSync();
   if (tareaEstaEnColaSync(tarea, cola)) return tarea;
 
+  const remota = (remotas || []).find((r) => remotaCorrespondeATareaLocal(r, tarea, cola));
+  if (remota && remotaContradiceEdicionLocal(remota, tarea)) {
+    return marcarTareaPendiente(normalizarTareaCampos({ ...tarea, estado: tarea.estado }));
+  }
+
   let next = desmarcarTareaPendiente({ ...tarea });
-  const remota = (remotas || []).find((r) => remotaCorrespondeATareaLocal(r, next, cola));
   if (remota) {
     const idRemoto = String(remota.idTarea || "").trim();
     next = limpiarEdicionLocalSiConfirmada({
@@ -354,6 +358,8 @@ function tareaTieneFlagsSyncHuerfanos(tarea) {
 
 function repararFlagsSyncSinCola(remotas) {
   if (cargarColaSync().length > 0) return false;
+  // Sin datos remotos no podemos confirmar si el flag local sigue vigente.
+  if (!Array.isArray(remotas) || !remotas.length) return false;
   const tareas = cargarTareasLocales();
   if (!tareas.length) return false;
 
@@ -377,8 +383,25 @@ function repararFlagsSyncSinCola(remotas) {
 function calcularHayPendientesLocales() {
   repararColaSyncActualizacionesFantasma();
   if (hayPendientesSync()) return true;
-  repararFlagsSyncSinCola();
   return hayTareasPendientesLocales(cargarTareasLocales());
+}
+
+function localTieneEdicionEstadoSinConfirmar(local, remota) {
+  if (!local) return false;
+  const estLocal = normalizarEstado(local?.estado);
+  const estRemota = normalizarEstado(remota?.estado);
+  if (!estLocal || !estRemota || estLocal === estRemota) return false;
+  return /estado cambiado a\s*"/i.test(String(local.detalles || ""));
+}
+
+function localDebeGanarSobreRemota(local, remota, cola) {
+  if (!local) return false;
+  if (tareaEsPendienteLocal(local) || tareaTieneFechasLocalesPendientes(local)) return true;
+  if (tareaEstaEnColaSync(local, cola || cargarColaSync())) return true;
+  if (!remota) {
+    return /estado cambiado a\s*"/i.test(String(local.detalles || ""));
+  }
+  return localTieneEdicionEstadoSinConfirmar(local, remota);
 }
 
 function infoTareaCoincide(a, b) {
@@ -475,11 +498,13 @@ function remotaContradiceFechasLocales(remota, local) {
 
 function remotaContradiceEdicionLocal(remota, local) {
   if (remotaContradiceFechasLocales(remota, local)) return true;
-  if (!tareaEsPendienteLocal(local)) return false;
+  if (!remota || !local) return false;
   const estLocal = normalizarEstado(local?.estado);
   const estRemota = normalizarEstado(remota?.estado);
-  if (estLocal && estRemota && estLocal !== estRemota) return true;
-  return false;
+  if (!estLocal || !estRemota || estLocal === estRemota) return false;
+  if (tareaEsPendienteLocal(local)) return true;
+  if (tareaEstaEnColaSync(local, cargarColaSync())) return true;
+  return localTieneEdicionEstadoSinConfirmar(local, remota);
 }
 
 function combinarLocalesParaFusion(prevTareas, almacenadas) {
@@ -522,16 +547,22 @@ function deduplicarTareasFusionadas(lista) {
     }
 
     const existente = resultado[indice];
-    const tienePrioridadLocal = (t) => tareaEsPendienteLocal(t) || tareaTieneFechasLocalesPendientes(t);
-    const preferida = tienePrioridadLocal(tarea)
+    const tienePrioridadLocal = (t, otro) => (
+      tareaEsPendienteLocal(t)
+      || tareaTieneFechasLocalesPendientes(t)
+      || localDebeGanarSobreRemota(t, otro, cargarColaSync())
+    );
+    const preferida = tienePrioridadLocal(tarea, existente)
       ? tarea
-      : (tienePrioridadLocal(existente) ? existente : tarea);
+      : (tienePrioridadLocal(existente, tarea) ? existente : tarea);
     const otra = preferida === tarea ? existente : tarea;
     const fechas = fusionarFechasLocales(otra, preferida);
     const fusionada = normalizarTareaCampos({
       ...existente,
       ...preferida,
       ...fechas,
+      estado: preferida.estado || existente.estado,
+      flujo: preferida.flujo || existente.flujo,
       _localFechas: preferida._localFechas || existente._localFechas,
       idTarea: preferida.idTarea || existente.idTarea,
       detalles: preferida.detalles || existente.detalles
@@ -539,7 +570,7 @@ function deduplicarTareasFusionadas(lista) {
 
     const confirmada = tareaLocalConfirmadaConRemota(preferida, otra);
     const fusionFinal = limpiarEdicionLocalSiConfirmada(fusionada, otra);
-    resultado[indice] = tienePrioridadLocal(preferida) && !confirmada
+    resultado[indice] = (tienePrioridadLocal(preferida, otra) && !confirmada)
       ? marcarTareaPendiente(fusionFinal)
       : fusionFinal;
   });
@@ -557,7 +588,7 @@ function remotaDebeOcultarseDuranteSync(remota, cola, locales) {
 
   for (const local of locales || []) {
     if (!sonLaMismaTarea(remota, local, { estricto: false })) continue;
-    if (!tareaEsPendienteLocal(local) && !tareaTieneFechasLocalesPendientes(local)) continue;
+    if (!localDebeGanarSobreRemota(local, remota, cola)) continue;
     if (remotaCorrespondeATareaLocal(remota, local, cola)) return true;
     if (remotaContradiceEdicionLocal(remota, local)) return true;
   }
@@ -584,7 +615,7 @@ function fusionarTareasRemotasYLocales(remotas, locales) {
   remotoFiltrado.forEach((t) => {
     const key = getTaskSelectionKey(t);
     const localPendiente = localesConPins.find(
-      (l) => (tareaEsPendienteLocal(l) || tareaTieneFechasLocalesPendientes(l))
+      (l) => localDebeGanarSobreRemota(l, t, cola)
         && remotaCorrespondeATareaLocal(t, l, cola)
     );
     if (localPendiente) return;
@@ -596,33 +627,33 @@ function fusionarTareasRemotasYLocales(remotas, locales) {
     if (mapa.has(key)) return;
     const yaRemota = Array.from(mapa.values()).some((r) => sonLaMismaTarea(r, t, { estricto: false }));
     if (yaRemota) return;
-    if (!tareaEsPendienteLocal(t) && !tareaTieneFechasLocalesPendientes(t)) return;
+    const remotaMatch = (remotas || []).find((r) => sonLaMismaTarea(r, t, { estricto: false }));
+    if (!localDebeGanarSobreRemota(t, remotaMatch || null, cola)) return;
     mapa.set(key, normalizarTareaCampos(t));
   });
 
   localesConPins.forEach((local) => {
-    if (!tareaEsPendienteLocal(local) && !tareaTieneFechasLocalesPendientes(local)) return;
     const remota = (remotas || []).find((r) => remotaCorrespondeATareaLocal(r, local, cola));
-    if (remota) {
-      const fechas = fusionarFechasLocales(remota, local);
-      const fusionada = normalizarTareaCampos({
-        ...remota,
-        ...local,
-        ...fechas,
-        estado: local.estado,
-        _localFechas: local._localFechas,
-        idTarea: remota.idTarea || local.idTarea,
-        detalles: local.detalles || remota.detalles
-      });
-      const confirmada = tareaLocalConfirmadaConRemota(local, remota);
-      const fusionFinal = limpiarEdicionLocalSiConfirmada(fusionada, remota);
-      mapa.set(
-        getTaskSelectionKey(local),
-        (tareaEsPendienteLocal(local) || tareaTieneFechasLocalesPendientes(local)) && !confirmada
-          ? marcarTareaPendiente(fusionFinal)
-          : fusionFinal
-      );
-    }
+    if (!remota || !localDebeGanarSobreRemota(local, remota, cola)) return;
+    const fechas = fusionarFechasLocales(remota, local);
+    const fusionada = normalizarTareaCampos({
+      ...remota,
+      ...local,
+      ...fechas,
+      estado: local.estado,
+      flujo: local.flujo || remota.flujo,
+      _localFechas: local._localFechas,
+      idTarea: remota.idTarea || local.idTarea,
+      detalles: local.detalles || remota.detalles
+    });
+    const confirmada = tareaLocalConfirmadaConRemota(local, remota);
+    const fusionFinal = limpiarEdicionLocalSiConfirmada(fusionada, remota);
+    mapa.set(
+      getTaskSelectionKey(local),
+      localDebeGanarSobreRemota(local, remota, cola) && !confirmada
+        ? marcarTareaPendiente(fusionFinal)
+        : fusionFinal
+    );
   });
 
   return deduplicarTareasFusionadas(

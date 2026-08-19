@@ -697,8 +697,14 @@ function etapaOperativaEstatus(t, filasRef) {
   if (estado === "seguimiento" || flujo === ESTATUS_FLUJO_ESPERA) return "cliente";
   if (estado === "pendiente" || estado === "en progreso") return "diseno";
   if (estado === "en pausa") return "";
+  const flujoDesdeEstado = flujoDesdeEstadoRobin(estado);
   const csvPorEnviar = fila && flujoDesdeStatusCsv(fila.status) === ESTATUS_FLUJO_POR_ENVIAR;
-  if (flujo === ESTATUS_FLUJO_POR_ENVIAR || csvPorEnviar || textoIndicaPorEnviar(blob)) return "por-enviar";
+  if (
+    flujo === ESTATUS_FLUJO_POR_ENVIAR
+    || flujoDesdeEstado === ESTATUS_FLUJO_POR_ENVIAR
+    || csvPorEnviar
+    || textoIndicaPorEnviar(blob)
+  ) return "por-enviar";
   return "diseno";
 }
 

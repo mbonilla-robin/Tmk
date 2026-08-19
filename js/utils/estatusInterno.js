@@ -676,15 +676,42 @@ function listasOperativasEstatus(tareas, filas) {
   const porEnviar = [];
   const esperaCliente = [];
   const faltaHacer = [];
+  const vistosPorEnviar = new Set();
+  const vistosEspera = new Set();
+  const vistosFalta = new Set();
+
+  const claveItemOperativo = (item) => {
+    const t = item?.tarea || {};
+    const keyImport = obtenerImportKeyTarea(t);
+    if (keyImport) return `imp:${keyImport}`;
+    if (typeof getTaskSelectionKey === "function") {
+      const keyTask = getTaskSelectionKey(t);
+      if (keyTask) return `task:${keyTask}`;
+    }
+    const cadena = typeof claveSubcliente === "function"
+      ? claveSubcliente(item?.cadena || "")
+      : String(item?.cadena || "").trim().toLowerCase();
+    const titulo = claveEstatusInterno(item?.entregable || t?.info || "");
+    const fecha = String(item?.fecha || t?.deadline || t?.fechaInicio || "").trim();
+    return `fallback:${cadena}|${titulo}|${fecha}`;
+  };
+
+  const pushUnico = (lista, vistos, item) => {
+    const k = claveItemOperativo(item);
+    if (!k || vistos.has(k)) return;
+    vistos.add(k);
+    lista.push(item);
+  };
+
   (tareas || []).forEach((t) => {
     const etapa = etapaOperativaEstatus(t, filasRef);
     if (!etapa) return;
     const parsed = typeof parseDetalles === "function" ? parseDetalles(t.detalles || "") : { notas: t.detalles || "" };
     const partes = notasYComentarioEstatus(parsed.notas);
     const item = itemOperativoEstatus(t, partes);
-    if (etapa === "cliente") esperaCliente.push(item);
-    else if (etapa === "por-enviar") porEnviar.push(item);
-    else faltaHacer.push(item);
+    if (etapa === "cliente") pushUnico(esperaCliente, vistosEspera, item);
+    else if (etapa === "por-enviar") pushUnico(porEnviar, vistosPorEnviar, item);
+    else pushUnico(faltaHacer, vistosFalta, item);
   });
   const byName = (a, b) => String(a.cadena).localeCompare(String(b.cadena), "es");
   return {
@@ -1046,13 +1073,31 @@ function aplicarComentarioEstatus(tarea, comentario, usuario) {
 }
 
 function agruparTareasPorSubclienteEstatus(tareas, marca) {
-  const grupos = typeof agruparTareasPorSubcliente === "function"
-    ? agruparTareasPorSubcliente(tareas, marca)
-    : [];
-  return grupos.map((grupo) => ({
-    ...grupo,
-    tareas: typeof ordenarTareasPorModo === "function"
-      ? ordenarTareasPorModo(grupo.tareas, "estado")
-      : grupo.tareas
-  }));
+  const map = new Map();
+  (tareas || []).forEach((t) => {
+    if (!t) return;
+    if (marca && typeof marcasCoinciden === "function" && !marcasCoinciden(t.marca, marca)) return;
+    const cadena = typeof obtenerSubclienteTarea === "function"
+      ? obtenerSubclienteTarea(t)
+      : String(t.subcliente || "").trim();
+    const nombre = String(cadena || "").trim() || "Sin cadena";
+    const key = nombre === "Sin cadena"
+      ? "__sin_cadena__"
+      : (typeof claveSubcliente === "function" ? claveSubcliente(nombre) : nombre.toLowerCase());
+    if (!map.has(key)) map.set(key, { nombre, tareas: [] });
+    map.get(key).tareas.push(t);
+  });
+
+  return Array.from(map.values())
+    .map((grupo) => ({
+      ...grupo,
+      tareas: typeof ordenarTareasPorModo === "function"
+        ? ordenarTareasPorModo(grupo.tareas, "estado")
+        : grupo.tareas
+    }))
+    .sort((a, b) => {
+      if (a.nombre === "Sin cadena") return 1;
+      if (b.nombre === "Sin cadena") return -1;
+      return String(a.nombre).localeCompare(String(b.nombre), "es");
+    });
 }

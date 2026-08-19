@@ -296,7 +296,9 @@ function esTareaCompletada(tarea) {
 }
 
 function esTareaSuspendida(tarea) {
-  return cleanEstado(tarea?.estado) === "suspendido";
+  const estado = cleanEstado(tarea?.estado);
+  // "Suspendido" se migra funcionalmente a "En pausa".
+  return estado === "suspendido" || estado === "en pausa";
 }
 
 function esEstadoSoloVistaCliente(estado) {
@@ -463,7 +465,7 @@ const ORDEN_ESTADOS_LISTA = {
   "seguimiento": 3,
   "en revision": 4,
   "en pausa": 5,
-  "suspendido": 6,
+  "suspendido": 5,
   "completada": 7
 };
 

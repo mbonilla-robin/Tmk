@@ -696,8 +696,8 @@ function LayoutMarcaHome({
           {tareasSuspendidas.length > 0 && dashboardMobileVista !== "filtros" && (
             <div className="marca-suspendidos-panel overflow-hidden">
               <div className="marca-suspendidos-panel__header px-0 py-2.5 md:py-3 flex items-center justify-between gap-2">
-                <span className="mobile-section-label md:hidden">Suspendidos</span>
-                <span className="hidden md:block text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Proyectos suspendidos</span>
+                <span className="mobile-section-label md:hidden">En pausa</span>
+                <span className="hidden md:block text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Proyectos en pausa</span>
                 <span className="text-[10px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 rounded-full px-2 py-0.5">
                   {tareasSuspendidas.length}
                 </span>
@@ -720,7 +720,7 @@ function LayoutMarcaHome({
                           <div className="suspendido-task-card-meta">
                             <span className="inline-flex items-center gap-1 min-w-0">
                               <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-slate-400" />
-                              <span className="truncate">Suspendido</span>
+                              <span className="truncate">En pausa</span>
                             </span>
                             {personasCorta && (
                               <>

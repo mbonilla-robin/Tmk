@@ -3656,7 +3656,7 @@ function App() {
                 setFiltroPersona("TODAS");
                 setSearchQuery("");
               }}
-              mostrarEstatusGeneral={typeof marcasCoinciden === "function" ? marcasCoinciden(filtroMarca, "La Santé") : true}
+              mostrarEstatusGeneral={true}
               listaDisenadores={listaDisenadores}
               onEnviarCliente={isDesigner ? undefined : handleEnviarEstatusCliente}
               onGuardarComentario={isDesigner ? undefined : handleGuardarComentarioEstatus}

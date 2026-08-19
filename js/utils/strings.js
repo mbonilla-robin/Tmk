@@ -24,7 +24,7 @@ function normalizarEstado(val) {
   if (clean.includes("progreso")) return "En progreso";
   if (clean.includes("revision")) return "En revision";
   if (clean.includes("pausa")) return "En pausa";
-  if (clean.includes("suspendid")) return "Suspendido";
+  if (clean.includes("suspendid")) return "En pausa";
   if (clean.includes("seguimiento")) return "Seguimiento";
   if (clean.includes("completad")) return "Completada";
   return "Pendiente";

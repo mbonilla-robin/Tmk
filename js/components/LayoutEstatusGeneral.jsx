@@ -28,6 +28,7 @@ function LayoutEstatusGeneral({
     [tareasActivas, listaDisenadores]
   );
   const [vistaDetalle, setVistaDetalle] = useState("subcliente");
+  const etiquetaMarca = (nombreMarca || (typeof formatearMarca === "function" ? formatearMarca(marca) : marca) || "esta marca").trim();
   const grupos = vistaDetalle === "persona" ? gruposPersona : gruposSubcliente;
   const carga = useMemo(
     () => (typeof resumenCargaDisenadoresEstatus === "function"
@@ -336,7 +337,7 @@ function LayoutEstatusGeneral({
           </div>
         </header>
         {filasDisenador.length === 0 ? (
-          <p className="estatus-lista-empty">No tiene entregables activos en La Santé</p>
+          <p className="estatus-lista-empty">No tiene entregables activos en {etiquetaMarca}</p>
         ) : (
           <ul className="estatus-mini-sheet-list">
             {filasDisenador.map((row) => {
@@ -784,7 +785,7 @@ function LayoutEstatusGeneral({
         <div className="marca-subclientes-empty">
           {vistaDetalle === "persona"
             ? "Aún no hay entregables activos con persona asignada."
-            : "Aún no hay entregables con cadena en La Santé. Súbelos desde Configuración → Base de datos."}
+            : `Aún no hay entregables con cadena en ${etiquetaMarca}.`}
         </div>
       ) : (
         <div className="estatus-notion">

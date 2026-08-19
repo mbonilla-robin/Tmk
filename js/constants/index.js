@@ -4,11 +4,10 @@ const LISTA_ESTADOS_VALIDOS = [
   "Seguimiento",
   "En revision",
   "En pausa",
-  "Suspendido",
   "Completada"
 ];
 
-const ESTADOS_SOLO_VISTA_CLIENTE = ["Suspendido"];
+const ESTADOS_SOLO_VISTA_CLIENTE = [];
 
 const ESTADOS_MAPA = [
   { id: "Pendiente", dot: "bg-zinc-400", bg: "bg-zinc-50 text-zinc-600 border-zinc-200" },
@@ -16,7 +15,6 @@ const ESTADOS_MAPA = [
   { id: "Seguimiento", dot: "bg-amber-500", bg: "bg-amber-50 text-amber-700 border-amber-150" },
   { id: "En revision", dot: "bg-purple-500", bg: "bg-purple-50 text-purple-700 border-purple-150" },
   { id: "En pausa", dot: "bg-red-400", bg: "bg-red-50 text-red-700 border-red-150" },
-  { id: "Suspendido", dot: "bg-slate-400", bg: "bg-slate-50 text-slate-600 border-slate-200" },
   { id: "Completada", dot: "bg-emerald-500", bg: "bg-[#EDFBF2] text-emerald-700 border-emerald-150" }
 ];
 

@@ -502,6 +502,7 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, listaPersonas, r
                   marca={marca}
                   listaGlobal={listaSubclientes}
                   registrarNuevoSubcliente={registrarNuevoSubcliente}
+                  tareas={tareas}
                   variant="minimal"
                 />
               )}

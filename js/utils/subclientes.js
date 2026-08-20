@@ -1,7 +1,47 @@
 const SUBCLIENTES_STORAGE_KEY = "robin_subclientes_v1";
 
+/** Catálogo base por marca. La Santé: cadenas del estatus / CSV interno. */
 const SUBCLIENTES_CATALOGO = [
-  { marca: "La Santé", nombre: "Rattan Margarita" }
+  { marca: "La Santé", nombre: "ALAMO" },
+  { marca: "La Santé", nombre: "ANALPER" },
+  { marca: "La Santé", nombre: "BIGFARMA" },
+  { marca: "La Santé", nombre: "CAMPAÑA ESOZ" },
+  { marca: "La Santé", nombre: "CRISTALMED" },
+  { marca: "La Santé", nombre: "FARMA EXPRESS" },
+  { marca: "La Santé", nombre: "FARMA INFANTE NINA ROSA" },
+  { marca: "La Santé", nombre: "FARMA INFANTE SUC EL SOMBRERO" },
+  { marca: "La Santé", nombre: "FARMA INFANTE SUC INFANTE" },
+  { marca: "La Santé", nombre: "FARMA INFANTE SUC INFANTE ORGANICA" },
+  { marca: "La Santé", nombre: "FARMACIA AHINOA" },
+  { marca: "La Santé", nombre: "FARMACIA GRUPO INSIDE" },
+  { marca: "La Santé", nombre: "FARMACIA RUIZ PINEDA" },
+  { marca: "La Santé", nombre: "FARMACIA RUPERTO LUGO" },
+  { marca: "La Santé", nombre: "FARMACIA SAMÁN DE PERIJÁ" },
+  { marca: "La Santé", nombre: "FARMACIA TIENDA PERFECTA" },
+  { marca: "La Santé", nombre: "FARMACIA VENCEDORA" },
+  { marca: "La Santé", nombre: "FARMACIA XXX" },
+  { marca: "La Santé", nombre: "FARMACIA YA" },
+  { marca: "La Santé", nombre: "FARMAECONOMICA" },
+  { marca: "La Santé", nombre: "FARMAEXPRESS MARGARITA" },
+  { marca: "La Santé", nombre: "FARMAGO" },
+  { marca: "La Santé", nombre: "FARMAMIGO" },
+  { marca: "La Santé", nombre: "FARMANUTRY" },
+  { marca: "La Santé", nombre: "FARMATODO" },
+  { marca: "La Santé", nombre: "FARMAX" },
+  { marca: "La Santé", nombre: "FRANLUIS" },
+  { marca: "La Santé", nombre: "GAMA" },
+  { marca: "La Santé", nombre: "GRUPO PEREIRA" },
+  { marca: "La Santé", nombre: "GRUPO TODO HOGAR" },
+  { marca: "La Santé", nombre: "LA SANTÉ" },
+  { marca: "La Santé", nombre: "LOCATEL" },
+  { marca: "La Santé", nombre: "MARAPLUS" },
+  { marca: "La Santé", nombre: "MI FARMA PF" },
+  { marca: "La Santé", nombre: "MULTIMARCA" },
+  { marca: "La Santé", nombre: "OTC" },
+  { marca: "La Santé", nombre: "PROBIÓTICOS" },
+  { marca: "La Santé", nombre: "Rattan Margarita" },
+  { marca: "La Santé", nombre: "SAN ANSELMO" },
+  { marca: "La Santé", nombre: "XANA" }
 ];
 
 function claveSubcliente(valor) {
@@ -135,6 +175,37 @@ function recolectarSubclientesDeTareas(tareas, marca) {
     }
   });
   return nombres.sort((a, b) => a.localeCompare(b, "es"));
+}
+
+function claveEntradaSubcliente(item) {
+  const norm = normalizarEntradaSubcliente(item);
+  if (!norm || !norm.nombre) return "";
+  return `${claveMarcaSubcliente(norm.marca)}::${claveSubcliente(norm.nombre)}`;
+}
+
+function recolectarEntradasSubclientesDeTareas(tareas) {
+  const mapa = new Map();
+  (tareas || []).forEach((t) => {
+    const nombre = obtenerSubclienteTarea(t);
+    if (!nombre) return;
+    const marca = typeof normalizarMarca === "function"
+      ? normalizarMarca(t.marca || "")
+      : String(t.marca || "").trim();
+    if (!marca) return;
+    const entrada = { marca, nombre };
+    const key = claveEntradaSubcliente(entrada);
+    if (key && !mapa.has(key)) mapa.set(key, entrada);
+  });
+  return Array.from(mapa.values());
+}
+
+function filtrarEntradasSubclientesNuevas(lista, entradas) {
+  const existentes = new Set(
+    (lista || []).map((s) => claveEntradaSubcliente(s)).filter(Boolean)
+  );
+  return (entradas || [])
+    .map(normalizarEntradaSubcliente)
+    .filter((n) => n && n.nombre && n.marca && !existentes.has(claveEntradaSubcliente(n)));
 }
 
 function listarSubclientesDisponiblesParaMarca(lista, marca, tareas) {

@@ -1630,11 +1630,35 @@ function App() {
 
     cargarSubclientesRemotos().then((remotas) => {
       if (cancelled || !remotas || !remotas.length) return;
-      setListaSubclientes(guardarListaSubclientes(remotas));
+      setListaSubclientes((prev) => {
+        const fusionada = guardarListaSubclientes(fusionarListasSubclientes(prev, remotas));
+        if (typeof filtrarEntradasSubclientesNuevas === "function") {
+          filtrarEntradasSubclientesNuevas(remotas, fusionada).forEach((entrada) => {
+            insertarSubclienteRemoto(entrada.marca, entrada.nombre);
+          });
+        }
+        return fusionada;
+      });
     });
 
     return () => { cancelled = true; };
   }, [usuario]);
+
+  useEffect(() => {
+    if (!usuario || !Array.isArray(tareas) || !tareas.length) return;
+    if (typeof recolectarEntradasSubclientesDeTareas !== "function") return;
+    if (typeof filtrarEntradasSubclientesNuevas !== "function") return;
+
+    const entradas = recolectarEntradasSubclientesDeTareas(tareas);
+    if (!entradas.length) return;
+
+    setListaSubclientes((prev) => {
+      const nuevas = filtrarEntradasSubclientesNuevas(prev, entradas);
+      if (!nuevas.length) return prev;
+      nuevas.forEach((entrada) => insertarSubclienteRemoto(entrada.marca, entrada.nombre));
+      return registrarSubclientesEnLista(prev, nuevas);
+    });
+  }, [usuario, tareas]);
 
   useEffect(() => {
     if (!usuario) return;
@@ -3649,6 +3673,7 @@ function App() {
               registrarNuevaCategoria={registrarNuevaCategoriaGlobal}
               listaSubclientes={listaSubclientes}
               registrarNuevoSubcliente={registrarNuevoSubclienteGlobal}
+              tareas={tareas}
             />
           )}
 

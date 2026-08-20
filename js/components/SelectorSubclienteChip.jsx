@@ -4,6 +4,7 @@ function SelectorSubclienteChip({
   marca,
   listaGlobal,
   registrarNuevoSubcliente,
+  tareas = [],
   variant = "default",
   titulo = "Subcliente"
 }) {
@@ -18,8 +19,11 @@ function SelectorSubclienteChip({
   const seleccionado = useMemo(() => normalizarNombreSubcliente(valor), [valor]);
 
   const opciones = useMemo(() => {
+    if (typeof listarSubclientesDisponiblesParaMarca === "function") {
+      return listarSubclientesDisponiblesParaMarca(listaGlobal, marca, tareas);
+    }
     return listarSubclientesPorMarca(listaGlobal, marca).map((s) => s.nombre);
-  }, [listaGlobal, marca]);
+  }, [listaGlobal, marca, tareas]);
 
   const opcionesFiltradas = useMemo(() => {
     const q = buscar.trim().toLowerCase();

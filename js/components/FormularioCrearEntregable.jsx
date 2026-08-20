@@ -24,7 +24,8 @@ function FormularioCrearEntregable({
   listaCategorias,
   registrarNuevaCategoria,
   listaSubclientes,
-  registrarNuevoSubcliente
+  registrarNuevoSubcliente,
+  tareas = []
 }) {
   const [subtareas, setSubtareas] = useState([]);
   const rolesIniciales = dividirCampoPersonasPorRol(nuevaTarea.personas || "");
@@ -145,6 +146,7 @@ function FormularioCrearEntregable({
                 marca={nuevaTarea.marca}
                 listaGlobal={listaSubclientes}
                 registrarNuevoSubcliente={registrarNuevoSubcliente}
+                tareas={tareas}
                 variant="minimal"
               />
             </PropertyRow>

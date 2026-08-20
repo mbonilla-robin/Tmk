@@ -4,6 +4,7 @@ const PERSONAS_CANONICAS = [
   "dsalavarria",
   "fcolmenares",
   "gnebrus",
+  "mmachado",
   "sgiucastro",
   "dsanchez",
   "admin"
@@ -14,6 +15,7 @@ const LISTA_PERSONAS_DEFECTO = [
   "@ralvarez",
   "@mbonilla",
   "@gnebrus",
+  "@mmachado",
   "@dsalavarria",
   "@sgiucastro",
   "@dsanchez",
@@ -35,7 +37,8 @@ const PERSONAS_EQUIPO_TRADE = [
   "fcolmenares",
   "ralvarez",
   "mbonilla",
-  "gnebrus"
+  "gnebrus",
+  "mmachado"
 ];
 
 const PERSONAS_EQUIPO_CONTENIDO = [
@@ -99,6 +102,16 @@ const PERSONAS_ALIAS_A_CANONICO = (() => {
   add("@genesis", "gnebrus");
   add("@gene", "gnebrus");
   add("@gnebrus", "gnebrus");
+
+  add("melanie", "mmachado");
+  add("meli", "mmachado");
+  add("machado", "mmachado");
+  add("melanie machado", "mmachado");
+  add("m machado", "mmachado");
+  add("mmachado", "mmachado");
+  add("@melanie", "mmachado");
+  add("@meli", "mmachado");
+  add("@mmachado", "mmachado");
 
   add("sofia", "sgiucastro");
   add("sofi", "sgiucastro");

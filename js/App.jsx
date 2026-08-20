@@ -37,7 +37,7 @@ function App() {
         const disenadores = guardadosDisenadores ? (JSON.parse(guardadosDisenadores) || []).map(normalizeRobinUsername).filter(Boolean) : [];
         const setDisLocal = new Set(disenadores);
 
-        const limpios = Array.from(new Set(ejecutivos))
+        const limpios = Array.from(new Set([...DEFAULT_EXECUTIVOS, ...ejecutivos]))
           .filter((u) => u === "admin" || (!setDisDefault.has(u) && !setDisLocal.has(u) && !setContentLocal.has(u)));
 
         return limpios.length ? limpios : DEFAULT_EXECUTIVOS;

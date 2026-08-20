@@ -1033,7 +1033,7 @@ function doGet(e) {
     // Listas de autorización por rol (para sembrar en el cliente).
     var allowed = robinListaDesdePropiedad_(
       "ROBIN_ALLOWED_USERS",
-      "fcolmenares,ralvarez,dsalavarria,mbonilla,gnebrus,sgiucastro,dsanchez,admin"
+      "fcolmenares,ralvarez,dsalavarria,mbonilla,gnebrus,mmachado,sgiucastro,dsanchez,admin"
     );
     var designers = robinListaDesdePropiedad_(
       "ROBIN_DESIGNER_USERS",

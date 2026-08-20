@@ -60,7 +60,7 @@ function robinUsuarioAutorizado_(username) {
   if (robinEsDisenadorUsuario_(user)) return true;
   var allowed = robinListaDesdePropiedad_(
     "ROBIN_ALLOWED_USERS",
-    "fcolmenares,ralvarez,dsalavarria,mbonilla,gnebrus,sgiucastro,dsanchez,jalfiero,arusso,arodriguez,agraterol,dmatheus,admin"
+    "fcolmenares,ralvarez,dsalavarria,mbonilla,gnebrus,mmachado,sgiucastro,dsanchez,jalfiero,arusso,arodriguez,agraterol,dmatheus,admin"
   );
   return allowed.indexOf(user) !== -1;
 }
@@ -222,7 +222,7 @@ function robinActualizarUsuarios_(payload) {
 
   var allowed = robinListaDesdePropiedad_(
     "ROBIN_ALLOWED_USERS",
-    "fcolmenares,ralvarez,dsalavarria,mbonilla,gnebrus,sgiucastro,dsanchez,admin"
+    "fcolmenares,ralvarez,dsalavarria,mbonilla,gnebrus,mmachado,sgiucastro,dsanchez,admin"
   );
   var designers = robinListaDesdePropiedad_(
     "ROBIN_DESIGNER_USERS",
@@ -288,7 +288,7 @@ function robinSembrarUsuariosContenido() {
   var props = PropertiesService.getScriptProperties();
   var allowed = robinListaDesdePropiedad_(
     "ROBIN_ALLOWED_USERS",
-    "fcolmenares,ralvarez,dsalavarria,mbonilla,gnebrus,sgiucastro,dsanchez,admin"
+    "fcolmenares,ralvarez,dsalavarria,mbonilla,gnebrus,mmachado,sgiucastro,dsanchez,admin"
   );
   var designers = robinListaDesdePropiedad_(
     "ROBIN_DESIGNER_USERS",
@@ -313,6 +313,41 @@ function robinSembrarUsuariosContenido() {
   Logger.log("ROBIN_CONTENT_USERS: " + contentUsers.join(","));
   Logger.log("ROBIN_ALLOWED_USERS: " + allowed.join(","));
   Logger.log("ROBIN_DESIGNER_USERS: " + designers.join(","));
+}
+
+/**
+ * Ejecutar una vez desde el editor (tras desplegar):
+ * agrega a Melanie Machado (mmachado) como ejecutivo.
+ */
+function robinSembrarMelanieMachado() {
+  var props = PropertiesService.getScriptProperties();
+  var allowed = robinListaDesdePropiedad_(
+    "ROBIN_ALLOWED_USERS",
+    "fcolmenares,ralvarez,dsalavarria,mbonilla,gnebrus,mmachado,sgiucastro,dsanchez,admin"
+  );
+  var designers = robinListaDesdePropiedad_(
+    "ROBIN_DESIGNER_USERS",
+    "jalfiero,arusso,arodriguez,agraterol,dmatheus"
+  );
+  var contentUsers = robinListaDesdePropiedad_(
+    "ROBIN_CONTENT_USERS",
+    "dsalavarria,sgiucastro,dsanchez"
+  );
+
+  if (allowed.indexOf("mmachado") === -1) allowed.push("mmachado");
+  designers = designers.filter(function (u) { return u !== "mmachado"; });
+  contentUsers = contentUsers.filter(function (u) { return u !== "mmachado"; });
+
+  allowed = Array.from(new Set(allowed));
+  designers = Array.from(new Set(designers));
+  contentUsers = Array.from(new Set(contentUsers));
+
+  props.setProperty("ROBIN_ALLOWED_USERS", allowed.join(","));
+  props.setProperty("ROBIN_DESIGNER_USERS", designers.join(","));
+  props.setProperty("ROBIN_CONTENT_USERS", contentUsers.join(","));
+
+  Logger.log("Agregado mmachado como ejecutivo.");
+  Logger.log("ROBIN_ALLOWED_USERS: " + allowed.join(","));
 }
 
 /** Ejecutar desde el editor: Probar → robinProbarConfiguracion */

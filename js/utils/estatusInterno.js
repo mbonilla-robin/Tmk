@@ -222,6 +222,7 @@ function personasDesdeResponsableCsv(responsableRaw) {
   if (clave.includes("david")) agregar("@dmatheus");
   if (clave.includes("jesus") || clave.includes("jesús")) agregar("@jalfiero");
   if (clave.includes("gene")) agregar("@gnebrus");
+  if (clave.includes("melanie") || clave.includes("meli") || clave.includes("machado")) agregar("@mmachado");
   if (clave.includes("miguel") || clave.includes("migue")) agregar("@mbonilla");
 
   if (handles.length === 1 && typeof resolverHandleCanonico === "function") {

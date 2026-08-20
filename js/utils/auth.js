@@ -172,7 +172,7 @@ function isRobinAdmin(username) {
 
 function getDefaultAllowedUsers() {
   return [
-    "fcolmenares", "ralvarez", "mbonilla", "gnebrus",
+    "fcolmenares", "ralvarez", "mbonilla", "gnebrus", "mmachado",
     "dsalavarria", "sgiucastro", "dsanchez",
     "admin"
   ];

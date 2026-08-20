@@ -4,6 +4,7 @@ const NOMBRES_DISPLAY_EQUIPO = {
   dsalavarria: "Daniela Salavarría",
   fcolmenares: "Francisco Colmenares",
   gnebrus: "Genesis Nebrus",
+  mmachado: "Melanie Machado",
   sgiucastro: "Sofia Giucastro",
   dsanchez: "Douglas Sánchez",
   agraterol: "Aaron Graterol",

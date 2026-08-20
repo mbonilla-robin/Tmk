@@ -935,7 +935,12 @@ function etiquetaDiasSnapshotEstatus(tarea, modo) {
   const tDeadline = typeof obtenerTiempoFecha === "function" ? obtenerTiempoFecha(tarea.deadline) : Infinity;
   if (tDeadline === Infinity) return "Sin fecha";
   const dias = Math.floor((tHoy - tDeadline) / 86400000);
-  if (dias > 0) return `${dias}d atrasado`;
+  if (dias > 0) {
+    if (typeof esTareaEnEsperaDeComentarios === "function" && esTareaEnEsperaDeComentarios(tarea)) {
+      return `${dias}d`;
+    }
+    return `${dias}d atrasado`;
+  }
   if (dias === 0) return "Hoy";
   return `${Math.abs(dias)}d`;
 }

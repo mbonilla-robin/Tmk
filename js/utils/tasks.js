@@ -319,8 +319,27 @@ function obtenerEstadosGeneradorEstatus() {
   );
 }
 
+function esTareaEnEsperaDeComentarios(tarea) {
+  const estado = cleanEstado(tarea?.estado);
+  if (
+    estado === "seguimiento"
+    || estado.includes("espera de comentarios")
+    || estado.includes("espera comentarios")
+    || estado.includes("espera por cliente")
+  ) {
+    return true;
+  }
+  if (typeof obtenerFlujoTarea === "function") {
+    const flujo = String(obtenerFlujoTarea(tarea) || "").trim().toLowerCase();
+    if (flujo === "espera-cliente") return true;
+  }
+  const flujoDirecto = String(tarea?.flujo || "").trim().toLowerCase();
+  return flujoDirecto === "espera-cliente";
+}
+
 function cuentaComoAtrasada(tarea, tHoy) {
   if (esTareaCompletada(tarea) || esTareaSuspendida(tarea)) return false;
+  if (esTareaEnEsperaDeComentarios(tarea)) return false;
   const tDeadline = obtenerTiempoFecha(tarea.deadline);
   const hoy = tHoy ?? obtenerTiempoHoyLocal();
   return tDeadline !== Infinity && tDeadline < hoy;
@@ -616,6 +635,7 @@ window.obtenerEstadosKanban = obtenerEstadosKanban;
 window.obtenerEstadosFiltroLista = obtenerEstadosFiltroLista;
 window.obtenerEstadosGeneradorEstatus = obtenerEstadosGeneradorEstatus;
 window.cuentaComoAtrasada = cuentaComoAtrasada;
+window.esTareaEnEsperaDeComentarios = esTareaEnEsperaDeComentarios;
 window.ordenarTareasPorModo = ordenarTareasPorModo;
 window.agruparTareasPorMarcaOrdenadas = agruparTareasPorMarcaOrdenadas;
 window.agruparTareasPorSubclienteOrdenadas = agruparTareasPorSubclienteOrdenadas;

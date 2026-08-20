@@ -194,7 +194,9 @@ function agregarMetricasPorPersona(tareas, modo, rosterHandles) {
     let vencenHoy = 0;
     abiertas.forEach((t) => {
       const td = obtenerTiempoFecha(t.deadline);
-      if (td !== Infinity && td < tHoy) atrasadas += 1;
+      if (typeof cuentaComoAtrasada === "function" ? cuentaComoAtrasada(t, tHoy) : (td !== Infinity && td < tHoy)) {
+        atrasadas += 1;
+      }
       if (td === tHoy) vencenHoy += 1;
     });
 

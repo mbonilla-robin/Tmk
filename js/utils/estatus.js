@@ -60,6 +60,11 @@ function filtrarTareasParaEstatus(tareas, { marcas, estados, filtroTiempo, perso
       const estadoNorm = cleanEstado(t.estado);
       const estadoMatch = estados.some(e => cleanEstado(e) === estadoNorm);
       if (!estadoMatch) return false;
+      // Espera de comentarios: no incluir las que ya entraron a cola COR.
+      const soloSeguimiento = estados.every((e) => cleanEstado(e) === "seguimiento");
+      if (soloSeguimiento && typeof tareaPendienteSubirCor === "function" && tareaPendienteSubirCor(t)) {
+        return false;
+      }
     }
 
     const esSuspendida = esTareaSuspendida(t);

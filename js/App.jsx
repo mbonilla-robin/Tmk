@@ -2049,7 +2049,43 @@ function App() {
     });
     setHayPendientesLocales(true);
     sincronizarEnSegundoPlano();
-    showToast("Comentario guardado", "success");
+    showToast(
+      String(comentario || "").trim()
+        ? "Comentario guardado. Quedó en Por subir en COR."
+        : "Comentario guardado",
+      "success"
+    );
+  };
+
+  const handleMarcarSubidoCor = (tarea) => {
+    if (isDesigner) return;
+    if (typeof marcarSubidoCorEstatus !== "function") return;
+    const original = resolverTareaActual(tareas, tarea);
+    if (!original) return;
+    const index = encontrarIndiceTarea(tareas, original);
+    if (index === -1) return;
+
+    const actualizada = marcarTareaPendiente(normalizarTareaCampos(
+      marcarSubidoCorEstatus(original, usuario)
+    ));
+    const temp = [...tareas];
+    temp[index] = actualizada;
+    persistTareas(temp);
+
+    if (normalizarEstado(original.estado) !== normalizarEstado(actualizada.estado)) {
+      notificarCambioEstadoTarea(actualizada, usuario, original.estado, actualizada.estado)
+        .then(() => refrescarNotificaciones());
+    }
+
+    encolarSync({
+      type: "update",
+      taskKey: getTaskSelectionKey(actualizada),
+      taskKeyOriginal: getTaskSelectionKey(original),
+      payload: construirPayloadSyncTarea(original, actualizada, { campoSync: "todo" })
+    });
+    setHayPendientesLocales(true);
+    sincronizarEnSegundoPlano();
+    showToast("Marcado como subido a COR. Pasó a En progreso.", "success");
   };
 
   const handleConfirmComplete = async () => {
@@ -3628,6 +3664,7 @@ function App() {
               onVerTodasHoy={() => aplicarAtajoFiltro("hoy")}
               onCrearRapido={isDesigner ? undefined : () => setFormularioRapidoVisible(true)}
               onAtajoFiltro={aplicarAtajoFiltro}
+              onMarcarSubidoCor={isDesigner ? undefined : handleMarcarSubidoCor}
               soloMisTareas={isDesigner}
               currentTheme={currentTheme}
               getMarcaStyle={getMarcaStyle}

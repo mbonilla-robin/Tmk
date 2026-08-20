@@ -320,6 +320,7 @@ function obtenerEstadosGeneradorEstatus() {
 }
 
 function esTareaEnEsperaDeComentarios(tarea) {
+  if (typeof tareaPendienteSubirCor === "function" && tareaPendienteSubirCor(tarea)) return false;
   const estado = cleanEstado(tarea?.estado);
   if (
     estado === "seguimiento"
@@ -340,6 +341,7 @@ function esTareaEnEsperaDeComentarios(tarea) {
 function cuentaComoAtrasada(tarea, tHoy) {
   if (esTareaCompletada(tarea) || esTareaSuspendida(tarea)) return false;
   if (esTareaEnEsperaDeComentarios(tarea)) return false;
+  if (typeof tareaPendienteSubirCor === "function" && tareaPendienteSubirCor(tarea)) return false;
   const tDeadline = obtenerTiempoFecha(tarea.deadline);
   const hoy = tHoy ?? obtenerTiempoHoyLocal();
   return tDeadline !== Infinity && tDeadline < hoy;

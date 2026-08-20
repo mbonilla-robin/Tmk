@@ -281,6 +281,31 @@ function obtenerEnvioTipoTarea(tarea) {
   return "";
 }
 
+function tareaPendienteSubirCor(tarea) {
+  if (!tarea) return false;
+  if (tarea.pendienteCor === true || tarea.pendienteCor === 1 || tarea.pendienteCor === "1") return true;
+  if (typeof parseDetalles === "function") {
+    return Boolean(parseDetalles(tarea.detalles || "").pendienteCor);
+  }
+  return /<!--\s*robin-pendiente-cor:\s*(1|true|si|sí)\s*-->/i.test(String(tarea.detalles || ""));
+}
+
+function obtenerAjusteComentarioEstatus(tarea) {
+  const parsed = typeof parseDetalles === "function"
+    ? parseDetalles(tarea?.detalles || "")
+    : { notas: tarea?.detalles || "" };
+  const partes = typeof notasYComentarioEstatus === "function"
+    ? notasYComentarioEstatus(parsed.notas)
+    : { notas: parsed.notas || "", comentario: "" };
+  return String(partes.comentario || partes.notas || "").trim();
+}
+
+function listarTareasPendientesSubirCor(tareas) {
+  return (tareas || [])
+    .filter((t) => t && tareaPendienteSubirCor(t) && !(typeof esTareaCompletada === "function" && esTareaCompletada(t)))
+    .sort((a, b) => String(a.info || "").localeCompare(String(b.info || ""), "es"));
+}
+
 function inferirEnvioTipoEstatus(t, fila, blob) {
   const previo = obtenerEnvioTipoTarea(t);
   if (previo === "propuesta" || previo === "arte-final") return previo;
@@ -793,6 +818,7 @@ function itemOperativoEstatus(t, partes) {
 
 function etapaOperativaEstatus(t, filasRef) {
   if (typeof esTareaOcultaEnEstatus === "function" && esTareaOcultaEnEstatus(t)) return "";
+  if (tareaPendienteSubirCor(t)) return "";
   const estado = estadoRobinEstatus(t);
   const parsed = typeof parseDetalles === "function" ? parseDetalles(t.detalles || "") : { notas: t.detalles || "" };
   const partes = notasYComentarioEstatus(parsed.notas);
@@ -1187,20 +1213,27 @@ function aplicarComentarioEstatus(tarea, comentario, usuario) {
       link: tarea.link,
       subcliente: tarea.subcliente,
       importKey: tarea.importKey,
-      flujo: tarea.flujo
+      flujo: tarea.flujo,
+      envioTipo: tarea.envioTipo,
+      pendienteCor: tarea.pendienteCor
     };
   const partes = notasYComentarioEstatus(parsed.notas);
-  const notasNuevas = construirNotasEstatus(partes.notas, comentario);
+  const comentarioLimpio = String(comentario || "").trim();
+  const notasNuevas = construirNotasEstatus(partes.notas, comentarioLimpio);
   const importKey = parsed.importKey || tarea.importKey || "";
   const sub = parsed.subcliente || (typeof obtenerSubclienteTarea === "function"
     ? obtenerSubclienteTarea(tarea)
     : tarea.subcliente);
-  const flujo = parsed.flujo || tarea.flujo || "";
+  const envioTipo = parsed.envioTipo || tarea.envioTipo || "";
+  const entraColaCor = Boolean(comentarioLimpio);
+  // Sale de espera-cliente operativa; queda pendiente de subir a COR.
+  const flujo = entraColaCor ? "" : (parsed.flujo || tarea.flujo || "");
+  const pendienteCor = entraColaCor ? true : Boolean(parsed.pendienteCor || tarea.pendienteCor);
   const historial = [...(parsed.historial || [])];
-  if (usuario && String(comentario || "").trim()) {
+  if (usuario && comentarioLimpio) {
     const hoy = new Date();
     const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, "0")}`;
-    historial.push(`• [${timestamp}] Comentario de cliente registrado por @${String(usuario).replace(/^@/, "")}`);
+    historial.push(`• [${timestamp}] Comentario de cliente registrado por @${String(usuario).replace(/^@/, "")} — pendiente de subir a COR`);
   }
   const detalles = typeof serializeDetalles === "function"
     ? serializeDetalles(
@@ -1209,15 +1242,69 @@ function aplicarComentarioEstatus(tarea, comentario, usuario) {
       historial,
       parsed.link || tarea.link,
       sub,
-      { flujo, importKey }
+      { flujo, importKey, envioTipo, pendienteCor }
     )
     : notasNuevas;
   return {
     ...tarea,
     detalles,
     importKey,
-    flujo
+    flujo,
+    envioTipo,
+    pendienteCor,
+    estado: tarea.estado
   };
+}
+
+function marcarSubidoCorEstatus(tarea, usuario) {
+  if (!tarea) return tarea;
+  const parsed = typeof parseDetalles === "function"
+    ? parseDetalles(tarea.detalles || "")
+    : {
+      notas: tarea.detalles || "",
+      subtareas: [],
+      historial: [],
+      link: tarea.link,
+      subcliente: tarea.subcliente,
+      importKey: tarea.importKey,
+      flujo: tarea.flujo,
+      envioTipo: tarea.envioTipo
+    };
+  const importKey = parsed.importKey || tarea.importKey || "";
+  const sub = parsed.subcliente || (typeof obtenerSubclienteTarea === "function"
+    ? obtenerSubclienteTarea(tarea)
+    : tarea.subcliente);
+  const envioTipo = parsed.envioTipo || tarea.envioTipo || "";
+  const historial = [...(parsed.historial || [])];
+  if (usuario) {
+    const hoy = new Date();
+    const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, "0")}`;
+    historial.push(`• [${timestamp}] Ajuste subido a COR por @${String(usuario).replace(/^@/, "")}`);
+    historial.push(`• [${timestamp}] Estado cambiado a "En progreso" por @${String(usuario).replace(/^@/, "")}`);
+  }
+  const detalles = typeof serializeDetalles === "function"
+    ? serializeDetalles(
+      parsed.notas,
+      parsed.subtareas || [],
+      historial,
+      parsed.link || tarea.link,
+      sub,
+      { flujo: "", importKey, envioTipo, pendienteCor: false }
+    )
+    : parsed.notas;
+  let actualizada = {
+    ...tarea,
+    detalles,
+    importKey,
+    flujo: "",
+    envioTipo,
+    pendienteCor: false,
+    estado: "En progreso"
+  };
+  if (typeof aplicarFlujoSegunEstadoEstatus === "function") {
+    actualizada = aplicarFlujoSegunEstadoEstatus(actualizada, "En progreso");
+  }
+  return actualizada;
 }
 
 function agruparTareasPorSubclienteEstatus(tareas, marca) {

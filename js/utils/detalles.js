@@ -3,6 +3,7 @@ const ROBIN_SUBCLIENTE_RE = /<!--\s*robin-subcliente:([^>]+?)\s*-->/i;
 const ROBIN_FLUJO_RE = /<!--\s*robin-flujo:([^>]+?)\s*-->/i;
 const ROBIN_IMPORT_KEY_RE = /<!--\s*robin-import-key:([^>]+?)\s*-->/i;
 const ROBIN_ENVIO_TIPO_RE = /<!--\s*robin-envio-tipo:([^>]+?)\s*-->/i;
+const ROBIN_PENDIENTE_COR_RE = /<!--\s*robin-pendiente-cor:([^>]+?)\s*-->/i;
 const HISTORIAL_LINE_RE = /^•\s*\[(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})\]\s*(.+)$/;
 
 function extraerMarcadorLink(text) {
@@ -60,15 +61,29 @@ function extraerMarcadorEnvioTipo(text) {
   };
 }
 
+function extraerMarcadorPendienteCor(text) {
+  const raw = String(text || "");
+  const match = raw.match(ROBIN_PENDIENTE_COR_RE);
+  if (!match) return { pendienteCor: false, resto: raw };
+  const val = String(match[1] || "").trim().toLowerCase();
+  const pendienteCor = val === "1" || val === "true" || val === "si" || val === "sí";
+  return {
+    pendienteCor,
+    resto: raw.replace(ROBIN_PENDIENTE_COR_RE, "").trim()
+  };
+}
+
 function parseDetalles(detallesRaw) {
   const sinLink = extraerMarcadorLink(detallesRaw || "");
   const sinSub = extraerMarcadorSubcliente(sinLink.resto);
   const sinFlujo = extraerMarcadorFlujo(sinSub.resto);
   const sinImport = extraerMarcadorImportKey(sinFlujo.resto);
-  const { envioTipo, resto } = extraerMarcadorEnvioTipo(sinImport.resto);
+  const sinEnvio = extraerMarcadorEnvioTipo(sinImport.resto);
+  const { pendienteCor, resto } = extraerMarcadorPendienteCor(sinEnvio.resto);
   const subcliente = sinSub.subcliente;
   const flujo = sinFlujo.flujo;
   const importKey = sinImport.importKey;
+  const envioTipo = sinEnvio.envioTipo;
   const lines = resto.split("\n");
   const notasLines = [];
   const subtareas = [];
@@ -93,6 +108,7 @@ function parseDetalles(detallesRaw) {
     flujo,
     importKey,
     envioTipo,
+    pendienteCor,
     notas: notasLines.join("\n"),
     subtareas,
     historial
@@ -123,6 +139,9 @@ function serializeDetalles(notas, subtareas, historial, link, subcliente, extras
   const envioTipoNorm = String(extras?.envioTipo || "").trim().toLowerCase();
   if (envioTipoNorm === "propuesta" || envioTipoNorm === "arte-final") {
     markers.push(`<!--robin-envio-tipo:${envioTipoNorm}-->`);
+  }
+  if (extras?.pendienteCor) {
+    markers.push("<!--robin-pendiente-cor:1-->");
   }
   if (markers.length) {
     const prefix = markers.join("\n");

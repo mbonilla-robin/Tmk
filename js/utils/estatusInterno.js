@@ -346,6 +346,16 @@ function saludoCorSegunHora(fecha) {
   return "buenas noches";
 }
 
+function mencionCorDesdeNombre(handle) {
+  const key = String(handle || "").replace(/^@/, "").trim();
+  if (!key) return "";
+  const nombre = typeof obtenerNombreDisplayEquipo === "function"
+    ? obtenerNombreDisplayEquipo(key)
+    : (typeof NOMBRES_DISPLAY_EQUIPO !== "undefined" ? NOMBRES_DISPLAY_EQUIPO[key.toLowerCase()] : "");
+  const limpio = String(nombre || "").replace(/^@/, "").trim().replace(/\s+/g, "");
+  return limpio ? `@${limpio}` : `@${key}`;
+}
+
 function mencionesEquipoCor(tarea) {
   const handles = typeof obtenerHandlesDesdeCampoPersonas === "function"
     ? obtenerHandlesDesdeCampoPersonas(tarea?.personas || "")
@@ -357,11 +367,8 @@ function mencionesEquipoCor(tarea) {
   const push = (lista, handle) => {
     const key = String(handle || "").replace(/^@/, "").trim().toLowerCase();
     if (!key || visto.has(key)) return;
-    const nombre = typeof obtenerNombreDisplayEquipo === "function"
-      ? obtenerNombreDisplayEquipo(key)
-      : (typeof NOMBRES_DISPLAY_EQUIPO !== "undefined" ? NOMBRES_DISPLAY_EQUIPO[key] : "");
-    const limpio = String(nombre || "").replace(/^@/, "").trim();
-    const tag = limpio ? `@${limpio}` : `@${key}`;
+    const tag = mencionCorDesdeNombre(key);
+    if (!tag) return;
     visto.add(key);
     lista.push(tag);
   };
@@ -383,21 +390,14 @@ function mencionesEquipoCor(tarea) {
 function construirMensajeAjusteCor(tarea) {
   const ajuste = obtenerUltimoAjusteCor(tarea);
   const menciones = mencionesEquipoCor(tarea);
-  const lineas = [
+  const bloques = [
     `Hola equipo, ${saludoCorSegunHora()}. Espero que estén muy bien.`,
-    "",
     "Para esta pieza les dejamos una solicitud que nos hicieron llegar.",
-    "",
-    "DETALLES:",
-    ajuste || "—",
-    "",
-    "Cualquier cosa, muchas gracias."
+    `DETALLES:\n${ajuste || "—"}`,
+    "Quedo pendiente cualquier cosa, muchas gracias."
   ];
-  if (menciones.length) {
-    lineas.push("");
-    lineas.push(menciones.join(" "));
-  }
-  return lineas.join("\n");
+  if (menciones.length) bloques.push(menciones.join(" "));
+  return bloques.join("\n\n");
 }
 
 function listarTareasPendientesSubirCor(tareas) {

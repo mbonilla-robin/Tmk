@@ -892,6 +892,8 @@ function normalizarTareasDesdeApi(jsonData) {
       cleanM === "pendiente" ||
       cleanM.includes("progreso") ||
       cleanM.includes("seguimiento") ||
+      cleanM.includes("espera de comentarios") ||
+      cleanM.includes("espera comentarios") ||
       cleanM.includes("revision") ||
       cleanM.includes("pausa") ||
       cleanM.includes("suspendido") ||

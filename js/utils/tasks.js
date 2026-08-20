@@ -462,6 +462,7 @@ function normalizarValorCampoTarea(campo, valor) {
 const ORDEN_ESTADOS_LISTA = {
   "pendiente": 1,
   "en progreso": 2,
+  "espera de comentarios": 3,
   "seguimiento": 3,
   "en revision": 4,
   "en pausa": 5,

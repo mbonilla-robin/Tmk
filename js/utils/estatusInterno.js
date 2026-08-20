@@ -12,7 +12,9 @@ const ESTATUS_CSV_A_ESTADO = {
   "stand by": "En pausa",
   "entregado a cliente": "Completada",
   "entregado": "Completada",
-  "espera por cliente": "Seguimiento",
+  "espera por cliente": "Espera de comentarios",
+  "espera de comentarios": "Espera de comentarios",
+  "espera comentarios": "Espera de comentarios",
   "por enviar a cliente": "En revisión",
   "por enviar": "En revisión",
   "diseñar": "En progreso",
@@ -160,7 +162,13 @@ function mapearEstadoDesdeCsv(statusRaw) {
 function flujoDesdeStatusCsv(statusRaw) {
   const clave = claveEstatusInterno(statusRaw);
   if (clave.includes("por enviar")) return ESTATUS_FLUJO_POR_ENVIAR;
-  if (clave.includes("espera por cliente")) return ESTATUS_FLUJO_ESPERA;
+  if (
+    clave.includes("espera por cliente")
+    || clave.includes("espera de comentarios")
+    || clave.includes("espera comentarios")
+  ) {
+    return ESTATUS_FLUJO_ESPERA;
+  }
   return "";
 }
 
@@ -401,7 +409,12 @@ function estadoRobinEstatus(tarea) {
 
 function flujoDesdeEstadoRobin(estadoRaw) {
   const estado = typeof cleanEstado === "function" ? cleanEstado(estadoRaw) : String(estadoRaw || "").toLowerCase();
-  if (estado === "seguimiento") return ESTATUS_FLUJO_ESPERA;
+  if (
+    estado === "espera de comentarios"
+    || estado === "seguimiento"
+  ) {
+    return ESTATUS_FLUJO_ESPERA;
+  }
   // cleanEstado suele normalizar como "en revision" (sin tilde).
   // Aceptamos ambas variantes por compatibilidad.
   if (estado === "en revision" || estado === "en revisión") return ESTATUS_FLUJO_POR_ENVIAR;
@@ -634,7 +647,7 @@ function esTareaOcultaEnEstatus(tarea) {
   return estado === "en pausa";
 }
 
-const ESTATUS_CARGA_DISENO = new Set(["pendiente", "en progreso", "seguimiento", "en revision"]);
+const ESTATUS_CARGA_DISENO = new Set(["pendiente", "en progreso", "en revision"]);
 
 function esTareaActivaCarga(tarea) {
   if (!tarea) return false;
@@ -781,7 +794,13 @@ function etapaOperativaEstatus(t, filasRef) {
   const fila = (filasRef || []).find((f) => tareaCoincideFilaEstatus(t, f));
   const flujo = obtenerFlujoTarea(t);
   const blob = [partes.comentario, partes.notas, fila && fila.comentarios, fila && fila.status].filter(Boolean).join("\n");
-  if (estado === "seguimiento" || flujo === ESTATUS_FLUJO_ESPERA) return "cliente";
+  if (
+    estado === "espera de comentarios"
+    || estado === "seguimiento"
+    || flujo === ESTATUS_FLUJO_ESPERA
+  ) {
+    return "cliente";
+  }
   if (estado === "pendiente" || estado === "en progreso") return "diseno";
   if (estado === "en pausa") return "";
   if (debeIrPorEnviarEstatus(t, filasRef, flujo, estado, blob, fila)) return "por-enviar";
@@ -965,7 +984,7 @@ function aplicarEnvioClienteEstatus(tarea, tipo, usuario) {
   const historial = [...(parsed.historial || [])];
   const esPropuesta = tipo === "propuesta";
   const flujo = esPropuesta ? ESTATUS_FLUJO_ESPERA : "";
-  const estado = esPropuesta ? "Seguimiento" : "Completada";
+  const estado = esPropuesta ? "Espera de comentarios" : "Completada";
   historial.push(`• [${timestamp}] Envió ${esPropuesta ? "propuesta" : "arte final"} al cliente por @${autor}`);
   historial.push(`• [${timestamp}] Estado cambiado a "${estado}" por @${autor}`);
   const detalles = typeof serializeDetalles === "function"
@@ -1043,7 +1062,8 @@ function listarTareasEstatusARealinear(tareas, filas) {
       ? cleanEstado(estadoCsv)
       : String(estadoCsv || "").toLowerCase();
     const usuarioCompleto = usuarioMarcoEstadoEstatus(t, "Completada") || yaEnvioArteFinalEstatus(t);
-    const usuarioMovio = usuarioMarcoEstadoEstatus(t, "Seguimiento")
+    const usuarioMovio = usuarioMarcoEstadoEstatus(t, "Espera de comentarios")
+      || usuarioMarcoEstadoEstatus(t, "Seguimiento")
       || usuarioMarcoEstadoEstatus(t, "En progreso")
       || usuarioMarcoEstadoEstatus(t, "Pendiente")
       || usuarioMarcoEstadoEstatus(t, "En pausa")
@@ -1054,6 +1074,7 @@ function listarTareasEstatusARealinear(tareas, filas) {
       && estadoActual === "en revisión"
       && !usuarioMarcoEstadoEstatus(t, "En progreso")
       && !usuarioMarcoEstadoEstatus(t, "Pendiente")
+      && !usuarioMarcoEstadoEstatus(t, "Espera de comentarios")
       && !usuarioMarcoEstadoEstatus(t, "Seguimiento");
     const needsFlujo = Boolean(flujoCsv)
       && !flujoActual

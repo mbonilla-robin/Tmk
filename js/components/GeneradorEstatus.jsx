@@ -8,7 +8,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
   const [subclientesFiltro, setSubclientesFiltro] = useState([]);
   const [filtroTiempo, setFiltroTiempo] = useState("todas");
   const [ordenarPor, setOrdenarPor] = useState("estado");
-  const [organizarPor, setOrganizarPor] = useState("subcliente");
+  const [organizarPor, setOrganizarPor] = useState("persona");
   const [subclientesDesplegados, setSubclientesDesplegados] = useState(false);
   const [textoGenerado, setTextoGenerado] = useState("");
   const [copiado, setCopiado] = useState(false);
@@ -107,14 +107,17 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
 
   const tareasPreview = useMemo(() => {
     if (marcasSeleccionadas.length === 0) return 0;
+    const estadosPreview = organizarPor === "espera-comentarios"
+      ? ["Seguimiento"]
+      : estadosSeleccionados;
     return filtrarTareasParaEstatus(tareas, {
       marcas: marcasSeleccionadas,
-      estados: estadosSeleccionados,
+      estados: estadosPreview,
       filtroTiempo: filtroTiempo === "todas" ? "" : filtroTiempo,
       personas: personasFiltroArray,
       subclientes: subclientesFiltro
     }).length;
-  }, [tareas, marcasSeleccionadas, estadosSeleccionados, filtroTiempo, personasFiltroArray, subclientesFiltro]);
+  }, [tareas, marcasSeleccionadas, estadosSeleccionados, filtroTiempo, personasFiltroArray, subclientesFiltro, organizarPor]);
 
   useEffect(() => {
     setSubclientesFiltro((prev) =>
@@ -175,9 +178,11 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
 
               <div>
                 <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-2">Estados a incluir</label>
-                <div className="flex flex-wrap gap-2">
+                <div className={`flex flex-wrap gap-2 ${organizarPor === "espera-comentarios" ? "opacity-50 pointer-events-none" : ""}`}>
                   {obtenerEstadosGeneradorEstatus().map(estado => {
-                    const seleccionado = estadosSeleccionados.some(e => cleanEstado(e) === cleanEstado(estado));
+                    const seleccionado = organizarPor === "espera-comentarios"
+                      ? cleanEstado(estado) === "seguimiento"
+                      : estadosSeleccionados.some(e => cleanEstado(e) === cleanEstado(estado));
                     const config = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(estado));
                     return (
                       <button
@@ -196,6 +201,11 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                     );
                   })}
                 </div>
+                {organizarPor === "espera-comentarios" && (
+                  <p className="mt-2 text-[10px] text-zinc-400">
+                    Este modo usa solo tareas en <span className="font-semibold">Seguimiento</span> (espera al cliente).
+                  </p>
+                )}
               </div>
 
               <div>
@@ -267,9 +277,10 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                 <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-2">Organizar estatus</label>
                 <div className="flex flex-wrap gap-2">
                   {(typeof ORGANIZAR_ESTATUS_OPCIONES !== "undefined" ? ORGANIZAR_ESTATUS_OPCIONES : [
+                    { id: "persona", label: "Por personas" },
                     { id: "marca", label: "Por marca" },
                     { id: "subcliente", label: "Por subcliente" },
-                    { id: "persona", label: "Por personas" }
+                    { id: "espera-comentarios", label: "Espera de comentarios" }
                   ]).map((opcion) => (
                     <button
                       key={opcion.id}
@@ -286,7 +297,12 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                   ))}
                 </div>
                 <p className="mt-2 text-[10px] text-zinc-400 leading-relaxed">
-                  {organizarPor === "persona" ? (
+                  {organizarPor === "espera-comentarios" ? (
+                    <>
+                      Formato: <span className="font-mono">- Espera de comentarios: *Subcliente* (n entregables)</span>.
+                      Lista para compartir con el cliente.
+                    </>
+                  ) : organizarPor === "persona" ? (
                     <>
                       Formato: <span className="font-mono">*@Persona*</span>, luego{" "}
                       <span className="font-mono">*Subcliente*</span> y{" "}
@@ -344,7 +360,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                 </button>
                 <button
                   type="submit"
-                  disabled={marcasSeleccionadas.length === 0 || estadosSeleccionados.length === 0}
+                  disabled={marcasSeleccionadas.length === 0 || (organizarPor !== "espera-comentarios" && estadosSeleccionados.length === 0)}
                   className="px-4 py-2 bg-[#37352F] text-white text-xs font-semibold rounded-lg hover:bg-[#2c2a26] disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   Generar estatus
@@ -357,9 +373,10 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                 <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-2">Organizar estatus</label>
                 <div className="flex flex-wrap gap-2">
                   {(typeof ORGANIZAR_ESTATUS_OPCIONES !== "undefined" ? ORGANIZAR_ESTATUS_OPCIONES : [
+                    { id: "persona", label: "Por personas" },
                     { id: "marca", label: "Por marca" },
                     { id: "subcliente", label: "Por subcliente" },
-                    { id: "persona", label: "Por personas" }
+                    { id: "espera-comentarios", label: "Espera de comentarios" }
                   ]).map((opcion) => (
                     <button
                       key={opcion.id}

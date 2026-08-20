@@ -4,9 +4,10 @@ const MESES_ESTATUS = [
 ];
 
 const ORGANIZAR_ESTATUS_OPCIONES = [
+  { id: "persona", label: "Por personas" },
   { id: "marca", label: "Por marca" },
   { id: "subcliente", label: "Por subcliente" },
-  { id: "persona", label: "Por personas" }
+  { id: "espera-comentarios", label: "Espera de comentarios" }
 ];
 
 function formatearFechaEstatus(fechaStr) {
@@ -282,7 +283,22 @@ function agruparTareasEstatus(tareas, { organizarPor, marcas }) {
   return agruparTareasEstatusPorMarca(tareas, marcas);
 }
 
+function generarCuerpoEstatusEsperaComentarios(tareas) {
+  const grupos = agruparTareasEstatusPorSubcliente(tareas);
+  if (!grupos.length) return "";
+
+  return grupos.map((grupo) => {
+    const n = (grupo.tareas || []).length;
+    const etiqueta = n === 1 ? "1 entregable" : `${n} entregables`;
+    return `- Espera de comentarios: *${grupo.titulo}* (${etiqueta})`;
+  }).join("\n");
+}
+
 function generarCuerpoEstatus(tareas, { marcas, estados, ordenarPor, organizarPor, personasFiltro }) {
+  if (organizarPor === "espera-comentarios") {
+    return generarCuerpoEstatusEsperaComentarios(tareas);
+  }
+
   if (organizarPor === "persona") {
     return generarCuerpoEstatusPorPersona(tareas, { estados, ordenarPor, personasFiltro });
   }
@@ -300,18 +316,39 @@ function generarCuerpoEstatus(tareas, { marcas, estados, ordenarPor, organizarPo
 function generarTextoEstatus(tareas, { marcas, estados, filtroTiempo, ordenarPor, personas, subclientes, organizarPor }) {
   if (!marcas || marcas.length === 0) return "";
 
-  const filtradas = filtrarTareasParaEstatus(tareas, { marcas, estados, filtroTiempo, personas, subclientes });
+  const modo = organizarPor || "persona";
+  const estadosFiltro = modo === "espera-comentarios"
+    ? ["Seguimiento"]
+    : estados;
+
+  const filtradas = filtrarTareasParaEstatus(tareas, {
+    marcas,
+    estados: estadosFiltro,
+    filtroTiempo,
+    personas,
+    subclientes
+  });
   if (!filtradas.length) return "";
 
   const cuerpo = generarCuerpoEstatus(filtradas, {
     marcas,
-    estados,
+    estados: estadosFiltro,
     ordenarPor: ordenarPor || "estado",
-    organizarPor: organizarPor || "subcliente",
+    organizarPor: modo,
     personasFiltro: personas
   });
 
   if (!cuerpo) return "";
+
+  if (modo === "espera-comentarios") {
+    return [
+      "¡Hola!",
+      `Por aquí lo que está en espera de comentarios de ${tituloMarcasEstatus(marcas)}:`,
+      "",
+      cuerpo
+    ].join("\n");
+  }
+
   return `${encabezadoEstatus(marcas)}\n\n${cuerpo}`;
 }
 
@@ -334,7 +371,7 @@ function generarTextoEstatusDesdeSeleccion(tareas, { ordenarPor, organizarPor } 
     marcas,
     estados: LISTA_ESTADOS_VALIDOS,
     ordenarPor: ordenarPor || "estado",
-    organizarPor: organizarPor || "subcliente"
+    organizarPor: organizarPor || "persona"
   });
 
   if (!cuerpo) return "";

@@ -99,26 +99,82 @@ function resumirEstadoSyncRobin(opts) {
   };
 }
 
+function escapeHtmlPortapapeles(valor) {
+  return String(valor || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function textoAHtmlParrafos(texto) {
+  const bloques = String(texto || "").trim().split(/\n{2,}/);
+  const inner = bloques.map((bloque) => {
+    const html = escapeHtmlPortapapeles(bloque).replace(/\n/g, "<br>");
+    return `<p>${html}</p>`;
+  }).join("");
+  return `<html><body><!--StartFragment-->${inner}<!--EndFragment--></body></html>`;
+}
+
 function copiarTextoAlPortapapeles(texto) {
   const val = String(texto || "");
   if (!val) return Promise.resolve(false);
+  const html = textoAHtmlParrafos(val);
+
+  const copiarConTextarea = () => {
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = val;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return Promise.resolve(!!ok);
+    } catch (e) {
+      return Promise.resolve(false);
+    }
+  };
+
+  if (typeof ClipboardItem !== "undefined" && navigator.clipboard && navigator.clipboard.write) {
+    try {
+      const item = new ClipboardItem({
+        "text/plain": new Blob([val], { type: "text/plain" }),
+        "text/html": new Blob([html], { type: "text/html" })
+      });
+      return navigator.clipboard.write([item]).then(() => true).catch(() => {
+        if (navigator.clipboard.writeText) {
+          return navigator.clipboard.writeText(val).then(() => true).catch(() => copiarConTextarea());
+        }
+        return copiarConTextarea();
+      });
+    } catch (e) {
+      // Safari a veces exige Promises dentro de ClipboardItem
+    }
+  }
+
+  if (typeof ClipboardItem !== "undefined" && navigator.clipboard && navigator.clipboard.write) {
+    try {
+      const item = new ClipboardItem({
+        "text/plain": Promise.resolve(new Blob([val], { type: "text/plain" })),
+        "text/html": Promise.resolve(new Blob([html], { type: "text/html" }))
+      });
+      return navigator.clipboard.write([item]).then(() => true).catch(() => {
+        if (navigator.clipboard.writeText) {
+          return navigator.clipboard.writeText(val).then(() => true).catch(() => copiarConTextarea());
+        }
+        return copiarConTextarea();
+      });
+    } catch (e) {
+      // seguir al fallback
+    }
+  }
 
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    return navigator.clipboard.writeText(val).then(() => true).catch(() => false);
+    return navigator.clipboard.writeText(val).then(() => true).catch(() => copiarConTextarea());
   }
 
-  try {
-    const ta = document.createElement("textarea");
-    ta.value = val;
-    ta.setAttribute("readonly", "");
-    ta.style.position = "fixed";
-    ta.style.left = "-9999px";
-    document.body.appendChild(ta);
-    ta.select();
-    const ok = document.execCommand("copy");
-    document.body.removeChild(ta);
-    return Promise.resolve(ok);
-  } catch (e) {
-    return Promise.resolve(false);
-  }
+  return copiarConTextarea();
 }

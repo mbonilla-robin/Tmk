@@ -2,7 +2,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
   const [vista, setVista] = useState("formulario");
   const [marcasSeleccionadas, setMarcasSeleccionadas] = useState([]);
   const [estadosSeleccionados, setEstadosSeleccionados] = useState(
-    () => obtenerEstadosGeneradorEstatus()
+    () => ["Pendiente", "En progreso"]
   );
   const [personasFiltro, setPersonasFiltro] = useState("");
   const [subclientesFiltro, setSubclientesFiltro] = useState([]);

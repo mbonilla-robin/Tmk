@@ -16,8 +16,7 @@ const NOMBRES_DISPLAY_EQUIPO = {
 
 const ESTADOS_BARRA_EQUIPO = [
   { key: "en progreso", label: "En progreso", color: "bg-blue-500" },
-  { key: "seguimiento", label: "Seguimiento", color: "bg-sky-500" },
-  { key: "espera de comentarios", label: "Espera de comentarios", color: "bg-amber-500" },
+  { key: "seguimiento", label: "Seguimiento", color: "bg-amber-500" },
   { key: "pendiente", label: "Pendiente", color: "bg-zinc-400" },
   { key: "en revision", label: "En revisión", color: "bg-purple-500" },
   { key: "en pausa", label: "En pausa", color: "bg-red-400" }

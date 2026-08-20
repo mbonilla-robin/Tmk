@@ -14,7 +14,7 @@ const COLORES_MARCAS = {
 const COLORES_ESTADOS = {
   "pendiente":   { fondo: "#F1F1EF", texto: "#5F5E5B" },
   "en progreso": { fondo: "#E8F4FC", texto: "#1D4ED8" },
-  "seguimiento": { fondo: "#E0F2FE", texto: "#0369A1" },
+  "seguimiento": { fondo: "#FEF3C7", texto: "#B45309" },
   "espera de comentarios": { fondo: "#FEF3C7", texto: "#B45309" },
   "en revision": { fondo: "#F3E8FF", texto: "#6B21A8" },
   "en pausa":    { fondo: "#FEE2E2", texto: "#991B1B" },
@@ -26,18 +26,17 @@ const PRIORIDAD_ESTADOS = {
   "pendiente": 1,
   "en progreso": 2,
   "seguimiento": 3,
-  "espera de comentarios": 4,
-  "en revision": 5,
-  "en pausa": 6,
-  "suspendido": 7,
+  "espera de comentarios": 3,
+  "en revision": 4,
+  "en pausa": 5,
+  "suspendido": 6,
   "completada": 99
 };
 
 const LISTA_ESTADOS_VALIDOS = [
   "⚪ Pendiente",
   "🔵 En progreso",
-  "🩵 Seguimiento",
-  "🟡 Espera de comentarios",
+  "🟡 Seguimiento",
   "🟠 En revisión",
   "🔴 En pausa",
   "⚫ Suspendido",
@@ -106,14 +105,14 @@ function obtenerEstadoConEmoji(texto) {
   var clean = cleanEstado(texto);
   if (clean === "pendiente") return "⚪ Pendiente";
   if (clean === "en progreso") return "🔵 En progreso";
-  if (clean === "seguimiento") return "🩵 Seguimiento";
   if (
-    clean === "espera de comentarios"
+    clean === "seguimiento"
+    || clean === "espera de comentarios"
     || clean.indexOf("espera de comentarios") !== -1
     || clean.indexOf("espera comentarios") !== -1
     || clean.indexOf("espera por cliente") !== -1
   ) {
-    return "🟡 Espera de comentarios";
+    return "🟡 Seguimiento";
   }
   if (clean === "en revision") return "🟠 En revisión";
   if (clean === "en pausa") return "🔴 En pausa";

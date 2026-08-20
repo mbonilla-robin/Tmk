@@ -172,7 +172,6 @@ function LayoutEquipos({
     const estadoMap = {
       "en progreso": "En progreso",
       seguimiento: "Seguimiento",
-      "espera de comentarios": "Espera de comentarios",
       pendiente: "Pendiente",
       "en revision": "En revision",
       "en pausa": "En pausa"

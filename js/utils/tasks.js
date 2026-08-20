@@ -465,10 +465,10 @@ const ORDEN_ESTADOS_LISTA = {
   "pendiente": 1,
   "en progreso": 2,
   "seguimiento": 3,
-  "espera de comentarios": 4,
-  "en revision": 5,
-  "en pausa": 6,
-  "suspendido": 6,
+  "espera de comentarios": 3,
+  "en revision": 4,
+  "en pausa": 5,
+  "suspendido": 5,
   "completada": 7
 };
 

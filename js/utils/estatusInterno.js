@@ -12,9 +12,9 @@ const ESTATUS_CSV_A_ESTADO = {
   "stand by": "En pausa",
   "entregado a cliente": "Completada",
   "entregado": "Completada",
-  "espera por cliente": "Espera de comentarios",
-  "espera de comentarios": "Espera de comentarios",
-  "espera comentarios": "Espera de comentarios",
+  "espera por cliente": "Seguimiento",
+  "espera de comentarios": "Seguimiento",
+  "espera comentarios": "Seguimiento",
   "por enviar a cliente": "En revisión",
   "por enviar": "En revisión",
   "diseñar": "En progreso",
@@ -254,18 +254,11 @@ function obtenerFlujoTarea(tarea) {
   return "";
 }
 
-/** Seguimiento = diseñador trabajando. Espera de comentarios = lista con el cliente. */
+/** Migra legacy "Espera de comentarios" → Seguimiento (espera al cliente). */
 function estadoTrasReconciliarEsperaCliente(tarea, estadoRaw) {
   const estado = typeof normalizarEstado === "function"
     ? normalizarEstado(estadoRaw != null ? estadoRaw : tarea?.estado)
     : String(estadoRaw != null ? estadoRaw : (tarea?.estado || ""));
-  const clean = typeof cleanEstado === "function"
-    ? cleanEstado(estado)
-    : String(estado || "").toLowerCase();
-  if (clean === "espera de comentarios") return "Espera de comentarios";
-  if (clean === "seguimiento" && obtenerFlujoTarea(tarea) === ESTATUS_FLUJO_ESPERA) {
-    return "Espera de comentarios";
-  }
   return estado;
 }
 
@@ -424,8 +417,8 @@ function estadoRobinEstatus(tarea) {
 
 function flujoDesdeEstadoRobin(estadoRaw) {
   const estado = typeof cleanEstado === "function" ? cleanEstado(estadoRaw) : String(estadoRaw || "").toLowerCase();
-  // Solo espera de comentarios = con el cliente. Seguimiento = diseñador trabajando.
-  if (estado === "espera de comentarios") return ESTATUS_FLUJO_ESPERA;
+  // Seguimiento = espera al cliente. En progreso = diseñador trabajando.
+  if (estado === "seguimiento" || estado === "espera de comentarios") return ESTATUS_FLUJO_ESPERA;
   // cleanEstado suele normalizar como "en revision" (sin tilde).
   // Aceptamos ambas variantes por compatibilidad.
   if (estado === "en revision" || estado === "en revisión") return ESTATUS_FLUJO_POR_ENVIAR;
@@ -658,7 +651,7 @@ function esTareaOcultaEnEstatus(tarea) {
   return estado === "en pausa";
 }
 
-const ESTATUS_CARGA_DISENO = new Set(["pendiente", "en progreso", "seguimiento", "en revision"]);
+const ESTATUS_CARGA_DISENO = new Set(["pendiente", "en progreso", "en revision"]);
 
 function esTareaActivaCarga(tarea) {
   if (!tarea) return false;
@@ -805,8 +798,8 @@ function etapaOperativaEstatus(t, filasRef) {
   const fila = (filasRef || []).find((f) => tareaCoincideFilaEstatus(t, f));
   const flujo = obtenerFlujoTarea(t);
   const blob = [partes.comentario, partes.notas, fila && fila.comentarios, fila && fila.status].filter(Boolean).join("\n");
-  if (estado === "espera de comentarios" || flujo === ESTATUS_FLUJO_ESPERA) return "cliente";
-  if (estado === "pendiente" || estado === "en progreso" || estado === "seguimiento") return "diseno";
+  if (estado === "seguimiento" || estado === "espera de comentarios" || flujo === ESTATUS_FLUJO_ESPERA) return "cliente";
+  if (estado === "pendiente" || estado === "en progreso") return "diseno";
   if (estado === "en pausa") return "";
   if (debeIrPorEnviarEstatus(t, filasRef, flujo, estado, blob, fila)) return "por-enviar";
   return "diseno";
@@ -989,7 +982,7 @@ function aplicarEnvioClienteEstatus(tarea, tipo, usuario) {
   const historial = [...(parsed.historial || [])];
   const esPropuesta = tipo === "propuesta";
   const flujo = esPropuesta ? ESTATUS_FLUJO_ESPERA : "";
-  const estado = esPropuesta ? "Espera de comentarios" : "Completada";
+  const estado = esPropuesta ? "Seguimiento" : "Completada";
   historial.push(`• [${timestamp}] Envió ${esPropuesta ? "propuesta" : "arte final"} al cliente por @${autor}`);
   historial.push(`• [${timestamp}] Estado cambiado a "${estado}" por @${autor}`);
   const detalles = typeof serializeDetalles === "function"

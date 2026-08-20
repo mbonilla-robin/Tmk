@@ -242,7 +242,7 @@ function LayoutEstatusGeneral({
 
   const maxCarga = Math.max(1, ...(carga.items || []).map((item) => item.activas || 0));
   const hintCarga = !carga.lideres || !carga.lideres.length
-    ? "Nadie tiene carga ahora. Cuenta Pendiente, En progreso, Seguimiento y En revisión, según diseño → contenido → ejecutivo."
+    ? "Nadie tiene carga ahora. Cuenta Pendiente, En progreso y En revisión, según diseño → contenido → ejecutivo."
     : carga.lideres.length === 1
       ? `Más carga ahora: ${carga.lideres[0].nombre} (${carga.lideres[0].activas}).`
       : `Misma carga: ${carga.lideres.map((l) => l.nombre).join(" y ")}.`;
@@ -571,7 +571,7 @@ function LayoutEstatusGeneral({
         <span>{items.length}</span>
       </div>
       {items.length === 0 ? (
-        <p className="estatus-lista-empty">Nada en espera de comentarios</p>
+        <p className="estatus-lista-empty">Nada en seguimiento con el cliente</p>
       ) : (
         <div className="estatus-espera-table-wrap">
           <div className="estatus-espera-table-head" aria-hidden="true">

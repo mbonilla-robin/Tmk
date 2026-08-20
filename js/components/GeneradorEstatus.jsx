@@ -296,26 +296,6 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                     </button>
                   ))}
                 </div>
-                <p className="mt-2 text-[10px] text-zinc-400 leading-relaxed">
-                  {organizarPor === "espera-comentarios" ? (
-                    <>
-                      Formato: <span className="font-mono">- Espera de comentarios: *Subcliente* (n entregables)</span>.
-                      Lista para compartir con el cliente.
-                    </>
-                  ) : organizarPor === "persona" ? (
-                    <>
-                      Formato: <span className="font-mono">*@Persona*</span>, luego{" "}
-                      <span className="font-mono">*Subcliente*</span> y{" "}
-                      <span className="font-mono">- Título | _Estado_ | link</span>.
-                      Diseño {'>'} contenido {'>'} ejecutivo. Si hay varios del mismo rol, aparecen todos.
-                    </>
-                  ) : (
-                    <>
-                      Formato: <span className="font-mono">*Grupo*</span> y luego{" "}
-                      <span className="font-mono">- Título | _Estado_ | link</span>
-                    </>
-                  )}
-                </p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

@@ -283,6 +283,21 @@ function agruparTareasEstatus(tareas, { organizarPor, marcas }) {
   return agruparTareasEstatusPorMarca(tareas, marcas);
 }
 
+function saludoEsperaComentariosEstatus(fecha = new Date()) {
+  const hora = fecha instanceof Date ? fecha.getHours() : new Date().getHours();
+  const momento = hora < 12 ? "Feliz día" : (hora < 19 ? "Feliz tarde" : "Feliz noche");
+  return `¡Hola, equipo! ${momento}.`;
+}
+
+function encabezadoEsperaComentariosEstatus() {
+  return [
+    saludoEsperaComentariosEstatus(),
+    "",
+    "Por esta vía, le compartimos una lista detallada de lo que estamos esperando por comentarios para poder realizar ajustes o enviar arte finales. Quedo atento, muchísimas gracias.",
+    ""
+  ].join("\n");
+}
+
 function generarCuerpoEstatusEsperaComentarios(tareas) {
   const grupos = agruparTareasEstatusPorSubcliente(tareas);
   if (!grupos.length) return "";
@@ -341,12 +356,7 @@ function generarTextoEstatus(tareas, { marcas, estados, filtroTiempo, ordenarPor
   if (!cuerpo) return "";
 
   if (modo === "espera-comentarios") {
-    return [
-      "¡Hola!",
-      `Por aquí lo que está en espera de comentarios de ${tituloMarcasEstatus(marcas)}:`,
-      "",
-      cuerpo
-    ].join("\n");
+    return `${encabezadoEsperaComentariosEstatus()}${cuerpo}`;
   }
 
   return `${encabezadoEstatus(marcas)}\n\n${cuerpo}`;

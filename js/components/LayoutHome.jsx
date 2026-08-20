@@ -67,111 +67,17 @@ function LayoutHome({
       });
   }, [tareas]);
 
-  const pendientesCor = useMemo(() => {
-    if (!onMarcarSubidoCor) return [];
-    if (typeof listarTareasPendientesSubirCor === "function") {
-      return listarTareasPendientesSubirCor(tareas);
-    }
-    return (tareas || []).filter((t) => typeof tareaPendienteSubirCor === "function" && tareaPendienteSubirCor(t));
-  }, [tareas, onMarcarSubidoCor]);
-
-  const textoAjusteCor = (tarea) => {
-    if (typeof obtenerAjusteComentarioEstatus === "function") {
-      return obtenerAjusteComentarioEstatus(tarea);
-    }
-    if (typeof parseDetalles === "function" && typeof notasYComentarioEstatus === "function") {
-      const partes = notasYComentarioEstatus(parseDetalles(tarea.detalles || "").notas);
-      return String(partes.comentario || partes.notas || "").trim();
-    }
-    return "";
-  };
-
-  const linkTareaCor = (tarea) => {
-    if (typeof obtenerLinkTarea === "function") return obtenerLinkTarea(tarea) || "";
-    return String(tarea?.link || "").trim();
-  };
-
-  const renderPorSubirCor = () => {
-    if (!onMarcarSubidoCor || pendientesCor.length === 0) return null;
-    return (
-      <div className={`home-cor-panel border ${currentTheme.border} rounded-md ${currentTheme.cardBg} overflow-hidden`}>
-        <div className={`home-cor-panel__header px-3 py-2.5 md:px-4 border-b ${currentTheme.border} flex items-center justify-between gap-2`}>
-          <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wide">Por subir en COR</span>
-          <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded-full px-2 py-0.5">
-            {pendientesCor.length}
-          </span>
-        </div>
-        <div className="home-cor-table-wrap">
-          <table className="home-cor-table">
-            <thead>
-              <tr>
-                <th>Tarea</th>
-                <th>Ajuste</th>
-                <th>Link</th>
-                <th className="home-cor-table__check">Listo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pendientesCor.map((t) => {
-                const ajuste = textoAjusteCor(t);
-                const link = linkTareaCor(t);
-                return (
-                  <tr key={getTaskSelectionKey ? getTaskSelectionKey(t) : t.idTarea}>
-                    <td>
-                      <button
-                        type="button"
-                        className="home-cor-table__task"
-                        onClick={() => onSelectTask && onSelectTask(t)}
-                      >
-                        <span className="home-cor-table__task-title">{t.info || "Sin título"}</span>
-                        <span className="home-cor-table__task-meta">
-                          {formatearMarca(t.marca)}
-                          {typeof obtenerSubclienteTarea === "function" && obtenerSubclienteTarea(t)
-                            ? ` · ${obtenerSubclienteTarea(t)}`
-                            : ""}
-                        </span>
-                      </button>
-                    </td>
-                    <td>
-                      <span className="home-cor-table__ajuste" title={ajuste}>
-                        {ajuste || "—"}
-                      </span>
-                    </td>
-                    <td>
-                      {link ? (
-                        <a
-                          href={link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="home-cor-table__link"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          Abrir
-                        </a>
-                      ) : (
-                        <span className="home-cor-table__empty">—</span>
-                      )}
-                    </td>
-                    <td className="home-cor-table__check">
-                      <button
-                        type="button"
-                        className="home-cor-table__check-btn"
-                        aria-label={`Marcar subido a COR: ${t.info || "tarea"}`}
-                        title="Marcar como subido a COR"
-                        onClick={() => onMarcarSubidoCor(t)}
-                      >
-                        <i className="fa-regular fa-square" aria-hidden="true" />
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    );
-  };
+  const renderPorSubirCor = () => (
+    <PorSubirCorPanel
+      tareas={tareas}
+      onSelectTask={onSelectTask}
+      onMarcarSubidoCor={onMarcarSubidoCor}
+      currentTheme={currentTheme}
+      mostrarVacio={typeof marcasCoinciden === "function"
+        ? (tareas || []).some((t) => marcasCoinciden(t.marca, "La Santé"))
+        : true}
+    />
+  );
 
   const saludo = formatearNombrePresencia({ username, nombre: nombreUsuario || `@${username}` });
   const primerNombre = String(saludo).trim().split(/\s+/)[0] || saludo;

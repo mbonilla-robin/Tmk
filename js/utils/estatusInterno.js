@@ -283,11 +283,25 @@ function obtenerEnvioTipoTarea(tarea) {
 
 function tareaPendienteSubirCor(tarea) {
   if (!tarea) return false;
+  if (typeof esTareaCompletada === "function" && esTareaCompletada(tarea)) return false;
   if (tarea.pendienteCor === true || tarea.pendienteCor === 1 || tarea.pendienteCor === "1") return true;
-  if (typeof parseDetalles === "function") {
-    return Boolean(parseDetalles(tarea.detalles || "").pendienteCor);
+  if (/<!--\s*robin-pendiente-cor:\s*(1|true|si|sí)\s*-->/i.test(String(tarea.detalles || ""))) return true;
+
+  const parsed = typeof parseDetalles === "function" ? parseDetalles(tarea.detalles || "") : null;
+  if (parsed && parsed.pendienteCor) return true;
+
+  const historial = parsed && Array.isArray(parsed.historial) ? parsed.historial : [];
+  for (let i = historial.length - 1; i >= 0; i -= 1) {
+    const line = String(historial[i] || "");
+    if (/ajuste subido a COR/i.test(line)) return false;
+    if (/pendiente de subir a COR/i.test(line)) return true;
   }
-  return /<!--\s*robin-pendiente-cor:\s*(1|true|si|sí)\s*-->/i.test(String(tarea.detalles || ""));
+
+  const blob = String(tarea.detalles || "");
+  const idxPend = blob.toLowerCase().lastIndexOf("pendiente de subir a cor");
+  if (idxPend < 0) return false;
+  const idxSub = blob.toLowerCase().lastIndexOf("ajuste subido a cor");
+  return idxPend > idxSub;
 }
 
 function obtenerAjusteComentarioEstatus(tarea) {

@@ -127,7 +127,8 @@ function LayoutMarcaHome({
   onEnviarCliente,
   onGuardarComentario,
   onCambiarEnvioTipo,
-  onAbrirEstatus
+  onAbrirEstatus,
+  onMarcarSubidoCor
 }) {
   const marcaEstilo = getMarcaStyle(marca);
   const nombreMarca = formatearMarca(marca);
@@ -536,6 +537,17 @@ function LayoutMarcaHome({
         </div>
 
         <MarcaWidgetsStrip widgets={widgetsMarca} username={username} />
+
+        {typeof PorSubirCorPanel === "function" && onMarcarSubidoCor ? (
+          <PorSubirCorPanel
+            tareas={tareasMarca}
+            onSelectTask={onSelectTask}
+            onMarcarSubidoCor={onMarcarSubidoCor}
+            currentTheme={currentTheme}
+            mostrarVacio={typeof marcasCoinciden === "function" ? marcasCoinciden(marca, "La Santé") : true}
+            className="marca-glass-panel"
+          />
+        ) : null}
 
         <div className="marca-glass-panel marca-urgentes-panel overflow-hidden">
           <div className="home-priority-panel__header px-3 py-2.5 md:p-4 md:pb-3 flex items-center justify-between gap-2">

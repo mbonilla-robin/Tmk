@@ -2053,7 +2053,7 @@ function App() {
       payload: construirPayloadSyncTarea(original, actualizada, { campoSync: "todo" })
     });
     setHayPendientesLocales(true);
-    sincronizarEnSegundoPlano();
+    sincronizarEnSegundoPlano({ silencioso: true, sinRecarga: true });
     showToast(
       String(comentario || "").trim()
         ? "Comentario guardado. Quedó en Por subir en COR."
@@ -3771,6 +3771,7 @@ function App() {
               onGuardarComentario={isDesigner ? undefined : handleGuardarComentarioEstatus}
               onCambiarEnvioTipo={isDesigner ? undefined : handleCambiarEnvioTipo}
               onAbrirEstatus={isDesigner ? undefined : () => setShowGeneradorEstatus(true)}
+              onMarcarSubidoCor={isDesigner ? undefined : handleMarcarSubidoCor}
             />
           )}
 

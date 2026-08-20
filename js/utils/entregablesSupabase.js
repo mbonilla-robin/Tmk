@@ -37,15 +37,24 @@ function tareaDesdeFilaSupabase(row) {
   const importKey = String(row.import_key || "").trim();
   const link = String(row.link || "").trim();
   let detalles = String(row.detalles || "");
+  let envioTipo = "";
+  let pendienteCor = false;
   if (typeof serializeDetalles === "function" && typeof parseDetalles === "function") {
     const parsed = parseDetalles(detalles);
+    envioTipo = String(parsed.envioTipo || "").trim();
+    pendienteCor = Boolean(parsed.pendienteCor);
     detalles = serializeDetalles(
       parsed.notas,
       parsed.subtareas || [],
       parsed.historial || [],
       link || parsed.link,
       subcliente || parsed.subcliente,
-      { flujo: flujo || parsed.flujo, importKey: importKey || parsed.importKey }
+      {
+        flujo: flujo || parsed.flujo,
+        importKey: importKey || parsed.importKey,
+        envioTipo,
+        pendienteCor
+      }
     );
   }
   const tarea = {
@@ -62,7 +71,9 @@ function tareaDesdeFilaSupabase(row) {
     deadline: row.deadline || "",
     fechaInicio: row.fecha_inicio || "",
     flujo,
-    importKey
+    importKey,
+    envioTipo,
+    pendienteCor
   };
   return typeof normalizarTareaCampos === "function" ? normalizarTareaCampos(tarea) : tarea;
 }
@@ -75,9 +86,20 @@ function filaSupabaseDesdeTarea(tarea, usuario) {
   const subcliente = (typeof obtenerSubclienteTarea === "function" ? obtenerSubclienteTarea(t) : "") || parsed.subcliente || "";
   const flujo = String(t.flujo || parsed.flujo || "").trim();
   const importKey = (typeof obtenerImportKeyTarea === "function" ? obtenerImportKeyTarea(t) : "") || parsed.importKey || "";
+  const envioTipo = String(t.envioTipo || parsed.envioTipo || "").trim();
+  const pendienteCor = Boolean(
+    t.pendienteCor
+    || parsed.pendienteCor
+    || (typeof tareaPendienteSubirCor === "function" && tareaPendienteSubirCor(t))
+  );
   const link = String(t.link || parsed.link || "").trim();
   const detalles = typeof serializeDetalles === "function"
-    ? serializeDetalles(parsed.notas, parsed.subtareas || [], parsed.historial || [], link, subcliente, { flujo, importKey })
+    ? serializeDetalles(parsed.notas, parsed.subtareas || [], parsed.historial || [], link, subcliente, {
+      flujo,
+      importKey,
+      envioTipo,
+      pendienteCor
+    })
     : String(t.detalles || "");
   return {
     id_tarea: idTareaEstableEntregable(t),

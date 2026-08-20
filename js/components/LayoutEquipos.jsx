@@ -171,8 +171,8 @@ function LayoutEquipos({
   const handleSegmentClick = (handleFiltro, estadoKey) => {
     const estadoMap = {
       "en progreso": "En progreso",
+      seguimiento: "Seguimiento",
       "espera de comentarios": "Espera de comentarios",
-      seguimiento: "Espera de comentarios",
       pendiente: "Pendiente",
       "en revision": "En revision",
       "en pausa": "En pausa"

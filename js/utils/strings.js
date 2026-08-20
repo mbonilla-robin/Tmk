@@ -25,15 +25,15 @@ function normalizarEstado(val) {
   if (clean.includes("revision")) return "En revision";
   if (clean.includes("pausa")) return "En pausa";
   if (clean.includes("suspendid")) return "En pausa";
-  // Legacy "Seguimiento" y variantes CSV = espera de respuesta del cliente.
+  // Espera al cliente (lista estatus) — distinto de Seguimiento (diseñador trabajando).
   if (
-    clean.includes("seguimiento")
-    || clean.includes("espera de comentarios")
+    clean.includes("espera de comentarios")
     || clean.includes("espera comentarios")
     || clean.includes("espera por cliente")
   ) {
     return "Espera de comentarios";
   }
+  if (clean.includes("seguimiento")) return "Seguimiento";
   if (clean.includes("completad")) return "Completada";
   return "Pendiente";
 }

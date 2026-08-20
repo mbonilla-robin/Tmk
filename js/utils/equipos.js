@@ -16,6 +16,7 @@ const NOMBRES_DISPLAY_EQUIPO = {
 
 const ESTADOS_BARRA_EQUIPO = [
   { key: "en progreso", label: "En progreso", color: "bg-blue-500" },
+  { key: "seguimiento", label: "Seguimiento", color: "bg-sky-500" },
   { key: "espera de comentarios", label: "Espera de comentarios", color: "bg-amber-500" },
   { key: "pendiente", label: "Pendiente", color: "bg-zinc-400" },
   { key: "en revision", label: "En revisión", color: "bg-purple-500" },
@@ -181,8 +182,7 @@ function agregarMetricasPorPersona(tareas, modo, rosterHandles) {
       const est = typeof normalizarEstado === "function"
         ? cleanEstado(normalizarEstado(t.estado))
         : cleanEstado(t.estado);
-      const key = est === "seguimiento" ? "espera de comentarios" : est;
-      porEstado[key] = (porEstado[key] || 0) + 1;
+      porEstado[est] = (porEstado[est] || 0) + 1;
     });
 
     const activas = abiertas.length;

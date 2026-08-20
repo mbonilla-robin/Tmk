@@ -254,6 +254,21 @@ function obtenerFlujoTarea(tarea) {
   return "";
 }
 
+/** Seguimiento = diseñador trabajando. Espera de comentarios = lista con el cliente. */
+function estadoTrasReconciliarEsperaCliente(tarea, estadoRaw) {
+  const estado = typeof normalizarEstado === "function"
+    ? normalizarEstado(estadoRaw != null ? estadoRaw : tarea?.estado)
+    : String(estadoRaw != null ? estadoRaw : (tarea?.estado || ""));
+  const clean = typeof cleanEstado === "function"
+    ? cleanEstado(estado)
+    : String(estado || "").toLowerCase();
+  if (clean === "espera de comentarios") return "Espera de comentarios";
+  if (clean === "seguimiento" && obtenerFlujoTarea(tarea) === ESTATUS_FLUJO_ESPERA) {
+    return "Espera de comentarios";
+  }
+  return estado;
+}
+
 function obtenerImportKeyTarea(tarea) {
   if (!tarea) return "";
   if (tarea.importKey) return String(tarea.importKey).trim();
@@ -409,12 +424,8 @@ function estadoRobinEstatus(tarea) {
 
 function flujoDesdeEstadoRobin(estadoRaw) {
   const estado = typeof cleanEstado === "function" ? cleanEstado(estadoRaw) : String(estadoRaw || "").toLowerCase();
-  if (
-    estado === "espera de comentarios"
-    || estado === "seguimiento"
-  ) {
-    return ESTATUS_FLUJO_ESPERA;
-  }
+  // Solo espera de comentarios = con el cliente. Seguimiento = diseñador trabajando.
+  if (estado === "espera de comentarios") return ESTATUS_FLUJO_ESPERA;
   // cleanEstado suele normalizar como "en revision" (sin tilde).
   // Aceptamos ambas variantes por compatibilidad.
   if (estado === "en revision" || estado === "en revisión") return ESTATUS_FLUJO_POR_ENVIAR;
@@ -647,7 +658,7 @@ function esTareaOcultaEnEstatus(tarea) {
   return estado === "en pausa";
 }
 
-const ESTATUS_CARGA_DISENO = new Set(["pendiente", "en progreso", "en revision"]);
+const ESTATUS_CARGA_DISENO = new Set(["pendiente", "en progreso", "seguimiento", "en revision"]);
 
 function esTareaActivaCarga(tarea) {
   if (!tarea) return false;
@@ -794,14 +805,8 @@ function etapaOperativaEstatus(t, filasRef) {
   const fila = (filasRef || []).find((f) => tareaCoincideFilaEstatus(t, f));
   const flujo = obtenerFlujoTarea(t);
   const blob = [partes.comentario, partes.notas, fila && fila.comentarios, fila && fila.status].filter(Boolean).join("\n");
-  if (
-    estado === "espera de comentarios"
-    || estado === "seguimiento"
-    || flujo === ESTATUS_FLUJO_ESPERA
-  ) {
-    return "cliente";
-  }
-  if (estado === "pendiente" || estado === "en progreso") return "diseno";
+  if (estado === "espera de comentarios" || flujo === ESTATUS_FLUJO_ESPERA) return "cliente";
+  if (estado === "pendiente" || estado === "en progreso" || estado === "seguimiento") return "diseno";
   if (estado === "en pausa") return "";
   if (debeIrPorEnviarEstatus(t, filasRef, flujo, estado, blob, fila)) return "por-enviar";
   return "diseno";

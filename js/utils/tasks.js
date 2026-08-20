@@ -442,7 +442,9 @@ function normalizarTareaCampos(t) {
   return aplicarFechasLocales({
     ...t,
     marca: normalizarMarca(t.marca),
-    estado: normalizarEstado(t.estado),
+    estado: typeof estadoTrasReconciliarEsperaCliente === "function"
+      ? estadoTrasReconciliarEsperaCliente(t, t.estado)
+      : normalizarEstado(t.estado),
     prioridad: normalizarPrioridad(t.prioridad || t.Prioridad),
     deadline: normalizarDeadline(t.deadline),
     fechaInicio: resolverFechaInicioTarea(t),
@@ -462,11 +464,11 @@ function normalizarValorCampoTarea(campo, valor) {
 const ORDEN_ESTADOS_LISTA = {
   "pendiente": 1,
   "en progreso": 2,
-  "espera de comentarios": 3,
   "seguimiento": 3,
-  "en revision": 4,
-  "en pausa": 5,
-  "suspendido": 5,
+  "espera de comentarios": 4,
+  "en revision": 5,
+  "en pausa": 6,
+  "suspendido": 6,
   "completada": 7
 };
 

@@ -191,40 +191,174 @@ async function cargarEntregablesSupabase() {
   }
 }
 
+function claveImportEntregable(valor) {
+  if (typeof claveImportNormalizada === "function") return claveImportNormalizada(valor);
+  return String(valor || "").trim().toLowerCase();
+}
+
+async function cargarMapaIdsEntregables() {
+  const vacio = { byImport: new Map(), ids: new Set() };
+  if (typeof entregablesSupabaseListos !== "function" || !entregablesSupabaseListos()) {
+    return vacio;
+  }
+  const base = getEntregablesSupabaseUrl();
+  const byImport = new Map();
+  const ids = new Set();
+  let from = 0;
+
+  try {
+    while (true) {
+      const to = from + ENTREGABLES_PAGE_SIZE - 1;
+      const res = await fetch(
+        `${base}/rest/v1/robin_entregables?select=id_tarea,import_key`,
+        {
+          headers: {
+            ...getEntregablesSupabaseHeaders(),
+            Range: `${from}-${to}`
+          }
+        }
+      );
+      if (!res.ok) return { byImport, ids };
+      const page = await res.json();
+      if (!Array.isArray(page) || !page.length) break;
+      page.forEach((row) => {
+        const id = String(row?.id_tarea || "").trim();
+        if (id) ids.add(id);
+        const importKey = claveImportEntregable(row?.import_key);
+        if (importKey && !byImport.has(importKey)) byImport.set(importKey, id);
+      });
+      if (page.length < ENTREGABLES_PAGE_SIZE) break;
+      from += ENTREGABLES_PAGE_SIZE;
+    }
+  } catch (e) {
+    return { byImport, ids };
+  }
+  return { byImport, ids };
+}
+
+function resolverFilasUpsert(filas, mapa) {
+  const compacta = [];
+  const idxPorId = new Map();
+  const idxPorImport = new Map();
+  const idMap = {};
+
+  (filas || []).forEach((row) => {
+    const copia = { ...row };
+    const originalId = String(copia.id_tarea || "").trim();
+    const importKey = claveImportEntregable(copia.import_key);
+    if (importKey && mapa?.byImport?.has(importKey)) {
+      copia.id_tarea = mapa.byImport.get(importKey);
+    }
+    const idFinal = String(copia.id_tarea || "").trim();
+    if (originalId) idMap[originalId] = idFinal;
+
+    const prevImport = importKey ? idxPorImport.get(importKey) : null;
+    const prevId = idxPorId.get(idFinal);
+    const destino = prevImport != null ? prevImport : prevId;
+
+    if (destino != null) {
+      compacta[destino] = copia;
+      idxPorId.set(idFinal, destino);
+      if (importKey) idxPorImport.set(importKey, destino);
+      return;
+    }
+
+    if (importKey) idxPorImport.set(importKey, compacta.length);
+    idxPorId.set(idFinal, compacta.length);
+    compacta.push(copia);
+  });
+
+  return { filas: compacta, idMap };
+}
+
+async function postFilasEntregables(lote) {
+  const base = getEntregablesSupabaseUrl();
+  try {
+    const res = await fetch(
+      `${base}/rest/v1/robin_entregables?on_conflict=id_tarea`,
+      {
+        method: "POST",
+        headers: getEntregablesSupabaseHeaders("resolution=merge-duplicates,return=minimal"),
+        body: JSON.stringify(lote)
+      }
+    );
+    if (res.ok) return { ok: true, error: "" };
+    const detalle = await res.text();
+    return { ok: false, error: detalle.slice(0, 400) || `HTTP ${res.status}` };
+  } catch (e) {
+    return { ok: false, error: e?.message || String(e) };
+  }
+}
+
+function esConflictoImportKey(error) {
+  const txt = String(error || "").toLowerCase();
+  return txt.includes("import_key") || txt.includes("409") || txt.includes("duplicate key");
+}
+
 async function upsertEntregablesSupabase(tareas, usuario) {
   if (typeof entregablesSupabaseListos !== "function" || !entregablesSupabaseListos()) {
-    return { ok: false, upserted: 0, error: "Supabase de entregables no configurado" };
+    return { ok: false, upserted: 0, error: "Supabase de entregables no configurado", idMap: {}, failedIds: [] };
   }
   const filas = (tareas || [])
     .map((t) => filaSupabaseDesdeTarea(t, usuario))
     .filter((row) => row.id_tarea && row.marca && row.info);
-  if (!filas.length) return { ok: true, upserted: 0, error: "" };
+  if (!filas.length) return { ok: true, upserted: 0, error: "", idMap: {}, failedIds: [] };
 
-  const base = getEntregablesSupabaseUrl();
+  const mapa = await cargarMapaIdsEntregables();
+  const resueltas = resolverFilasUpsert(filas, mapa);
+  const idMap = { ...resueltas.idMap };
   let upserted = 0;
+  const failedIds = [];
+  const errores = [];
 
-  for (let i = 0; i < filas.length; i += ENTREGABLES_UPSERT_BATCH) {
-    const lote = filas.slice(i, i + ENTREGABLES_UPSERT_BATCH);
-    try {
-      const res = await fetch(
-        `${base}/rest/v1/robin_entregables?on_conflict=id_tarea`,
-        {
-          method: "POST",
-          headers: getEntregablesSupabaseHeaders("resolution=merge-duplicates,return=minimal"),
-          body: JSON.stringify(lote)
-        }
-      );
-      if (!res.ok) {
-        const detalle = await res.text();
-        return { ok: false, upserted, error: detalle.slice(0, 400) || `HTTP ${res.status}` };
-      }
+  const registrarFallo = (fila, error) => {
+    failedIds.push(String(fila.id_tarea || "").trim());
+    errores.push(error);
+  };
+
+  const intentarUna = async (fila) => {
+    let intento = await postFilasEntregables([fila]);
+    if (intento.ok) return true;
+    if (!esConflictoImportKey(intento.error)) {
+      registrarFallo(fila, intento.error);
+      return false;
+    }
+    const fresco = await cargarMapaIdsEntregables();
+    const importKey = claveImportEntregable(fila.import_key);
+    const idExistente = importKey ? fresco.byImport.get(importKey) : "";
+    if (idExistente && idExistente !== fila.id_tarea) {
+      const idPrevio = fila.id_tarea;
+      fila.id_tarea = idExistente;
+      Object.keys(idMap).forEach((k) => {
+        if (idMap[k] === idPrevio) idMap[k] = idExistente;
+      });
+      idMap[idPrevio] = idExistente;
+      intento = await postFilasEntregables([fila]);
+      if (intento.ok) return true;
+    }
+    registrarFallo(fila, intento.error);
+    return false;
+  };
+
+  for (let i = 0; i < resueltas.filas.length; i += ENTREGABLES_UPSERT_BATCH) {
+    const lote = resueltas.filas.slice(i, i + ENTREGABLES_UPSERT_BATCH);
+    const resultado = await postFilasEntregables(lote);
+    if (resultado.ok) {
       upserted += lote.length;
-    } catch (e) {
-      return { ok: false, upserted, error: e?.message || String(e) };
+      continue;
+    }
+    for (const fila of lote) {
+      if (await intentarUna(fila)) upserted += 1;
     }
   }
 
-  return { ok: true, upserted, error: "" };
+  return {
+    ok: failedIds.length === 0,
+    upserted,
+    error: errores[0] || "",
+    idMap,
+    failedIds
+  };
 }
 
 async function borrarEntregableSupabase(idTarea) {
@@ -344,19 +478,22 @@ async function procesarColaEntregablesSupabase(cola, usuario) {
 
   if (upserts.length) {
     const resultado = await upsertEntregablesSupabase(upserts.map((item) => item.tarea), usuario);
-    if (!resultado.ok) {
-      upserts.forEach((item) => fallidas.push(item.op));
-      errores.push({ type: "upsert", error: resultado.error });
-    } else {
-      upserts.forEach((item) => {
-        if (typeof confirmarTareaLocalTrasSync === "function") {
-          confirmarTareaLocalTrasSync(item.op, {
-            success: true,
-            idTarea: idTareaEstableEntregable(item.tarea)
-          });
-        }
-      });
-    }
+    const failed = new Set((resultado.failedIds || []).filter(Boolean));
+    if (resultado.error) errores.push({ type: "upsert", error: resultado.error });
+    upserts.forEach((item) => {
+      const originalId = idTareaEstableEntregable(item.tarea);
+      const idFinal = (resultado.idMap && resultado.idMap[originalId]) || originalId;
+      if (failed.has(idFinal) || failed.has(originalId)) {
+        fallidas.push(item.op);
+        return;
+      }
+      if (typeof confirmarTareaLocalTrasSync === "function") {
+        confirmarTareaLocalTrasSync(item.op, {
+          success: true,
+          idTarea: idFinal
+        });
+      }
+    });
   }
 
   for (const op of deletes) {

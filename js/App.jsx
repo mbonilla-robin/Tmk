@@ -1866,11 +1866,13 @@ function App() {
       try {
         let totalProcessed = 0;
         let remaining = cargarColaSync().length;
+        let lastErrores = [];
         for (let paso = 0; paso < 30 && remaining > 0; paso += 1) {
           compactarColaSync();
           const resultado = await procesarColaSync({ limite: 8 });
           totalProcessed += resultado.processed || 0;
           remaining = resultado.remaining || 0;
+          lastErrores = resultado.errores || lastErrores;
           setHayPendientesLocales(calcularHayPendientesLocales());
           if (resultado.sessionMissing) return;
           if ((resultado.processed || 0) === 0 && remaining > 0) break;
@@ -1883,7 +1885,10 @@ function App() {
         setHayPendientesLocales(calcularHayPendientesLocales());
         const colaFinal = cargarColaSync().length;
         if (colaFinal > 0) {
-          const detalle = `Quedan ${colaFinal} envíos pendientes`;
+          const errTxt = lastErrores.slice(0, 2).map((e) => e.error || "").filter(Boolean).join(" · ");
+          const detalle = errTxt
+            ? `Quedan ${colaFinal} envíos pendientes. ${errTxt}`
+            : `Quedan ${colaFinal} envíos pendientes`;
           registrarDiagnosticoRobin("sync_cola", "Cola de escritura pendiente", detalle);
           setApiError((prev) => prev || "Cambios pendientes de guardar");
           setApiErrorDetail((prev) => prev || detalle);

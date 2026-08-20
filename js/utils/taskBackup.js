@@ -298,7 +298,7 @@ function confirmarTareaLocalTrasSync(op, respuesta) {
     if (!tareaCoincideConOperacionSync(tarea, op)) return tarea;
 
     let next = normalizarTareaCampos(tarea);
-    if (idRemoto && !idRemoto.startsWith("STB-")) {
+    if (idRemoto) {
       next = { ...next, idTarea: idRemoto };
     }
     next = limpiarPinsLocalesTrasSyncOperacion(next, op);

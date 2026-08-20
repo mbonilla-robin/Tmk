@@ -293,8 +293,7 @@ function encabezadoEsperaComentariosEstatus() {
   return [
     saludoEsperaComentariosEstatus(),
     "",
-    "Por esta vía, le compartimos una lista detallada de lo que estamos *esperando por comentarios* para poder realizar _ajustes_ o enviar _arte finales_. Quedamos atentos, muchísimas gracias.",
-    ""
+    "Por esta vía, le compartimos una lista detallada de lo que estamos *esperando por comentarios* para poder realizar _ajustes_ o enviar _arte finales_. Quedamos atentos, muchísimas gracias."
   ].join("\n");
 }
 
@@ -356,7 +355,7 @@ function generarTextoEstatus(tareas, { marcas, estados, filtroTiempo, ordenarPor
   if (!cuerpo) return "";
 
   if (modo === "espera-comentarios") {
-    return `${encabezadoEsperaComentariosEstatus()}${cuerpo}`;
+    return `${encabezadoEsperaComentariosEstatus()}\n\n${cuerpo}`;
   }
 
   return `${encabezadoEstatus(marcas)}\n\n${cuerpo}`;

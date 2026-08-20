@@ -293,7 +293,7 @@ function encabezadoEsperaComentariosEstatus() {
   return [
     saludoEsperaComentariosEstatus(),
     "",
-    "Por esta vía, le compartimos una lista detallada de lo que estamos esperando por comentarios para poder realizar ajustes o enviar arte finales. Quedo atento, muchísimas gracias.",
+    "Por esta vía, le compartimos una lista detallada de lo que estamos *esperando por comentarios* para poder realizar _ajustes_ o enviar _arte finales_. Quedamos atentos, muchísimas gracias.",
     ""
   ].join("\n");
 }

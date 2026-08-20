@@ -304,6 +304,13 @@ function tareaPendienteSubirCor(tarea) {
   return idxPend > idxSub;
 }
 
+function textoPlanoAjusteCor(valor) {
+  const raw = String(valor || "").trim();
+  if (!raw) return "";
+  if (typeof htmlNotasAPlainText === "function") return htmlNotasAPlainText(raw).trim();
+  return raw;
+}
+
 function obtenerAjusteComentarioEstatus(tarea) {
   const parsed = typeof parseDetalles === "function"
     ? parseDetalles(tarea?.detalles || "")
@@ -312,6 +319,85 @@ function obtenerAjusteComentarioEstatus(tarea) {
     ? notasYComentarioEstatus(parsed.notas)
     : { notas: parsed.notas || "", comentario: "" };
   return String(partes.comentario || partes.notas || "").trim();
+}
+
+function obtenerUltimoAjusteCor(tarea) {
+  const parsed = typeof parseDetalles === "function"
+    ? parseDetalles(tarea?.detalles || "")
+    : { notas: tarea?.detalles || "" };
+  const partes = typeof notasYComentarioEstatus === "function"
+    ? notasYComentarioEstatus(parsed.notas)
+    : { notas: parsed.notas || "", comentario: "" };
+  const comentario = textoPlanoAjusteCor(partes.comentario);
+  const notas = textoPlanoAjusteCor(partes.notas);
+  const fuente = comentario || notas;
+  if (!fuente) return "";
+  const bloques = fuente.split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
+  if (bloques.length > 1) return bloques[bloques.length - 1];
+  const lineas = fuente.split(/\n/).map((l) => l.trim()).filter(Boolean);
+  if (lineas.length > 1) return lineas[lineas.length - 1];
+  return fuente;
+}
+
+function saludoCorSegunHora(fecha) {
+  const hora = (fecha instanceof Date ? fecha : new Date()).getHours();
+  if (hora < 12) return "buenos días";
+  if (hora < 19) return "buenas tardes";
+  return "buenas noches";
+}
+
+function mencionesEquipoCor(tarea) {
+  const handles = typeof obtenerHandlesDesdeCampoPersonas === "function"
+    ? obtenerHandlesDesdeCampoPersonas(tarea?.personas || "")
+    : String(tarea?.personas || "").split(/[\s,]+/).filter(Boolean);
+  const diseno = [];
+  const contenido = [];
+  const visto = new Set();
+
+  const push = (lista, handle) => {
+    const key = String(handle || "").replace(/^@/, "").trim().toLowerCase();
+    if (!key || visto.has(key)) return;
+    const nombre = typeof obtenerNombreDisplayEquipo === "function"
+      ? obtenerNombreDisplayEquipo(key)
+      : (typeof NOMBRES_DISPLAY_EQUIPO !== "undefined" ? NOMBRES_DISPLAY_EQUIPO[key] : "");
+    const limpio = String(nombre || "").replace(/^@/, "").trim();
+    const tag = limpio ? `@${limpio}` : `@${key}`;
+    visto.add(key);
+    lista.push(tag);
+  };
+
+  handles.forEach((handle) => {
+    const key = String(handle || "").replace(/^@/, "").trim().toLowerCase();
+    if (!key) return;
+    const esDiseno = (typeof isRobinDesigner === "function" && isRobinDesigner(key))
+      || (typeof esHandleDisenadorEstatus === "function" && esHandleDisenadorEstatus(key));
+    const esContenido = (typeof isRobinContent === "function" && isRobinContent(key))
+      || (typeof esHandleContenidoEstatus === "function" && esHandleContenidoEstatus(key));
+    if (esDiseno) push(diseno, key);
+    else if (esContenido) push(contenido, key);
+  });
+
+  return [...diseno, ...contenido];
+}
+
+function construirMensajeAjusteCor(tarea) {
+  const ajuste = obtenerUltimoAjusteCor(tarea);
+  const menciones = mencionesEquipoCor(tarea);
+  const lineas = [
+    `Hola equipo, ${saludoCorSegunHora()}. Espero que estén muy bien.`,
+    "",
+    "Para esta pieza les dejamos una solicitud que nos hicieron llegar.",
+    "",
+    "DETALLES:",
+    ajuste || "—",
+    "",
+    "Cualquier cosa, muchas gracias."
+  ];
+  if (menciones.length) {
+    lineas.push("");
+    lineas.push(menciones.join(" "));
+  }
+  return lineas.join("\n");
 }
 
 function listarTareasPendientesSubirCor(tareas) {

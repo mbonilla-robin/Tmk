@@ -12,6 +12,7 @@ function LayoutHome({
   onCrearRapido,
   onAtajoFiltro,
   onMarcarSubidoCor,
+  onToast,
   soloMisTareas = false,
   currentTheme,
   getMarcaStyle,
@@ -72,6 +73,7 @@ function LayoutHome({
       tareas={tareas}
       onSelectTask={onSelectTask}
       onMarcarSubidoCor={onMarcarSubidoCor}
+      onToast={onToast}
       currentTheme={currentTheme}
       mostrarVacio={typeof marcasCoinciden === "function"
         ? (tareas || []).some((t) => marcasCoinciden(t.marca, "La Santé"))

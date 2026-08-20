@@ -128,7 +128,8 @@ function LayoutMarcaHome({
   onGuardarComentario,
   onCambiarEnvioTipo,
   onAbrirEstatus,
-  onMarcarSubidoCor
+  onMarcarSubidoCor,
+  onToast
 }) {
   const marcaEstilo = getMarcaStyle(marca);
   const nombreMarca = formatearMarca(marca);
@@ -543,6 +544,7 @@ function LayoutMarcaHome({
             tareas={tareasMarca}
             onSelectTask={onSelectTask}
             onMarcarSubidoCor={onMarcarSubidoCor}
+            onToast={onToast}
             currentTheme={currentTheme}
             mostrarVacio={typeof marcasCoinciden === "function" ? marcasCoinciden(marca, "La Santé") : true}
             className="marca-glass-panel"

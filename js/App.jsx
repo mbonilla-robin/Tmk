@@ -3670,6 +3670,7 @@ function App() {
               onCrearRapido={isDesigner ? undefined : () => setFormularioRapidoVisible(true)}
               onAtajoFiltro={aplicarAtajoFiltro}
               onMarcarSubidoCor={isDesigner ? undefined : handleMarcarSubidoCor}
+              onToast={showToast}
               soloMisTareas={isDesigner}
               currentTheme={currentTheme}
               getMarcaStyle={getMarcaStyle}
@@ -3772,6 +3773,7 @@ function App() {
               onCambiarEnvioTipo={isDesigner ? undefined : handleCambiarEnvioTipo}
               onAbrirEstatus={isDesigner ? undefined : () => setShowGeneradorEstatus(true)}
               onMarcarSubidoCor={isDesigner ? undefined : handleMarcarSubidoCor}
+              onToast={showToast}
             />
           )}
 

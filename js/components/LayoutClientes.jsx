@@ -182,7 +182,7 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
               type="button"
               onClick={confirmarEliminarMarca}
               disabled={eliminando}
-              className="px-4 py-1.5 bg-red-650 hover:bg-red-500 text-white text-xs font-semibold rounded disabled:opacity-50"
+              className="px-4 py-1.5 bg-red-600 hover:bg-red-500 text-white text-xs font-semibold rounded disabled:opacity-50"
             >
               {eliminando ? "Eliminando..." : "Eliminar"}
             </button>

@@ -2183,6 +2183,35 @@ function App() {
     if (typeof limpiar === "function") limpiar();
   }, [usuario, tareas]);
 
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key !== "Escape") return;
+      if (taskToDelete) {
+        e.preventDefault();
+        setTaskToDelete(null);
+        return;
+      }
+      if (taskToComplete) {
+        e.preventDefault();
+        setTaskToComplete(null);
+        return;
+      }
+      if (buscadorAbierto) return;
+      if (isEditing) {
+        e.preventDefault();
+        setIsEditing(false);
+        setActiveTask(null);
+        return;
+      }
+      if (formularioRapidoVisible) {
+        e.preventDefault();
+        setFormularioRapidoVisible(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [taskToDelete, taskToComplete, buscadorAbierto, isEditing, formularioRapidoVisible]);
+
   const layoutTablaProps = {
     tareas: tareasFiltradas,
     onUpdateField: isDesigner ? undefined : handleUpdateField,
@@ -2792,7 +2821,7 @@ function App() {
           </div>
 
           {loginError && (
-            <div className={`p-2.5 border text-xs font-semibold rounded flex items-center gap-2 ${theme === "midnight" ? "bg-red-950/40 text-red-300 border-red-800" : "bg-red-50 text-red-650 border-red-100"}`}>
+            <div className={`p-2.5 border text-xs font-semibold rounded flex items-center gap-2 ${theme === "midnight" ? "bg-red-950/40 text-red-300 border-red-800" : "bg-red-50 text-red-600 border-red-100"}`}>
               <i className={`fa-solid fa-circle-exclamation ${theme === "midnight" ? "text-red-400" : "text-red-550"}`}></i>
               <span>{loginError}</span>
             </div>
@@ -4169,6 +4198,7 @@ function App() {
             key={getTaskSelectionKey(activeTask)}
             tarea={normalizarTareaCampos(resolverTareaActual(tareas, activeTask) || activeTask)}
             onClose={() => { setIsEditing(false); setActiveTask(null); }}
+            onDelete={isDesigner ? undefined : () => setTaskToDelete(resolverTareaActual(tareas, activeTask) || activeTask)}
             onSave={handleSaveTaskModal}
             listaPersonas={listaPersonas}
             registrarNuevaPersona={registrarNuevaPersonaGlobal}
@@ -4303,14 +4333,16 @@ function App() {
             </div>
             <div className="flex gap-2 justify-end">
               <button 
+                type="button"
                 onClick={() => setTaskToDelete(null)}
                 className="px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-800"
               >
                 Cancelar
               </button>
               <button 
+                type="button"
                 onClick={() => handleDeleteTask(taskToDelete)}
-                className="px-4 py-1.5 bg-red-650 hover:bg-red-500 text-white text-xs font-semibold rounded"
+                className="robin-confirm-delete-btn"
               >
                 Eliminar
               </button>

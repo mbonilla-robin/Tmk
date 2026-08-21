@@ -31,7 +31,7 @@ function parseDetallesSeguro(raw) {
   return { notes: "", notas: "", subtareas: [], historial: [], link: "", subcliente: "", flujo: "", importKey: "" };
 }
 
-function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, listaPersonas, registrarNuevaPersona, listaCategorias, registrarNuevaCategoria, listaSubclientes, registrarNuevoSubcliente, marcasDisponibles, usuario, nombreUsuario, onComentarioPublicado, onToast, soloLectura = false, modoDisenador = false, tareas = [], relacionesTareas = [], onRelacionCreada, onAbrirTareaRelacionada, getMarcaStyle }) {
+function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaPersonas, registrarNuevaPersona, listaCategorias, registrarNuevaCategoria, listaSubclientes, registrarNuevoSubcliente, marcasDisponibles, usuario, nombreUsuario, onComentarioPublicado, onToast, soloLectura = false, modoDisenador = false, tareas = [], relacionesTareas = [], onRelacionCreada, onAbrirTareaRelacionada, getMarcaStyle }) {
   const tarea = tareaProp && typeof tareaProp === "object" ? tareaProp : {};
   const resolverEstadoInicial = () => {
     let categoriaInicial = tarea.categoria || "";
@@ -765,6 +765,17 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, listaPersonas, r
 
           <div className="task-form-actions px-6 md:px-10 py-3 flex justify-between gap-2 max-w-3xl mx-auto w-full">
             <div className="flex items-center gap-1">
+              {typeof onDelete === "function" && !modoDisenador && !soloLectura && (
+                <button
+                  type="button"
+                  onClick={onDelete}
+                  className="task-form-delete-btn"
+                  title="Eliminar entregable"
+                  aria-label="Eliminar entregable"
+                >
+                  <i className="fa-regular fa-trash-can" aria-hidden="true" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleCompartirEnlace}

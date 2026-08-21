@@ -1278,6 +1278,53 @@
       border-top: 1px solid #f4f4f5;
     }
 
+    .task-form-delete-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.15rem;
+      height: 2.15rem;
+      border: 0;
+      border-radius: 0.45rem;
+      color: #71717a;
+      background: #f4f4f5;
+      cursor: pointer;
+    }
+
+    .task-form-delete-btn:hover,
+    .task-form-delete-btn:active {
+      color: #dc2626;
+      background: #fef2f2;
+    }
+
+    .task-form-page .task-form-actions .task-form-delete-btn {
+      width: 2.15rem;
+      min-width: 2.15rem;
+      height: 2.15rem;
+      min-height: 2.15rem;
+      padding: 0;
+    }
+
+    .robin-confirm-delete-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 5.5rem;
+      padding: 0.45rem 1rem;
+      border: 0;
+      border-radius: 0.375rem;
+      background: #dc2626;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .robin-confirm-delete-btn:hover,
+    .robin-confirm-delete-btn:active {
+      background: #b91c1c;
+    }
+
     /* Crear entregable: botones al final del contenido, sin flotar */
     .task-form-page--standalone,
     .task-form-page--standalone form {
@@ -3786,24 +3833,28 @@
       color: #a1a1aa;
     }
     .notion-task-delete {
-      opacity: 0;
-      margin-top: 0.125rem;
-      width: 1.5rem;
-      height: 1.5rem;
+      opacity: 1;
+      margin-top: 0.05rem;
+      width: 2rem;
+      height: 2rem;
       display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 0.25rem;
-      color: #d4d4d8;
-      font-size: 11px;
+      border: 0;
+      border-radius: 0.4rem;
+      color: #71717a;
+      background: #f4f4f5;
+      font-size: 12px;
       flex-shrink: 0;
-      transition: opacity 0.12s, color 0.12s, background 0.12s;
+      cursor: pointer;
+      transition: color 0.12s, background 0.12s;
     }
     .notion-task-row:hover .notion-task-delete {
       opacity: 1;
     }
-    .notion-task-delete:hover {
-      color: #ef4444;
+    .notion-task-delete:hover,
+    .notion-task-delete:active {
+      color: #dc2626;
       background: #fef2f2;
     }
 
@@ -3968,6 +4019,8 @@
     @media (max-width: 767px) {
       .notion-task-delete {
         opacity: 1;
+        width: 2.25rem;
+        height: 2.25rem;
       }
 
       .notion-task-swipe-wrap {
@@ -6899,6 +6952,14 @@
         font-size: 14px;
       }
 
+      .task-form-page .task-form-actions .task-form-delete-btn {
+        width: 2.75rem;
+        min-width: 2.75rem;
+        height: 2.75rem;
+        min-height: 2.75rem;
+        padding: 0;
+      }
+
       .task-form-page .task-form-title {
         font-size: 1.4rem;
       }
@@ -8001,6 +8062,17 @@
       border-color: var(--robin-border) !important;
     }
 
+    html.robin-app[data-theme="midnight"] .task-form-delete-btn {
+      color: #a1a1aa;
+      background: #27272a;
+    }
+
+    html.robin-app[data-theme="midnight"] .task-form-delete-btn:hover,
+    html.robin-app[data-theme="midnight"] .task-form-delete-btn:active {
+      color: #f87171;
+      background: rgba(248, 113, 113, 0.12);
+    }
+
     /* Formulario entregable — plano, sin recuadros claros */
     html.robin-app[data-theme="midnight"] .task-form-page,
     html.robin-app[data-theme="midnight"] .task-form-page--standalone,
@@ -8345,12 +8417,14 @@
     }
 
     html.robin-app[data-theme="midnight"] .notion-task-delete {
-      color: #71717a;
+      color: #a1a1aa;
+      background: #27272a;
     }
 
-    html.robin-app[data-theme="midnight"] .notion-task-delete:hover {
+    html.robin-app[data-theme="midnight"] .notion-task-delete:hover,
+    html.robin-app[data-theme="midnight"] .notion-task-delete:active {
       color: #f87171;
-      background: rgba(248, 113, 113, 0.1);
+      background: rgba(248, 113, 113, 0.12);
     }
 
     html.robin-app[data-theme="midnight"] .notion-time-pill.is-active,

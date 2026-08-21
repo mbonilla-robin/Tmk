@@ -310,11 +310,12 @@ function BuscadorSpotlight({
 function BuscadorSpotlightEdge({ onClick }) {
   const [caliente, setCaliente] = useState(false);
   const hideTimer = useRef(null);
+  const calienteRef = useRef(false);
   const atajo = atajoSpotlightLabel();
 
-  useEffect(() => () => {
-    if (hideTimer.current) window.clearTimeout(hideTimer.current);
-  }, []);
+  useEffect(() => {
+    calienteRef.current = caliente;
+  }, [caliente]);
 
   const mostrar = () => {
     if (hideTimer.current) window.clearTimeout(hideTimer.current);
@@ -322,20 +323,47 @@ function BuscadorSpotlightEdge({ onClick }) {
   };
 
   const ocultar = () => {
-    hideTimer.current = window.setTimeout(() => setCaliente(false), 220);
+    if (hideTimer.current) window.clearTimeout(hideTimer.current);
+    hideTimer.current = window.setTimeout(() => setCaliente(false), 280);
   };
+
+  useEffect(() => {
+    const enZona = (x, y) => {
+      const w = window.innerWidth || 0;
+      const mitad = w / 2;
+      const mitadZona = w < 768 ? 110 : 180;
+      const tope = w < 768 ? 72 : 64;
+      const yMax = calienteRef.current ? tope + 36 : tope;
+      return y >= 0 && y <= yMax && Math.abs(x - mitad) <= mitadZona;
+    };
+
+    const onMove = (e) => {
+      if (document.body.classList.contains("induccion-bloqueada")) return;
+      if (enZona(e.clientX, e.clientY)) mostrar();
+      else if (calienteRef.current) ocultar();
+    };
+
+    window.addEventListener("pointermove", onMove, { passive: true });
+    window.addEventListener("mousemove", onMove, { passive: true });
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("mousemove", onMove);
+      if (hideTimer.current) window.clearTimeout(hideTimer.current);
+    };
+  }, []);
 
   const edge = (
     <div
       className={`robin-spotlight-edge ${caliente ? "is-hot" : ""}`}
-      onMouseEnter={mostrar}
-      onMouseLeave={ocultar}
-      onPointerEnter={mostrar}
-      onClick={() => onClick && onClick()}
+      aria-hidden={!caliente}
     >
       <button
         type="button"
         className="robin-spotlight-edge__btn"
+        tabIndex={caliente ? 0 : -1}
+        onMouseEnter={mostrar}
+        onPointerEnter={mostrar}
+        onMouseLeave={ocultar}
         onClick={(e) => {
           e.stopPropagation();
           if (onClick) onClick();

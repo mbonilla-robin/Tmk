@@ -148,26 +148,6 @@ function LayoutMarcaHome({
     return `marca-subcliente-${String(clave).replace(/\s+/g, "-")}`;
   };
 
-  useEffect(() => {
-    if (!subclienteDestino || !subclienteDestino.nombre) return undefined;
-    const mismaMarca = typeof marcasCoinciden === "function"
-      ? marcasCoinciden(marca, subclienteDestino.marca)
-      : marca === subclienteDestino.marca;
-    if (!mismaMarca) return undefined;
-    setVistaSubpagina("subclientes");
-    const id = idBloqueSubcliente(subclienteDestino.nombre);
-    const t = window.setTimeout(() => {
-      const el = document.getElementById(id);
-      if (el) {
-        el.classList.add("is-spotlight-focus");
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-        window.setTimeout(() => el.classList.remove("is-spotlight-focus"), 1600);
-      }
-      if (typeof onSubclienteDestinoConsumido === "function") onSubclienteDestinoConsumido();
-    }, 120);
-    return () => window.clearTimeout(t);
-  }, [subclienteDestino, marca]);
-
   const tareasMarca = useMemo(() => {
     return tareas.filter(t => marcasCoinciden(t.marca, marca));
   }, [tareas, marca]);
@@ -177,6 +157,37 @@ function LayoutMarcaHome({
     [listaSubclientes, marca, tareasMarca]
   );
   const tieneSubclientes = subclientesDisponibles.length > 0;
+
+  useEffect(() => {
+    setVistaSubpagina(null);
+    setFiltroSubcliente("TODOS");
+  }, [marca]);
+
+  useEffect(() => {
+    if (!subclienteDestino || !subclienteDestino.nombre) return undefined;
+    const mismaMarca = typeof marcasCoinciden === "function"
+      ? marcasCoinciden(marca, subclienteDestino.marca)
+      : marca === subclienteDestino.marca;
+    if (!mismaMarca) return undefined;
+    const nombreDestino = subclientesDisponibles.find((n) => (
+      typeof subclientesCoinciden === "function"
+        ? subclientesCoinciden(n, subclienteDestino.nombre)
+        : n === subclienteDestino.nombre
+    )) || subclienteDestino.nombre;
+    setVistaSubpagina(null);
+    setFiltroSubcliente(nombreDestino);
+    const t = window.setTimeout(() => {
+      const el = document.getElementById("marca-entregables");
+      if (el) {
+        el.classList.add("is-spotlight-focus");
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        window.setTimeout(() => el.classList.remove("is-spotlight-focus"), 1600);
+      }
+      if (typeof onSubclienteDestinoConsumido === "function") onSubclienteDestinoConsumido();
+    }, 80);
+    return () => window.clearTimeout(t);
+  }, [subclienteDestino, marca, subclientesDisponibles]);
+
   const gruposSubclientes = useMemo(
     () => agruparTareasPorSubcliente(tareasMarca, marca),
     [tareasMarca, marca]
@@ -634,7 +645,7 @@ function LayoutMarcaHome({
           </div>
         </div>
 
-        <div className="marca-entregables-section">
+        <div id="marca-entregables" className="marca-entregables-section">
           <div className="robin-mobile-only flex-col gap-3">
             {dashboardMobileVista === "filtros" ? (
               <div className="flex flex-col gap-3">

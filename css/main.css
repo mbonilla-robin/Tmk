@@ -6732,6 +6732,13 @@
       border-top: 1px solid #e4e4e7;
       padding-top: 1rem;
       margin-top: 0.25rem;
+      scroll-margin-top: calc(var(--mobile-chrome-top, 4rem) + 0.75rem);
+      border-radius: 0.75rem;
+      transition: box-shadow 0.35s ease;
+    }
+
+    .marca-entregables-section.is-spotlight-focus {
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
     }
 
     .marca-entregables-header {
@@ -11483,21 +11490,20 @@
       top: 0;
       left: 50%;
       transform: translateX(-50%);
-      z-index: 70;
-      width: 12rem;
-      height: 0.85rem;
+      z-index: 90;
+      width: 16rem;
+      height: 4rem;
       display: flex;
       justify-content: center;
-      pointer-events: auto;
+      pointer-events: none;
     }
 
-    .robin-spotlight-edge.is-hot,
-    .robin-spotlight-edge:hover {
-      height: 3.5rem;
+    .robin-spotlight-edge.is-hot {
+      height: 4.25rem;
     }
 
     .robin-spotlight-edge__btn {
-      margin-top: 0.45rem;
+      margin-top: 0.55rem;
       width: 2.4rem;
       height: 2.4rem;
       border: 1px solid rgba(228, 228, 231, 0.9);
@@ -11518,8 +11524,7 @@
       transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
     }
 
-    .robin-spotlight-edge.is-hot .robin-spotlight-edge__btn,
-    .robin-spotlight-edge:hover .robin-spotlight-edge__btn {
+    .robin-spotlight-edge.is-hot .robin-spotlight-edge__btn {
       opacity: 1;
       transform: translateY(0);
       pointer-events: auto;
@@ -11751,8 +11756,8 @@
 
     @media (max-width: 767px) {
       .robin-spotlight-edge {
-        width: 7rem;
-        height: calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 2.6rem);
+        width: 9rem;
+        height: calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 3.25rem);
       }
 
       .robin-spotlight {

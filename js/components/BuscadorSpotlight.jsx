@@ -20,8 +20,10 @@ function BuscadorSpotlight({
   onCerrar,
   tareas = [],
   marcas = [],
+  subclientes = [],
   onAbrirTarea,
   onAbrirMarca,
+  onAbrirSubcliente,
   onNavegar,
   esDisenador = false,
   getMarcaStyle
@@ -107,13 +109,52 @@ function BuscadorSpotlight({
       });
     });
 
+    if (q) {
+      const vistosSub = new Set();
+      const candidatos = (subclientes || []).slice();
+      (tareas || []).forEach((t) => {
+        const nombre = typeof obtenerSubclienteTarea === "function"
+          ? obtenerSubclienteTarea(t)
+          : String(t?.subcliente || "").trim();
+        if (nombre && t?.marca) candidatos.push({ marca: t.marca, nombre });
+      });
+      candidatos.forEach((s) => {
+        const nombre = String(s?.nombre || "").trim();
+        const marcaRaw = s?.marca || "";
+        if (!nombre || !marcaRaw) return;
+        const marcaNombre = typeof formatearMarca === "function" ? formatearMarca(marcaRaw) : String(marcaRaw);
+        const blob = normalizarBusquedaSpotlight(`${nombre} ${marcaNombre}`);
+        if (!blob.includes(q)) return;
+        const claveMarca = typeof claveMarcaSubcliente === "function"
+          ? claveMarcaSubcliente(marcaRaw)
+          : normalizarBusquedaSpotlight(marcaNombre);
+        const claveSub = typeof claveSubcliente === "function"
+          ? claveSubcliente(nombre)
+          : normalizarBusquedaSpotlight(nombre);
+        const id = `sub-${claveMarca}-${claveSub}`;
+        if (vistosSub.has(id)) return;
+        vistosSub.add(id);
+        items.push({
+          id,
+          tipo: "subcliente",
+          titulo: nombre,
+          meta: `${marcaNombre} · Subcliente`,
+          icon: "fa-shop",
+          marca: marcaRaw,
+          subcliente: nombre,
+          grupo: "Subclientes"
+        });
+      });
+    }
+
     const listaTareas = (tareas || []).filter((t) => t && !(typeof esTareaSuspendida === "function" && esTareaSuspendida(t)));
     listaTareas.forEach((t) => {
       const titulo = String(t.info || "Sin título");
       const marca = typeof formatearMarca === "function" ? formatearMarca(t.marca) : String(t.marca || "");
       const estado = String(t.estado || "");
       const personas = String(t.personas || "");
-      const blob = normalizarBusquedaSpotlight([titulo, marca, estado, personas, t.subcliente].filter(Boolean).join(" "));
+      const sub = typeof obtenerSubclienteTarea === "function" ? obtenerSubclienteTarea(t) : String(t.subcliente || "");
+      const blob = normalizarBusquedaSpotlight([titulo, marca, estado, personas, sub].filter(Boolean).join(" "));
       if (q && !blob.includes(q)) return;
       items.push({
         id: typeof getTaskSelectionKey === "function" ? `tarea-${getTaskSelectionKey(t)}` : `tarea-${titulo}`,
@@ -135,7 +176,7 @@ function BuscadorSpotlight({
     }
 
     return items.slice(0, 18);
-  }, [query, tareas, marcas, esDisenador]);
+  }, [query, tareas, marcas, subclientes, esDisenador]);
 
   useEffect(() => {
     setIndice(0);
@@ -149,6 +190,7 @@ function BuscadorSpotlight({
     if (!item) return;
     if (item.tipo === "tarea" && onAbrirTarea) onAbrirTarea(item.tarea);
     else if (item.tipo === "marca" && onAbrirMarca) onAbrirMarca(item.marca);
+    else if (item.tipo === "subcliente" && onAbrirSubcliente) onAbrirSubcliente(item.marca, item.subcliente);
     else if (item.tipo === "pagina" && onNavegar) onNavegar(item.pagina);
     if (onCerrar) onCerrar();
   };
@@ -246,40 +288,69 @@ function BuscadorSpotlight({
     </div>
   );
 
-  if (typeof ModalPortal === "function") {
-    return <ModalPortal>{overlay}</ModalPortal>;
+  let overlayNodo = null;
+  if (visible) {
+    if (typeof ModalPortal === "function") {
+      overlayNodo = <ModalPortal>{overlay}</ModalPortal>;
+    } else if (typeof ReactDOM !== "undefined" && ReactDOM.createPortal) {
+      overlayNodo = ReactDOM.createPortal(overlay, document.body);
+    } else {
+      overlayNodo = overlay;
+    }
   }
-  if (typeof ReactDOM !== "undefined" && ReactDOM.createPortal) {
-    return ReactDOM.createPortal(overlay, document.body);
-  }
-  return overlay;
+
+  return (
+    <>
+      {!abierto && !visible ? <BuscadorSpotlightEdge onClick={onAbrir} /> : null}
+      {overlayNodo}
+    </>
+  );
 }
 
-function BuscadorSpotlightTrigger({ onClick, compacto = false }) {
+function BuscadorSpotlightEdge({ onClick }) {
+  const [caliente, setCaliente] = useState(false);
+  const hideTimer = useRef(null);
   const atajo = atajoSpotlightLabel();
-  if (compacto) {
-    return (
+
+  useEffect(() => () => {
+    if (hideTimer.current) window.clearTimeout(hideTimer.current);
+  }, []);
+
+  const mostrar = () => {
+    if (hideTimer.current) window.clearTimeout(hideTimer.current);
+    setCaliente(true);
+  };
+
+  const ocultar = () => {
+    hideTimer.current = window.setTimeout(() => setCaliente(false), 220);
+  };
+
+  const edge = (
+    <div
+      className={`robin-spotlight-edge ${caliente ? "is-hot" : ""}`}
+      onMouseEnter={mostrar}
+      onMouseLeave={ocultar}
+      onPointerEnter={mostrar}
+      onClick={() => onClick && onClick()}
+    >
       <button
         type="button"
-        className="mobile-top-btn"
-        onClick={onClick}
-        title={`Buscar (${atajo})`}
+        className="robin-spotlight-edge__btn"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (onClick) onClick();
+        }}
         aria-label="Buscar en Robin"
+        title={`Buscar (${atajo})`}
       >
         <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
       </button>
-    );
-  }
-  return (
-    <button
-      type="button"
-      className="robin-spotlight-trigger"
-      onClick={onClick}
-      title={`Buscar (${atajo})`}
-    >
-      <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
-      <span>Buscar</span>
-      <kbd>{atajo}</kbd>
-    </button>
+    </div>
   );
+
+  if (typeof ModalPortal === "function") return <ModalPortal>{edge}</ModalPortal>;
+  if (typeof ReactDOM !== "undefined" && ReactDOM.createPortal) {
+    return ReactDOM.createPortal(edge, document.body);
+  }
+  return edge;
 }

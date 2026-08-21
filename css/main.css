@@ -5096,6 +5096,13 @@
       border-radius: 0.5rem;
       background: #fff;
       overflow: hidden;
+      scroll-margin-top: calc(var(--mobile-chrome-top, 4rem) + 0.75rem);
+      transition: box-shadow 0.35s ease, border-color 0.35s ease;
+    }
+
+    .marca-subcliente-block.is-spotlight-focus {
+      border-color: #d4d4d8;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
     }
 
     .marca-subcliente-block-header {
@@ -11471,49 +11478,56 @@
     }
 
     /* ── Buscador general tipo Spotlight ── */
-    .robin-spotlight-trigger {
+    .robin-spotlight-edge {
+      position: fixed;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 70;
+      width: 12rem;
+      height: 0.85rem;
+      display: flex;
+      justify-content: center;
+      pointer-events: auto;
+    }
+
+    .robin-spotlight-edge.is-hot,
+    .robin-spotlight-edge:hover {
+      height: 3.5rem;
+    }
+
+    .robin-spotlight-edge__btn {
+      margin-top: 0.45rem;
+      width: 2.4rem;
+      height: 2.4rem;
+      border: 1px solid rgba(228, 228, 231, 0.9);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.82);
+      color: #52525b;
+      box-shadow: 0 8px 24px rgba(24, 24, 27, 0.12);
+      backdrop-filter: blur(16px) saturate(160%);
+      -webkit-backdrop-filter: blur(16px) saturate(160%);
+      cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
-      min-width: 11.5rem;
-      height: 2.15rem;
-      padding: 0 0.55rem 0 0.75rem;
-      border-radius: 999px;
-      border: 1px solid var(--robin-border, #e4e4e7);
-      background: var(--robin-surface, #faf9f6);
-      color: var(--robin-text-muted, #71717a);
-      font-size: 12px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+      justify-content: center;
+      font-size: 0.85rem;
+      opacity: 0;
+      transform: translateY(-130%);
+      pointer-events: none;
+      transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
     }
 
-    .robin-spotlight-trigger:hover {
-      background: var(--robin-card, #fff);
-      border-color: #d4d4d8;
-      box-shadow: 0 1px 4px rgba(24, 24, 27, 0.06);
+    .robin-spotlight-edge.is-hot .robin-spotlight-edge__btn,
+    .robin-spotlight-edge:hover .robin-spotlight-edge__btn {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
     }
 
-    .robin-spotlight-trigger i {
-      font-size: 11px;
-      opacity: 0.7;
-    }
-
-    .robin-spotlight-trigger span {
-      flex: 1;
-      text-align: left;
-    }
-
-    .robin-spotlight-trigger kbd {
-      font-family: inherit;
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      padding: 0.12rem 0.4rem;
-      border-radius: 0.35rem;
-      border: 1px solid #e4e4e7;
-      background: #fff;
-      color: #a1a1aa;
+    .robin-spotlight-edge__btn:hover {
+      color: #18181b;
+      background: rgba(255, 255, 255, 0.94);
     }
 
     .robin-spotlight {
@@ -11736,6 +11750,11 @@
     }
 
     @media (max-width: 767px) {
+      .robin-spotlight-edge {
+        width: 7rem;
+        height: calc(var(--safe-top, env(safe-area-inset-top, 0px)) + 2.6rem);
+      }
+
       .robin-spotlight {
         padding: calc(var(--mobile-chrome-top, 4rem) + 1rem) 0.85rem 1rem;
         align-items: flex-start;
@@ -11756,20 +11775,15 @@
       }
     }
 
-    html.robin-app[data-theme="midnight"] .robin-spotlight-trigger {
-      background: #18181b;
+    html.robin-app[data-theme="midnight"] .robin-spotlight-edge__btn {
+      background: rgba(24, 24, 27, 0.88);
       border-color: #3f3f46;
-      color: #a1a1aa;
+      color: #d4d4d8;
     }
 
-    html.robin-app[data-theme="midnight"] .robin-spotlight-trigger:hover {
+    html.robin-app[data-theme="midnight"] .robin-spotlight-edge__btn:hover {
       background: #27272a;
-    }
-
-    html.robin-app[data-theme="midnight"] .robin-spotlight-trigger kbd {
-      background: #27272a;
-      border-color: #3f3f46;
-      color: #a1a1aa;
+      color: #fafafa;
     }
 
     html.robin-app[data-theme="midnight"] .robin-spotlight__backdrop {

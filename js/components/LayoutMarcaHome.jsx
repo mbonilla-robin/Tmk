@@ -129,7 +129,9 @@ function LayoutMarcaHome({
   onCambiarEnvioTipo,
   onAbrirEstatus,
   onMarcarSubidoCor,
-  onToast
+  onToast,
+  subclienteDestino = null,
+  onSubclienteDestinoConsumido
 }) {
   const marcaEstilo = getMarcaStyle(marca);
   const nombreMarca = formatearMarca(marca);
@@ -138,6 +140,33 @@ function LayoutMarcaHome({
 
   const [vistaSubpagina, setVistaSubpagina] = useState(null);
   const [filtroSubcliente, setFiltroSubcliente] = useState("TODOS");
+
+  const idBloqueSubcliente = (nombre) => {
+    const clave = typeof claveSubcliente === "function"
+      ? claveSubcliente(nombre)
+      : String(nombre || "").toLowerCase();
+    return `marca-subcliente-${String(clave).replace(/\s+/g, "-")}`;
+  };
+
+  useEffect(() => {
+    if (!subclienteDestino || !subclienteDestino.nombre) return undefined;
+    const mismaMarca = typeof marcasCoinciden === "function"
+      ? marcasCoinciden(marca, subclienteDestino.marca)
+      : marca === subclienteDestino.marca;
+    if (!mismaMarca) return undefined;
+    setVistaSubpagina("subclientes");
+    const id = idBloqueSubcliente(subclienteDestino.nombre);
+    const t = window.setTimeout(() => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.classList.add("is-spotlight-focus");
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        window.setTimeout(() => el.classList.remove("is-spotlight-focus"), 1600);
+      }
+      if (typeof onSubclienteDestinoConsumido === "function") onSubclienteDestinoConsumido();
+    }, 120);
+    return () => window.clearTimeout(t);
+  }, [subclienteDestino, marca]);
 
   const tareasMarca = useMemo(() => {
     return tareas.filter(t => marcasCoinciden(t.marca, marca));
@@ -469,7 +498,7 @@ function LayoutMarcaHome({
             </div>
           ) : (
             gruposSubclientes.map((grupo) => (
-              <section key={grupo.nombre} className="marca-subcliente-block">
+              <section key={grupo.nombre} id={idBloqueSubcliente(grupo.nombre)} className="marca-subcliente-block">
                 <div className="marca-subcliente-block-header">
                   <h3 className="marca-subcliente-block-title">{grupo.nombre}</h3>
                   <span className="marca-subcliente-block-count">

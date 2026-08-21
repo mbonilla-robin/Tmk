@@ -185,6 +185,7 @@ function App() {
   const [activeTask, setActiveTask] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [buscadorAbierto, setBuscadorAbierto] = useState(false);
+  const [subclienteDestino, setSubclienteDestino] = useState(null);
   const [taskToDelete, setTaskToDelete] = useState(null);
   const [taskToComplete, setTaskToComplete] = useState(null);
   const [clientesReset, setClientesReset] = useState(0);
@@ -789,6 +790,7 @@ function App() {
   };
 
   const handleAbrirMarcaCliente = (marca) => {
+    setSubclienteDestino(null);
     navegarA("dashboard", () => {
       setFiltroMarca(marca);
       setFiltroTiempo("TODAS");
@@ -797,6 +799,19 @@ function App() {
       setFiltroPersona("TODAS");
       setSearchQuery("");
       setDashboardMobileVista("lista");
+    });
+  };
+
+  const handleAbrirSubcliente = (marca, nombre) => {
+    navegarA("dashboard", () => {
+      setFiltroMarca(marca);
+      setFiltroTiempo("TODAS");
+      setFiltroEstado("TODOS");
+      setFiltroPrioridad("TODAS");
+      setFiltroPersona("TODAS");
+      setSearchQuery("");
+      setDashboardMobileVista("lista");
+      setSubclienteDestino({ marca, nombre });
     });
   };
 
@@ -3588,10 +3603,6 @@ function App() {
             )}
           </div>
 
-          {!isConfigOnlyAdmin && (
-            <BuscadorSpotlightTrigger onClick={() => setBuscadorAbierto(true)} />
-          )}
-
           <div className="flex items-center gap-3">
             {campanaNotificaciones}
 
@@ -3779,6 +3790,8 @@ function App() {
               onAbrirEstatus={isDesigner ? undefined : () => setShowGeneradorEstatus(true)}
               onMarcarSubidoCor={isDesigner ? undefined : handleMarcarSubidoCor}
               onToast={showToast}
+              subclienteDestino={subclienteDestino}
+              onSubclienteDestinoConsumido={() => setSubclienteDestino(null)}
             />
           )}
 
@@ -4126,7 +4139,6 @@ function App() {
         onAbrirEstatus={isDesigner ? undefined : () => setShowGeneradorEstatus(true)}
         onAbrirInformes={isDesigner ? undefined : () => navegarA("informes")}
         onCrearRapido={isDesigner ? undefined : () => setFormularioRapidoVisible(true)}
-        onAbrirBuscador={() => setBuscadorAbierto(true)}
       />
       )}
 
@@ -4140,9 +4152,11 @@ function App() {
           marcas={marcasDisponibles}
           onAbrirTarea={abrirEdicionTarea}
           onAbrirMarca={handleAbrirMarcaCliente}
+          onAbrirSubcliente={handleAbrirSubcliente}
           onNavegar={navegarA}
           esDisenador={isDesigner}
           getMarcaStyle={getMarcaStyle}
+          subclientes={listaSubclientes}
         />
       )}
 

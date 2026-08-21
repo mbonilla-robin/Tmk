@@ -74,7 +74,7 @@ function PorSubirCorPanel({
       window.setTimeout(() => {
         setCopiadoKey((prev) => (prev === key ? "" : prev));
       }, 1800);
-      if (onToast) onToast("Mensaje copiado. Pégalo en COR.", "success");
+      if (onToast) onToast("Mensaje copiado. En COR pega con Cmd+Shift+V si se junta.", "success");
     } else if (onToast) {
       onToast("No se pudo copiar el mensaje", "error");
     }

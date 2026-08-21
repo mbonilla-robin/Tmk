@@ -608,6 +608,11 @@ function remotaDebeOcultarseDuranteSync(remota, cola, locales) {
 
 function fusionarTareasRemotasYLocales(remotas, locales) {
   const cola = cargarColaSync();
+  const remotasNorm = (remotas || []).map((t) => desmarcarTareaPendiente(normalizarTareaCampos(t)));
+
+  // Sin escrituras pendientes, la nube es la única fuente de verdad.
+  if (!cola.length) return remotasNorm;
+
   const localesConPins = (locales || []).map((t) => aplicarFechasLocales(t));
   const eliminaciones = new Set(
     cola
@@ -615,38 +620,29 @@ function fusionarTareasRemotasYLocales(remotas, locales) {
       .flatMap((op) => [op.taskKey, op.taskKeyOriginal].filter(Boolean))
   );
 
-  let remotoFiltrado = (remotas || []).filter((t) => {
-    const key = getTaskSelectionKey(t);
-    if (eliminaciones.has(key)) return false;
-    return !remotaDebeOcultarseDuranteSync(t, cola, localesConPins);
-  });
-
   const mapa = new Map();
-  remotoFiltrado.forEach((t) => {
+  remotasNorm.forEach((t) => {
     const key = getTaskSelectionKey(t);
-    const localPendiente = localesConPins.find(
-      (l) => localDebeGanarSobreRemota(l, t, cola)
-        && remotaCorrespondeATareaLocal(t, l, cola)
-    );
-    if (localPendiente) return;
-    mapa.set(key, desmarcarTareaPendiente(normalizarTareaCampos(t)));
-  });
-
-  localesConPins.forEach((t) => {
-    const key = getTaskSelectionKey(t);
-    if (mapa.has(key)) return;
-    const yaRemota = Array.from(mapa.values()).some((r) => sonLaMismaTarea(r, t, { estricto: false }));
-    if (yaRemota) return;
-    const remotaMatch = (remotas || []).find((r) => sonLaMismaTarea(r, t, { estricto: false }));
-    if (!localDebeGanarSobreRemota(t, remotaMatch || null, cola)) return;
-    mapa.set(key, normalizarTareaCampos(t));
+    const legacy = typeof getTaskSelectionKeyLegacy === "function" ? getTaskSelectionKeyLegacy(t) : "";
+    if (eliminaciones.has(key) || (legacy && eliminaciones.has(legacy))) return;
+    if (remotaDebeOcultarseDuranteSync(t, cola, localesConPins)) return;
+    mapa.set(key, t);
   });
 
   localesConPins.forEach((local) => {
-    const remota = (remotas || []).find((r) => remotaCorrespondeATareaLocal(r, local, cola));
-    if (!remota || !localDebeGanarSobreRemota(local, remota, cola)) return;
+    if (!tareaEstaEnColaSync(local, cola)) return;
+    const key = getTaskSelectionKey(local);
+    const legacy = typeof getTaskSelectionKeyLegacy === "function" ? getTaskSelectionKeyLegacy(local) : "";
+    if (eliminaciones.has(key) || (legacy && eliminaciones.has(legacy))) return;
+
+    const remota = remotasNorm.find((r) => remotaCorrespondeATareaLocal(r, local, cola));
+    if (!remota) {
+      mapa.set(key, marcarTareaPendiente(normalizarTareaCampos(local)));
+      return;
+    }
+
     const fechas = fusionarFechasLocales(remota, local);
-    const fusionada = normalizarTareaCampos({
+    mapa.set(getTaskSelectionKey(remota) || key, marcarTareaPendiente(normalizarTareaCampos({
       ...remota,
       ...local,
       ...fechas,
@@ -655,20 +651,28 @@ function fusionarTareasRemotasYLocales(remotas, locales) {
       _localFechas: local._localFechas,
       idTarea: remota.idTarea || local.idTarea,
       detalles: local.detalles || remota.detalles
-    });
-    const confirmada = tareaLocalConfirmadaConRemota(local, remota);
-    const fusionFinal = limpiarEdicionLocalSiConfirmada(fusionada, remota);
-    mapa.set(
-      getTaskSelectionKey(local),
-      localDebeGanarSobreRemota(local, remota, cola) && !confirmada
-        ? marcarTareaPendiente(fusionFinal)
-        : fusionFinal
-    );
+    })));
   });
 
-  return deduplicarTareasFusionadas(
-    Array.from(mapa.values()).map((t) => (cola.length ? t : limpiarFlagsSyncObsoletos(t, remotas)))
-  );
+  return Array.from(mapa.values());
+}
+
+function confirmarColaVaciaTrasSync() {
+  if (cargarColaSync().length > 0) return false;
+  const tareas = cargarTareasLocales();
+  if (!tareas.length) return false;
+
+  let cambio = false;
+  const limpias = tareas.map((t) => {
+    if (!t._pendingSync && !t._localFechas) return t;
+    cambio = true;
+    const next = desmarcarTareaPendiente({ ...t });
+    if (next._localFechas) delete next._localFechas;
+    return next;
+  });
+
+  if (cambio) guardarTareasLocales(limpias);
+  return cambio;
 }
 
 function hayPendientesSync() {
@@ -781,7 +785,7 @@ async function procesarColaSync(opciones = {}) {
       return !id.startsWith("PRESENCE-");
     });
     guardarColaSync(remaining);
-    if (remaining.length === 0) repararFlagsSyncSinCola();
+    if (remaining.length === 0) confirmarColaVaciaTrasSync();
     return {
       ok: remaining.length === 0,
       processed,
@@ -877,7 +881,7 @@ async function procesarColaSync(opciones = {}) {
   }
 
   guardarColaSync(restantes);
-  if (restantes.length === 0) repararFlagsSyncSinCola();
+  if (restantes.length === 0) confirmarColaVaciaTrasSync();
   return { ok: restantes.length === 0, processed, remaining: restantes.length, errores };
 }
 

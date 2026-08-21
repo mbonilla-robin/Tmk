@@ -1732,18 +1732,14 @@ function App() {
   };
 
   const aplicarTareasRemotas = (remotas) => {
-    reconciliarTareasLocalesConRemotas(remotas);
     repararColaSyncActualizacionesFantasma();
     setTareas((prevTareas) => {
       const base = combinarLocalesParaFusion(prevTareas, cargarTareasLocales());
-      const fusionadas = limpiarListaFlagsSyncObsoletos(
-        fusionarTareasRemotasYLocales(remotas, base),
-        remotas
-      );
+      const fusionadas = fusionarTareasRemotasYLocales(remotas, base);
       guardarTareasLocales(fusionadas);
       return fusionadas;
     });
-    if (typeof repararFlagsSyncSinCola === "function") repararFlagsSyncSinCola(remotas);
+    if (typeof confirmarColaVaciaTrasSync === "function") confirmarColaVaciaTrasSync();
     const fusionadas = cargarTareasLocales();
     const colaVacia = cargarColaSync().length === 0;
     setHayPendientesLocales(calcularHayPendientesLocales());
@@ -1898,6 +1894,7 @@ function App() {
         }
 
         reconciliarTareasLocalesConRemotas([]);
+        if (typeof confirmarColaVaciaTrasSync === "function") confirmarColaVaciaTrasSync();
         setHayPendientesLocales(calcularHayPendientesLocales());
         const colaFinal = cargarColaSync().length;
         if (colaFinal > 0) {
@@ -1915,8 +1912,9 @@ function App() {
           }
           setApiError(null);
           setApiErrorDetail("");
+          setTareas(cargarTareasLocales());
         }
-        if (!opciones.sinRecarga) await fetchData(true);
+        if (!opciones.sinRecarga || colaFinal === 0) await fetchData(true);
         if (cargarColaSync().length > 0) {
           syncTimerRef.current = setTimeout(() => {
             if (!syncMutexRef.current) sincronizarEnSegundoPlano(opciones);
@@ -2413,7 +2411,7 @@ function App() {
         taskKey,
         payload: {
           marca: marcaParaSheet(tarea.marca),
-          idTarea: String(tarea.idTarea || "").startsWith("STB-") ? "" : tarea.idTarea,
+          idTarea: String(tarea.idTarea || "").trim() || taskKey,
           info: tarea.info,
           originalInfo: tarea.info,
           categoria: tarea.categoria,

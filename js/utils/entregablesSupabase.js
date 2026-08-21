@@ -385,7 +385,7 @@ async function upsertEntregablesSupabase(tareas, usuario) {
 
 async function borrarEntregableSupabase(idTarea) {
   const id = String(idTarea || "").trim();
-  if (!id) return { ok: true };
+  if (!id) return { ok: false, error: "Sin id para borrar" };
   if (typeof entregablesSupabaseListos !== "function" || !entregablesSupabaseListos()) {
     return { ok: false, error: "Supabase de entregables no configurado" };
   }
@@ -419,8 +419,11 @@ async function asegurarMigracionYCargarEntregables({ locales, sheets, usuario })
   const remoto = await cargarEntregablesSupabase();
   if (!remoto.ok) return remoto;
 
-  const necesitaMigrar = !yaMigraronEntregablesLocal() || !remoto.tareas.length;
-  if (!necesitaMigrar) {
+  // Si la nube ya tiene datos, esa es la fuente de verdad.
+  // No re-subir el backup de este navegador (localhost vs desktop
+  // tienen localStorage distinto y re-migrar resucita borrados).
+  if (remoto.tareas.length) {
+    marcarMigracionEntregablesLocal();
     return { ok: true, tareas: remoto.tareas, error: "", migradas: 0 };
   }
 
@@ -519,7 +522,7 @@ async function procesarColaEntregablesSupabase(cola, usuario) {
   }
 
   for (const op of deletes) {
-    const id = String(op.payload?.idTarea || op.taskKey || "").trim();
+    const id = String(op.payload?.idTarea || op.taskKey || op.taskKeyOriginal || "").trim();
     const borrado = await borrarEntregableSupabase(id);
     if (!borrado.ok) {
       fallidas.push(op);

@@ -299,75 +299,17 @@ function BuscadorSpotlight({
     }
   }
 
-  return (
-    <>
-      {!abierto && !visible ? <BuscadorSpotlightEdge onClick={onAbrir} /> : null}
-      {overlayNodo}
-    </>
-  );
+  return overlayNodo;
 }
 
-function BuscadorSpotlightEdge({ onClick }) {
-  const [caliente, setCaliente] = useState(false);
-  const hideTimer = useRef(null);
-  const calienteRef = useRef(false);
+function BuscadorSpotlightTrigger({ onClick }) {
   const atajo = atajoSpotlightLabel();
-
-  useEffect(() => {
-    calienteRef.current = caliente;
-  }, [caliente]);
-
-  const mostrar = () => {
-    if (hideTimer.current) window.clearTimeout(hideTimer.current);
-    setCaliente(true);
-  };
-
-  const ocultar = () => {
-    if (hideTimer.current) window.clearTimeout(hideTimer.current);
-    hideTimer.current = window.setTimeout(() => setCaliente(false), 280);
-  };
-
-  useEffect(() => {
-    const enZona = (x, y) => {
-      const w = window.innerWidth || 0;
-      const mitad = w / 2;
-      const mitadZona = w < 768 ? 110 : 180;
-      const tope = w < 768 ? 72 : 64;
-      const yMax = calienteRef.current ? tope + 36 : tope;
-      return y >= 0 && y <= yMax && Math.abs(x - mitad) <= mitadZona;
-    };
-
-    const onMove = (e) => {
-      if (document.body.classList.contains("induccion-bloqueada")) return;
-      if (enZona(e.clientX, e.clientY)) mostrar();
-      else if (calienteRef.current) ocultar();
-    };
-
-    window.addEventListener("pointermove", onMove, { passive: true });
-    window.addEventListener("mousemove", onMove, { passive: true });
-    return () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("mousemove", onMove);
-      if (hideTimer.current) window.clearTimeout(hideTimer.current);
-    };
-  }, []);
-
-  const edge = (
-    <div
-      className={`robin-spotlight-edge ${caliente ? "is-hot" : ""}`}
-      aria-hidden={!caliente}
-    >
+  return (
+    <div className="robin-spotlight-header-trigger">
       <button
         type="button"
-        className="robin-spotlight-edge__btn"
-        tabIndex={caliente ? 0 : -1}
-        onMouseEnter={mostrar}
-        onPointerEnter={mostrar}
-        onMouseLeave={ocultar}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (onClick) onClick();
-        }}
+        className="robin-spotlight-header-btn"
+        onClick={() => onClick && onClick()}
         aria-label="Buscar en Robin"
         title={`Buscar (${atajo})`}
       >
@@ -375,10 +317,4 @@ function BuscadorSpotlightEdge({ onClick }) {
       </button>
     </div>
   );
-
-  if (typeof ModalPortal === "function") return <ModalPortal>{edge}</ModalPortal>;
-  if (typeof ReactDOM !== "undefined" && ReactDOM.createPortal) {
-    return ReactDOM.createPortal(edge, document.body);
-  }
-  return edge;
 }

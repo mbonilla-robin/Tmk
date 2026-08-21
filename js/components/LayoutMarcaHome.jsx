@@ -175,16 +175,19 @@ function LayoutMarcaHome({
         : n === subclienteDestino.nombre
     )) || subclienteDestino.nombre;
     setVistaSubpagina(null);
-    setFiltroSubcliente(nombreDestino);
+    if (typeof setVistaModo === "function") setVistaModo("TABLE");
+    const idGrupo = typeof idGrupoEntregableSubcliente === "function"
+      ? idGrupoEntregableSubcliente(nombreDestino)
+      : `marca-entregable-sub-${String(nombreDestino || "").toLowerCase().replace(/\s+/g, "-")}`;
     const t = window.setTimeout(() => {
-      const el = document.getElementById("marca-entregables");
+      const el = (idGrupo && document.getElementById(idGrupo)) || document.getElementById("marca-entregables");
       if (el) {
         el.classList.add("is-spotlight-focus");
         el.scrollIntoView({ behavior: "smooth", block: "start" });
-        window.setTimeout(() => el.classList.remove("is-spotlight-focus"), 1600);
+        window.setTimeout(() => el.classList.remove("is-spotlight-focus"), 1800);
       }
       if (typeof onSubclienteDestinoConsumido === "function") onSubclienteDestinoConsumido();
-    }, 80);
+    }, 120);
     return () => window.clearTimeout(t);
   }, [subclienteDestino, marca, subclientesDisponibles]);
 

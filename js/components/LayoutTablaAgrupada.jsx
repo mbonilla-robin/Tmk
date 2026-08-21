@@ -275,7 +275,13 @@ function LayoutTablaAgrupada({
           : formatearMarca(grupoKey);
 
         return (
-          <section key={grupoKey} className="notion-group">
+          <section
+            key={grupoKey}
+            id={agruparPor === "subcliente" && typeof idGrupoEntregableSubcliente === "function"
+              ? idGrupoEntregableSubcliente(grupoKey)
+              : undefined}
+            className="notion-group"
+          >
             <header
               className={`notion-group-header ${badgeStyle.surface}`}
               style={{ borderLeftColor: badgeStyle.accent }}

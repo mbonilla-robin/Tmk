@@ -82,7 +82,8 @@ function MobileNavBar({
   onAbrirEquipos,
   onAbrirEstatus,
   onAbrirInformes,
-  onCrearRapido
+  onCrearRapido,
+  onAbrirBuscador
 }) {
   const [quickMenu, setQuickMenu] = useState(null);
 
@@ -194,6 +195,10 @@ function MobileNavBar({
         <div className="mobile-top-brand">
           <RobinLogo className="mobile-top-brand__logo" theme={theme} />
         </div>
+
+        {typeof onAbrirBuscador === "function" ? (
+          <BuscadorSpotlightTrigger onClick={onAbrirBuscador} />
+        ) : null}
 
         <div className="mobile-top-actions">
           {notificacionesSlot}

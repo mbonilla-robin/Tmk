@@ -53,6 +53,11 @@ function claveSubcliente(valor) {
     .replace(/\s+/g, " ");
 }
 
+function idGrupoEntregableSubcliente(nombre) {
+  const clave = claveSubcliente(nombre).replace(/\s+/g, "-");
+  return clave ? `marca-entregable-sub-${clave}` : "";
+}
+
 function claveMarcaSubcliente(marca) {
   if (typeof normalizarMarcaKey === "function") {
     try {

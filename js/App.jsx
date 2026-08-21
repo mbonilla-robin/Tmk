@@ -3603,6 +3603,10 @@ function App() {
             )}
           </div>
 
+          {!isConfigOnlyAdmin && (
+            <BuscadorSpotlightTrigger onClick={() => setBuscadorAbierto(true)} />
+          )}
+
           <div className="flex items-center gap-3">
             {campanaNotificaciones}
 
@@ -4139,6 +4143,7 @@ function App() {
         onAbrirEstatus={isDesigner ? undefined : () => setShowGeneradorEstatus(true)}
         onAbrirInformes={isDesigner ? undefined : () => navegarA("informes")}
         onCrearRapido={isDesigner ? undefined : () => setFormularioRapidoVisible(true)}
+        onAbrirBuscador={() => setBuscadorAbierto(true)}
       />
       )}
 

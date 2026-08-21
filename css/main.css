@@ -303,6 +303,16 @@
       background: #fff;
     }
 
+    .pull-to-search-hint.is-refresh.is-ready {
+      color: #065f46;
+      border-color: #a7f3d0;
+      background: #ecfdf5;
+    }
+
+    .pull-to-search-hint.is-refresh i {
+      color: #059669;
+    }
+
     .pull-to-search-hint i {
       font-size: 0.7rem;
       color: #71717a;

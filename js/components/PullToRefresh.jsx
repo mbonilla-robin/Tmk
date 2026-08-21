@@ -1,8 +1,9 @@
-const PULL_THRESHOLD_PX = 120;
-const PULL_MAX_PX = 200;
-const PULL_RESISTANCE = 0.58;
-const PULL_VISUAL_RATIO = 0.48;
-const PULL_VISUAL_CAP_PX = 72;
+const PULL_SEARCH_THRESHOLD_PX = 110;
+const PULL_REFRESH_THRESHOLD_PX = 200;
+const PULL_MAX_PX = 260;
+const PULL_RESISTANCE = 0.55;
+const PULL_VISUAL_RATIO = 0.45;
+const PULL_VISUAL_CAP_PX = 84;
 
 function pullRefreshHabilitado() {
   return typeof esPlataformaPullRefresh === "function" && esPlataformaPullRefresh();
@@ -10,6 +11,7 @@ function pullRefreshHabilitado() {
 
 function PullToRefresh({
   onRefresh,
+  onSearch,
   loading = false,
   disabled = false,
   mode = "refresh",
@@ -25,28 +27,42 @@ function PullToRefresh({
   const contentInsetRef = useRef(0);
   const disabledRef = useRef(disabled);
   const loadingRef = useRef(loading);
-  const awaitingRefreshRef = useRef(false);
+  const awaitingActionRef = useRef(null);
   const onRefreshRef = useRef(onRefresh);
+  const onSearchRef = useRef(onSearch);
   const [pullY, setPullY] = useState(0);
   const [fingerDelta, setFingerDelta] = useState(0);
   const [contentInset, setContentInset] = useState(0);
   const [holdOffset, setHoldOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-  const [awaitingRefresh, setAwaitingRefresh] = useState(false);
+  const [awaitingAction, setAwaitingAction] = useState(null);
   const [pullRefreshActivo, setPullRefreshActivo] = useState(pullRefreshHabilitado);
 
   disabledRef.current = disabled;
   loadingRef.current = loading;
-  awaitingRefreshRef.current = awaitingRefresh;
+  awaitingActionRef.current = awaitingAction;
   onRefreshRef.current = onRefresh;
+  onSearchRef.current = onSearch;
 
   const esBusqueda = mode === "search";
-  const progress = awaitingRefresh ? 1 : Math.min(1, pullY / PULL_THRESHOLD_PX);
-  const showBar = pullRefreshActivo && (pullY > 0 || awaitingRefresh);
-  const visualOffset = awaitingRefresh
+  const tieneRefreshExtra = esBusqueda && typeof onRefresh === "function";
+  const searchThreshold = esBusqueda ? PULL_SEARCH_THRESHOLD_PX : PULL_REFRESH_THRESHOLD_PX;
+  const refreshThreshold = tieneRefreshExtra ? PULL_REFRESH_THRESHOLD_PX : searchThreshold;
+
+  const awaitingRefresh = awaitingAction === "refresh";
+  const awaitingSearch = awaitingAction === "search";
+  const awaitingAny = Boolean(awaitingAction);
+
+  const progress = awaitingAny
+    ? 1
+    : Math.min(1, pullY / (tieneRefreshExtra ? refreshThreshold : searchThreshold));
+  const showHint = pullRefreshActivo && (pullY > 0 || awaitingAny);
+  const visualOffset = awaitingAny
     ? holdOffset
     : Math.min(fingerDelta * PULL_VISUAL_RATIO, PULL_VISUAL_CAP_PX);
-  const thresholdMet = progress >= 1 || awaitingRefresh;
+  const listoBuscar = !awaitingAny && pullY >= searchThreshold && (!tieneRefreshExtra || pullY < refreshThreshold);
+  const listoRefresh = awaitingRefresh || (!awaitingAny && pullY >= refreshThreshold && (tieneRefreshExtra || !esBusqueda));
+  const thresholdMet = listoBuscar || listoRefresh || awaitingAny;
   const motionTransition = isDragging ? "none" : "transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)";
 
   const setPull = (value) => {
@@ -70,7 +86,7 @@ function PullToRefresh({
   const resetPull = () => {
     activePullRef.current = false;
     setIsDragging(false);
-    setAwaitingRefresh(false);
+    setAwaitingAction(null);
     setHoldOffset(0);
     setPull(0);
     setFinger(0);
@@ -98,14 +114,17 @@ function PullToRefresh({
   }, [pullRefreshActivo, className]);
 
   useEffect(() => {
-    if (!awaitingRefresh) return undefined;
-    // Búsqueda / acciones instantáneas: no dependen de `loading`.
-    if (esBusqueda || !loading) {
-      const t = window.setTimeout(() => resetPull(), esBusqueda ? 140 : 0);
+    if (!awaitingAction) return undefined;
+    if (awaitingAction === "search") {
+      const t = window.setTimeout(() => resetPull(), 140);
+      return () => window.clearTimeout(t);
+    }
+    if (awaitingAction === "refresh" && !loading) {
+      const t = window.setTimeout(() => resetPull(), 0);
       return () => window.clearTimeout(t);
     }
     return undefined;
-  }, [loading, awaitingRefresh, esBusqueda]);
+  }, [loading, awaitingAction]);
 
   useEffect(() => {
     if (!pullRefreshActivo) return undefined;
@@ -113,7 +132,7 @@ function PullToRefresh({
     if (!el) return undefined;
 
     const handleTouchStart = (event) => {
-      if (disabledRef.current || loadingRef.current || awaitingRefreshRef.current) return;
+      if (disabledRef.current || loadingRef.current || awaitingActionRef.current) return;
       if (el.scrollTop > 1) return;
 
       measureContentInset();
@@ -123,7 +142,7 @@ function PullToRefresh({
     };
 
     const handleTouchMove = (event) => {
-      if (!activePullRef.current || disabledRef.current || loadingRef.current || awaitingRefreshRef.current) return;
+      if (!activePullRef.current || disabledRef.current || loadingRef.current || awaitingActionRef.current) return;
 
       if (el.scrollTop > 1) {
         activePullRef.current = false;
@@ -150,18 +169,33 @@ function PullToRefresh({
       activePullRef.current = false;
       setIsDragging(false);
 
-      if (
-        pullYRef.current >= PULL_THRESHOLD_PX &&
-        !disabledRef.current &&
-        !loadingRef.current &&
-        !awaitingRefreshRef.current
-      ) {
-        const offset = Math.min(fingerDeltaRef.current * PULL_VISUAL_RATIO, PULL_VISUAL_CAP_PX);
+      if (disabledRef.current || loadingRef.current || awaitingActionRef.current) {
+        resetPull();
+        return;
+      }
+
+      const y = pullYRef.current;
+      const offset = Math.min(fingerDeltaRef.current * PULL_VISUAL_RATIO, PULL_VISUAL_CAP_PX);
+
+      if (tieneRefreshExtra && y >= refreshThreshold) {
         setHoldOffset(offset);
-        setAwaitingRefresh(true);
-        if (typeof onRefreshRef.current === "function") {
-          onRefreshRef.current();
-        }
+        setAwaitingAction("refresh");
+        if (typeof onRefreshRef.current === "function") onRefreshRef.current();
+        return;
+      }
+
+      if (esBusqueda && y >= searchThreshold) {
+        setHoldOffset(offset);
+        setAwaitingAction("search");
+        if (typeof onSearchRef.current === "function") onSearchRef.current();
+        else if (typeof onRefreshRef.current === "function") onRefreshRef.current();
+        return;
+      }
+
+      if (!esBusqueda && y >= searchThreshold) {
+        setHoldOffset(offset);
+        setAwaitingAction("refresh");
+        if (typeof onRefreshRef.current === "function") onRefreshRef.current();
         return;
       }
 
@@ -179,9 +213,9 @@ function PullToRefresh({
       el.removeEventListener("touchend", finishPull);
       el.removeEventListener("touchcancel", finishPull);
     };
-  }, [pullRefreshActivo]);
+  }, [pullRefreshActivo, esBusqueda, tieneRefreshExtra, searchThreshold, refreshThreshold]);
 
-  const bodyStyle = visualOffset > 0 || awaitingRefresh
+  const bodyStyle = visualOffset > 0 || awaitingAny
     ? {
         transform: `translate3d(0, ${visualOffset}px, 0)`,
         transition: motionTransition
@@ -194,12 +228,27 @@ function PullToRefresh({
   };
 
   const barTop = contentInset;
-  const barStyle = showBar
+  const barStyle = showHint
     ? {
         top: `${Math.max(0, barTop)}px`,
         transition: isDragging ? "none" : "opacity 0.1s ease"
       }
     : undefined;
+
+  let hintIcon = "fa-magnifying-glass";
+  let hintText = "Desliza para buscar";
+  if (listoRefresh || awaitingRefresh) {
+    hintIcon = loading && awaitingRefresh ? "fa-arrows-rotate fa-spin" : "fa-arrows-rotate";
+    hintText = awaitingRefresh ? "Actualizando…" : "Actualizar";
+  } else if (listoBuscar || awaitingSearch) {
+    hintIcon = "fa-magnifying-glass";
+    hintText = "Buscar";
+  } else if (tieneRefreshExtra) {
+    hintText = "Buscar · sigue para actualizar";
+  } else if (!esBusqueda) {
+    hintIcon = "fa-arrows-rotate";
+    hintText = "Desliza para actualizar";
+  }
 
   if (!pullRefreshActivo) {
     return (
@@ -209,27 +258,29 @@ function PullToRefresh({
     );
   }
 
+  const usarHint = esBusqueda || tieneRefreshExtra;
+
   return (
     <div className={`pull-to-refresh-host ${esBusqueda ? "is-search" : ""}`}>
-      {esBusqueda ? (
+      {usarHint ? (
         <div
-          className={`pull-to-search-hint ${showBar ? "is-visible" : ""} ${thresholdMet ? "is-ready" : ""}`}
+          className={`pull-to-search-hint ${showHint ? "is-visible" : ""} ${thresholdMet ? "is-ready" : ""} ${listoRefresh || awaitingRefresh ? "is-refresh" : ""}`}
           style={{
             top: `${Math.max(8, barTop + 8)}px`,
-            opacity: showBar ? Math.min(1, 0.35 + progress * 0.65) : 0,
+            opacity: showHint ? Math.min(1, 0.35 + progress * 0.65) : 0,
             transform: `translate(-50%, ${Math.min(visualOffset * 0.35, 18)}px) scale(${0.92 + progress * 0.08})`
           }}
-          aria-hidden={!showBar}
+          aria-hidden={!showHint}
         >
-          <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
-          <span>{thresholdMet ? "Buscar" : "Desliza para buscar"}</span>
+          <i className={`fa-solid ${hintIcon}`} aria-hidden="true" />
+          <span>{hintText}</span>
         </div>
       ) : (
         <div
-          className={`pull-to-refresh-bar ${showBar ? "is-visible" : ""} ${thresholdMet ? "is-ready" : ""} ${loading && awaitingRefresh ? "is-loading" : ""}`}
+          className={`pull-to-refresh-bar ${showHint ? "is-visible" : ""} ${thresholdMet ? "is-ready" : ""} ${loading && awaitingRefresh ? "is-loading" : ""}`}
           style={barStyle}
           aria-live="polite"
-          aria-hidden={!showBar}
+          aria-hidden={!showHint}
           role="progressbar"
           aria-valuemin={0}
           aria-valuemax={100}

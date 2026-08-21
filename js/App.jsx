@@ -3678,7 +3678,8 @@ function App() {
 
         <PullToRefresh
           mode="search"
-          onRefresh={() => setBuscadorAbierto(true)}
+          onSearch={() => setBuscadorAbierto(true)}
+          onRefresh={() => sincronizarEnSegundoPlano()}
           loading={loading}
           disabled={syncDetalleVisible || isEditing || buscadorAbierto}
           data-robin-content-main

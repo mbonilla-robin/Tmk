@@ -1,5 +1,5 @@
-const PULL_THRESHOLD_PX = 160;
-const PULL_MAX_PX = 220;
+const PULL_THRESHOLD_PX = 120;
+const PULL_MAX_PX = 200;
 const PULL_RESISTANCE = 0.58;
 const PULL_VISUAL_RATIO = 0.48;
 const PULL_VISUAL_CAP_PX = 72;
@@ -12,6 +12,7 @@ function PullToRefresh({
   onRefresh,
   loading = false,
   disabled = false,
+  mode = "refresh",
   className = "",
   children,
   ...rest
@@ -39,6 +40,7 @@ function PullToRefresh({
   awaitingRefreshRef.current = awaitingRefresh;
   onRefreshRef.current = onRefresh;
 
+  const esBusqueda = mode === "search";
   const progress = awaitingRefresh ? 1 : Math.min(1, pullY / PULL_THRESHOLD_PX);
   const showBar = pullRefreshActivo && (pullY > 0 || awaitingRefresh);
   const visualOffset = awaitingRefresh
@@ -96,14 +98,14 @@ function PullToRefresh({
   }, [pullRefreshActivo, className]);
 
   useEffect(() => {
-    if (!loading && awaitingRefresh) {
-      setAwaitingRefresh(false);
-      setHoldOffset(0);
-      setPull(0);
-      setFinger(0);
-      setIsDragging(false);
+    if (!awaitingRefresh) return undefined;
+    // Búsqueda / acciones instantáneas: no dependen de `loading`.
+    if (esBusqueda || !loading) {
+      const t = window.setTimeout(() => resetPull(), esBusqueda ? 140 : 0);
+      return () => window.clearTimeout(t);
     }
-  }, [loading, awaitingRefresh]);
+    return undefined;
+  }, [loading, awaitingRefresh, esBusqueda]);
 
   useEffect(() => {
     if (!pullRefreshActivo) return undefined;
@@ -208,21 +210,35 @@ function PullToRefresh({
   }
 
   return (
-    <div className="pull-to-refresh-host">
-      <div
-        className={`pull-to-refresh-bar ${showBar ? "is-visible" : ""} ${thresholdMet ? "is-ready" : ""} ${loading && awaitingRefresh ? "is-loading" : ""}`}
-        style={barStyle}
-        aria-live="polite"
-        aria-hidden={!showBar}
-        role="progressbar"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={Math.round(progress * 100)}
-      >
-        <span className="pull-to-refresh-bar__track" />
-        <span className="pull-to-refresh-bar__fill" style={fillStyle} />
-      </div>
-
+    <div className={`pull-to-refresh-host ${esBusqueda ? "is-search" : ""}`}>
+      {esBusqueda ? (
+        <div
+          className={`pull-to-search-hint ${showBar ? "is-visible" : ""} ${thresholdMet ? "is-ready" : ""}`}
+          style={{
+            top: `${Math.max(8, barTop + 8)}px`,
+            opacity: showBar ? Math.min(1, 0.35 + progress * 0.65) : 0,
+            transform: `translate(-50%, ${Math.min(visualOffset * 0.35, 18)}px) scale(${0.92 + progress * 0.08})`
+          }}
+          aria-hidden={!showBar}
+        >
+          <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
+          <span>{thresholdMet ? "Buscar" : "Desliza para buscar"}</span>
+        </div>
+      ) : (
+        <div
+          className={`pull-to-refresh-bar ${showBar ? "is-visible" : ""} ${thresholdMet ? "is-ready" : ""} ${loading && awaitingRefresh ? "is-loading" : ""}`}
+          style={barStyle}
+          aria-live="polite"
+          aria-hidden={!showBar}
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(progress * 100)}
+        >
+          <span className="pull-to-refresh-bar__track" />
+          <span className="pull-to-refresh-bar__fill" style={fillStyle} />
+        </div>
+      )}
       <div
         ref={scrollRef}
         className={`pull-to-refresh-scroll ${className}`}

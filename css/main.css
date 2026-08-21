@@ -277,6 +277,54 @@
       animation: pull-to-refresh-shimmer 0.9s linear infinite;
     }
 
+    .pull-to-search-hint {
+      position: absolute;
+      left: 50%;
+      z-index: 14;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.45rem 0.85rem;
+      border-radius: 999px;
+      border: 1px solid rgba(228, 228, 231, 0.95);
+      background: rgba(255, 255, 255, 0.94);
+      color: #52525b;
+      box-shadow: 0 8px 22px rgba(24, 24, 27, 0.12);
+      font-size: 0.75rem;
+      font-weight: 600;
+      pointer-events: none;
+      opacity: 0;
+      white-space: nowrap;
+    }
+
+    .pull-to-search-hint.is-ready {
+      color: #18181b;
+      border-color: #d4d4d8;
+      background: #fff;
+    }
+
+    .pull-to-search-hint i {
+      font-size: 0.7rem;
+      color: #71717a;
+    }
+
+    html.robin-app[data-theme="midnight"] .pull-to-search-hint {
+      background: rgba(24, 24, 27, 0.92);
+      border-color: #3f3f46;
+      color: #e4e4e7;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    html.robin-app[data-theme="midnight"] .pull-to-search-hint.is-ready {
+      background: #27272a;
+      border-color: #52525b;
+      color: #fafafa;
+    }
+
+    html.robin-app[data-theme="midnight"] .pull-to-search-hint i {
+      color: #a1a1aa;
+    }
+
     @keyframes pull-to-refresh-shimmer {
       0% { background-position: 100% 0; }
       100% { background-position: -100% 0; }
@@ -11643,16 +11691,15 @@
     }
 
     @media (hover: none) {
-      .robin-spotlight-header-btn {
-        opacity: 0.92;
-        transform: none;
-        pointer-events: auto;
+      /* En touch no usamos hover: el buscador se abre al deslizar hacia abajo. */
+      .robin-spotlight-header-trigger {
+        display: none;
       }
     }
 
     @media (max-width: 767px) {
       .robin-spotlight-header-trigger {
-        max-width: calc(100% - 9.5rem);
+        display: none;
       }
 
       .robin-spotlight-header-btn {

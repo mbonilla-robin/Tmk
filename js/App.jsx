@@ -3677,9 +3677,10 @@ function App() {
         </header>
 
         <PullToRefresh
-          onRefresh={() => sincronizarEnSegundoPlano()}
+          mode="search"
+          onRefresh={() => setBuscadorAbierto(true)}
           loading={loading}
-          disabled={syncDetalleVisible || isEditing}
+          disabled={syncDetalleVisible || isEditing || buscadorAbierto}
           data-robin-content-main
           className={`relative flex-1 overflow-y-auto overflow-x-hidden w-full min-h-0 no-scrollbar ${
           paginaActiva === "agregar"

@@ -184,6 +184,7 @@ function App() {
 
   const [activeTask, setActiveTask] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [buscadorAbierto, setBuscadorAbierto] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
   const [taskToComplete, setTaskToComplete] = useState(null);
   const [clientesReset, setClientesReset] = useState(0);
@@ -3587,6 +3588,10 @@ function App() {
             )}
           </div>
 
+          {!isConfigOnlyAdmin && (
+            <BuscadorSpotlightTrigger onClick={() => setBuscadorAbierto(true)} />
+          )}
+
           <div className="flex items-center gap-3">
             {campanaNotificaciones}
 
@@ -4121,10 +4126,26 @@ function App() {
         onAbrirEstatus={isDesigner ? undefined : () => setShowGeneradorEstatus(true)}
         onAbrirInformes={isDesigner ? undefined : () => navegarA("informes")}
         onCrearRapido={isDesigner ? undefined : () => setFormularioRapidoVisible(true)}
+        onAbrirBuscador={() => setBuscadorAbierto(true)}
       />
       )}
 
       {/* MODALES ADICIONALES */}
+      {!isConfigOnlyAdmin && (
+        <BuscadorSpotlight
+          abierto={buscadorAbierto}
+          onAbrir={() => setBuscadorAbierto(true)}
+          onCerrar={() => setBuscadorAbierto(false)}
+          tareas={tareasVisibles}
+          marcas={marcasDisponibles}
+          onAbrirTarea={abrirEdicionTarea}
+          onAbrirMarca={handleAbrirMarcaCliente}
+          onNavegar={navegarA}
+          esDisenador={isDesigner}
+          getMarcaStyle={getMarcaStyle}
+        />
+      )}
+
       {!isConfigOnlyAdmin && isEditing && activeTask && (
         <ModalPortal>
           <ModalEdicionTarea 

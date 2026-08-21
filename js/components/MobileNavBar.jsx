@@ -82,7 +82,8 @@ function MobileNavBar({
   onAbrirEquipos,
   onAbrirEstatus,
   onAbrirInformes,
-  onCrearRapido
+  onCrearRapido,
+  onAbrirBuscador
 }) {
   const [quickMenu, setQuickMenu] = useState(null);
 
@@ -196,6 +197,9 @@ function MobileNavBar({
         </div>
 
         <div className="mobile-top-actions">
+          {typeof onAbrirBuscador === "function" && (
+            <BuscadorSpotlightTrigger compacto onClick={onAbrirBuscador} />
+          )}
           {notificacionesSlot}
           <button
             type="button"

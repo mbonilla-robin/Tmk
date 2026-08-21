@@ -310,10 +310,12 @@ function BuscadorSpotlightTrigger({ onClick }) {
         type="button"
         className="robin-spotlight-header-btn"
         onClick={() => onClick && onClick()}
-        aria-label="Buscar en Robin"
+        aria-label="¿Qué quieres buscar?"
         title={`Buscar (${atajo})`}
       >
         <i className="fa-solid fa-magnifying-glass" aria-hidden="true" />
+        <span className="robin-spotlight-header-placeholder">¿Qué quieres buscar?</span>
+        <kbd className="robin-spotlight-header-kbd">{atajo}</kbd>
       </button>
     </div>
   );

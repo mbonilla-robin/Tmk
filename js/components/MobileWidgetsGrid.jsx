@@ -84,7 +84,7 @@ function MobileWidgetsGrid({
                   <span className="mobile-widget-tile-icon">
                     <SVGIcon.FileText className="w-4 h-4" />
                   </span>
-                  <span className="mobile-widget-tile-label">Estatus</span>
+                  <span className="mobile-widget-tile-label">Generar</span>
                 </button>
               )}
               {onInformes && (

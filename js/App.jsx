@@ -921,6 +921,23 @@ function App() {
     }
   }, [paginaActiva]);
 
+  const abrirListaGlobal = useCallback(() => {
+    const aplicar = () => {
+      setFiltroTiempo("TODAS");
+      setFiltroMarca("TODAS");
+      setFiltroEstado("TODOS");
+      setFiltroPrioridad("TODAS");
+      setFiltroPersona("TODAS");
+      setSearchQuery("");
+      setDashboardMobileVista("lista");
+    };
+    if (paginaActiva === "dashboard") {
+      aplicar();
+    } else {
+      navegarA("dashboard", aplicar);
+    }
+  }, [paginaActiva]);
+
   const aplicarEntradaPasoInduccion = useCallback((paso) => {
     if (!paso) return;
 
@@ -3575,15 +3592,15 @@ function App() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => navegarA("dashboard", () => { setFiltroTiempo("TODAS"); setFiltroMarca("TODAS"); setFiltroEstado("TODOS"); setFiltroPrioridad("TODAS"); setFiltroPersona("TODAS"); })}
+                  onClick={abrirEstatusMobile}
                   className={`robin-sidebar__tile ${
-                    paginaActiva === "dashboard" && filtroTiempo === "TODAS" && filtroMarca === "TODAS" && filtroEstado === "TODOS" && filtroPrioridad === "TODAS" && filtroPersona === "TODAS"
+                    paginaActiva === "dashboard" && filtroMarca === "TODAS" && dashboardMobileVista === "estatus"
                       ? "is-active" : ""
                   }`}
                   data-induccion="nav-lista"
                 >
-                  <SVGIcon.All />
-                  <span>Todos</span>
+                  <i className="fa-solid fa-chart-pie" style={{ fontSize: "0.85rem", opacity: 0.85 }} aria-hidden="true" />
+                  <span>Estatus</span>
                 </button>
               </div>
             </div>
@@ -3655,7 +3672,7 @@ function App() {
                   className={`robin-sidebar__tile ${showGeneradorEstatus ? "is-active" : ""}`}
                 >
                   <SVGIcon.Phone />
-                  <span>Estatus</span>
+                  <span>Generar</span>
                 </button>
                 <button
                   type="button"
@@ -4057,8 +4074,22 @@ function App() {
                 )}
               </div>
 
-              {/* ── Desktop: sin cambios ── */}
+              {/* ── Desktop: Estatus general (mismo que móvil) o lista clásica ── */}
               <div className="robin-desktop-only flex-col gap-5 animate-fade-in">
+              {dashboardMobileVista === "estatus" ? (
+                <LayoutEstatusGeneral
+                  modoGlobal
+                  tareas={tareasVisibles}
+                  onSelectTask={abrirEdicionTarea}
+                  listaDisenadores={listaDisenadores}
+                  puedeEditar={!isDesigner}
+                  onEnviarCliente={isDesigner ? undefined : handleEnviarEstatusCliente}
+                  onGuardarComentario={isDesigner ? undefined : handleGuardarComentarioEstatus}
+                  onCambiarEnvioTipo={isDesigner ? undefined : handleCambiarEnvioTipo}
+                  onUpdateField={isDesigner ? undefined : handleUpdateField}
+                />
+              ) : (
+              <>
               <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
                 <div>
                   <h2
@@ -4162,6 +4193,8 @@ function App() {
                 <LayoutTablaAgrupada {...layoutTablaProps} />
               ) : (
                 <LayoutKanban tareas={tareasFiltradas} ordenPrioridad={kanbanOrdenPrioridadActivo} onUpdateField={isDesigner ? undefined : handleUpdateField} onSelectTask={abrirEdicionTarea} onDeleteTask={isDesigner ? undefined : (t) => setTaskToDelete(t)} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
+              )}
+              </>
               )}
               </div>
             </>
@@ -4294,6 +4327,8 @@ function App() {
           onAbrirMarca={handleAbrirMarcaCliente}
           onAbrirSubcliente={handleAbrirSubcliente}
           onNavegar={navegarA}
+          onAbrirEstatus={abrirEstatusMobile}
+          onAbrirLista={abrirListaGlobal}
           esDisenador={isDesigner}
           getMarcaStyle={getMarcaStyle}
           subclientes={listaSubclientes}

@@ -52,6 +52,8 @@ function BuscadorSpotlight({
   onAbrirMarca,
   onAbrirSubcliente,
   onNavegar,
+  onAbrirEstatus,
+  onAbrirLista,
   esDisenador = false,
   getMarcaStyle
 }) {
@@ -107,7 +109,8 @@ function BuscadorSpotlight({
 
     const paginas = [
       { id: "pag-home", tipo: "pagina", titulo: "Home", meta: "Ir al inicio", icon: "fa-house", pagina: "home" },
-      { id: "pag-lista", tipo: "pagina", titulo: "Lista", meta: "Todos los entregables", icon: "fa-list", pagina: "dashboard" }
+      { id: "pag-estatus", tipo: "pagina", titulo: "Estatus", meta: "Vista general de todas las marcas", icon: "fa-chart-pie", pagina: "dashboard", accion: "estatus" },
+      { id: "pag-lista", tipo: "pagina", titulo: "Lista", meta: "Todos los entregables", icon: "fa-list", pagina: "dashboard", accion: "lista" }
     ];
     if (!esDisenador) {
       paginas.push({ id: "pag-clientes", tipo: "pagina", titulo: "Clientes", meta: "Marcas y fichas", icon: "fa-layer-group", pagina: "clientes" });
@@ -269,7 +272,11 @@ function BuscadorSpotlight({
     if (item.tipo === "tarea" && onAbrirTarea) onAbrirTarea(item.tarea);
     else if (item.tipo === "marca" && onAbrirMarca) onAbrirMarca(item.marca);
     else if (item.tipo === "subcliente" && onAbrirSubcliente) onAbrirSubcliente(item.marca, item.subcliente);
-    else if (item.tipo === "pagina" && onNavegar) onNavegar(item.pagina);
+    else if (item.tipo === "pagina") {
+      if (item.accion === "estatus" && typeof onAbrirEstatus === "function") onAbrirEstatus();
+      else if (item.accion === "lista" && typeof onAbrirLista === "function") onAbrirLista();
+      else if (onNavegar) onNavegar(item.pagina);
+    }
     if (onCerrar) onCerrar();
   };
 

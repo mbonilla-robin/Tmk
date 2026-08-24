@@ -127,6 +127,12 @@ function InputFechaLibre({ value, onChange, className, required, placeholder, on
     if (onBlurExtra) onBlurExtra(display);
   };
 
+  const aplicarTbd = () => {
+    const tbd = typeof DEADLINE_TBD !== "undefined" ? DEADLINE_TBD : "TBD";
+    onChange(tbd);
+    if (onBlurExtra) onBlurExtra(tbd);
+  };
+
   const isSameDay = (day, month, year, ref) =>
     ref.getFullYear() === year &&
     ref.getMonth() === month &&
@@ -279,14 +285,24 @@ function InputFechaLibre({ value, onChange, className, required, placeholder, on
     <div ref={containerRef} className="relative w-full">
       <div className="flex items-center gap-1 w-full min-w-0">
         {showHoyButton ? (
-          <button
-            type="button"
-            onClick={aplicarHoy}
-            className={`flex-1 min-w-0 bulk-action-date-hoy-btn ${className || ""}`}
-            title="Asignar fecha de hoy"
-          >
-            Hoy
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={aplicarHoy}
+              className={`flex-1 min-w-0 bulk-action-date-hoy-btn ${className || ""}`}
+              title="Asignar fecha de hoy"
+            >
+              Hoy
+            </button>
+            <button
+              type="button"
+              onClick={aplicarTbd}
+              className={`flex-1 min-w-0 bulk-action-date-hoy-btn ${className || ""}`}
+              title="Asignar TBD"
+            >
+              TBD
+            </button>
+          </>
         ) : (
           <input
             type="text"

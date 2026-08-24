@@ -345,9 +345,15 @@ function LayoutMarcaHome({
 
   const tareasSuspendidas = useMemo(() => {
     return tareasMarca
-      .filter(t => esTareaSuspendida(t))
+      .filter((t) => {
+        if (!esTareaSuspendida(t)) return false;
+        if (filtroSubcliente === "TODOS") return true;
+        return typeof subclientesCoinciden === "function"
+          ? subclientesCoinciden(obtenerSubclienteTarea(t), filtroSubcliente)
+          : obtenerSubclienteTarea(t) === filtroSubcliente;
+      })
       .sort((a, b) => (a.info || "").localeCompare(b.info || "", "es"));
-  }, [tareasMarca]);
+  }, [tareasMarca, filtroSubcliente]);
 
   const widgetsMarca = useMemo(() => {
     return listarTodosWidgetsAplanados(filtrarWidgetsPorMarca(widgets, marca));

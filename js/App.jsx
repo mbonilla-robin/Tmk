@@ -4031,6 +4031,7 @@ function App() {
                     onEnviarCliente={isDesigner ? undefined : handleEnviarEstatusCliente}
                     onGuardarComentario={isDesigner ? undefined : handleGuardarComentarioEstatus}
                     onCambiarEnvioTipo={isDesigner ? undefined : handleCambiarEnvioTipo}
+                    onUpdateField={isDesigner ? undefined : handleUpdateField}
                   />
                 )}
               </div>

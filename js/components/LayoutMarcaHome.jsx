@@ -548,6 +548,7 @@ function LayoutMarcaHome({
           onEnviarCliente={onEnviarCliente}
           onGuardarComentario={onGuardarComentario}
           onCambiarEnvioTipo={onCambiarEnvioTipo}
+          onUpdateField={onUpdateField}
         />
       </div>
     );

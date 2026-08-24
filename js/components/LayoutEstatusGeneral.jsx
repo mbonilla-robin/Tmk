@@ -142,6 +142,7 @@ function LayoutEstatusGeneral({
   onEnviarCliente,
   onGuardarComentario,
   onCambiarEnvioTipo,
+  onUpdateField,
   modoGlobal = false,
   onAbrirLista
 }) {
@@ -253,6 +254,8 @@ function LayoutEstatusGeneral({
   const [faltaExpandida, setFaltaExpandida] = useState(false);
   const [panelSnapshot, setPanelSnapshot] = useState(null);
   const [filtroSnapshot, setFiltroSnapshot] = useState("todos");
+  const [editFechaKey, setEditFechaKey] = useState("");
+  const [draftFecha, setDraftFecha] = useState("");
   useEffect(() => {
     setFiltroSnapshot("todos");
   }, [panelSnapshot]);
@@ -328,22 +331,118 @@ function LayoutEstatusGeneral({
       </a>
     );
   };
+
+  const puedeInline = !!(puedeEditar && typeof onUpdateField === "function");
+  const opcionesEstado = Array.isArray(ESTADOS_MAPA) ? ESTADOS_MAPA : [];
+
+  const abrirEdicionFecha = (tarea) => {
+    if (!puedeInline) return;
+    const key = getTaskSelectionKey(tarea);
+    const valor = typeof deadlineParaEdicion === "function"
+      ? deadlineParaEdicion(tarea.deadline)
+      : (tarea.deadline || "");
+    setEditFechaKey(key);
+    setDraftFecha(valor || "");
+  };
+
+  const guardarFechaInline = (tarea, valor) => {
+    setEditFechaKey("");
+    setDraftFecha("");
+    if (!puedeInline) return;
+    const actual = typeof deadlineParaEdicion === "function"
+      ? deadlineParaEdicion(tarea.deadline)
+      : (tarea.deadline || "");
+    const siguiente = String(valor || "").trim();
+    if (!siguiente) return;
+    if (siguiente === String(actual || "").trim()) return;
+    onUpdateField(tarea, "deadline", siguiente);
+  };
+
+  const guardarEstadoInline = (tarea, valor) => {
+    if (!puedeInline) return;
+    const siguiente = String(valor || "").trim();
+    if (!siguiente) return;
+    if (cleanEstado(siguiente) === cleanEstado(tarea.estado)) return;
+    onUpdateField(tarea, "estado", siguiente);
+  };
+
   const renderFilaTarea = (t, cadena, grupoNombre) => {
+    const key = getTaskSelectionKey(t);
     const cEstado = ESTADOS_MAPA.find((e) => cleanEstado(e.id) === cleanEstado(t.estado)) || { dot: "bg-zinc-400", bg: "" };
     const parsed = parseDetalles(t.detalles || "");
     const partes = notasYComentarioEstatus(parsed.notas);
     const comentario = partes.comentario || partes.notas;
     const fecha = fechaCorta(t.deadline || t.fechaInicio || "—");
     const link = linkDeTarea(t);
+    const editandoFecha = editFechaKey === key;
+    const estadoActual = normalizarEstado(t.estado) || "";
     return (
-      <tr key={getTaskSelectionKey(t)} onClick={() => onSelectTask(t)}>
+      <tr key={key} onClick={() => onSelectTask(t)}>
         <td className="estatus-notion-title">{tituloEntregable(t.info || "Sin título", cadena || grupoNombre)}</td>
-        <td className="estatus-notion-fecha">{fecha}</td>
-        <td>
-          <span className={`estatus-task-estado ${cEstado.bg || ""}`}>
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cEstado.dot}`} />
-            {normalizarEstado(t.estado) || "Sin estado"}
-          </span>
+        <td
+          className="estatus-notion-fecha"
+          onClick={(e) => {
+            if (!puedeInline) return;
+            e.stopPropagation();
+          }}
+        >
+          {puedeInline && editandoFecha ? (
+            <div className="estatus-inline-fecha-wrap" onClick={(e) => e.stopPropagation()}>
+              <InputFechaLibre
+                value={draftFecha}
+                onChange={setDraftFecha}
+                onBlurExtra={(val) => guardarFechaInline(t, val)}
+                className="estatus-inline-fecha-input"
+                placeholder="dd/mm/aaaa"
+              />
+            </div>
+          ) : puedeInline ? (
+            <button
+              type="button"
+              className="estatus-inline-fecha-btn"
+              title="Cambiar fecha"
+              onClick={(e) => {
+                e.stopPropagation();
+                abrirEdicionFecha(t);
+              }}
+            >
+              {fecha}
+              <i className="fa-regular fa-pen-to-square" aria-hidden="true" />
+            </button>
+          ) : (
+            fecha
+          )}
+        </td>
+        <td
+          className="estatus-notion-estado"
+          onClick={(e) => {
+            if (!puedeInline) return;
+            e.stopPropagation();
+          }}
+        >
+          {puedeInline ? (
+            <label className={`estatus-inline-estado ${cEstado.bg || ""}`}>
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cEstado.dot}`} aria-hidden="true" />
+              <select
+                value={estadoActual}
+                aria-label="Cambiar estado"
+                onChange={(e) => guardarEstadoInline(t, e.target.value)}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {opcionesEstado.map((opt) => (
+                  <option key={opt.id} value={opt.id}>{opt.id}</option>
+                ))}
+                {estadoActual && !opcionesEstado.some((o) => cleanEstado(o.id) === cleanEstado(estadoActual)) ? (
+                  <option value={estadoActual}>{estadoActual}</option>
+                ) : null}
+              </select>
+            </label>
+          ) : (
+            <span className={`estatus-task-estado ${cEstado.bg || ""}`}>
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cEstado.dot}`} />
+              {estadoActual || "Sin estado"}
+            </span>
+          )}
         </td>
         <td className="estatus-notion-coment">
           <span className="estatus-notion-coment-row">

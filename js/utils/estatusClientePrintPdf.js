@@ -1,14 +1,9 @@
 /**
  * PDF de proyección de estatus para el cliente.
- * Generación directa con jsPDF (descarga sin diálogo de impresión).
+ * HTML/CSS/SVG imprimible — texto seleccionable y gráficas vectoriales.
  */
 (function (global) {
-  const CSS_VERSION = "12";
-  const PDF_PAGE_WIDTH_PX = 794;
-  const PDF_MARGIN_X_PX = 53; // ~14mm
-  const PDF_MARGIN_Y_PX = 45; // ~12mm
-  const PDF_CONTENT_WIDTH_PX = PDF_PAGE_WIDTH_PX - PDF_MARGIN_X_PX * 2;
-  const MM_TO_PT = 72 / 25.4;
+  const CSS_VERSION = "13";
 
   function absUrl(href) {
     try {
@@ -68,22 +63,6 @@
     await waitMs(350);
   }
 
-  function nombreArchivoEstatusCliente(data) {
-    const safe = (valor) => String(valor || "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[\/\\?%*:|"<>]/g, "-")
-      .replace(/\s+/g, " ")
-      .trim();
-    const hoy = new Date();
-    const fecha = [
-      hoy.getFullYear(),
-      String(hoy.getMonth() + 1).padStart(2, "0"),
-      String(hoy.getDate()).padStart(2, "0")
-    ].join("-");
-    return `${safe(data.marca)} - Estatus general TMK - ${fecha}.pdf`;
-  }
-
   function cerrarVentanaExport(opts) {
     const win = opts?.win;
     if (win && !win.closed) {
@@ -91,114 +70,23 @@
     }
   }
 
-  async function generarPdfArchivo(html, data) {
-    if (!global.html2canvas || !global.jspdf?.jsPDF) {
-      throw new Error("Falta el motor PDF · recarga la página");
-    }
-
-    const frame = global.document.createElement("iframe");
-    frame.setAttribute("aria-hidden", "true");
-    frame.style.cssText = `position:fixed;left:-10000px;top:0;width:${PDF_CONTENT_WIDTH_PX}px;height:1px;border:0;opacity:0;pointer-events:none;`;
-    global.document.body.appendChild(frame);
+  async function abrirPestanaImpresion(html, options) {
+    const win = options.win && !options.win.closed
+      ? options.win
+      : global.open("about:blank", "estatus-cliente-pdf");
+    if (!win) return false;
 
     try {
-      const idoc = frame.contentDocument || (frame.contentWindow && frame.contentWindow.document);
-      if (!idoc) throw new Error("No se pudo preparar el PDF");
-
-      idoc.open();
-      idoc.write(html);
-      idoc.close();
-      await waitDocumentReady(frame.contentWindow);
-
-      const root = idoc.body;
-      const rootHeight = Math.max(root.scrollHeight, root.offsetHeight);
-      frame.style.height = `${rootHeight}px`;
-
-      const canvas = await global.html2canvas(root, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: "#ffffff",
-        logging: false,
-        windowWidth: PDF_CONTENT_WIDTH_PX,
-        width: PDF_CONTENT_WIDTH_PX,
-        height: rootHeight,
-        scrollX: 0,
-        scrollY: 0,
-        onclone: (doc) => {
-          doc.querySelectorAll(".ec-head, .ec-card, .ec-lista--pendientes .ec-lista-head, .ec-estado").forEach((el) => {
-            el.style.overflow = "hidden";
-            el.style.webkitBackfaceVisibility = "hidden";
-            el.style.backfaceVisibility = "hidden";
-          });
-        }
-      });
-
-      const fileName = nombreArchivoEstatusCliente(data);
-      const { jsPDF } = global.jspdf;
-      const pdf = new jsPDF({
-        orientation: "portrait",
-        unit: "pt",
-        format: "a4",
-        compress: true
-      });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const marginLeft = 14 * MM_TO_PT;
-      const marginRight = 14 * MM_TO_PT;
-      const marginTop = 12 * MM_TO_PT;
-      const marginBottom = 12 * MM_TO_PT;
-      const contentWidth = pageWidth - marginLeft - marginRight;
-      const contentHeight = pageHeight - marginTop - marginBottom;
-      const renderScale = 2;
-      const pxPerPt = canvas.width / contentWidth;
-      const pageSlicePx = contentHeight * pxPerPt;
-
-      let sourceY = 0;
-      let pageIndex = 0;
-
-      while (sourceY < canvas.height) {
-        if (pageIndex > 0) pdf.addPage();
-
-        const slicePx = Math.min(pageSlicePx, canvas.height - sourceY);
-        const slicePt = slicePx / pxPerPt;
-        const pageCanvas = global.document.createElement("canvas");
-        pageCanvas.width = Math.round(pageWidth * renderScale);
-        pageCanvas.height = Math.round(pageHeight * renderScale);
-        const ctx = pageCanvas.getContext("2d");
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-        ctx.drawImage(
-          canvas,
-          0,
-          sourceY,
-          canvas.width,
-          slicePx,
-          Math.round(marginLeft * renderScale),
-          Math.round(marginTop * renderScale),
-          Math.round(contentWidth * renderScale),
-          Math.round(slicePt * renderScale)
-        );
-
-        pdf.addImage(
-          pageCanvas.toDataURL("image/png"),
-          "PNG",
-          0,
-          0,
-          pageWidth,
-          pageHeight,
-          undefined,
-          "FAST"
-        );
-
-        sourceY += slicePx;
-        pageIndex += 1;
-      }
-
-      pdf.save(fileName);
-    } finally {
-      frame.remove();
+      win.document.open();
+      win.document.write(html);
+      win.document.close();
+      await waitDocumentReady(win);
+      win.focus();
+    } catch (_) {
+      try { win.close(); } catch (__) { /* ignore */ }
+      return false;
     }
+    return true;
   }
 
   let cssCache = null;
@@ -385,6 +273,11 @@ ${inlineCss || ""}
   </style>
 </head>
 <body class="ec-pdf-export">
+  <div class="ec-print-bar">
+    <p>PDF con <strong>texto real</strong> · al guardar, desactiva «Encabezados y pies de página».</p>
+    <button type="button" class="ec-print-go" onclick="window.focus();window.print();">Guardar PDF</button>
+  </div>
+
   <header class="ec-head">
     ${logoHtml}
     <h1>Estatus general TMK</h1>
@@ -426,11 +319,14 @@ ${inlineCss || ""}
     if (typeof construirDatosEstatusCliente !== "function") {
       throw new Error("No está disponible el export de estatus");
     }
-    cerrarVentanaExport(options);
     const inlineCss = await cargarCssEstatusCliente();
     const data = construirDatosEstatusCliente(tareas, options);
     const html = buildDocument(data, inlineCss);
-    await generarPdfArchivo(html, data);
+    const abierta = await abrirPestanaImpresion(html, options);
+    if (!abierta) {
+      cerrarVentanaExport(options);
+      throw new Error("Permite ventanas emergentes para exportar el PDF");
+    }
     if (typeof options.onDone === "function") options.onDone(true);
   }
 

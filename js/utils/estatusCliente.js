@@ -84,28 +84,10 @@ function filaDesdeItemClienteEstatus(item, etapa, label) {
   };
 }
 
-function construirDatosEstatusCliente(tareas, opciones) {
-  const opts = opciones || {};
-  const listas = typeof listasOperativasEstatus === "function"
-    ? listasOperativasEstatus(tareas)
-    : { faltaHacer: [], porEnviar: [], esperaCliente: [] };
-
-  const bloques = [
-    { etapa: "diseno", items: listas.faltaHacer || [], label: "En diseño" },
-    { etapa: "por-enviar", items: listas.porEnviar || [], label: "Próximo envío" },
-    { etapa: "cliente", items: listas.esperaCliente || [], label: "En espera" }
-  ];
-
-  const filas = [];
-  bloques.forEach(({ etapa, items, label }) => {
-    (items || []).forEach((item) => {
-      filas.push(filaDesdeItemClienteEstatus(item, etapa, label));
-    });
-  });
-
+function agruparFilasPorCadenaCliente(filas) {
   const peso = { diseno: 0, "por-enviar": 1, cliente: 2 };
   const map = new Map();
-  filas.forEach((fila) => {
+  (filas || []).forEach((fila) => {
     const key = claveCadenaClienteEstatus(fila.cadena);
     if (!map.has(key)) {
       map.set(key, {
@@ -125,7 +107,7 @@ function construirDatosEstatusCliente(tareas, opciones) {
     else grupo.cliente += 1;
   });
 
-  const grupos = Array.from(map.values())
+  return Array.from(map.values())
     .map((grupo) => ({
       ...grupo,
       total: grupo.filas.length,
@@ -139,6 +121,32 @@ function construirDatosEstatusCliente(tareas, opciones) {
       if (b.nombre === "Sin cadena") return -1;
       return b.total - a.total || String(a.nombre).localeCompare(String(b.nombre), "es");
     });
+}
+
+function construirDatosEstatusCliente(tareas, opciones) {
+  const opts = opciones || {};
+  const listas = typeof listasOperativasEstatus === "function"
+    ? listasOperativasEstatus(tareas)
+    : { faltaHacer: [], porEnviar: [], esperaCliente: [] };
+
+  const bloques = [
+    { etapa: "diseno", items: listas.faltaHacer || [], label: "En diseño" },
+    { etapa: "por-enviar", items: listas.porEnviar || [], label: "Próximo envío" },
+    { etapa: "cliente", items: listas.esperaCliente || [], label: "En espera de comentarios" }
+  ];
+
+  const filas = [];
+  bloques.forEach(({ etapa, items, label }) => {
+    (items || []).forEach((item) => {
+      filas.push(filaDesdeItemClienteEstatus(item, etapa, label));
+    });
+  });
+
+  const filasEspera = filas.filter((fila) => fila.etapa === "cliente");
+  const filasPendientes = filas.filter((fila) => fila.etapa !== "cliente");
+  const grupos = agruparFilasPorCadenaCliente(filas);
+  const gruposEspera = agruparFilasPorCadenaCliente(filasEspera);
+  const gruposPendientes = agruparFilasPorCadenaCliente(filasPendientes);
 
   const cadenas = grupos
     .slice()
@@ -150,6 +158,7 @@ function construirDatosEstatusCliente(tareas, opciones) {
     cliente: (listas.esperaCliente || []).length
   };
   kpis.total = kpis.diseno + kpis.enviar + kpis.cliente;
+  kpis.pendientes = kpis.diseno + kpis.enviar;
 
   const marcaNombre = String(opts.nombreMarca || "").trim()
     || (typeof formatearMarca === "function" ? formatearMarca(opts.marca) : opts.marca)
@@ -171,6 +180,8 @@ function construirDatosEstatusCliente(tareas, opciones) {
     colores: coloresEtapasEstatusCliente(accent),
     etapas: ESTATUS_CLIENTE_ETAPAS,
     grupos,
+    gruposEspera,
+    gruposPendientes,
     cadenas
   };
 }

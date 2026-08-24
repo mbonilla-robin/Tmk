@@ -3,7 +3,7 @@
  * Pestaña de impresión (Guardar como PDF) + HTML/CSS/SVG (texto y gráficas reales).
  */
 (function (global) {
-  const CSS_VERSION = "7";
+  const CSS_VERSION = "9";
 
   function absUrl(href) {
     try {
@@ -101,7 +101,7 @@
     const segs = [
       { id: "diseno", label: "En diseño", v: Number(kpis.diseno) || 0, c: colores.diseno || data.accent },
       { id: "enviar", label: "Próximo envío", v: Number(kpis.enviar) || 0, c: colores["por-enviar"] || "#EA580C" },
-      { id: "cliente", label: "En espera", v: Number(kpis.cliente) || 0, c: colores.cliente || "#0F766E" }
+      { id: "cliente", label: "En espera de comentarios", v: Number(kpis.cliente) || 0, c: colores.cliente || "#0F766E" }
     ];
     const total = segs.reduce((sum, s) => sum + s.v, 0);
     const cx = 50;
@@ -151,7 +151,7 @@
     if (!cadenas.length) {
       return `<p class="ec-empty">Sin cadenas activas</p>`;
     }
-    const colores = data.colores || {};
+    const barColor = data.accent || "#52525b";
     const max = Math.max(1, ...cadenas.map((c) => c.total || 0));
     const n = cadenas.length;
     const chartH = 132;
@@ -165,36 +165,25 @@
     const cols = cadenas.map((c, i) => {
       const x = x0 + i * (barW + gap);
       const hTotal = ((c.total || 0) / max) * chartH;
-      const stack = [
-        { v: c.diseno || 0, c: colores.diseno },
-        { v: c.enviar || 0, c: colores["por-enviar"] },
-        { v: c.cliente || 0, c: colores.cliente }
-      ];
-      let y = topPad + chartH;
-      const rects = stack.filter((s) => s.v > 0).map((s) => {
-        const h = ((s.v / max) * chartH);
-        y -= h;
-        return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(h, 1.2).toFixed(1)}" rx="2.5" fill="${escapeHtml(s.c)}" />`;
-      }).join("");
-      const countY = topPad + chartH - hTotal - 4;
+      const y = topPad + chartH - hTotal;
       const nombre = String(c.nombre || "").trim();
       const corto = nombre.length > 9 ? `${nombre.slice(0, 8)}…` : nombre;
-      return `${rects}
-        <text x="${(x + barW / 2).toFixed(1)}" y="${Math.max(10, countY).toFixed(1)}" text-anchor="middle" class="ec-vbar-count">${c.total}</text>
+      return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(hTotal, 1.2).toFixed(1)}" rx="2.5" fill="${escapeHtml(barColor)}" />
+        <text x="${(x + barW / 2).toFixed(1)}" y="${Math.max(10, y - 4).toFixed(1)}" text-anchor="middle" class="ec-vbar-count">${c.total}</text>
         <text x="${(x + barW / 2).toFixed(1)}" y="${topPad + chartH + 14}" text-anchor="middle" class="ec-vbar-label">${escapeHtml(corto)}</text>`;
     }).join("");
 
-    return `<svg class="ec-vbars-svg" viewBox="0 0 ${width} ${topPad + chartH + labelH}" width="100%" role="img" aria-label="Cadenas activas">
+    return `<svg class="ec-vbars-svg" viewBox="0 0 ${width} ${topPad + chartH + labelH}" width="100%" role="img" aria-label="Entregables por cadena">
       ${cols}
     </svg>`;
   }
 
-  function renderLista(data) {
-    const grupos = data.grupos || [];
-    if (!grupos.length) {
-      return `<p class="ec-empty">No hay entregables pendientes.</p>`;
+  function renderLista(grupos, emptyText) {
+    const lista = grupos || [];
+    if (!lista.length) {
+      return `<p class="ec-empty">${escapeHtml(emptyText || "Sin entregables.")}</p>`;
     }
-    const bodyRows = grupos.map((grupo) => {
+    const bodyRows = lista.map((grupo) => {
       const headerRow = `<tr class="ec-grupo-row"><td colspan="3">${escapeHtml(grupo.nombre)} · ${grupo.total}</td></tr>`;
       const filas = (grupo.filas || []).map((fila) => {
         const fechaClase = fila.atrasado ? " is-late" : "";
@@ -219,6 +208,16 @@
     </table>`;
   }
 
+  function renderSeccionLista(titulo, total, grupos, emptyText) {
+    return `<section class="ec-lista">
+      <div class="ec-lista-head">
+        <h2>${escapeHtml(titulo)}</h2>
+        <span>${total}</span>
+      </div>
+      ${renderLista(grupos, emptyText)}
+    </section>`;
+  }
+
   function buildDocument(data, inlineCss) {
     const colores = data.colores || {};
     const logoSrc = data.logo ? absUrl(data.logo) : "";
@@ -227,7 +226,9 @@
       ? `<img class="ec-logo${yaBlanco ? " ec-logo--ya-blanco" : ""}" src="${escapeHtml(logoSrc)}" alt="${escapeHtml(data.marca)}" />`
       : `<p class="ec-logo-text">${escapeHtml(data.marca)}</p>`;
     const total = Number(data.kpis?.total) || 0;
-    const docTitle = `Estatus general · ${data.marca || "Marca"}`;
+    const totalEspera = Number(data.kpis?.cliente) || 0;
+    const totalPendientes = Number(data.kpis?.pendientes) || 0;
+    const docTitle = `Estatus general TMK · ${data.marca || "Marca"}`;
 
     return `<!DOCTYPE html>
 <html lang="es">
@@ -244,9 +245,14 @@ ${inlineCss || ""}
   </style>
 </head>
 <body>
+  <div class="ec-print-bar">
+    <p>Al guardar como PDF, desactiva <strong>Encabezados y pies de página</strong> para evitar fecha, título o URL en el documento.</p>
+    <button type="button" class="ec-print-go" onclick="window.focus();window.print();">Guardar PDF</button>
+  </div>
+
   <header class="ec-head">
     ${logoHtml}
-    <h1>Estatus general</h1>
+    <h1>Estatus general TMK</h1>
     <p class="ec-corte">Corte al ${escapeHtml(data.corte)}</p>
   </header>
 
@@ -262,7 +268,7 @@ ${inlineCss || ""}
         </article>
         <article class="ec-card">
           <div class="ec-card-head">
-            <h2>Cadenas activas</h2>
+            <h2>Entregables por cadena</h2>
             <p>${(data.cadenas || []).length} cadena${(data.cadenas || []).length === 1 ? "" : "s"}</p>
           </div>
           ${svgBarrasCadenas(data)}
@@ -270,13 +276,9 @@ ${inlineCss || ""}
       </div>
     </section>
 
-    <section class="ec-lista">
-      <div class="ec-lista-head">
-        <h2>Pendientes</h2>
-        <span>${total}</span>
-      </div>
-      ${renderLista(data)}
-    </section>
+    ${renderSeccionLista("En espera de comentarios", totalEspera, data.gruposEspera, "Nada en espera de comentarios.")}
+
+    ${renderSeccionLista("Pendientes", totalPendientes, data.gruposPendientes, "No hay entregables pendientes.")}
 
     <footer class="ec-foot">ROBIN · Trade &amp; Shopper Marketing</footer>
   </main>
@@ -297,9 +299,10 @@ ${inlineCss || ""}
           <p class="estatus-cliente-print-title">Estatus para cliente</p>
           <div class="estatus-cliente-print-actions">
             <button type="button" class="estatus-cliente-print-close">Cerrar</button>
-            <button type="button" class="estatus-cliente-print-go">Imprimir / Guardar PDF</button>
+            <button type="button" class="estatus-cliente-print-go">Guardar PDF</button>
           </div>
         </div>
+        <p class="estatus-cliente-print-hint">Desactiva «Encabezados y pies de página» en el diálogo de impresión.</p>
         <iframe class="estatus-cliente-print-frame" title="Vista del estatus"></iframe>
       </div>
     `;
@@ -344,24 +347,16 @@ ${inlineCss || ""}
       : global.open("about:blank", "estatus-cliente-pdf");
     if (!win) return false;
 
-    let blobUrl = "";
     try {
-      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-      blobUrl = URL.createObjectURL(blob);
-      await new Promise((resolve) => {
-        win.addEventListener("load", resolve, { once: true });
-        win.location.href = blobUrl;
-        global.setTimeout(resolve, 3000);
-      });
+      win.document.open();
+      win.document.write(html);
+      win.document.close();
       await waitDocumentReady(win);
       win.focus();
-      win.print();
     } catch (_) {
       try { win.close(); } catch (__) { /* ignore */ }
-      if (blobUrl) URL.revokeObjectURL(blobUrl);
       return false;
     }
-    if (blobUrl) URL.revokeObjectURL(blobUrl);
     if (typeof options.onDone === "function") options.onDone(true);
     return true;
   }

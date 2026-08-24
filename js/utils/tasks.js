@@ -565,27 +565,19 @@ function agruparTareasPorMarcaOrdenadas(tareas, modoAgrupacion) {
 }
 
 function agruparTareasPorSubclienteOrdenadas(tareas, modoAgrupacion) {
-  // Importante: agrupar por una clave case-insensitive evita que "ABC" y "abc"
-  // terminen como dos grupos distintos en la vista TABLE.
+  // Agrupar por clave case-insensitive; el título conserva el casing escrito (DHL ≠ Dhl).
   const grupos = new Map(); // keyNorm -> { nombre: displayName, tareas: [] }
-
-  const canonDisplay = (sub) => {
-    const limpio = typeof normalizarNombreSubcliente === "function"
-      ? normalizarNombreSubcliente(sub)
-      : String(sub || "").trim();
-    if (!limpio) return "";
-    // Canoniza el display para que sea consistente (aunque el backend/DB guarde otras variantes).
-    const lower = limpio.toLocaleLowerCase("es");
-    return lower
-      .split(" ")
-      .filter(Boolean)
-      .map((w) => w.charAt(0).toLocaleUpperCase("es") + w.slice(1))
-      .join(" ");
-  };
 
   const keyNorm = (sub) => {
     if (typeof claveSubcliente === "function") return claveSubcliente(sub);
     return String(sub || "").trim().toLowerCase();
+  };
+
+  const displayName = (sub) => {
+    if (typeof normalizarNombreSubcliente === "function") {
+      return normalizarNombreSubcliente(sub) || String(sub || "").trim();
+    }
+    return String(sub || "").trim();
   };
 
   (tareas || []).forEach(t => {
@@ -601,8 +593,12 @@ function agruparTareasPorSubclienteOrdenadas(tareas, modoAgrupacion) {
     }
 
     const k = keyNorm(sub);
-    const display = canonDisplay(sub) || sub;
-    if (!grupos.has(k)) grupos.set(k, { nombre: display, tareas: [] });
+    const nombre = displayName(sub) || sub;
+    if (!grupos.has(k)) {
+      grupos.set(k, { nombre, tareas: [] });
+    } else if (typeof preferirCasingSubcliente === "function") {
+      grupos.get(k).nombre = preferirCasingSubcliente(grupos.get(k).nombre, nombre);
+    }
     grupos.get(k).tareas.push(t);
   });
 

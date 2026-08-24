@@ -240,7 +240,13 @@ function listarSubclientesDisponiblesParaMarca(lista, marca, tareas) {
     const norm = normalizarNombreSubcliente(nombre);
     if (!norm) return;
     const key = claveSubcliente(norm);
-    if (!mapa.has(key)) mapa.set(key, norm);
+    if (!mapa.has(key)) {
+      mapa.set(key, norm);
+      return;
+    }
+    if (typeof preferirCasingSubcliente === "function") {
+      mapa.set(key, preferirCasingSubcliente(mapa.get(key), norm));
+    }
   });
   return Array.from(mapa.values()).sort((a, b) => a.localeCompare(b, "es"));
 }
@@ -258,6 +264,8 @@ function agruparTareasPorSubcliente(tareas, marca) {
     const key = claveSubcliente(nombre);
     if (!grupos.has(key)) {
       grupos.set(key, { nombre, tareas: [] });
+    } else if (typeof preferirCasingSubcliente === "function") {
+      grupos.get(key).nombre = preferirCasingSubcliente(grupos.get(key).nombre, nombre);
     }
     grupos.get(key).tareas.push(t);
   });

@@ -300,7 +300,7 @@ function App() {
     typeof window.crearNuevaTareaVacia === "function"
       ? window.crearNuevaTareaVacia()
       : (typeof crearNuevaTareaVacia === "function" ? crearNuevaTareaVacia() : {
-          marca: "La Santé", categoria: "", subcliente: "", info: "", personas: "", detalles: "",
+          marca: "", categoria: "", subcliente: "", info: "", personas: "", detalles: "",
           link: "", estado: "Pendiente", deadline: "", fechaInicio: "", prioridad: "Media"
         })
   ));
@@ -1323,7 +1323,6 @@ function App() {
 
     const nombreMarca = formatearMarca(brand);
     const tareasMarca = tareas.filter(t => marcasCoinciden(t.marca, nombreMarca)).length;
-    const otrasMarcas = marcasDisponibles.filter(m => !marcasCoinciden(m, nombreMarca));
 
     setMarcasMetadata(prev => {
       const next = { ...prev };
@@ -1338,7 +1337,7 @@ function App() {
       setFiltroMarca("TODAS");
     }
     if (nuevaTarea.marca && marcasCoinciden(nuevaTarea.marca, nombreMarca)) {
-      setNuevaTarea(prev => ({ ...prev, marca: otrasMarcas[0] || prev.marca }));
+      setNuevaTarea(prev => ({ ...prev, marca: "" }));
     }
 
     showToast(
@@ -2548,6 +2547,13 @@ function App() {
       showToast("Ingresa el título del entregable", "error");
       return;
     }
+    if (!String(base.marca || "").trim()) {
+      showToast("Selecciona el cliente", "error");
+      return;
+    }
+    const marcaNorm = typeof normalizarMarca === "function"
+      ? normalizarMarca(base.marca)
+      : String(base.marca).trim();
     const deadlineNorm = normalizarDeadline(base.deadline);
     if (!deadlineNorm) {
       showToast("Fecha de entrega no válida (ej: 16/06/2026). Déjala vacía para TBD.", "error");
@@ -2575,7 +2581,7 @@ function App() {
 
     guardandoRef.current = true;
     try {
-      const autoId = generateBrandId(base.marca);
+      const autoId = generateBrandId(marcaNorm);
       const hoy = new Date();
       const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, '0')}`;
       const historialInicial = `• [${timestamp}] Creado por @${usuario}`;
@@ -2586,6 +2592,7 @@ function App() {
 
       const nuevaConId = marcarTareaPendiente(normalizarTareaCampos(prepararTareaConCategoria({
         ...base,
+        marca: marcaNorm,
         idTarea: autoId,
         deadline: deadlineNorm,
         fechaInicio: inicioNorm,
@@ -2621,7 +2628,7 @@ function App() {
         typeof window.crearNuevaTareaVacia === "function"
           ? window.crearNuevaTareaVacia()
           : (typeof crearNuevaTareaVacia === "function" ? crearNuevaTareaVacia() : {
-              marca: "La Santé", categoria: "", info: "", personas: "", detalles: "",
+              marca: "", categoria: "", info: "", personas: "", detalles: "",
               link: "", estado: "Pendiente", deadline: "", fechaInicio: "", prioridad: "Media"
             })
       );
@@ -4331,7 +4338,7 @@ function App() {
             marcasDisponibles={marcasDisponibles}
             listaPersonas={listaPersonas}
             registrarNuevaPersona={registrarNuevaPersonaGlobal}
-            marcaDefault={filtroMarca !== "TODAS" ? filtroMarca : "La Santé"}
+            marcaDefault={filtroMarca !== "TODAS" ? filtroMarca : ""}
           />
         </ModalPortal>
       )}

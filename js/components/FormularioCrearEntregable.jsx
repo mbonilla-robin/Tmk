@@ -129,10 +129,12 @@ function FormularioCrearEntregable({
           <div className="pb-2 mt-4 flex flex-col gap-0.5 border-b border-zinc-100">
             <PropertyRow icon="fa-regular fa-building" label="Cliente">
               <select
-                value={nuevaTarea.marca}
+                value={nuevaTarea.marca || ""}
                 onChange={(e) => setNuevaTarea({ ...nuevaTarea, marca: e.target.value, subcliente: "" })}
                 className={inputPropClass}
+                required
               >
+                <option value="">Seleccionar cliente</option>
                 {marcasDisponibles.map(m => (
                   <option key={m} value={m}>{formatearMarca(m)}</option>
                 ))}

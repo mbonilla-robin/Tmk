@@ -4,10 +4,10 @@ function FormularioRapidoEntregable({
   marcasDisponibles,
   listaPersonas,
   registrarNuevaPersona,
-  marcaDefault = "La Santé"
+  marcaDefault = ""
 }) {
   const [info, setInfo] = useState("");
-  const [marca, setMarca] = useState(marcaDefault);
+  const [marca, setMarca] = useState(marcaDefault || "");
   const [deadline, setDeadline] = useState("");
   const [personasDisenadores, setPersonasDisenadores] = useState("");
   const [guardando, setGuardando] = useState(false);
@@ -20,13 +20,17 @@ function FormularioRapidoEntregable({
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!info.trim()) return;
+    if (!String(marca || "").trim()) return;
+    const marcaNorm = typeof normalizarMarca === "function"
+      ? normalizarMarca(marca)
+      : String(marca).trim();
     const deadlineNorm = normalizarDeadline(deadline);
     if (!deadlineNorm) return;
 
     setGuardando(true);
     try {
       const tarea = prepararTareaConCategoria({
-        marca: normalizarMarca(marca),
+        marca: marcaNorm,
         categoria: "Solicitud",
         info: info.trim(),
         personas: combinarEjecutivosYDisenadores("", personasDisenadores),
@@ -70,7 +74,8 @@ function FormularioRapidoEntregable({
 
           <label className="form-rapido-field">
             <span>Cliente</span>
-            <select value={marca} onChange={(e) => setMarca(e.target.value)} className="form-rapido-input">
+            <select value={marca} onChange={(e) => setMarca(e.target.value)} className="form-rapido-input" required>
+              <option value="">Seleccionar cliente</option>
               {marcasDisponibles.map((m) => (
                 <option key={m} value={m}>{formatearMarca(m)}</option>
               ))}

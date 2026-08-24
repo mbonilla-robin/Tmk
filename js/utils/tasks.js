@@ -128,7 +128,7 @@ function resolverFechaInicioTarea(t) {
 
 function crearNuevaTareaVacia() {
   return {
-    marca: "La Santé",
+    marca: "",
     categoria: "",
     subcliente: "",
     info: "",

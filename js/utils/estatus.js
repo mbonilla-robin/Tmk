@@ -122,11 +122,56 @@ function ordenarTareasEstatus(tareas, estadosOrden, ordenarPor) {
   });
 }
 
-function formatearLineaTareaEstatusCompacta(tarea) {
+function formatearLineaTareaEstatusCompacta(tarea, { incluirSubtareas = false } = {}) {
   const estado = normalizarEstado(tarea.estado) || "Sin estado";
   const titulo = (tarea.info || "Sin título").trim();
   const link = typeof obtenerLinkTarea === "function" ? obtenerLinkTarea(tarea) : "";
-  return `- ${titulo} | _${estado}_ | ${link || "—"}`;
+  const base = `- ${titulo} | _${estado}_ | ${link || "—"}`;
+  if (!incluirSubtareas || typeof parseDetalles !== "function") return base;
+
+  const { subtareas } = parseDetalles(tarea.detalles || "");
+  const lineasSub = formatearLineasSubtareasEstatus(subtareas);
+  if (!lineasSub.length) return base;
+  return [base, ...lineasSub].join("\n");
+}
+
+function formatearLineaSubtareaEstatus(texto, completed) {
+  const textoLimpio = String(texto || "").trim();
+  if (!textoLimpio) return null;
+  if (completed) return `  > ~${textoLimpio}~`;
+  return `  > ${textoLimpio}`;
+}
+
+function formatearLineasSubtareasEstatus(subtareas) {
+  const lista = (subtareas || [])
+    .map((sub) => ({
+      text: String(sub?.text || "").trim(),
+      completed: Boolean(sub?.completed)
+    }))
+    .filter((sub) => sub.text);
+
+  if (lista.length === 0) return [];
+
+  const pendientes = lista.filter((sub) => !sub.completed);
+  const completadas = lista.filter((sub) => sub.completed);
+  const lineas = [];
+
+  pendientes.forEach((sub) => {
+    lineas.push(formatearLineaSubtareaEstatus(sub.text, false));
+  });
+
+  if (completadas.length > 0) {
+    if (pendientes.length > 0) {
+      const nombres = completadas.map((sub) => sub.text).join(" · ");
+      lineas.push(`  _Completadas (${completadas.length}): ${nombres}_`);
+    } else {
+      completadas.forEach((sub) => {
+        lineas.push(formatearLineaSubtareaEstatus(sub.text, true));
+      });
+    }
+  }
+
+  return lineas.filter(Boolean);
 }
 
 function agruparTareasEstatusPorMarca(tareas, marcas) {
@@ -265,7 +310,7 @@ function ordenarGruposPersonasEstatus(grupos, personasFiltro) {
   });
 }
 
-function generarCuerpoEstatusPorPersona(tareas, { estados, ordenarPor, personasFiltro }) {
+function generarCuerpoEstatusPorPersona(tareas, { estados, ordenarPor, personasFiltro, incluirSubtareas = false }) {
   const personas = ordenarGruposPersonasEstatus(
     agruparTareasEstatusPorPersona(tareas),
     personasFiltro
@@ -275,7 +320,7 @@ function generarCuerpoEstatusPorPersona(tareas, { estados, ordenarPor, personasF
   return personas.map((persona) => {
     const bloquesSub = persona.subgrupos.map((sub) => {
       const ordenadas = ordenarTareasEstatus(sub.tareas, estados, ordenarPor);
-      const lineas = ordenadas.map(formatearLineaTareaEstatusCompacta);
+      const lineas = ordenadas.map((t) => formatearLineaTareaEstatusCompacta(t, { incluirSubtareas }));
       return `*${sub.titulo}*\n${lineas.join("\n")}`;
     }).join("\n\n");
     return `*${persona.titulo}*\n${bloquesSub}`;
@@ -313,13 +358,13 @@ function generarCuerpoEstatusEsperaComentarios(tareas) {
   }).join("\n");
 }
 
-function generarCuerpoEstatus(tareas, { marcas, estados, ordenarPor, organizarPor, personasFiltro }) {
+function generarCuerpoEstatus(tareas, { marcas, estados, ordenarPor, organizarPor, personasFiltro, incluirSubtareas = false }) {
   if (organizarPor === "espera-comentarios") {
     return generarCuerpoEstatusEsperaComentarios(tareas);
   }
 
   if (organizarPor === "persona") {
-    return generarCuerpoEstatusPorPersona(tareas, { estados, ordenarPor, personasFiltro });
+    return generarCuerpoEstatusPorPersona(tareas, { estados, ordenarPor, personasFiltro, incluirSubtareas });
   }
 
   const grupos = agruparTareasEstatus(tareas, { organizarPor, marcas });
@@ -327,12 +372,12 @@ function generarCuerpoEstatus(tareas, { marcas, estados, ordenarPor, organizarPo
 
   return grupos.map((grupo) => {
     const ordenadas = ordenarTareasEstatus(grupo.tareas, estados, ordenarPor);
-    const lineas = ordenadas.map(formatearLineaTareaEstatusCompacta);
+    const lineas = ordenadas.map((t) => formatearLineaTareaEstatusCompacta(t, { incluirSubtareas }));
     return `*${grupo.titulo}*\n${lineas.join("\n")}`;
   }).join("\n\n");
 }
 
-function generarTextoEstatus(tareas, { marcas, estados, filtroTiempo, ordenarPor, personas, subclientes, organizarPor }) {
+function generarTextoEstatus(tareas, { marcas, estados, filtroTiempo, ordenarPor, personas, subclientes, organizarPor, incluirSubtareas = false }) {
   if (!marcas || marcas.length === 0) return "";
 
   const modo = organizarPor || "persona";
@@ -354,7 +399,8 @@ function generarTextoEstatus(tareas, { marcas, estados, filtroTiempo, ordenarPor
     estados: estadosFiltro,
     ordenarPor: ordenarPor || "estado",
     organizarPor: modo,
-    personasFiltro: personas
+    personasFiltro: personas,
+    incluirSubtareas: Boolean(incluirSubtareas)
   });
 
   if (!cuerpo) return "";
@@ -376,7 +422,7 @@ function obtenerMarcasUnicasTareas(tareas) {
   return marcas;
 }
 
-function generarTextoEstatusDesdeSeleccion(tareas, { ordenarPor, organizarPor } = {}) {
+function generarTextoEstatusDesdeSeleccion(tareas, { ordenarPor, organizarPor, incluirSubtareas = false } = {}) {
   const lista = (tareas || []).filter((t) => t && (t.info || t.marca));
   if (lista.length === 0) return "";
 
@@ -385,7 +431,8 @@ function generarTextoEstatusDesdeSeleccion(tareas, { ordenarPor, organizarPor } 
     marcas,
     estados: LISTA_ESTADOS_VALIDOS,
     ordenarPor: ordenarPor || "estado",
-    organizarPor: organizarPor || "persona"
+    organizarPor: organizarPor || "persona",
+    incluirSubtareas: Boolean(incluirSubtareas)
   });
 
   if (!cuerpo) return "";

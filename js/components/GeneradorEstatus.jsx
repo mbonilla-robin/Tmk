@@ -9,6 +9,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
   const [filtroTiempo, setFiltroTiempo] = useState("todas");
   const [ordenarPor, setOrdenarPor] = useState("estado");
   const [organizarPor, setOrganizarPor] = useState("persona");
+  const [incluirSubtareas, setIncluirSubtareas] = useState(false);
   const [subclientesDesplegados, setSubclientesDesplegados] = useState(false);
   const [textoGenerado, setTextoGenerado] = useState("");
   const [copiado, setCopiado] = useState(false);
@@ -63,7 +64,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
     generarConOpciones(organizarPor);
   };
 
-  const generarConOpciones = (modoOrganizar = organizarPor) => {
+  const generarConOpciones = (modoOrganizar = organizarPor, conSubtareas = incluirSubtareas) => {
     const texto = generarTextoEstatus(tareas, {
       marcas: marcasSeleccionadas,
       estados: estadosSeleccionados,
@@ -71,10 +72,12 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
       ordenarPor,
       organizarPor: modoOrganizar,
       personas: personasFiltroArray,
-      subclientes: subclientesFiltro
+      subclientes: subclientesFiltro,
+      incluirSubtareas: conSubtareas
     });
 
     setOrganizarPor(modoOrganizar);
+    setIncluirSubtareas(Boolean(conSubtareas));
     setTextoGenerado(texto || "No hay tareas que coincidan con los filtros seleccionados.");
     setVista("resultado");
     setCopiado(false);
@@ -298,6 +301,26 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                 </div>
               </div>
 
+              <div>
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-2">Subtareas</label>
+                <button
+                  type="button"
+                  onClick={() => setIncluirSubtareas((v) => !v)}
+                  className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                    incluirSubtareas
+                      ? "bg-zinc-900 text-white border-zinc-900"
+                      : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                  }`}
+                  aria-pressed={incluirSubtareas}
+                >
+                  <i className={`fa-solid ${incluirSubtareas ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
+                  {incluirSubtareas ? "Con subtareas" : "Sin subtareas"}
+                </button>
+                <p className="mt-1.5 text-[10px] text-zinc-400">
+                  Por defecto el estatus no incluye las subtareas de cada entregable.
+                </p>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Filtro de fecha</label>
@@ -361,7 +384,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                     <button
                       key={opcion.id}
                       type="button"
-                      onClick={() => generarConOpciones(opcion.id)}
+                      onClick={() => generarConOpciones(opcion.id, incluirSubtareas)}
                       className={`text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
                         organizarPor === opcion.id
                           ? "bg-zinc-900 text-white border-zinc-900"
@@ -372,6 +395,22 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                     </button>
                   ))}
                 </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-2">Subtareas</label>
+                <button
+                  type="button"
+                  onClick={() => generarConOpciones(organizarPor, !incluirSubtareas)}
+                  className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                    incluirSubtareas
+                      ? "bg-zinc-900 text-white border-zinc-900"
+                      : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                  }`}
+                  aria-pressed={incluirSubtareas}
+                >
+                  <i className={`fa-solid ${incluirSubtareas ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
+                  {incluirSubtareas ? "Con subtareas" : "Sin subtareas"}
+                </button>
               </div>
               <pre className="text-[12px] text-[#37352F] leading-relaxed whitespace-pre-wrap font-mono bg-zinc-50 border border-zinc-200 rounded-lg p-4 max-h-[50vh] overflow-y-auto">
                 {textoGenerado}

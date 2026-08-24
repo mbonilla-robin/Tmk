@@ -109,6 +109,12 @@ function NotionTaskRow({
 
       <div className="notion-task-body">
         <p className="notion-task-title">{t.info}</p>
+        {subcliente ? (
+          <p className="notion-task-subcliente">
+            <i className="fa-solid fa-store" aria-hidden="true" />
+            <span>{subcliente}</span>
+          </p>
+        ) : null}
 
         <div className="notion-task-meta">
           <span className={`notion-task-meta-chip border ${cMarca.surface}`}>
@@ -151,13 +157,6 @@ function NotionTaskRow({
               </span>
             );
           })}
-
-          {subcliente && (
-            <span className="notion-task-meta-chip border bg-zinc-50 text-zinc-600 border-zinc-200">
-              <i className="fa-solid fa-store text-[9px] text-zinc-400 shrink-0" />
-              {subcliente}
-            </span>
-          )}
 
           <span className={`notion-task-prio-tag ${cPrioridad.color}`}>
             {normalizarPrioridad(t.prioridad)}

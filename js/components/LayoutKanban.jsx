@@ -83,6 +83,18 @@ function LayoutKanban({ tareas, onUpdateField, onSelectTask, onDeleteTask, getMa
                     </div>
 
                     <h4 className="kanban-card-title">{t.info}</h4>
+                    {(() => {
+                      const sub = typeof obtenerSubclienteTarea === "function"
+                        ? obtenerSubclienteTarea(t)
+                        : String(t.subcliente || "").trim();
+                      if (!sub) return null;
+                      return (
+                        <p className="kanban-card-subcliente">
+                          <i className="fa-solid fa-store" aria-hidden="true" />
+                          <span>{sub}</span>
+                        </p>
+                      );
+                    })()}
 
                     <div className="kanban-card-footer">
                       <span className="kanban-card-person">{t.personas || "Sin asignar"}</span>

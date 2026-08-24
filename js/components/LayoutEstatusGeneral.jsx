@@ -734,15 +734,11 @@ function LayoutEstatusGeneral({
       return;
     }
     setExportandoCliente(true);
-    const win = typeof window.open === "function"
-      ? window.open("about:blank", "estatus-cliente-pdf")
-      : null;
     try {
       Promise.resolve(exportarEstatusClientePDF(tareas, {
         marca,
         nombreMarca: etiquetaMarca,
         accent: marcaEstilo.accent,
-        win,
         onDone: () => setExportandoCliente(false)
       })).catch((err) => {
         setExportandoCliente(false);

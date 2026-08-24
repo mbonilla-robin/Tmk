@@ -1,9 +1,10 @@
 /**
  * PDF de proyección de estatus para el cliente.
- * Pestaña de impresión (Guardar como PDF) + HTML/CSS/SVG (texto y gráficas reales).
+ * Generación directa con jsPDF (descarga sin diálogo de impresión).
  */
 (function (global) {
-  const CSS_VERSION = "9";
+  const CSS_VERSION = "10";
+  const PDF_PAGE_WIDTH_PX = 794;
 
   function absUrl(href) {
     try {
@@ -61,6 +62,97 @@
     }
     await Promise.race([waitImages(doc), waitMs(1500)]);
     await waitMs(350);
+  }
+
+  function nombreArchivoEstatusCliente(data) {
+    const safe = (valor) => String(valor || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[\/\\?%*:|"<>]/g, "-")
+      .replace(/\s+/g, " ")
+      .trim();
+    const hoy = new Date();
+    const fecha = [
+      hoy.getFullYear(),
+      String(hoy.getMonth() + 1).padStart(2, "0"),
+      String(hoy.getDate()).padStart(2, "0")
+    ].join("-");
+    return `${safe(data.marca)} - Estatus general TMK - ${fecha}.pdf`;
+  }
+
+  function cerrarVentanaExport(opts) {
+    const win = opts?.win;
+    if (win && !win.closed) {
+      try { win.close(); } catch (_) { /* ignore */ }
+    }
+  }
+
+  async function generarPdfArchivo(html, data) {
+    if (!global.html2canvas || !global.jspdf?.jsPDF) {
+      throw new Error("Falta el motor PDF · recarga la página");
+    }
+
+    const frame = global.document.createElement("iframe");
+    frame.setAttribute("aria-hidden", "true");
+    frame.style.cssText = `position:fixed;left:-10000px;top:0;width:${PDF_PAGE_WIDTH_PX}px;height:1px;border:0;opacity:0;pointer-events:none;`;
+    global.document.body.appendChild(frame);
+
+    try {
+      const idoc = frame.contentDocument || (frame.contentWindow && frame.contentWindow.document);
+      if (!idoc) throw new Error("No se pudo preparar el PDF");
+
+      idoc.open();
+      idoc.write(html);
+      idoc.close();
+      await waitDocumentReady(frame.contentWindow);
+
+      const root = idoc.body;
+      const contentHeight = Math.max(root.scrollHeight, root.offsetHeight);
+      frame.style.height = `${contentHeight}px`;
+
+      const canvas = await global.html2canvas(root, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+        windowWidth: PDF_PAGE_WIDTH_PX,
+        width: PDF_PAGE_WIDTH_PX,
+        height: contentHeight,
+        scrollX: 0,
+        scrollY: 0
+      });
+
+      const fileName = nombreArchivoEstatusCliente(data);
+      const { jsPDF } = global.jspdf;
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "pt",
+        format: "a4",
+        compress: true
+      });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const imgData = canvas.toDataURL("image/png");
+
+      let heightLeft = imgHeight;
+      let position = 0;
+      let pageIndex = 0;
+
+      while (heightLeft > 0) {
+        if (pageIndex > 0) pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight, undefined, "FAST");
+        heightLeft -= pageHeight;
+        position -= pageHeight;
+        pageIndex += 1;
+      }
+
+      pdf.save(fileName);
+    } finally {
+      frame.remove();
+    }
   }
 
   let cssCache = null;
@@ -208,8 +300,13 @@
     </table>`;
   }
 
-  function renderSeccionLista(titulo, total, grupos, emptyText) {
-    return `<section class="ec-lista">
+  function renderSeccionLista(titulo, total, grupos, emptyText, opts) {
+    const options = opts || {};
+    const extraClass = options.extraClass ? ` ${options.extraClass}` : "";
+    const divider = options.divider
+      ? '<div class="ec-seccion-divider" role="presentation"></div>'
+      : "";
+    return `${divider}<section class="ec-lista${extraClass}">
       <div class="ec-lista-head">
         <h2>${escapeHtml(titulo)}</h2>
         <span>${total}</span>
@@ -244,12 +341,7 @@ ${inlineCss || ""}
     .ec-estado--cliente { background: ${hexToRgba(colores.cliente, 0.12)}; color: ${escapeHtml(colores.cliente)}; }
   </style>
 </head>
-<body>
-  <div class="ec-print-bar">
-    <p>Al guardar como PDF, desactiva <strong>Encabezados y pies de página</strong> para evitar fecha, título o URL en el documento.</p>
-    <button type="button" class="ec-print-go" onclick="window.focus();window.print();">Guardar PDF</button>
-  </div>
-
+<body class="ec-pdf-export">
   <header class="ec-head">
     ${logoHtml}
     <h1>Estatus general TMK</h1>
@@ -276,9 +368,9 @@ ${inlineCss || ""}
       </div>
     </section>
 
-    ${renderSeccionLista("En espera de comentarios", totalEspera, data.gruposEspera, "Nada en espera de comentarios.")}
+    ${renderSeccionLista("En espera de comentarios", totalEspera, data.gruposEspera, "Nada en espera de comentarios.", { extraClass: "ec-lista--espera" })}
 
-    ${renderSeccionLista("Pendientes", totalPendientes, data.gruposPendientes, "No hay entregables pendientes.")}
+    ${renderSeccionLista("Pendientes", totalPendientes, data.gruposPendientes, "No hay entregables pendientes.", { divider: true, extraClass: "ec-lista--pendientes" })}
 
     <footer class="ec-foot">ROBIN · Trade &amp; Shopper Marketing</footer>
   </main>
@@ -286,94 +378,17 @@ ${inlineCss || ""}
 </html>`;
   }
 
-  function mostrarOverlayEstatusCliente(html, options) {
-    const doc = global.document;
-    const prev = doc.getElementById("estatus-cliente-print-root");
-    if (prev) prev.remove();
-    const root = doc.createElement("div");
-    root.id = "estatus-cliente-print-root";
-    root.className = "estatus-cliente-print-overlay";
-    root.innerHTML = `
-      <div class="estatus-cliente-print-chrome" role="dialog" aria-modal="true" aria-label="Estatus para cliente">
-        <div class="estatus-cliente-print-toolbar">
-          <p class="estatus-cliente-print-title">Estatus para cliente</p>
-          <div class="estatus-cliente-print-actions">
-            <button type="button" class="estatus-cliente-print-close">Cerrar</button>
-            <button type="button" class="estatus-cliente-print-go">Guardar PDF</button>
-          </div>
-        </div>
-        <p class="estatus-cliente-print-hint">Desactiva «Encabezados y pies de página» en el diálogo de impresión.</p>
-        <iframe class="estatus-cliente-print-frame" title="Vista del estatus"></iframe>
-      </div>
-    `;
-    doc.body.appendChild(root);
-    const iframe = root.querySelector("iframe");
-    const idoc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
-    if (idoc) {
-      idoc.open();
-      idoc.write(html);
-      idoc.close();
-    }
-    let cerrado = false;
-    const onKey = (event) => {
-      if (event.key === "Escape") finish(false);
-    };
-    const finish = (ok) => {
-      if (cerrado) return;
-      cerrado = true;
-      doc.removeEventListener("keydown", onKey);
-      root.remove();
-      if (typeof options.onDone === "function") options.onDone(ok);
-    };
-    root.querySelector(".estatus-cliente-print-close").addEventListener("click", () => finish(false));
-    root.querySelector(".estatus-cliente-print-go").addEventListener("click", async () => {
-      try {
-        await waitDocumentReady(iframe.contentWindow);
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-      } catch (err) {
-        global.alert(String(err?.message || "No se pudo imprimir"));
-      }
-    });
-    root.addEventListener("click", (event) => {
-      if (event.target === root) finish(false);
-    });
-    doc.addEventListener("keydown", onKey);
-  }
-
-  async function abrirPestanaImpresion(html, options) {
-    const win = options.win && !options.win.closed
-      ? options.win
-      : global.open("about:blank", "estatus-cliente-pdf");
-    if (!win) return false;
-
-    try {
-      win.document.open();
-      win.document.write(html);
-      win.document.close();
-      await waitDocumentReady(win);
-      win.focus();
-    } catch (_) {
-      try { win.close(); } catch (__) { /* ignore */ }
-      return false;
-    }
-    if (typeof options.onDone === "function") options.onDone(true);
-    return true;
-  }
-
   async function exportarEstatusClientePDF(tareas, opts) {
     const options = opts || {};
     if (typeof construirDatosEstatusCliente !== "function") {
       throw new Error("No está disponible el export de estatus");
     }
+    cerrarVentanaExport(options);
     const inlineCss = await cargarCssEstatusCliente();
     const data = construirDatosEstatusCliente(tareas, options);
     const html = buildDocument(data, inlineCss);
-    const abierta = await abrirPestanaImpresion(html, options);
-    if (!abierta) {
-      mostrarOverlayEstatusCliente(html, options);
-      if (typeof options.onDone === "function") options.onDone(true);
-    }
+    await generarPdfArchivo(html, data);
+    if (typeof options.onDone === "function") options.onDone(true);
   }
 
   global.exportarEstatusClientePDF = exportarEstatusClientePDF;

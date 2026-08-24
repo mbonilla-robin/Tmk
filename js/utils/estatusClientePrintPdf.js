@@ -3,11 +3,12 @@
  * Generación directa con jsPDF (descarga sin diálogo de impresión).
  */
 (function (global) {
-  const CSS_VERSION = "11";
+  const CSS_VERSION = "12";
   const PDF_PAGE_WIDTH_PX = 794;
   const PDF_MARGIN_X_PX = 53; // ~14mm
   const PDF_MARGIN_Y_PX = 45; // ~12mm
   const PDF_CONTENT_WIDTH_PX = PDF_PAGE_WIDTH_PX - PDF_MARGIN_X_PX * 2;
+  const MM_TO_PT = 72 / 25.4;
 
   function absUrl(href) {
     try {
@@ -123,7 +124,14 @@
         width: PDF_CONTENT_WIDTH_PX,
         height: rootHeight,
         scrollX: 0,
-        scrollY: 0
+        scrollY: 0,
+        onclone: (doc) => {
+          doc.querySelectorAll(".ec-head, .ec-card, .ec-lista--pendientes .ec-lista-head, .ec-estado").forEach((el) => {
+            el.style.overflow = "hidden";
+            el.style.webkitBackfaceVisibility = "hidden";
+            el.style.backfaceVisibility = "hidden";
+          });
+        }
       });
 
       const fileName = nombreArchivoEstatusCliente(data);
@@ -136,32 +144,54 @@
       });
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
-      const marginX = (PDF_MARGIN_X_PX / PDF_PAGE_WIDTH_PX) * pageWidth;
-      const marginY = (PDF_MARGIN_Y_PX / PDF_PAGE_WIDTH_PX) * pageWidth;
-      const contentWidth = pageWidth - marginX * 2;
-      const pageContentHeight = pageHeight - marginY * 2;
-      const imgWidth = contentWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      const imgData = canvas.toDataURL("image/png");
+      const marginLeft = 14 * MM_TO_PT;
+      const marginRight = 14 * MM_TO_PT;
+      const marginTop = 12 * MM_TO_PT;
+      const marginBottom = 12 * MM_TO_PT;
+      const contentWidth = pageWidth - marginLeft - marginRight;
+      const contentHeight = pageHeight - marginTop - marginBottom;
+      const renderScale = 2;
+      const pxPerPt = canvas.width / contentWidth;
+      const pageSlicePx = contentHeight * pxPerPt;
 
-      let heightLeft = imgHeight;
-      let position = 0;
+      let sourceY = 0;
       let pageIndex = 0;
 
-      while (heightLeft > 0) {
+      while (sourceY < canvas.height) {
         if (pageIndex > 0) pdf.addPage();
+
+        const slicePx = Math.min(pageSlicePx, canvas.height - sourceY);
+        const slicePt = slicePx / pxPerPt;
+        const pageCanvas = global.document.createElement("canvas");
+        pageCanvas.width = Math.round(pageWidth * renderScale);
+        pageCanvas.height = Math.round(pageHeight * renderScale);
+        const ctx = pageCanvas.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+        ctx.drawImage(
+          canvas,
+          0,
+          sourceY,
+          canvas.width,
+          slicePx,
+          Math.round(marginLeft * renderScale),
+          Math.round(marginTop * renderScale),
+          Math.round(contentWidth * renderScale),
+          Math.round(slicePt * renderScale)
+        );
+
         pdf.addImage(
-          imgData,
+          pageCanvas.toDataURL("image/png"),
           "PNG",
-          marginX,
-          marginY + position,
-          imgWidth,
-          imgHeight,
+          0,
+          0,
+          pageWidth,
+          pageHeight,
           undefined,
           "FAST"
         );
-        heightLeft -= pageContentHeight;
-        position -= pageContentHeight;
+
+        sourceY += slicePx;
         pageIndex += 1;
       }
 

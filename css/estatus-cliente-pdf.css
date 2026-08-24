@@ -22,6 +22,9 @@ html, body {
   padding: 7mm 10mm 5mm;
   margin: 0 0 4mm;
   border-radius: 8px;
+  overflow: hidden;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
@@ -81,21 +84,33 @@ html, body {
 }
 
 .ec-lista--pendientes .ec-lista-head {
+  display: block;
   margin-bottom: 10px;
   padding: 10px 12px;
   border-radius: 8px;
   border-bottom: none;
   background: var(--ec-accent, #37352F);
+  overflow: hidden;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
 
+.ec-lista--pendientes .ec-lista-head::after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
 .ec-lista--pendientes .ec-lista-head h2 {
+  float: left;
   font-size: 12px;
   color: #ffffff;
 }
 
 .ec-lista--pendientes .ec-lista-head span {
+  float: right;
   color: rgba(255, 255, 255, 0.82);
 }
 
@@ -124,6 +139,7 @@ html, body {
   border-radius: 10px;
   padding: 10px 12px;
   background: #fff;
+  overflow: hidden;
 }
 
 .ec-card-head {
@@ -349,11 +365,12 @@ html, body {
 .ec-estado {
   display: inline-block;
   padding: 2px 6px;
-  border-radius: 99px;
+  border-radius: 4px;
   font-size: 9px;
   font-weight: 600;
   line-height: 1.25;
   white-space: nowrap;
+  overflow: hidden;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }

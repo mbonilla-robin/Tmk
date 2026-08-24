@@ -3,6 +3,8 @@
  * Pestaña de impresión (Guardar como PDF) + HTML/CSS/SVG (texto y gráficas reales).
  */
 (function (global) {
+  const CSS_VERSION = "5";
+
   function absUrl(href) {
     try {
       return new URL(href, global.location.href).href;
@@ -29,6 +31,10 @@
       .replace(/"/g, "&quot;");
   }
 
+  function waitMs(ms) {
+    return new Promise((resolve) => global.setTimeout(resolve, ms));
+  }
+
   function waitImages(doc) {
     const imgs = Array.from(doc.querySelectorAll("img"));
     if (!imgs.length) return Promise.resolve();
@@ -39,6 +45,32 @@
         img.addEventListener("error", resolve, { once: true });
       });
     }));
+  }
+
+  async function waitDocumentReady(win) {
+    const doc = win.document;
+    await Promise.race([
+      new Promise((resolve) => {
+        if (doc.readyState === "complete") resolve();
+        else win.addEventListener("load", resolve, { once: true });
+      }),
+      waitMs(2500)
+    ]);
+    if (doc.fonts && doc.fonts.ready) {
+      await Promise.race([doc.fonts.ready, waitMs(900)]);
+    }
+    await Promise.race([waitImages(doc), waitMs(1500)]);
+    await waitMs(350);
+  }
+
+  let cssCache = null;
+  async function cargarCssEstatusCliente() {
+    if (cssCache) return cssCache;
+    const href = absUrl(`css/estatus-cliente-pdf.css?v=${CSS_VERSION}`);
+    const res = await fetch(href, { cache: "no-store" });
+    if (!res.ok) throw new Error("No se pudieron cargar los estilos del PDF");
+    cssCache = await res.text();
+    return cssCache;
   }
 
   function polar(cx, cy, r, angleDeg) {
@@ -157,20 +189,13 @@
     </svg>`;
   }
 
-  function renderLineaCadenas(data) {
-    const cadenas = data.cadenas || [];
-    if (!cadenas.length) return "";
-    return `<ul class="ec-line">
-      ${cadenas.map((c) => `<li><span>${escapeHtml(c.nombre)}</span><strong>${c.total}</strong></li>`).join("")}
-    </ul>`;
-  }
-
   function renderLista(data) {
     const grupos = data.grupos || [];
     if (!grupos.length) {
       return `<p class="ec-empty">No hay entregables pendientes.</p>`;
     }
-    return grupos.map((grupo) => {
+    const bodyRows = grupos.map((grupo) => {
+      const headerRow = `<tr class="ec-grupo-row"><td colspan="3">${escapeHtml(grupo.nombre)} · ${grupo.total}</td></tr>`;
       const filas = (grupo.filas || []).map((fila) => {
         const fechaClase = fila.atrasado ? " is-late" : "";
         return `<tr>
@@ -179,27 +204,22 @@
           <td class="ec-td-fecha${fechaClase}">${escapeHtml(fila.fecha || "TBD")}</td>
         </tr>`;
       }).join("");
-      return `<section class="ec-grupo">
-        <div class="ec-grupo-head">
-          <h3>${escapeHtml(grupo.nombre)}</h3>
-          <span>${grupo.total}</span>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Entregable</th>
-              <th>Estado</th>
-              <th>Fecha</th>
-            </tr>
-          </thead>
-          <tbody>${filas}</tbody>
-        </table>
-      </section>`;
-    }).join("\n");
+      return headerRow + filas;
+    }).join("");
+
+    return `<table class="ec-master-table">
+      <thead>
+        <tr>
+          <th>Entregable</th>
+          <th>Estado</th>
+          <th>Fecha</th>
+        </tr>
+      </thead>
+      <tbody>${bodyRows}</tbody>
+    </table>`;
   }
 
-  function buildDocument(data) {
-    const cssHref = absUrl("css/estatus-cliente-pdf.css?v=3");
+  function buildDocument(data, inlineCss) {
     const colores = data.colores || {};
     const logoSrc = data.logo ? absUrl(data.logo) : "";
     const yaBlanco = String(data.claveMarca || "").toUpperCase() === "DIAGEO";
@@ -207,16 +227,16 @@
       ? `<img class="ec-logo${yaBlanco ? " ec-logo--ya-blanco" : ""}" src="${escapeHtml(logoSrc)}" alt="${escapeHtml(data.marca)}" />`
       : `<p class="ec-logo-text">${escapeHtml(data.marca)}</p>`;
     const total = Number(data.kpis?.total) || 0;
+    const docTitle = `Estatus general · ${data.marca || "Marca"}`;
 
     return `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Estatus general · ${escapeHtml(data.marca)}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="${cssHref}" />
+  <title>${escapeHtml(docTitle)}</title>
   <style>
+${inlineCss || ""}
     :root { --ec-accent: ${escapeHtml(data.accent || "#37352F")}; }
     .ec-estado--diseno { background: ${hexToRgba(colores.diseno, 0.12)}; color: ${escapeHtml(colores.diseno)}; }
     .ec-estado--por-enviar { background: ${hexToRgba(colores["por-enviar"], 0.14)}; color: ${escapeHtml(colores["por-enviar"])}; }
@@ -231,24 +251,24 @@
   </header>
 
   <main class="ec-body">
-    <section class="ec-charts">
-      <article class="ec-card">
-        <div class="ec-card-head">
-          <h2>Dónde está el trabajo</h2>
-          <p>${total} entregable${total === 1 ? "" : "s"}</p>
-        </div>
-        ${svgMedidorEtapas(data)}
-      </article>
-      <article class="ec-card">
-        <div class="ec-card-head">
-          <h2>Cadenas activas</h2>
-          <p>${(data.cadenas || []).length} cadena${(data.cadenas || []).length === 1 ? "" : "s"}</p>
-        </div>
-        ${svgBarrasCadenas(data)}
-      </article>
+    <section class="ec-dashboard">
+      <div class="ec-charts">
+        <article class="ec-card">
+          <div class="ec-card-head">
+            <h2>Dónde está el trabajo</h2>
+            <p>${total} entregable${total === 1 ? "" : "s"}</p>
+          </div>
+          ${svgMedidorEtapas(data)}
+        </article>
+        <article class="ec-card">
+          <div class="ec-card-head">
+            <h2>Cadenas activas</h2>
+            <p>${(data.cadenas || []).length} cadena${(data.cadenas || []).length === 1 ? "" : "s"}</p>
+          </div>
+          ${svgBarrasCadenas(data)}
+        </article>
+      </div>
     </section>
-
-    ${renderLineaCadenas(data)}
 
     <section class="ec-lista">
       <div class="ec-lista-head">
@@ -303,8 +323,9 @@
       if (typeof options.onDone === "function") options.onDone(ok);
     };
     root.querySelector(".estatus-cliente-print-close").addEventListener("click", () => finish(false));
-    root.querySelector(".estatus-cliente-print-go").addEventListener("click", () => {
+    root.querySelector(".estatus-cliente-print-go").addEventListener("click", async () => {
       try {
+        await waitDocumentReady(iframe.contentWindow);
         iframe.contentWindow.focus();
         iframe.contentWindow.print();
       } catch (err) {
@@ -323,25 +344,24 @@
       : global.open("about:blank", "estatus-cliente-pdf");
     if (!win) return false;
 
+    let blobUrl = "";
     try {
-      win.document.open();
-      win.document.write(html);
-      win.document.close();
-    } catch (_) {
-      try { win.close(); } catch (__) { /* ignore */ }
-      return false;
-    }
-
-    await Promise.race([
-      waitImages(win.document),
-      new Promise((resolve) => global.setTimeout(resolve, 450))
-    ]);
-    try {
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      blobUrl = URL.createObjectURL(blob);
+      await new Promise((resolve) => {
+        win.addEventListener("load", resolve, { once: true });
+        win.location.href = blobUrl;
+        global.setTimeout(resolve, 3000);
+      });
+      await waitDocumentReady(win);
       win.focus();
       win.print();
     } catch (_) {
-      /* la pestaña queda abierta para Cmd+P */
+      try { win.close(); } catch (__) { /* ignore */ }
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+      return false;
     }
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
     if (typeof options.onDone === "function") options.onDone(true);
     return true;
   }
@@ -351,10 +371,14 @@
     if (typeof construirDatosEstatusCliente !== "function") {
       throw new Error("No está disponible el export de estatus");
     }
+    const inlineCss = await cargarCssEstatusCliente();
     const data = construirDatosEstatusCliente(tareas, options);
-    const html = buildDocument(data);
+    const html = buildDocument(data, inlineCss);
     const abierta = await abrirPestanaImpresion(html, options);
-    if (!abierta) mostrarOverlayEstatusCliente(html, options);
+    if (!abierta) {
+      mostrarOverlayEstatusCliente(html, options);
+      if (typeof options.onDone === "function") options.onDone(true);
+    }
   }
 
   global.exportarEstatusClientePDF = exportarEstatusClientePDF;

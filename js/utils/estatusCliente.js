@@ -38,11 +38,29 @@ function fechaCortaEstatusCliente(val) {
   return String(val);
 }
 
-function tituloEntregableClienteEstatus(info, cadena) {
+function tituloEntregableClienteEstatus(info, cadena, tarea) {
+  let base = "";
   if (typeof textoEstatusEntregable === "function") {
-    return textoEstatusEntregable(info, cadena) || "Sin título";
+    base = textoEstatusEntregable(info, cadena) || "";
+  } else {
+    base = String(info || "").replace(/\s+/g, " ").trim();
   }
-  return String(info || "").replace(/\s+/g, " ").trim() || "Sin título";
+  if (typeof extraerTituloLimpio === "function" && tarea) {
+    base = extraerTituloLimpio(base, tarea.categoria) || base;
+  }
+  base = String(base || "").replace(/\s+/g, " ").trim();
+  const sinLimpieza = base;
+  base = base
+    .replace(/\s+\d+\s+\d+[,.]\d+\s+\d+[,.]\d+\s*$/g, "")
+    .replace(/\bancho\b[^|]*/gi, "")
+    .replace(/\balto\b[^|]*/gi, "")
+    .replace(/\b\d+[,.]?\d*\s*x\s*\d+[,.]?\d*(\s*(cm|m|mm))?/gi, "")
+    .replace(/\bful color\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  if (!base) base = sinLimpieza;
+  if (base.length > 56) base = `${base.slice(0, 55).trim()}…`;
+  return base || "Sin título";
 }
 
 function claveCadenaClienteEstatus(nombre) {
@@ -58,7 +76,7 @@ function filaDesdeItemClienteEstatus(item, etapa, label) {
     && cuentaComoAtrasada(tarea);
   return {
     cadena,
-    entregable: tituloEntregableClienteEstatus(item?.entregable || tarea?.info, cadena),
+    entregable: tituloEntregableClienteEstatus(item?.entregable || tarea?.info, cadena, tarea),
     etapa,
     estado: label,
     fecha: fechaCortaEstatusCliente(tarea?.deadline || tarea?.fechaInicio || item?.fecha),
@@ -119,7 +137,7 @@ function construirDatosEstatusCliente(tareas, opciones) {
     .sort((a, b) => {
       if (a.nombre === "Sin cadena") return 1;
       if (b.nombre === "Sin cadena") return -1;
-      return String(a.nombre).localeCompare(String(b.nombre), "es");
+      return b.total - a.total || String(a.nombre).localeCompare(String(b.nombre), "es");
     });
 
   const cadenas = grupos

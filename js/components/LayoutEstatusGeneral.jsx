@@ -22,7 +22,16 @@ function polarPieEstatus(cx, cy, r, angleDeg) {
 }
 
 function pathDonutSliceEstatus(cx, cy, rOuter, rInner, startDeg, endDeg) {
-  const sweep = Math.max(endDeg - startDeg, 0.2);
+  const sweepRaw = endDeg - startDeg;
+  // Un arco SVG de 360° no se ve (mismo punto inicio/fin); partir en dos.
+  if (sweepRaw >= 359.5) {
+    const mid = startDeg + 180;
+    return [
+      pathDonutSliceEstatus(cx, cy, rOuter, rInner, startDeg, mid),
+      pathDonutSliceEstatus(cx, cy, rOuter, rInner, mid, startDeg + 359.99)
+    ].join(" ");
+  }
+  const sweep = Math.max(sweepRaw, 0.2);
   const large = sweep > 180 ? 1 : 0;
   const [x1, y1] = polarPieEstatus(cx, cy, rOuter, startDeg);
   const [x2, y2] = polarPieEstatus(cx, cy, rOuter, endDeg);
@@ -942,12 +951,135 @@ function LayoutEstatusGeneral({
     );
   };
 
-  const maxCarga = Math.max(1, ...(carga.items || []).map((item) => item.activas || 0));
-  const hintCarga = !carga.lideres || !carga.lideres.length
-    ? "Nadie tiene carga ahora. Cuenta Pendiente, En progreso y En revisión, según diseño → contenido → ejecutivo."
-    : carga.lideres.length === 1
-      ? `Más carga ahora: ${carga.lideres[0].nombre} (${carga.lideres[0].activas}).`
-      : `Misma carga: ${carga.lideres.map((l) => l.nombre).join(" y ")}.`;
+  const abrirSnapshotCadena = (grupo, color) => {
+    const items = (grupo.tareas || []).map((t) => {
+      const parsed = typeof parseDetalles === "function"
+        ? parseDetalles(t.detalles || "")
+        : { notas: t.detalles || "" };
+      const partes = typeof notasYComentarioEstatus === "function"
+        ? notasYComentarioEstatus(parsed.notas)
+        : { notas: parsed.notas || "", comentario: "" };
+      return typeof itemOperativoEstatus === "function"
+        ? itemOperativoEstatus(t, partes)
+        : {
+          tarea: t,
+          cadena: grupo.nombre,
+          entregable: t.info || "Sin título",
+          comentario: "",
+          fecha: t.deadline || ""
+        };
+    });
+    setPanelSnapshot({
+      titulo: `Trabajos altos · ${grupo.nombre}`,
+      items,
+      modo: "diseno",
+      accent: color
+    });
+  };
+
+  const renderPanorama = () => (
+    <>
+      <div className="estatus-section-label">Panorama</div>
+      <div className="estatus-panorama-grid">
+        <section className="estatus-panorama-card estatus-panorama-card--diseno">
+          <p className="estatus-carga-duo-title">Diseño</p>
+          <p className="estatus-section-hint">Quién lleva más peso ahora</p>
+          {cargaDiseno.length === 0 ? (
+            <p className="estatus-lista-empty">Sin carga de diseño</p>
+          ) : (
+            <div className="estatus-carga-pie-wrap">
+              <button
+                type="button"
+                className="estatus-carga-pie"
+                aria-label="Distribución de carga de diseño"
+                onClick={() => {
+                  const top = cargaDiseno[0];
+                  if (top) setDisenadorAbierto(top);
+                }}
+              >
+                <PieCargaEstatus items={cargaDiseno} valueKey="activas" onSelect={setDisenadorAbierto} />
+              </button>
+              <ul className="estatus-carga-pie-legend">
+                {cargaDiseno.map((item) => (
+                  <li key={item.handle}>
+                    <button type="button" className="estatus-carga-pie-legend-btn" onClick={() => setDisenadorAbierto(item)}>
+                      <span className="estatus-carga-pie-swatch" style={{ background: item.color }} aria-hidden="true" />
+                      <span className="estatus-carga-pie-name">{item.nombre}</span>
+                      <strong>{item.activas}</strong>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+
+        <section className="estatus-panorama-card estatus-panorama-card--contenido">
+          <p className="estatus-carga-duo-title">Contenido</p>
+          <p className="estatus-section-hint">Urgencia hoy (prioridad + fechas)</p>
+          {cargaContenido.length === 0 ? (
+            <p className="estatus-lista-empty">Sin carga de contenido</p>
+          ) : (
+            <div className="estatus-carga-pie-wrap">
+              <button
+                type="button"
+                className="estatus-carga-pie"
+                aria-label="Distribución de carga de contenido"
+                onClick={() => {
+                  const top = cargaContenido[0];
+                  if (top) setDisenadorAbierto(top);
+                }}
+              >
+                <PieCargaEstatus items={cargaContenido} valueKey="peso" onSelect={setDisenadorAbierto} />
+              </button>
+              <ul className="estatus-carga-pie-legend">
+                {cargaContenido.map((item) => (
+                  <li key={item.handle}>
+                    <button type="button" className="estatus-carga-pie-legend-btn" onClick={() => setDisenadorAbierto(item)}>
+                      <span className="estatus-carga-pie-swatch" style={{ background: item.color }} aria-hidden="true" />
+                      <span className="estatus-carga-pie-name">{item.nombre}</span>
+                      <strong>{item.activas}</strong>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+
+        <section className="estatus-panorama-card estatus-panorama-card--carga">
+          <p className="estatus-carga-duo-title">Trabajos altos</p>
+          <p className="estatus-section-hint">Cadenas con más tareas pendientes / en progreso</p>
+          {topCadenasActivas.length === 0 ? (
+            <p className="estatus-lista-empty">Sin cadenas con carga activa</p>
+          ) : (
+            <div className="estatus-vbars" role="img" aria-label="Cadenas con más trabajos">
+              {topCadenasActivas.map((grupo, idx) => {
+                const pct = Math.round(((grupo.count || 0) / maxCadenasCount) * 100);
+                const color = idx === 0
+                  ? "var(--estatus-accent-3, #EA580C)"
+                  : (idx === 1 ? "var(--estatus-accent-2, #7C3AED)" : "var(--estatus-accent, #0D9488)");
+                return (
+                  <button
+                    key={grupo.key}
+                    type="button"
+                    className="estatus-vbar-col"
+                    onClick={() => abrirSnapshotCadena(grupo, color)}
+                  >
+                    <strong className="estatus-vbar-count">{grupo.count}</strong>
+                    <div className="estatus-vbar-track">
+                      <div className="estatus-vbar-fill" style={{ height: `${pct}%`, background: color }} />
+                    </div>
+                    <span className="estatus-vbar-label">{grupo.nombre}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </div>
+    </>
+  );
 
   const confirmarEnvio = (tarea, tipo) => {
     if (onEnviarCliente) onEnviarCliente(tarea, tipo);
@@ -1537,129 +1669,7 @@ function LayoutEstatusGeneral({
 
       {modoGlobal ? (
         <>
-          <div className="estatus-section-label">Panorama</div>
-          <div className="estatus-panorama-grid">
-            <section className="estatus-panorama-card estatus-panorama-card--diseno">
-              <p className="estatus-carga-duo-title">Diseño</p>
-              <p className="estatus-section-hint">Quién lleva más peso ahora</p>
-              {cargaDiseno.length === 0 ? (
-                <p className="estatus-lista-empty">Sin carga de diseño</p>
-              ) : (
-                <div className="estatus-carga-pie-wrap">
-                  <button
-                    type="button"
-                    className="estatus-carga-pie"
-                    aria-label="Distribución de carga de diseño"
-                    onClick={() => {
-                      const top = cargaDiseno[0];
-                      if (top) setDisenadorAbierto(top);
-                    }}
-                  >
-                    <PieCargaEstatus items={cargaDiseno} valueKey="activas" onSelect={setDisenadorAbierto} />
-                  </button>
-                  <ul className="estatus-carga-pie-legend">
-                    {cargaDiseno.map((item) => (
-                      <li key={item.handle}>
-                        <button type="button" className="estatus-carga-pie-legend-btn" onClick={() => setDisenadorAbierto(item)}>
-                          <span className="estatus-carga-pie-swatch" style={{ background: item.color }} aria-hidden="true" />
-                          <span className="estatus-carga-pie-name">{item.nombre}</span>
-                          <strong>{item.activas}</strong>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </section>
-
-            <section className="estatus-panorama-card estatus-panorama-card--contenido">
-              <p className="estatus-carga-duo-title">Contenido</p>
-              <p className="estatus-section-hint">Urgencia hoy (prioridad + fechas)</p>
-              {cargaContenido.length === 0 ? (
-                <p className="estatus-lista-empty">Sin carga de contenido</p>
-              ) : (
-                <div className="estatus-carga-pie-wrap">
-                  <button
-                    type="button"
-                    className="estatus-carga-pie"
-                    aria-label="Distribución de carga de contenido"
-                    onClick={() => {
-                      const top = cargaContenido[0];
-                      if (top) setDisenadorAbierto(top);
-                    }}
-                  >
-                    <PieCargaEstatus items={cargaContenido} valueKey="peso" onSelect={setDisenadorAbierto} />
-                  </button>
-                  <ul className="estatus-carga-pie-legend">
-                    {cargaContenido.map((item) => (
-                      <li key={item.handle}>
-                        <button type="button" className="estatus-carga-pie-legend-btn" onClick={() => setDisenadorAbierto(item)}>
-                          <span className="estatus-carga-pie-swatch" style={{ background: item.color }} aria-hidden="true" />
-                          <span className="estatus-carga-pie-name">{item.nombre}</span>
-                          <strong>{item.activas}</strong>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </section>
-
-            <section className="estatus-panorama-card estatus-panorama-card--carga">
-              <p className="estatus-carga-duo-title">Trabajos altos</p>
-              <p className="estatus-section-hint">Cadenas con más tareas pendientes / en progreso</p>
-              {topCadenasActivas.length === 0 ? (
-                <p className="estatus-lista-empty">Sin cadenas con carga activa</p>
-              ) : (
-                <div className="estatus-vbars" role="img" aria-label="Cadenas con más trabajos">
-                  {topCadenasActivas.map((grupo, idx) => {
-                    const pct = Math.round(((grupo.count || 0) / maxCadenasCount) * 100);
-                    const color = idx === 0
-                      ? "var(--estatus-accent-3, #EA580C)"
-                      : (idx === 1 ? "var(--estatus-accent-2, #7C3AED)" : "var(--estatus-accent, #0D9488)");
-                    return (
-                      <button
-                        key={grupo.key}
-                        type="button"
-                        className="estatus-vbar-col"
-                        onClick={() => {
-                          const items = (grupo.tareas || []).map((t) => {
-                            const parsed = typeof parseDetalles === "function"
-                              ? parseDetalles(t.detalles || "")
-                              : { notas: t.detalles || "" };
-                            const partes = typeof notasYComentarioEstatus === "function"
-                              ? notasYComentarioEstatus(parsed.notas)
-                              : { notas: parsed.notas || "", comentario: "" };
-                            return typeof itemOperativoEstatus === "function"
-                              ? itemOperativoEstatus(t, partes)
-                              : {
-                                tarea: t,
-                                cadena: grupo.nombre,
-                                entregable: t.info || "Sin título",
-                                comentario: "",
-                                fecha: t.deadline || ""
-                              };
-                          });
-                          setPanelSnapshot({
-                            titulo: `Trabajos altos · ${grupo.nombre}`,
-                            items,
-                            modo: "diseno",
-                            accent: color
-                          });
-                        }}
-                      >
-                        <strong className="estatus-vbar-count">{grupo.count}</strong>
-                        <div className="estatus-vbar-track">
-                          <div className="estatus-vbar-fill" style={{ height: `${pct}%`, background: color }} />
-                        </div>
-                        <span className="estatus-vbar-label">{grupo.nombre}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-          </div>
+          {renderPanorama()}
 
           <TimelineAtajarEstatus
             itemsFaltaHacer={listas.faltaHacer}
@@ -1698,103 +1708,70 @@ function LayoutEstatusGeneral({
         </>
       ) : (
         <>
-      <section className="estatus-semana">
-        <div className="estatus-section-label">Resumen de la semana</div>
-        <ul className="estatus-snapshot">
-          {[
-            { key: "activos", label: "Activos", value: presentacion.activos },
-            { key: "diseno", label: "Por hacer", value: presentacion.diseno, panel: true },
-            { key: "enviar", label: "Por enviar", value: presentacion.porEnviar, panel: true },
-            { key: "cliente", label: "Con el cliente", value: presentacion.cliente, panel: true },
-            { key: "listo", label: "Listo", value: presentacion.listo, panel: true },
-            { key: "atrasados", label: "Atrasados", value: presentacion.atrasados, late: true, panel: true }
-          ].map((tile) => {
-            const clase = `estatus-snapshot-tile ${tile.late && tile.value > 0 ? "is-late" : ""} ${tile.panel ? "is-btn" : ""}`;
-            const inner = (
-              <>
-                <strong>{tile.value}</strong>
-                <span>{tile.label}</span>
-              </>
-            );
-            return (
-              <li key={tile.key}>
-                {tile.panel ? (
-                  <button type="button" className={clase} onClick={() => abrirPanelSnapshot(tile.key)}>
-                    {inner}
-                  </button>
-                ) : (
-                  <div className={clase}>{inner}</div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-        <p className="estatus-section-hint">
-          {presentacion.vencenSemana} vencen esta semana
-          {" · "}
-          {presentacion.esperaLarga} llevan 7+ días con el cliente
-        </p>
-        <div className="estatus-flujo">
-          <div className="estatus-flujo-track">
-            {[
-              { key: "diseno", label: "Diseño", value: presentacion.diseno, color: marcaEstilo.accent || "#0D9488" },
-              { key: "enviar", label: "Por enviar", value: presentacion.porEnviar, color: "#7C3AED" },
-              { key: "cliente", label: "Cliente", value: presentacion.cliente, color: "#EA580C" },
-              { key: "listo", label: "Listo", value: presentacion.listo, color: "#D4D4D8" }
-            ].filter((seg) => seg.value > 0).map((seg) => (
-              <div
-                key={seg.key}
-                className="estatus-flujo-cell"
-                style={{ flexGrow: seg.value }}
-              >
-                <div className="estatus-flujo-seg" style={{ background: seg.color }} />
-                <span className="estatus-flujo-tip">({seg.value}) {seg.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+          {renderPanorama()}
 
-      <section className="estatus-carga-panel estatus-carga-panel--bars">
-        <div className="estatus-section-label">Carga del equipo</div>
-        <p className="estatus-section-hint">{hintCarga}</p>
-        {(carga.items || []).length === 0 ? (
-          <p className="estatus-lista-empty">Sin personas con carga activa</p>
-        ) : (
-          <ul className="estatus-carga-bars">
-            {(carga.items || []).map((item) => {
-              const pct = Math.round(((item.activas || 0) / maxCarga) * 100);
-              return (
-                <li key={item.handle}>
-                  <button
-                    type="button"
-                    className="estatus-carga-bar-row"
-                    onClick={() => setDisenadorAbierto(item)}
+          <section className="estatus-semana">
+            <div className="estatus-section-label">Resumen de la semana</div>
+            <ul className="estatus-snapshot">
+              {[
+                { key: "activos", label: "Activos", value: presentacion.activos },
+                { key: "diseno", label: "Por hacer", value: presentacion.diseno, panel: true },
+                { key: "enviar", label: "Por enviar", value: presentacion.porEnviar, panel: true },
+                { key: "cliente", label: "Con el cliente", value: presentacion.cliente, panel: true },
+                { key: "listo", label: "Listo", value: presentacion.listo, panel: true },
+                { key: "atrasados", label: "Atrasados", value: presentacion.atrasados, late: true, panel: true }
+              ].map((tile) => {
+                const clase = `estatus-snapshot-tile ${tile.late && tile.value > 0 ? "is-late" : ""} ${tile.panel ? "is-btn" : ""}`;
+                const inner = (
+                  <>
+                    <strong>{tile.value}</strong>
+                    <span>{tile.label}</span>
+                  </>
+                );
+                return (
+                  <li key={tile.key}>
+                    {tile.panel ? (
+                      <button type="button" className={clase} onClick={() => abrirPanelSnapshot(tile.key)}>
+                        {inner}
+                      </button>
+                    ) : (
+                      <div className={clase}>{inner}</div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="estatus-section-hint">
+              {presentacion.vencenSemana} vencen esta semana
+              {" · "}
+              {presentacion.esperaLarga} llevan 7+ días con el cliente
+            </p>
+            <div className="estatus-flujo">
+              <div className="estatus-flujo-track">
+                {[
+                  { key: "diseno", label: "Diseño", value: presentacion.diseno, color: marcaEstilo.accent || "#0D9488" },
+                  { key: "enviar", label: "Por enviar", value: presentacion.porEnviar, color: "#7C3AED" },
+                  { key: "cliente", label: "Cliente", value: presentacion.cliente, color: "#EA580C" },
+                  { key: "listo", label: "Listo", value: presentacion.listo, color: "#D4D4D8" }
+                ].filter((seg) => seg.value > 0).map((seg) => (
+                  <div
+                    key={seg.key}
+                    className="estatus-flujo-cell"
+                    style={{ flexGrow: seg.value }}
                   >
-                    <span className="estatus-carga-bar-person">
-                      <span className="estatus-carga-bar-label">{item.nombre}</span>
-                      <span className="estatus-carga-bar-rol">{item.rolLabel || "Diseño"}</span>
-                    </span>
-                    <div className="estatus-carga-bar-track">
-                      <div
-                        className="estatus-carga-bar-fill"
-                        style={{ width: `${pct}%`, background: item.color }}
-                      />
-                    </div>
-                    <span className="estatus-carga-bar-count">{item.activas}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+                    <div className="estatus-flujo-seg" style={{ background: seg.color }} />
+                    <span className="estatus-flujo-tip">({seg.value}) {seg.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
 
-      <div className="estatus-listas-separated">
-        {renderListaFalta(listas.faltaHacer || [])}
-        {renderListaEnviar(listas.porEnviar)}
-        {renderListaEspera(listas.esperaCliente)}
-      </div>
+          <div className="estatus-listas-separated">
+            {renderListaFalta(listas.faltaHacer || [])}
+            {renderListaEnviar(listas.porEnviar)}
+            {renderListaEspera(listas.esperaCliente)}
+          </div>
         </>
       )}
 

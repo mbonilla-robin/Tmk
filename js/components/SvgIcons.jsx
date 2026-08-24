@@ -182,6 +182,31 @@ const SVGIcon = {
     };
     const Icon = map[clave] || SVGIcon.MarcaOtros;
     return <Icon className={className} />;
+  },
+  MarcaLogo: ({ marca, variant = "default", className = "" }) => {
+    const logoSrc = typeof obtenerLogoMarca === "function" ? obtenerLogoMarca(marca) : null;
+    const logoTipo = typeof obtenerLogoMarcaTipo === "function" ? obtenerLogoMarcaTipo(marca) : "transparente";
+    const etiqueta = typeof formatearMarca === "function" ? formatearMarca(marca) : String(marca || "");
+    if (logoSrc) {
+      const tipoClass = logoTipo === "blanco-sobre-negro"
+        ? " marca-logo--blanco-negro"
+        : logoTipo === "oscuro"
+          ? " marca-logo--oscuro"
+          : "";
+      return (
+        <img
+          src={logoSrc}
+          alt={etiqueta}
+          className={`marca-logo marca-logo--${variant}${tipoClass}${className ? ` ${className}` : ""}`}
+          draggable={false}
+        />
+      );
+    }
+    return (
+      <span className={`marca-logo-fallback marca-logo-fallback--${variant}${className ? ` ${className}` : ""}`}>
+        {etiqueta}
+      </span>
+    );
   }
 };
 

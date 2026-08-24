@@ -1277,36 +1277,36 @@
       color: #71717a;
     }
 
-    /* Colores de marca — CSS fijo (Tailwind CDN no escanea constants) */
-    .marca-bg-la-sante { background-color: #EDF6EC; }
-    .marca-text-la-sante { color: #1B4332; }
-    .marca-border-la-sante { border-color: #B7DFC5; }
-    .marca-surface-la-sante { background-color: #EDF6EC; color: #1B4332; border-color: #B7DFC5; }
+    /* Colores de marca — planos y fuertes */
+    .marca-bg-la-sante { background-color: #2F7A4E; }
+    .marca-text-la-sante { color: #2F7A4E; }
+    .marca-border-la-sante { border-color: #256B40; }
+    .marca-surface-la-sante { background-color: #2F7A4E; color: #FFFFFF; border-color: #256B40; }
 
-    .marca-bg-diageo { background-color: #F4F4F5; }
+    .marca-bg-diageo { background-color: #52525B; }
     .marca-text-diageo { color: #52525B; }
-    .marca-border-diageo { border-color: #E4E4E7; }
-    .marca-surface-diageo { background-color: #F4F4F5; color: #52525B; border-color: #E4E4E7; }
+    .marca-border-diageo { border-color: #3F3F46; }
+    .marca-surface-diageo { background-color: #52525B; color: #FFFFFF; border-color: #3F3F46; }
 
-    .marca-bg-gama { background-color: #FEE2E2; }
-    .marca-text-gama { color: #7F1D1D; }
-    .marca-border-gama { border-color: #FECACA; }
-    .marca-surface-gama { background-color: #FEE2E2; color: #7F1D1D; border-color: #FECACA; }
+    .marca-bg-gama { background-color: #DC2626; }
+    .marca-text-gama { color: #DC2626; }
+    .marca-border-gama { border-color: #B91C1C; }
+    .marca-surface-gama { background-color: #DC2626; color: #FFFFFF; border-color: #B91C1C; }
 
-    .marca-bg-robin { background-color: #F4F4F5; }
-    .marca-text-robin { color: #37352F; }
-    .marca-border-robin { border-color: #D4D4D8; }
-    .marca-surface-robin { background-color: #F4F4F5; color: #37352F; border-color: #D4D4D8; }
+    .marca-bg-robin { background-color: #18181B; }
+    .marca-text-robin { color: #18181B; }
+    .marca-border-robin { border-color: #27272A; }
+    .marca-surface-robin { background-color: #18181B; color: #FFFFFF; border-color: #27272A; }
 
-    .marca-bg-trade { background-color: #FFEDD5; }
-    .marca-text-trade { color: #9A3412; }
-    .marca-border-trade { border-color: #FDBA74; }
-    .marca-surface-trade { background-color: #FFEDD5; color: #9A3412; border-color: #FDBA74; }
+    .marca-bg-trade { background-color: #EA580C; }
+    .marca-text-trade { color: #EA580C; }
+    .marca-border-trade { border-color: #C2410C; }
+    .marca-surface-trade { background-color: #EA580C; color: #FFFFFF; border-color: #C2410C; }
 
-    .marca-bg-otros { background-color: #F4F4F5; }
-    .marca-text-otros { color: #52525B; }
-    .marca-border-otros { border-color: #E4E4E7; }
-    .marca-surface-otros { background-color: #F4F4F5; color: #52525B; border-color: #E4E4E7; }
+    .marca-bg-otros { background-color: #71717A; }
+    .marca-text-otros { color: #71717A; }
+    .marca-border-otros { border-color: #52525B; }
+    .marca-surface-otros { background-color: #71717A; color: #FFFFFF; border-color: #52525B; }
 
     .robin-sidebar__marca-dot {
       width: 0.4375rem;
@@ -4441,6 +4441,28 @@
         min-height: 4.65rem;
       }
 
+      .clientes-marca-tile--logo {
+        align-items: center;
+        justify-content: center;
+        padding-inline: 0.75rem;
+        border: none;
+        box-shadow: none;
+      }
+
+      .clientes-marca-tile--script {
+        padding-inline: 0.5rem;
+      }
+
+      .clientes-marca-tile--logo .marca-logo--tile:not(.marca-logo--oscuro) {
+        filter: none;
+        opacity: 1;
+      }
+
+      .clientes-marca-tile--logo .marca-logo--oscuro.marca-logo--tile {
+        filter: brightness(0) invert(1);
+        opacity: 1;
+      }
+
       .clientes-marca-tile__icon {
         display: inline-flex;
         align-items: center;
@@ -4518,18 +4540,7 @@
     }
 
     .clientes-marca-btn::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      border-radius: inherit;
-      background: linear-gradient(
-        168deg,
-        rgba(255, 255, 255, 0.16) 0%,
-        rgba(255, 255, 255, 0.04) 28%,
-        transparent 52%
-      );
-      z-index: 0;
+      content: none;
     }
 
     .clientes-marca-btn:active {
@@ -4548,6 +4559,39 @@
       line-height: 1.25;
       color: #fff;
       text-shadow: 0 1px 3px rgba(0, 0, 0, 0.14);
+    }
+
+    .clientes-marca-btn__logo {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .clientes-marca-script {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      min-width: 0;
+      font-family: "Bakora Handwriting", cursive;
+      font-weight: 400;
+      font-style: normal;
+      text-transform: lowercase;
+      color: #FFFFFF;
+      line-height: 1;
+      letter-spacing: -0.055em;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+    }
+
+    .clientes-marca-script--button {
+      font-size: 2.35rem;
+    }
+
+    .clientes-marca-script--tile {
+      font-size: 2.1rem;
+      margin: 0 auto;
+      flex: initial;
+      text-align: center;
     }
 
     .clientes-marca-btn__arrow {
@@ -5111,6 +5155,88 @@
       margin: 0;
       padding: 0.125rem 5.5rem;
       width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .marca-logo {
+      display: block;
+      object-fit: contain;
+      object-position: center;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    .marca-logo--hero {
+      height: 2.85rem;
+      max-width: min(18rem, 76vw);
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+    }
+
+    .marca-logo--button {
+      height: 2.15rem;
+      max-width: 12rem;
+      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.16));
+    }
+
+    .marca-logo--tile {
+      height: 1.9rem;
+      max-width: 10rem;
+      margin: 0 auto;
+      opacity: 0.9;
+    }
+
+    .marca-logo--tile:not(.marca-logo--oscuro) {
+      filter: brightness(0);
+    }
+
+    /* Logo negro transparente (Robin): blanco en fondos oscuros */
+    .marca-logo--oscuro.marca-logo--hero,
+    .marca-logo--oscuro.marca-logo--button {
+      filter: brightness(0) invert(1);
+    }
+
+    .marca-logo--oscuro.marca-logo--tile {
+      filter: none;
+      opacity: 0.88;
+    }
+
+    /* Logo blanco sobre negro (Diageo): el negro desaparece con blend, no quitar fondo */
+    .marca-logo--blanco-negro.marca-logo--hero,
+    .marca-logo--blanco-negro.marca-logo--button {
+      mix-blend-mode: lighten;
+      filter: none;
+    }
+
+    .marca-logo--blanco-negro.marca-logo--tile {
+      mix-blend-mode: darken;
+      filter: none;
+      opacity: 1;
+    }
+
+    .marca-logo-fallback {
+      display: inline-block;
+    }
+
+    .marca-logo-fallback--hero {
+      font-size: 1.625rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .marca-logo-fallback--button {
+      font-size: 1.08rem;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      line-height: 1.25;
+      color: #fff;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.14);
+    }
+
+    .marca-logo-fallback--tile {
+      font-size: 0.82rem;
+      font-weight: 600;
     }
 
     .marca-home-info-btn {
@@ -5341,9 +5467,6 @@
     }
 
     .estatus-general-page {
-      --estatus-accent: #0D9488;
-      --estatus-accent-2: #7C3AED;
-      --estatus-accent-3: #EA580C;
       padding: 1rem 1rem 2rem;
       max-width: 72rem;
       margin: 0 auto;
@@ -5351,6 +5474,12 @@
       display: flex;
       flex-direction: column;
       gap: 1rem;
+    }
+
+    .estatus-general-page--global {
+      --estatus-accent: #0D9488;
+      --estatus-accent-2: #7C3AED;
+      --estatus-accent-3: #EA580C;
     }
 
     .marca-home--subpage > .estatus-general-page {
@@ -8104,6 +8233,11 @@
         padding: 0.15rem 7.5rem;
       }
 
+      .marca-logo--hero {
+        height: 3.35rem;
+        max-width: min(22rem, 64vw);
+      }
+
       .marca-home-body {
         gap: 1.25rem;
         padding: 1.25rem 1.5rem 2rem;
@@ -8590,43 +8724,44 @@
       .mobile-widget-grid .clientes-marca-tile.mobile-widget-tile {
         backdrop-filter: none;
         -webkit-backdrop-filter: none;
-        box-shadow: 0 1px 2px rgba(55, 53, 47, 0.05);
+        box-shadow: none;
+        border: none;
       }
 
       .mobile-widget-grid .clientes-marca-tile.mobile-widget-tile.marca-surface-la-sante {
-        background: #EDF6EC;
-        color: #1B4332;
-        border-color: #B7DFC5;
+        background: #2F7A4E;
+        color: #FFFFFF;
+        border-color: #256B40;
       }
 
       .mobile-widget-grid .clientes-marca-tile.mobile-widget-tile.marca-surface-diageo {
-        background: #F4F4F5;
-        color: #52525B;
-        border-color: #E4E4E7;
+        background: #52525B;
+        color: #FFFFFF;
+        border-color: #3F3F46;
       }
 
       .mobile-widget-grid .clientes-marca-tile.mobile-widget-tile.marca-surface-gama {
-        background: #FEE2E2;
-        color: #7F1D1D;
-        border-color: #FECACA;
+        background: #DC2626;
+        color: #FFFFFF;
+        border-color: #B91C1C;
       }
 
       .mobile-widget-grid .clientes-marca-tile.mobile-widget-tile.marca-surface-robin {
-        background: #F4F4F5;
-        color: #37352F;
-        border-color: #D4D4D8;
+        background: #18181B;
+        color: #FFFFFF;
+        border-color: #27272A;
       }
 
       .mobile-widget-grid .clientes-marca-tile.mobile-widget-tile.marca-surface-trade {
-        background: #FFEDD5;
-        color: #9A3412;
-        border-color: #FDBA74;
+        background: #EA580C;
+        color: #FFFFFF;
+        border-color: #C2410C;
       }
 
       .mobile-widget-grid .clientes-marca-tile.mobile-widget-tile.marca-surface-otros {
-        background: #F4F4F5;
-        color: #52525B;
-        border-color: #E4E4E7;
+        background: #71717A;
+        color: #FFFFFF;
+        border-color: #52525B;
       }
 
       .mobile-widget-tile-ver-mas {
@@ -9551,15 +9686,6 @@
       color: #a1a1aa;
     }
 
-    html.robin-app[data-theme="midnight"] .clientes-marca-btn::before {
-      background: linear-gradient(
-        168deg,
-        rgba(255, 255, 255, 0.1) 0%,
-        rgba(255, 255, 255, 0.02) 28%,
-        transparent 52%
-      );
-    }
-
     html.robin-app[data-theme="midnight"] .clientes-marca-btn__delete {
       background: rgba(0, 0, 0, 0.25);
       color: #71717a;
@@ -9725,32 +9851,36 @@
       border-color: var(--robin-border) !important;
     }
 
-    /* Marcas — superficies en oscuro */
+    /* Marcas — superficies planas en oscuro */
     html.robin-app[data-theme="midnight"] .marca-surface-la-sante {
-      background-color: rgba(47, 122, 78, 0.22) !important;
-      color: #86efac !important;
-      border-color: rgba(47, 122, 78, 0.45) !important;
+      background-color: #2F7A4E !important;
+      color: #FFFFFF !important;
+      border-color: #256B40 !important;
     }
-    html.robin-app[data-theme="midnight"] .marca-surface-diageo,
+    html.robin-app[data-theme="midnight"] .marca-surface-diageo {
+      background-color: #52525B !important;
+      color: #FFFFFF !important;
+      border-color: #3F3F46 !important;
+    }
     html.robin-app[data-theme="midnight"] .marca-surface-otros {
-      background-color: #3f3f46 !important;
-      color: #e4e4e7 !important;
-      border-color: #52525b !important;
+      background-color: #71717A !important;
+      color: #FFFFFF !important;
+      border-color: #52525B !important;
     }
     html.robin-app[data-theme="midnight"] .marca-surface-gama {
-      background-color: rgba(220, 38, 38, 0.18) !important;
-      color: #fca5a5 !important;
-      border-color: rgba(220, 38, 38, 0.4) !important;
+      background-color: #DC2626 !important;
+      color: #FFFFFF !important;
+      border-color: #B91C1C !important;
     }
     html.robin-app[data-theme="midnight"] .marca-surface-robin {
-      background-color: #3f3f46 !important;
-      color: #e4e4e7 !important;
-      border-color: #52525b !important;
+      background-color: #18181B !important;
+      color: #FFFFFF !important;
+      border-color: #27272A !important;
     }
     html.robin-app[data-theme="midnight"] .marca-surface-trade {
-      background-color: rgba(234, 88, 12, 0.18) !important;
-      color: #fdba74 !important;
-      border-color: rgba(234, 88, 12, 0.4) !important;
+      background-color: #EA580C !important;
+      color: #FFFFFF !important;
+      border-color: #C2410C !important;
     }
 
     /* Estados y categorías — pastels → tonos oscuros legibles */

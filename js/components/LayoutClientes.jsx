@@ -234,6 +234,11 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
             <div className="mobile-widget-grid md:hidden">
               {marcas.map((m) => {
                 const cMarca = getMarcaStyle(m);
+                const etiquetaScript = typeof obtenerEtiquetaMarcaCliente === "function"
+                  ? obtenerEtiquetaMarcaCliente(m)
+                  : null;
+                const tileLogo = typeof marcaTieneLogo === "function" && marcaTieneLogo(m);
+                const tileScript = Boolean(etiquetaScript);
                 return (
                   <div key={m} className="clientes-marca-tile-wrap">
                     {canEdit && onDeleteBrand && (
@@ -253,12 +258,20 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
                     <button
                       type="button"
                       onClick={() => abrirMarcaCliente(m)}
-                      className={`mobile-widget-tile clientes-marca-tile border ${cMarca.surface}`}
+                      className={`mobile-widget-tile clientes-marca-tile border ${cMarca.surface}${tileLogo || tileScript ? " clientes-marca-tile--logo" : ""}${tileScript ? " clientes-marca-tile--script" : ""}`}
                     >
-                      <span className="clientes-marca-tile__icon" aria-hidden="true">
-                        <SVGIcon.MarcaIcon marca={m} className="w-5 h-5" />
-                      </span>
-                      <span className="mobile-widget-tile-label">{formatearMarca(m)}</span>
+                      {tileLogo ? (
+                        <SVGIcon.MarcaLogo marca={m} variant="tile" />
+                      ) : tileScript ? (
+                        <span className="clientes-marca-script clientes-marca-script--tile">{etiquetaScript}</span>
+                      ) : (
+                        <>
+                          <span className="clientes-marca-tile__icon" aria-hidden="true">
+                            <SVGIcon.MarcaIcon marca={m} className="w-5 h-5" />
+                          </span>
+                          <span className="mobile-widget-tile-label">{formatearMarca(m)}</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 );
@@ -268,6 +281,9 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
             <div className="clientes-marca-grid hidden md:grid">
               {marcas.map((m) => {
                 const gradientes = obtenerGradientesMarcaTarjeta(m);
+                const etiquetaScript = typeof obtenerEtiquetaMarcaCliente === "function"
+                  ? obtenerEtiquetaMarcaCliente(m)
+                  : null;
                 return (
                   <div key={m} className="clientes-marca-btn-wrap">
                     {canEdit && onDeleteBrand && (
@@ -293,7 +309,13 @@ function LayoutClientes({ marcas, marcasMetadata, canEdit, onSaveBrandMetadata, 
                         boxShadow: `0 10px 32px ${gradientes.shadow}`
                       }}
                     >
-                      <span className="clientes-marca-btn__name">{formatearMarca(m)}</span>
+                      {typeof marcaTieneLogo === "function" && marcaTieneLogo(m) ? (
+                        <SVGIcon.MarcaLogo marca={m} variant="button" className="clientes-marca-btn__logo" />
+                      ) : etiquetaScript ? (
+                        <span className="clientes-marca-script clientes-marca-script--button">{etiquetaScript}</span>
+                      ) : (
+                        <span className="clientes-marca-btn__name">{formatearMarca(m)}</span>
+                      )}
                       <i className="fa-solid fa-chevron-right clientes-marca-btn__arrow" aria-hidden="true" />
                     </button>
                   </div>

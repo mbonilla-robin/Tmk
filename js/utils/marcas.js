@@ -15,6 +15,13 @@ const MARCAS_SHEET_TAB = {
   "TMK": "TMK"
 };
 
+const MARCAS_LOGOS = {
+  "LA SANTE": { src: "assets/marcas/la-sante.png?v=4", tipo: "transparente" },
+  "DIAGEO": { src: "assets/marcas/diageo.png?v=1", tipo: "transparente" },
+  "GAMA": { src: "assets/marcas/gama.png?v=2", tipo: "transparente" },
+  "ROBIN": { src: "assets/marcas/robin.png?v=1", tipo: "oscuro" }
+};
+
 function normalizarMarcaKey(marca) {
   if (!marca) return "";
   return String(marca)
@@ -57,6 +64,35 @@ function marcaParaSheet(marca) {
   const clave = resolverClaveMarca(marca);
   if (clave && MARCAS_SHEET_TAB[clave]) return MARCAS_SHEET_TAB[clave];
   return String(marca || "").trim();
+}
+
+function obtenerLogoMarca(marcaName) {
+  const clave = resolverClaveMarca(marcaName);
+  const entry = clave ? MARCAS_LOGOS[clave] : null;
+  if (!entry) return null;
+  return typeof entry === "string" ? entry : entry.src;
+}
+
+function obtenerLogoMarcaTipo(marcaName) {
+  const clave = resolverClaveMarca(marcaName);
+  const entry = clave ? MARCAS_LOGOS[clave] : null;
+  if (!entry) return "transparente";
+  return typeof entry === "string" ? "transparente" : (entry.tipo || "transparente");
+}
+
+function marcaTieneLogo(marcaName) {
+  return Boolean(obtenerLogoMarca(marcaName));
+}
+
+function obtenerEtiquetaMarcaCliente(marcaName) {
+  const clave = resolverClaveMarca(marcaName);
+  if (clave === "TMK") return "trade";
+  if (normalizarMarcaKey(marcaName) === "PROYECTOS") return "proyectos";
+  return null;
+}
+
+function marcaUsaTipografiaScript(marcaName) {
+  return Boolean(obtenerEtiquetaMarcaCliente(marcaName));
 }
 
 function getMarcaStyle(marcaName) {
@@ -275,17 +311,11 @@ function hexToRgba(hex, alpha) {
 
 function obtenerGradientesMarcaTarjeta(marcaName) {
   const accent = getMarcaStyle(marcaName).accent || "#71717A";
-  const deep = ajustarColorHex(accent, -0.38);
-  const shade = ajustarColorHex(accent, -0.14);
-  const mid = accent;
-  const vivid = ajustarColorHex(accent, 0.14);
-  const glow = ajustarColorHex(accent, 0.26);
-
-  const card = `linear-gradient(128deg, ${deep} 0%, ${shade} 32%, ${mid} 62%, ${vivid} 88%, ${glow} 100%)`;
+  const border = ajustarColorHex(accent, -0.12);
 
   return {
-    card,
-    border: hexToRgba(ajustarColorHex(accent, 0.22), 0.45),
-    shadow: hexToRgba(deep, 0.32)
+    card: accent,
+    border: hexToRgba(border, 0.55),
+    shadow: hexToRgba(ajustarColorHex(accent, -0.22), 0.22)
   };
 }

@@ -648,7 +648,9 @@ function LayoutMarcaHome({
       <FiltrosActivosBar chips={chipsFiltrosActivos} onQuitar={quitarChipFiltro} />
       <header className="marca-home-hero" style={{ background: gradienteHeader }}>
         <div className="marca-home-hero-inner">
-          <h1 className="marca-home-hero-title">{nombreMarca}</h1>
+          <h1 className="marca-home-hero-title">
+            <SVGIcon.MarcaLogo marca={marca} variant="hero" />
+          </h1>
         </div>
       </header>
 

@@ -26,10 +26,10 @@ const PRIORIDADES_MAPA = [
 
 const MARCAS_COLORES = {
   "LA SANTE": { id: "la-sante", accent: "#2F7A4E" },
-  "DIAGEO": { id: "diageo", accent: "#71717A" },
   "GAMA": { id: "gama", accent: "#DC2626" },
-  "ROBIN": { id: "robin", accent: "#37352F" },
-  "TMK": { id: "trade", accent: "#EA580C" }
+  "DIAGEO": { id: "diageo", accent: "#52525B" },
+  "TMK": { id: "trade", accent: "#EA580C" },
+  "ROBIN": { id: "robin", accent: "#18181B" }
 };
 
 const MARCAS_COLORES_DEFAULT = { id: "otros", accent: "#71717A" };

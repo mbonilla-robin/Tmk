@@ -1,4 +1,4 @@
-function InputFechaLibre({ value, onChange, className, required, placeholder, onBlurExtra, showHoyButton = false }) {
+function InputFechaLibre({ value, onChange, className, required, placeholder, onBlurExtra, showHoyButton = false, emptyAsTbd = false }) {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [viewMonth, setViewMonth] = useState(() => new Date().getMonth());
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear());
@@ -65,7 +65,16 @@ function InputFechaLibre({ value, onChange, className, required, placeholder, on
 
   const handleBlur = (e) => {
     const raw = e.target.value.trim();
-    if (!raw) {
+    const esTbd = typeof esDeadlineTbd === "function"
+      ? esDeadlineTbd(raw)
+      : (!raw || /^tbd$/i.test(raw));
+    if (emptyAsTbd && esTbd) {
+      const tbd = typeof DEADLINE_TBD !== "undefined" ? DEADLINE_TBD : "TBD";
+      onChange(tbd);
+      if (onBlurExtra) onBlurExtra(tbd);
+      return;
+    }
+    if (!emptyAsTbd && (!raw || (typeof esTokenTbd === "function" && esTokenTbd(raw)))) {
       onChange("");
       if (onBlurExtra) onBlurExtra("");
       return;
@@ -287,10 +296,12 @@ function InputFechaLibre({ value, onChange, className, required, placeholder, on
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onBlur={handleBlur}
-            placeholder={placeholder || "dd/mm/aaaa"}
+            placeholder={placeholder || (emptyAsTbd ? "TBD o dd/mm/aaaa" : "dd/mm/aaaa")}
             required={required}
             className={`flex-1 min-w-0 ${className || ""}`}
-            title="Ej: 16/06/2026, 16 06 2026 o 16-06-2026"
+            title={emptyAsTbd
+              ? "Vacío = TBD. Ej: 16/06/2026, 16 06 2026 o 16-06-2026"
+              : "Ej: 16/06/2026, 16 06 2026 o 16-06-2026"}
           />
         )}
         <button

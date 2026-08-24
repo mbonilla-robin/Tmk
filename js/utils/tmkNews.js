@@ -252,7 +252,7 @@ function agruparNoticiasPorMes(noticias) {
   (noticias || []).forEach((noticia) => {
     const fecha = new Date(noticia?.published_at || noticia?.created_at || "");
     const clave = Number.isNaN(fecha.getTime())
-      ? "Sin fecha"
+      ? "TBD"
       : fecha.toLocaleDateString("es-MX", { month: "long", year: "numeric" });
     const titulo = clave.charAt(0).toUpperCase() + clave.slice(1);
     if (!mapa.has(titulo)) {

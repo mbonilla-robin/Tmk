@@ -113,7 +113,9 @@ function extraerFechaCreacionDesdeDetalles(detalles, deadlineRef) {
 }
 
 function resolverFechaInicioTarea(t) {
-  const explicita = normalizarDeadline(t?.fechaInicio || "");
+  const explicita = typeof normalizarFechaInicio === "function"
+    ? normalizarFechaInicio(t?.fechaInicio || "")
+    : normalizarDeadline(t?.fechaInicio || "");
   const candidata = explicita || extraerFechaCreacionDesdeDetalles(t?.detalles, t?.deadline);
   if (!candidata) return "";
 
@@ -282,7 +284,9 @@ function obtenerTiempoInicioTrabajo(tarea) {
   const diasAnt = obtenerDiasAnticipacionTrabajo(tarea.prioridad);
   const tCalculado = restarDiasHabiles(tDeadline, diasAnt);
 
-  const fechaInicioExplicita = normalizarDeadline(tarea?.fechaInicio || "");
+  const fechaInicioExplicita = typeof normalizarFechaInicio === "function"
+    ? normalizarFechaInicio(tarea?.fechaInicio || "")
+    : normalizarDeadline(tarea?.fechaInicio || "");
   if (fechaInicioExplicita) {
     const tManual = obtenerTiempoFecha(fechaInicioExplicita);
     if (tManual !== Infinity && tManual > tCalculado) return tManual;
@@ -404,7 +408,9 @@ function registrarEdicionFechasLocales(tarea, campos = {}) {
     }
   }
   if (campos.fechaInicio !== undefined) {
-    const norm = normalizarDeadline(campos.fechaInicio);
+    const norm = typeof normalizarFechaInicio === "function"
+      ? normalizarFechaInicio(campos.fechaInicio)
+      : normalizarDeadline(campos.fechaInicio);
     if (norm) {
       pin.fechaInicio = norm;
       touched = true;
@@ -426,15 +432,24 @@ function fechasLocalesConfirmadasConRemota(local, remota) {
     const dlRemota = normalizarDeadline(remota?.deadline);
     if (dlLocal && !dlRemota) return false;
     if (dlLocal && dlRemota && dlLocal !== dlRemota) return false;
-    const fiLocal = normalizarDeadline(local?.fechaInicio || "");
-    const fiRemota = normalizarDeadline(remota?.fechaInicio || "");
+    const fiLocal = typeof normalizarFechaInicio === "function"
+      ? normalizarFechaInicio(local?.fechaInicio || "")
+      : normalizarDeadline(local?.fechaInicio || "");
+    const fiRemota = typeof normalizarFechaInicio === "function"
+      ? normalizarFechaInicio(remota?.fechaInicio || "")
+      : normalizarDeadline(remota?.fechaInicio || "");
     if (fiLocal && fiRemota && fiLocal !== fiRemota) return false;
     return true;
   }
 
   const pin = local._localFechas;
   if (pin.deadline && normalizarDeadline(remota?.deadline) !== pin.deadline) return false;
-  if (pin.fechaInicio && normalizarDeadline(remota?.fechaInicio) !== pin.fechaInicio) return false;
+  if (pin.fechaInicio) {
+    const remotaIni = typeof normalizarFechaInicio === "function"
+      ? normalizarFechaInicio(remota?.fechaInicio)
+      : normalizarDeadline(remota?.fechaInicio);
+    if (remotaIni !== pin.fechaInicio) return false;
+  }
   return true;
 }
 
@@ -478,7 +493,11 @@ function normalizarValorCampoTarea(campo, valor) {
   if (campo === "prioridad") return normalizarPrioridad(valor);
   if (campo === "estado") return normalizarEstado(valor);
   if (campo === "deadline") return normalizarDeadline(valor);
-  if (campo === "fechaInicio") return normalizarDeadline(valor);
+  if (campo === "fechaInicio") {
+    return typeof normalizarFechaInicio === "function"
+      ? normalizarFechaInicio(valor)
+      : normalizarDeadline(valor);
+  }
   return valor;
 }
 

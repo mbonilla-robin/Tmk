@@ -79,7 +79,12 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
     try { return deadlineParaEdicion(tarea.deadline); } catch (_) { return tarea.deadline || ""; }
   });
   const [fechaInicio, setFechaInicio] = useState(() => {
-    try { return deadlineParaEdicion(resolverFechaInicioTarea(tarea) || tarea.fechaInicio); } catch (_) { return ""; }
+    try {
+      const ini = resolverFechaInicioTarea(tarea) || tarea.fechaInicio;
+      return typeof fechaInicioParaEdicion === "function"
+        ? fechaInicioParaEdicion(ini)
+        : deadlineParaEdicion(ini);
+    } catch (_) { return ""; }
   });
   const [deadlineError, setDeadlineError] = useState("");
   const [fechaInicioError, setFechaInicioError] = useState("");
@@ -206,7 +211,12 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
     setPrioridad(normalizarPrioridad(tarea.prioridad));
     setEstado(normalizarEstado(tarea.estado));
     setDeadline(deadlineParaEdicion(tarea.deadline));
-    setFechaInicio(deadlineParaEdicion(resolverFechaInicioTarea(tarea) || tarea.fechaInicio));
+    {
+      const ini = resolverFechaInicioTarea(tarea) || tarea.fechaInicio;
+      setFechaInicio(typeof fechaInicioParaEdicion === "function"
+        ? fechaInicioParaEdicion(ini)
+        : deadlineParaEdicion(ini));
+    }
     setDeadlineError("");
     setFechaInicioError("");
     const roles = dividirCampoPersonasPorRol(tarea.personas || "");
@@ -302,16 +312,23 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
     if (!fechaNorm) {
       return {
         ok: false,
-        deadlineError: deadline.trim() ? "Fecha no válida. Ej: 16/06/2026" : "La fecha de entrega es obligatoria"
+        deadlineError: "Fecha no válida. Ej: 16/06/2026 o TBD"
       };
     }
+    const normInicio = (v) => (typeof normalizarFechaInicio === "function"
+      ? normalizarFechaInicio(v)
+      : normalizarDeadline(v));
     const inicioNorm = fechaInicio.trim()
-      ? normalizarDeadline(fechaInicio)
-      : normalizarDeadline(resolverFechaInicioTarea({ ...tarea, detalles: tFinal }) || fechaHoyDisplay());
+      ? normInicio(fechaInicio)
+      : normInicio(resolverFechaInicioTarea({ ...tarea, detalles: tFinal }) || fechaHoyDisplay());
     if (!inicioNorm) {
       return { ok: false, fechaInicioError: "Fecha no válida. Ej: 16/06/2026" };
     }
-    if (inicioNorm && obtenerTiempoFecha(inicioNorm) > obtenerTiempoFecha(fechaNorm)) {
+    if (
+      !(typeof esDeadlineTbd === "function" && esDeadlineTbd(fechaNorm))
+      && inicioNorm
+      && obtenerTiempoFecha(inicioNorm) > obtenerTiempoFecha(fechaNorm)
+    ) {
       return { ok: false, fechaInicioError: "El inicio no puede ser después de la entrega" };
     }
     const personas = combinarRolesPersonas(personasEjecutivos, personasContenido, personasDisenadores);
@@ -576,14 +593,15 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
 
             <PropertyRow icon="fa-regular fa-calendar" label="Entrega">
               {metadatosSoloLectura ? (
-                <span className={readOnlyClass}>{deadline || "—"}</span>
+                <span className={readOnlyClass}>{deadline || "TBD"}</span>
               ) : (
                 <div className="flex flex-col gap-0.5">
                   <InputFechaLibre
                     value={deadline}
                     onChange={(val) => { setDeadline(val); if (deadlineError) setDeadlineError(""); }}
                     className={inputPropClass}
-                    required
+                    placeholder="TBD o dd/mm/aaaa"
+                    emptyAsTbd
                   />
                   {deadlineError && (
                     <span className="text-[11px] text-red-500">{deadlineError}</span>

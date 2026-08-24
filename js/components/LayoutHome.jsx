@@ -142,7 +142,7 @@ function LayoutHome({
                         <span className="truncate">{normalizarEstado(t.estado) || "Sin estado"}</span>
                       </span>
                       <span className="urgent-task-card-dot" aria-hidden="true">·</span>
-                      <span className="truncate shrink-0">{t.deadline ? formatearFecha(t.deadline) : "Sin fecha"}</span>
+                      <span className="truncate shrink-0">{formatearFecha(t.deadline)}</span>
                       {personasCorta && (
                         <>
                           <span className="urgent-task-card-dot" aria-hidden="true">·</span>

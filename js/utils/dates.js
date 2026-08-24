@@ -5,10 +5,28 @@ function validarPartesFecha(dia, mes, anio) {
   return { dia, mes, anio };
 }
 
+const DEADLINE_TBD = "TBD";
+
+function esTokenTbd(val) {
+  const s = String(val || "").trim().toLowerCase();
+  return s === "tbd"
+    || s === "por definir"
+    || s === "por decidir"
+    || s === "sin fecha"
+    || s === "pendiente"
+    || s === "a definir";
+}
+
+/** Vacío o token TBD: fecha de entrega por decidir. */
+function esDeadlineTbd(val) {
+  const s = String(val || "").trim();
+  return !s || esTokenTbd(s);
+}
+
 function parsearFechaLibre(str) {
   if (!str) return null;
   const s = String(str).trim();
-  if (!s) return null;
+  if (!s || esTokenTbd(s)) return null;
 
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
     const [anio, mes, dia] = s.split("-").map(Number);
@@ -46,13 +64,15 @@ function parsearFechaLibre(str) {
 }
 
 function formatearFechaDisplay(val) {
+  if (esDeadlineTbd(val)) return DEADLINE_TBD;
   const parsed = parsearFechaLibre(val);
-  if (!parsed) return val ? String(val).trim() : "";
+  if (!parsed) return val ? String(val).trim() : DEADLINE_TBD;
   const { dia, mes, anio } = parsed;
   return `${String(dia).padStart(2, "0")}/${String(mes).padStart(2, "0")}/${anio}`;
 }
 
 function esFechaValida(val) {
+  if (esDeadlineTbd(val)) return true;
   return !!parsearFechaLibre(val);
 }
 
@@ -61,7 +81,7 @@ function formatearFecha(fechaStr) {
 }
 
 function obtenerTiempoFecha(val) {
-  if (!val) return Infinity;
+  if (!val || esDeadlineTbd(val)) return Infinity;
   if (val instanceof Date) {
     return new Date(val.getFullYear(), val.getMonth(), val.getDate()).getTime();
   }
@@ -74,6 +94,7 @@ function obtenerTiempoFecha(val) {
 }
 
 function sonMismasFechas(d1, d2) {
+  if (esDeadlineTbd(d1) && esDeadlineTbd(d2)) return true;
   if (!d1 || !d2) return false;
   const t1 = obtenerTiempoFecha(d1);
   const t2 = obtenerTiempoFecha(d2);
@@ -81,7 +102,18 @@ function sonMismasFechas(d1, d2) {
 }
 
 function normalizarDeadline(val) {
+  if (esDeadlineTbd(val)) return DEADLINE_TBD;
   const parsed = parsearFechaLibre(val);
+  if (!parsed) return "";
+  const { dia, mes, anio } = parsed;
+  return `${anio}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
+}
+
+/** Inicio de trabajo: vacío/TBD no se guardan como TBD. */
+function normalizarFechaInicio(val) {
+  const s = String(val || "").trim();
+  if (!s || esTokenTbd(s)) return "";
+  const parsed = parsearFechaLibre(s);
   if (!parsed) return "";
   const { dia, mes, anio } = parsed;
   return `${anio}-${String(mes).padStart(2, "0")}-${String(dia).padStart(2, "0")}`;
@@ -92,7 +124,14 @@ function convertirFechaAInput(fechaStr) {
 }
 
 function deadlineParaEdicion(val) {
+  if (esDeadlineTbd(val)) return DEADLINE_TBD;
   return formatearFechaDisplay(val);
+}
+
+function fechaInicioParaEdicion(val) {
+  const s = String(val || "").trim();
+  if (!s || esTokenTbd(s)) return "";
+  return formatearFechaDisplay(s);
 }
 
 function fechaHoyDisplay(fechaRef) {

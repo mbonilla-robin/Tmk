@@ -20,7 +20,8 @@ function FormularioRapidoEntregable({
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!info.trim()) return;
-    if (!normalizarDeadline(deadline)) return;
+    const deadlineNorm = normalizarDeadline(deadline);
+    if (!deadlineNorm) return;
 
     setGuardando(true);
     try {
@@ -32,7 +33,7 @@ function FormularioRapidoEntregable({
         detalles: "",
         link: "",
         estado: "Pendiente",
-        deadline: normalizarDeadline(deadline),
+        deadline: deadlineNorm,
         fechaInicio: fechaHoyDisplay(),
         prioridad: "Media"
       });
@@ -78,7 +79,7 @@ function FormularioRapidoEntregable({
 
           <label className="form-rapido-field">
             <span>Entrega</span>
-            <InputFechaLibre value={deadline} onChange={setDeadline} className="form-rapido-input" required />
+            <InputFechaLibre value={deadline} onChange={setDeadline} className="form-rapido-input" placeholder="TBD o dd/mm/aaaa" emptyAsTbd />
           </label>
 
           <div className="form-rapido-field">

@@ -156,9 +156,9 @@ function construirPayloadSyncTarea(original, actualizada, opciones = {}) {
   const orig = original || actualizada || {};
   const act = actualizada || original || {};
   const campoSync = opciones.campoSync || "todo";
-  const inicio = normalizarDeadline(
-    act.fechaInicio || orig.fechaInicio || resolverFechaInicioTarea(act) || ""
-  );
+  const inicio = typeof normalizarFechaInicio === "function"
+    ? normalizarFechaInicio(act.fechaInicio || orig.fechaInicio || resolverFechaInicioTarea(act) || "")
+    : normalizarDeadline(act.fechaInicio || orig.fechaInicio || resolverFechaInicioTarea(act) || "");
 
   const idApi = String(orig.idTarea || act.idTarea || "").trim()
     || (typeof idTareaEstableEntregable === "function" ? idTareaEstableEntregable(act) : "")
@@ -201,7 +201,9 @@ function construirPayloadSyncTarea(original, actualizada, opciones = {}) {
     payload.prioridad = normalizarPrioridad(opciones.valor);
     payload.valor = payload.prioridad;
   } else if (opciones.campoSync === "fechaInicio" && opciones.valor !== undefined) {
-    payload.fechaInicio = normalizarDeadline(opciones.valor);
+    payload.fechaInicio = typeof normalizarFechaInicio === "function"
+      ? normalizarFechaInicio(opciones.valor)
+      : normalizarDeadline(opciones.valor);
     payload.valor = payload.fechaInicio;
   }
 
@@ -483,12 +485,15 @@ function remotaCorrespondeATareaLocal(remota, local, cola) {
 
 function elegirFechaLocal(remota, local, campo) {
   const pin = local?._localFechas?.[campo];
+  const norm = campo === "fechaInicio" && typeof normalizarFechaInicio === "function"
+    ? normalizarFechaInicio
+    : normalizarDeadline;
   if (pin) {
-    const remotaNorm = normalizarDeadline(remota);
+    const remotaNorm = norm(remota);
     if (!remotaNorm || remotaNorm !== pin) return pin;
   }
-  const l = normalizarDeadline(local?.[campo]);
-  const r = normalizarDeadline(remota);
+  const l = norm(local?.[campo]);
+  const r = norm(remota);
   if (l && r && l !== r) return l;
   return l || r || "";
 }
@@ -504,7 +509,12 @@ function remotaContradiceFechasLocales(remota, local) {
   if (!local?._localFechas || !remota) return false;
   const pin = local._localFechas;
   if (pin.deadline && normalizarDeadline(remota.deadline) !== pin.deadline) return true;
-  if (pin.fechaInicio && normalizarDeadline(remota.fechaInicio) !== pin.fechaInicio) return true;
+  if (pin.fechaInicio) {
+    const remotaIni = typeof normalizarFechaInicio === "function"
+      ? normalizarFechaInicio(remota.fechaInicio)
+      : normalizarDeadline(remota.fechaInicio);
+    if (remotaIni !== pin.fechaInicio) return true;
+  }
   return false;
 }
 

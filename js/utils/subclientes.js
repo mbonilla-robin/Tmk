@@ -113,16 +113,36 @@ function obtenerSubclienteTarea(tarea) {
   return "";
 }
 
+function preferirCasingSubcliente(actual, entrante) {
+  if (!entrante) return actual || "";
+  if (!actual) return entrante;
+  if (actual === entrante) return actual;
+  const upA = (String(actual).match(/[A-ZÁÉÍÓÚÜÑ]/g) || []).length;
+  const upB = (String(entrante).match(/[A-ZÁÉÍÓÚÜÑ]/g) || []).length;
+  if (upB !== upA) return upB > upA ? entrante : actual;
+  return entrante;
+}
+
 function fusionarListasSubclientes(base, extra) {
   const mapa = new Map();
-  const add = (item) => {
+  const add = (item, preferIncoming) => {
     const norm = normalizarEntradaSubcliente(item);
     if (!norm || !norm.nombre) return;
     const key = `${claveMarcaSubcliente(norm.marca)}::${claveSubcliente(norm.nombre)}`;
-    if (!mapa.has(key)) mapa.set(key, norm);
+    if (!mapa.has(key)) {
+      mapa.set(key, norm);
+      return;
+    }
+    if (!preferIncoming) return;
+    const prev = mapa.get(key);
+    mapa.set(key, {
+      ...prev,
+      marca: norm.marca || prev.marca,
+      nombre: preferirCasingSubcliente(prev.nombre, norm.nombre)
+    });
   };
-  (base || []).forEach(add);
-  (extra || []).forEach(add);
+  (base || []).forEach((item) => add(item, false));
+  (extra || []).forEach((item) => add(item, true));
   return Array.from(mapa.values()).sort((a, b) => {
     const marcaCmp = String(a.marca || "").localeCompare(String(b.marca || ""), "es");
     if (marcaCmp !== 0) return marcaCmp;

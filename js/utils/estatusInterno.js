@@ -4,7 +4,7 @@ const ESTATUS_FLUJO_ESPERA = "espera-cliente";
 const ESTATUS_DISENADORES_BASE = ["agraterol", "dmatheus"];
 const ESTATUS_CARGA_COLORES = ["#0D9488", "#7C3AED", "#EA580C", "#14B8A6", "#A78BFA"];
 const ESTATUS_PALABRAS_CORTAS = new Set(["de", "del", "la", "las", "el", "los", "y", "e", "o", "u", "en", "para", "con", "a", "al", "un", "una", "por"]);
-const ESTATUS_SIGLAS = new Set(["otc", "af", "qr", "cor", "pop", "tmk", "phq", "ls", "er"]);
+const ESTATUS_SIGLAS = new Set(["otc", "af", "qr", "cor", "pop", "tmk", "phq", "ls", "er", "dhl"]);
 
 const ESTATUS_CSV_A_ESTADO = {
   "stand-by": "En pausa",
@@ -191,13 +191,12 @@ function entregableLegibleEstatus(valor) {
 }
 
 function truncarSubclienteEstatus(nombre) {
-  const limpio = entregableLegibleEstatus(nombre) || String(nombre || "").replace(/\s+/g, " ").trim();
-  if (!limpio) return "";
+  // Conserva mayúsculas/minúsculas tal cual (DHL ≠ Dhl).
   if (typeof normalizarNombreSubcliente === "function") {
-    const norm = normalizarNombreSubcliente(limpio);
+    const norm = normalizarNombreSubcliente(nombre);
     if (norm) return norm;
   }
-  return limpio.slice(0, 48);
+  return String(nombre || "").replace(/\s+/g, " ").trim().slice(0, 48);
 }
 
 function personasDesdeResponsableCsv(responsableRaw) {
@@ -750,16 +749,26 @@ function textoEstatusLegible(valor) {
   const uppers = (raw.match(/[A-ZÁÉÍÓÚÜÑ]/g) || []).length;
   if (letters.length < 4 || uppers / letters.length < 0.55) return raw;
 
-  return raw.toLowerCase().split(" ").map((word, i) => {
-    const clean = word.replace(/[^a-záéíóúüñ0-9]/g, "");
-    if (!clean) return word;
-    if (ESTATUS_SIGLAS.has(clean)) {
-      return word.replace(clean, clean.toUpperCase());
+  return raw.split(" ").map((word, i) => {
+    const lettersOnly = word.replace(/[^A-Za-zÁÉÍÓÚÜáéíóúüÑñ0-9]/g, "");
+    if (!lettersOnly) return word;
+    const clean = lettersOnly.toLowerCase();
+    const eraTodoMayus = lettersOnly === lettersOnly.toUpperCase()
+      && /[A-ZÁÉÍÓÚÜÑ]/.test(lettersOnly);
+    // Siglas / nombres cortos en MAYÚSCULAS: DHL, OTC, TMK…
+    if (eraTodoMayus && (lettersOnly.length <= 6 || ESTATUS_SIGLAS.has(clean))) {
+      return word.replace(lettersOnly, lettersOnly.toUpperCase());
     }
-    if (i > 0 && ESTATUS_PALABRAS_CORTAS.has(clean)) return word;
-    const idx = word.indexOf(clean);
-    if (idx < 0) return word.charAt(0).toUpperCase() + word.slice(1);
-    return word.slice(0, idx) + clean.charAt(0).toUpperCase() + clean.slice(1) + word.slice(idx + clean.length);
+    if (ESTATUS_SIGLAS.has(clean)) {
+      return word.replace(lettersOnly, lettersOnly.toUpperCase());
+    }
+    if (i > 0 && ESTATUS_PALABRAS_CORTAS.has(clean)) {
+      return word.replace(lettersOnly, clean);
+    }
+    const idx = word.indexOf(lettersOnly);
+    const titled = clean.charAt(0).toUpperCase() + clean.slice(1);
+    if (idx < 0) return titled;
+    return word.slice(0, idx) + titled + word.slice(idx + lettersOnly.length);
   }).join(" ");
 }
 
@@ -1084,7 +1093,7 @@ function cerradaEstaSemanaEstatus(tarea, inicio, fin) {
 }
 
 function etiquetaDiasSnapshotEstatus(tarea, modo) {
-  if (!tarea) return "Sin fecha";
+  if (!tarea) return "TBD";
   const tHoy = typeof obtenerTiempoHoyLocal === "function" ? obtenerTiempoHoyLocal() : Date.now();
   if (modo === "listo") {
     const parsed = typeof parseDetalles === "function" ? parseDetalles(tarea.detalles || "") : { historial: [] };
@@ -1101,12 +1110,12 @@ function etiquetaDiasSnapshotEstatus(tarea, modo) {
   }
   if (modo === "cliente") {
     const dias = diasDesdeFechaEstatus(tarea.deadline || tarea.fechaInicio);
-    if (dias == null) return "Sin fecha";
+    if (dias == null) return "TBD";
     if (dias <= 0) return "Hoy";
     return `${dias}d`;
   }
   const tDeadline = typeof obtenerTiempoFecha === "function" ? obtenerTiempoFecha(tarea.deadline) : Infinity;
-  if (tDeadline === Infinity) return "Sin fecha";
+  if (tDeadline === Infinity) return "TBD";
   const dias = Math.floor((tHoy - tDeadline) / 86400000);
   if (dias > 0) {
     if (typeof esTareaEnEsperaDeComentarios === "function" && esTareaEnEsperaDeComentarios(tarea)) {
@@ -1506,7 +1515,18 @@ function agruparTareasPorSubclienteEstatus(tareas, marca) {
     const key = nombre === "Sin cadena"
       ? "__sin_cadena__"
       : (typeof claveSubcliente === "function" ? claveSubcliente(nombre) : nombre.toLowerCase());
-    if (!map.has(key)) map.set(key, { nombre, tareas: [] });
+    if (!map.has(key)) {
+      map.set(key, { nombre, tareas: [] });
+    } else {
+      const prev = map.get(key);
+      if (typeof preferirCasingSubcliente === "function") {
+        prev.nombre = preferirCasingSubcliente(prev.nombre, nombre);
+      } else if (nombre && nombre !== prev.nombre) {
+        const upPrev = (String(prev.nombre).match(/[A-ZÁÉÍÓÚÜÑ]/g) || []).length;
+        const upNew = (String(nombre).match(/[A-ZÁÉÍÓÚÜÑ]/g) || []).length;
+        if (upNew > upPrev) prev.nombre = nombre;
+      }
+    }
     map.get(key).tareas.push(t);
   });
 

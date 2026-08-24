@@ -70,19 +70,19 @@ function PieCargaDiseno({ items, onSelect }) {
   );
 }
 
-function tipoFechaSnapshotEstatus(dias) {
-  const d = String(dias || "");
-  if (/atrasado/i.test(d)) return "atrasado";
-  if (/sin fecha/i.test(d)) return "sin-fecha";
-  return "en-fecha";
-}
-
 function etiquetaChipSnapshotEstatus(dias) {
   const d = String(dias || "").trim();
-  if (!d) return "Sin fecha";
+  if (!d || /sin fecha|tbd/i.test(d)) return "TBD";
   const m = d.match(/(\d+)\s*d\s*atrasado/i);
   if (m) return `${m[1]}d`;
   return d;
+}
+
+function tipoFechaSnapshotEstatus(dias) {
+  const d = String(dias || "");
+  if (/atrasado/i.test(d)) return "atrasado";
+  if (/sin fecha|tbd/i.test(d) || !d.trim()) return "sin-fecha";
+  return "en-fecha";
 }
 
 function pesoOrdenSnapshotEstatus(dias) {
@@ -289,13 +289,15 @@ function LayoutEstatusGeneral({
     setAbiertos((prev) => ({ ...prev, [nombre]: !prev[nombre] }));
   };
 
-  const titulo = (valor) => (typeof textoEstatusLegible === "function" ? textoEstatusLegible(valor) : valor);
+  const titulo = (valor) => String(valor || "").replace(/\s+/g, " ").trim();
   const tituloEntregable = (info, cadena) => (
     typeof textoEstatusEntregable === "function" ? textoEstatusEntregable(info, cadena) : titulo(info)
   );
 
   const fechaCorta = (val) => {
-    if (!val || val === "—") return "—";
+    if (!val || val === "—" || (typeof esDeadlineTbd === "function" && esDeadlineTbd(val))) {
+      return typeof DEADLINE_TBD !== "undefined" ? DEADLINE_TBD : "TBD";
+    }
     if (typeof parsearFechaLibre === "function") {
       const parsed = parsearFechaLibre(val);
       if (parsed) {
@@ -393,7 +395,8 @@ function LayoutEstatusGeneral({
                 onChange={setDraftFecha}
                 onBlurExtra={(val) => guardarFechaInline(t, val)}
                 className="estatus-inline-fecha-input"
-                placeholder="dd/mm/aaaa"
+                placeholder="TBD o dd/mm/aaaa"
+                emptyAsTbd
               />
             </div>
           ) : puedeInline ? (
@@ -718,7 +721,7 @@ function LayoutEstatusGeneral({
     const filtros = [
       { id: "todos", label: "Todos", n: contadores.todos },
       { id: "atrasado", label: "Atrasados", n: contadores.atrasado },
-      { id: "sin-fecha", label: "Sin fecha", n: contadores["sin-fecha"] },
+      { id: "sin-fecha", label: "TBD", n: contadores["sin-fecha"] },
       { id: "en-fecha", label: "En fecha", n: contadores["en-fecha"] }
     ].filter((f) => f.id === "todos" || f.n > 0);
 

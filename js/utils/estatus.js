@@ -12,7 +12,7 @@ const ORGANIZAR_ESTATUS_OPCIONES = [
 
 function formatearFechaEstatus(fechaStr) {
   const parsed = parsearFechaLibre(fechaStr);
-  if (!parsed) return "Sin fecha";
+  if (!parsed) return "TBD";
   const anioActual = new Date().getFullYear();
   const mes = MESES_ESTATUS[parsed.mes - 1];
   if (parsed.anio !== anioActual) {

@@ -201,7 +201,8 @@ function FormularioCrearEntregable({
                 value={nuevaTarea.deadline}
                 onChange={(val) => setNuevaTarea({ ...nuevaTarea, deadline: val })}
                 className={inputPropClass}
-                required
+                placeholder="TBD o dd/mm/aaaa"
+                emptyAsTbd
               />
             </PropertyRow>
           </div>

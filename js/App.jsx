@@ -2421,7 +2421,8 @@ function App() {
       if (original.personas !== editedTask.personas) cambios.push("asignados");
       if (normalizarEstado(original.estado) !== normalizarEstado(editedTask.estado)) cambios.push(`estado a "${normalizarEstado(editedTask.estado)}"`);
       if (normalizarDeadline(original.deadline) !== normalizarDeadline(editedTask.deadline)) cambios.push("fecha límite");
-      if (normalizarDeadline(original.fechaInicio || "") !== normalizarDeadline(editedTask.fechaInicio || "")) cambios.push("inicio de trabajo");
+      const normIni = (v) => (typeof normalizarFechaInicio === "function" ? normalizarFechaInicio(v) : normalizarDeadline(v));
+      if (normIni(original.fechaInicio || "") !== normIni(editedTask.fechaInicio || "")) cambios.push("inicio de trabajo");
       const prioridadNormalizada = normalizarPrioridad(editedTask.prioridad);
       if (normalizarPrioridad(original.prioridad) !== prioridadNormalizada) cambios.push("prioridad");
 
@@ -2444,7 +2445,9 @@ function App() {
         idTarea: idEstable,
         importKey,
         prioridad: prioridadNormalizada,
-        fechaInicio: normalizarDeadline(editedTask.fechaInicio || resolverFechaInicioTarea(editedTask) || fechaHoyDisplay()),
+        fechaInicio: (typeof normalizarFechaInicio === "function"
+          ? normalizarFechaInicio(editedTask.fechaInicio || resolverFechaInicioTarea(editedTask) || fechaHoyDisplay())
+          : normalizarDeadline(editedTask.fechaInicio || resolverFechaInicioTarea(editedTask) || fechaHoyDisplay())),
         detalles: detallesAudoria
       })));
       if (normalizarEstado(original.estado) !== normalizarEstado(editedTask.estado)
@@ -2456,7 +2459,8 @@ function App() {
       if (normalizarDeadline(original.deadline) !== normalizarDeadline(editedTask.deadline)) {
         fechasEditadas.deadline = taskConHistorial.deadline;
       }
-      if (normalizarDeadline(original.fechaInicio || "") !== normalizarDeadline(editedTask.fechaInicio || "")) {
+      const normIniCmp = (v) => (typeof normalizarFechaInicio === "function" ? normalizarFechaInicio(v) : normalizarDeadline(v));
+      if (normIniCmp(original.fechaInicio || "") !== normIniCmp(editedTask.fechaInicio || "")) {
         fechasEditadas.fechaInicio = taskConHistorial.fechaInicio;
       }
       if (fechasEditadas.deadline || fechasEditadas.fechaInicio) {
@@ -2544,18 +2548,27 @@ function App() {
       showToast("Ingresa el título del entregable", "error");
       return;
     }
-    if (!normalizarDeadline(base.deadline)) {
-      showToast("Ingresa una fecha válida (ej: 16/06/2026)", "error");
+    const deadlineNorm = normalizarDeadline(base.deadline);
+    if (!deadlineNorm) {
+      showToast("Fecha de entrega no válida (ej: 16/06/2026). Déjala vacía para TBD.", "error");
       return;
     }
-    const inicioNorm = normalizarDeadline(
-      base.fechaInicio?.trim() ? base.fechaInicio : (resolverFechaInicioTarea(base) || fechaHoyDisplay())
-    );
+    const inicioNorm = typeof normalizarFechaInicio === "function"
+      ? normalizarFechaInicio(
+          base.fechaInicio?.trim() ? base.fechaInicio : (resolverFechaInicioTarea(base) || fechaHoyDisplay())
+        )
+      : normalizarDeadline(
+          base.fechaInicio?.trim() ? base.fechaInicio : (resolverFechaInicioTarea(base) || fechaHoyDisplay())
+        );
     if (!inicioNorm) {
       showToast("La fecha de inicio no es válida (ej: 16/06/2026)", "error");
       return;
     }
-    if (inicioNorm && obtenerTiempoFecha(inicioNorm) > obtenerTiempoFecha(base.deadline)) {
+    if (
+      !(typeof esDeadlineTbd === "function" && esDeadlineTbd(deadlineNorm))
+      && inicioNorm
+      && obtenerTiempoFecha(inicioNorm) > obtenerTiempoFecha(deadlineNorm)
+    ) {
       showToast("El inicio no puede ser después de la entrega", "error");
       return;
     }
@@ -2574,6 +2587,7 @@ function App() {
       const nuevaConId = marcarTareaPendiente(normalizarTareaCampos(prepararTareaConCategoria({
         ...base,
         idTarea: autoId,
+        deadline: deadlineNorm,
         fechaInicio: inicioNorm,
         detalles: detallesConCreador
       })));

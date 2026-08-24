@@ -6110,6 +6110,17 @@
       text-align: left;
       cursor: pointer;
       pointer-events: auto;
+      transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    .estatus-timeline-cardlet:hover {
+      background: #fff;
+      border-color: #d4d4d8;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    }
+
+    .estatus-timeline-cardlet:active {
+      transform: translateY(1px);
     }
 
     .estatus-timeline-cardlet.is-late,
@@ -6141,6 +6152,40 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .estatus-timeline-cardlet em {
+      font-style: normal;
+      font-size: 0.54rem;
+      font-weight: 700;
+      color: #a1a1aa;
+    }
+
+    .estatus-timeline-cluster.is-late .estatus-timeline-cardlet em {
+      color: #dc2626;
+    }
+
+    .estatus-lista-card-head-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 1.65rem;
+      height: 1.65rem;
+      padding: 0 0.45rem;
+      border: 1px solid #e4e4e7;
+      border-radius: 999px;
+      background: #fafafa;
+      font-size: 0.72rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #52525b;
+      cursor: pointer;
+      transition: background 0.12s ease, border-color 0.12s ease;
+    }
+
+    .estatus-lista-card-head-btn:hover {
+      background: #f4f4f5;
+      border-color: #d4d4d8;
     }
 
     [data-theme="midnight"] .estatus-semana-linea-card,

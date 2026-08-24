@@ -167,7 +167,7 @@ function labelRangoSemanaTimeline(inicioTs) {
   return `${start.getDate()} ${meses[start.getMonth()]} – ${end.getDate()} ${meses[end.getMonth()]}`;
 }
 
-function TimelineAtajarEstatus({ itemsFaltaHacer, onSelectTask }) {
+function TimelineAtajarEstatus({ itemsFaltaHacer, onSelectTask, onOpenPanel }) {
   const viewportRef = useRef(null);
   const dragRef = useRef(null);
   const atrasadosWrapRef = useRef(null);
@@ -175,7 +175,6 @@ function TimelineAtajarEstatus({ itemsFaltaHacer, onSelectTask }) {
   const [menuAtrasados, setMenuAtrasados] = useState(false);
   const [flashKey, setFlashKey] = useState("");
   const [dragging, setDragging] = useState(false);
-  const [expandedDay, setExpandedDay] = useState(null);
 
   const tHoy = typeof obtenerTiempoHoyLocal === "function" ? obtenerTiempoHoyLocal() : inicioDiaLocalTs(Date.now());
   const rangoSemana = typeof rangoSemanaLocalEstatus === "function"
@@ -197,6 +196,7 @@ function TimelineAtajarEstatus({ itemsFaltaHacer, onSelectTask }) {
       flat.push({
         key,
         tarea: t,
+        item,
         ts,
         atrasado: ts < tHoy,
         titulo: String(item.entregable || t.info || "Sin título").trim(),
@@ -238,9 +238,8 @@ function TimelineAtajarEstatus({ itemsFaltaHacer, onSelectTask }) {
 
     const clusters = occupied.map((ts) => {
       const list = byDay.get(ts) || [];
-      const expanded = expandedDay === ts;
-      const visible = expanded ? list : list.slice(0, TIMELINE_MAX_STACK);
-      const extra = expanded ? 0 : Math.max(0, list.length - TIMELINE_MAX_STACK);
+      const visible = list.slice(0, TIMELINE_MAX_STACK);
+      const extra = Math.max(0, list.length - TIMELINE_MAX_STACK);
       return {
         key: `day-${ts}`,
         ts,
@@ -250,6 +249,7 @@ function TimelineAtajarEstatus({ itemsFaltaHacer, onSelectTask }) {
         items: visible,
         extra,
         total: list.length,
+        allItems: list.map((n) => n.item).filter(Boolean),
         fechaLabel: labelDiaTimelineCorta(ts)
       };
     });
@@ -281,7 +281,7 @@ function TimelineAtajarEstatus({ itemsFaltaHacer, onSelectTask }) {
       semanaInicioX: xOf(rangoSemana.inicio) - TIMELINE_PX_DIA / 2,
       xOf
     };
-  }, [nodos, rangoSemana.inicio, rangoSemana.fin, tHoy, expandedDay]);
+  }, [nodos, rangoSemana.inicio, rangoSemana.fin, tHoy]);
 
   useEffect(() => {
     didInitScroll.current = false;
@@ -361,9 +361,36 @@ function TimelineAtajarEstatus({ itemsFaltaHacer, onSelectTask }) {
     window.setTimeout(() => { dragRef.current = null; }, 0);
   };
 
-  const handleCardClick = (nodo) => {
+  const abrirPanelSemana = (titulo, items, { atrasado = false } = {}) => {
     if (dragRef.current?.moved) return;
-    if (typeof onSelectTask === "function") onSelectTask(nodo.tarea);
+    if (!items?.length || typeof onOpenPanel !== "function") return;
+    onOpenPanel({
+      titulo,
+      items,
+      modo: "diseno",
+      accent: atrasado ? "#dc2626" : undefined
+    });
+  };
+
+  const handleCardClick = (nodo, cluster) => {
+    const items = cluster.allItems?.length
+      ? cluster.allItems
+      : (nodo.item ? [nodo.item] : []);
+    abrirPanelSemana(`A atajar · ${cluster.fechaLabel}`, items, { atrasado: cluster.atrasado });
+  };
+
+  const handleAtrasadoClick = (nodo) => {
+    if (nodo.item) {
+      abrirPanelSemana(`Atrasado · ${nodo.fechaLabel}`, [nodo.item], { atrasado: true });
+      setMenuAtrasados(false);
+      return;
+    }
+    irAFecha(nodo.ts, nodo.key);
+  };
+
+  const abrirPanelTodas = () => {
+    const items = nodos.map((n) => n.item).filter(Boolean);
+    abrirPanelSemana("A atajar esta semana", items);
   };
 
   if (nodos.length === 0) {
@@ -385,9 +412,16 @@ function TimelineAtajarEstatus({ itemsFaltaHacer, onSelectTask }) {
     <section className="estatus-semana-linea-card">
       <div className="estatus-lista-card-head">
         <h3>A atajar esta semana</h3>
-        <span>{nodos.length}</span>
+        <button
+          type="button"
+          className="estatus-lista-card-head-btn"
+          onClick={abrirPanelTodas}
+          title="Ver lista completa"
+        >
+          {nodos.length}
+        </button>
       </div>
-      <p className="estatus-section-hint">Línea por fecha real · vista inicial: esta semana · arrastra o usa las flechas</p>
+      <p className="estatus-section-hint">Línea por fecha real · toca una tarea para ver el detalle completo</p>
 
       <div className="estatus-timeline-toolbar">
         <div className="estatus-timeline-nav">
@@ -443,7 +477,7 @@ function TimelineAtajarEstatus({ itemsFaltaHacer, onSelectTask }) {
                     <button
                       type="button"
                       className="estatus-timeline-atrasados-item"
-                      onClick={() => irAFecha(nodo.ts, nodo.key)}
+                      onClick={() => handleAtrasadoClick(nodo)}
                     >
                       <span className="estatus-timeline-atrasados-item-body">
                         <strong>{nodo.titulo}</strong>
@@ -494,11 +528,12 @@ function TimelineAtajarEstatus({ itemsFaltaHacer, onSelectTask }) {
                     key={nodo.key}
                     type="button"
                     className={`estatus-timeline-cardlet ${nodo.atrasado ? "is-late" : ""} ${flashKey === nodo.key ? "is-flash" : ""}`}
-                    onClick={() => handleCardClick(nodo)}
-                    title={`${nodo.titulo} · ${nodo.fechaLabel}`}
+                    onClick={() => handleCardClick(nodo, cluster)}
+                    title={`Ver ${nodo.titulo} · ${nodo.fechaLabel}`}
                   >
                     <strong>{nodo.titulo}</strong>
                     <span>{[nodo.marca, nodo.cadena].filter(Boolean).join(" · ")}</span>
+                    <em>{nodo.fechaLabel}</em>
                   </button>
                 ))}
                 {cluster.extra > 0 ? (
@@ -506,8 +541,11 @@ function TimelineAtajarEstatus({ itemsFaltaHacer, onSelectTask }) {
                     type="button"
                     className="estatus-timeline-cardlet estatus-timeline-cardlet--more"
                     onClick={() => {
-                      if (dragRef.current?.moved) return;
-                      setExpandedDay(cluster.ts);
+                      abrirPanelSemana(
+                        `A atajar · ${cluster.fechaLabel}`,
+                        cluster.allItems,
+                        { atrasado: cluster.atrasado }
+                      );
                       irAFecha(cluster.ts, cluster.key);
                     }}
                     title={`Ver ${cluster.extra} más del ${cluster.fechaLabel}`}
@@ -1674,6 +1712,7 @@ function LayoutEstatusGeneral({
           <TimelineAtajarEstatus
             itemsFaltaHacer={listas.faltaHacer}
             onSelectTask={onSelectTask}
+            onOpenPanel={setPanelSnapshot}
           />
 
           <section className="estatus-porhacer-block">

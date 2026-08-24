@@ -5101,6 +5101,130 @@
       color: #37352F;
     }
 
+    .estatus-export-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      width: 100%;
+    }
+
+    .estatus-export-title-row .marca-info-desktop-title {
+      align-self: auto;
+      width: auto;
+      text-align: left;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .estatus-export-cliente-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-shrink: 0;
+      padding: 0.4rem 0.7rem;
+      border-radius: 0.5rem;
+      border: 1px solid #e4e4e7;
+      background: #fff;
+      font-size: 11px;
+      font-weight: 600;
+      color: #3f3f46;
+      white-space: nowrap;
+    }
+
+    .estatus-export-cliente-btn:hover:not(:disabled) {
+      border-color: #d4d4d8;
+      color: #18181b;
+    }
+
+    .estatus-export-cliente-btn:disabled {
+      opacity: 0.6;
+    }
+
+    .estatus-export-cliente-btn i {
+      font-size: 11px;
+      opacity: 0.75;
+    }
+
+    .estatus-cliente-print-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 12000;
+      background: rgba(24, 24, 27, 0.48);
+      display: flex;
+      padding: 12px;
+      box-sizing: border-box;
+    }
+
+    .estatus-cliente-print-chrome {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
+    }
+
+    .estatus-cliente-print-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      border-bottom: 1px solid #e4e4e7;
+      background: #fafafa;
+      flex-shrink: 0;
+    }
+
+    .estatus-cliente-print-title {
+      margin: 0;
+      font-size: 13px;
+      font-weight: 700;
+      color: #18181b;
+    }
+
+    .estatus-cliente-print-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .estatus-cliente-print-close,
+    .estatus-cliente-print-go {
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 0.4rem 0.75rem;
+      cursor: pointer;
+    }
+
+    .estatus-cliente-print-close {
+      border: 1px solid #e4e4e7;
+      background: #fff;
+      color: #3f3f46;
+    }
+
+    .estatus-cliente-print-go {
+      border: 1px solid #18181b;
+      background: #18181b;
+      color: #fff;
+    }
+
+    .estatus-cliente-print-frame {
+      flex: 1;
+      width: 100%;
+      border: 0;
+      background: #fff;
+    }
+
+    [data-theme="midnight"] .estatus-export-cliente-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.12);
+      color: #d4d4d8;
+    }
+
     .marca-home {
       display: flex;
       flex-direction: column;
@@ -9260,6 +9384,35 @@
         width: 100%;
       }
 
+      .mobile-subpage-title-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        width: 100%;
+      }
+
+      .mobile-subpage-title-row .mobile-subpage-title {
+        flex: 1;
+        min-width: 0;
+        width: auto;
+      }
+
+      .mobile-subpage-action {
+        flex-shrink: 0;
+      }
+
+      .mobile-subpage-action .estatus-export-cliente-btn {
+        padding: 0.32rem 0.55rem;
+        font-size: 10px;
+      }
+
+      .mobile-subpage-action .estatus-export-cliente-btn span {
+        max-width: 9.5rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
       .mobile-dash-toolbar {
         display: flex;
         align-items: center;
@@ -9365,6 +9518,12 @@
         align-self: center;
         width: 100%;
         text-align: center;
+      }
+
+      .marca-info-desktop-bar.robin-desktop-only .estatus-export-title-row .marca-info-desktop-title {
+        align-self: auto;
+        width: auto;
+        text-align: left;
       }
 
       .robin-mobile-only {
@@ -10087,6 +10246,12 @@
         align-self: center;
         width: 100%;
         text-align: center;
+      }
+
+      .marca-info-desktop-bar.robin-desktop-only .estatus-export-title-row .marca-info-desktop-title {
+        align-self: auto;
+        width: auto;
+        text-align: left;
       }
 
       .marca-home-main:has(.marca-home--subpage) {

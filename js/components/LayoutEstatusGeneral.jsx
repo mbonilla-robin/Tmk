@@ -21,6 +21,21 @@ function polarPieEstatus(cx, cy, r, angleDeg) {
   return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
 }
 
+const ESTATUS_VARS_GLOBAL = {
+  "--estatus-accent": "#0D9488",
+  "--estatus-accent-2": "#7C3AED",
+  "--estatus-accent-3": "#EA580C"
+};
+
+function varsEstatusDesdeMarca(accent) {
+  const base = accent || "#37352F";
+  return {
+    "--estatus-accent": base,
+    "--estatus-accent-2": base,
+    "--estatus-accent-3": base
+  };
+}
+
 function pathDonutSliceEstatus(cx, cy, rOuter, rInner, startDeg, endDeg) {
   const sweepRaw = endDeg - startDeg;
   // Un arco SVG de 360° no se ve (mismo punto inicio/fin); partir en dos.
@@ -167,7 +182,7 @@ function labelRangoSemanaTimeline(inicioTs) {
   return `${start.getDate()} ${meses[start.getMonth()]} – ${end.getDate()} ${meses[end.getMonth()]}`;
 }
 
-function TimelineAtajarEstatus({ itemsFaltaHacer, onSelectTask, onOpenPanel }) {
+function TimelineAtajarEstatus({ itemsFaltaHacer, onSelectTask }) {
   const viewportRef = useRef(null);
   const dragRef = useRef(null);
   const atrasadosWrapRef = useRef(null);
@@ -175,6 +190,7 @@ function TimelineAtajarEstatus({ itemsFaltaHacer, onSelectTask, onOpenPanel }) {
   const [menuAtrasados, setMenuAtrasados] = useState(false);
   const [flashKey, setFlashKey] = useState("");
   const [dragging, setDragging] = useState(false);
+  const [expandedDay, setExpandedDay] = useState(null);
 
   const tHoy = typeof obtenerTiempoHoyLocal === "function" ? obtenerTiempoHoyLocal() : inicioDiaLocalTs(Date.now());
   const rangoSemana = typeof rangoSemanaLocalEstatus === "function"
@@ -238,8 +254,9 @@ function TimelineAtajarEstatus({ itemsFaltaHacer, onSelectTask, onOpenPanel }) {
 
     const clusters = occupied.map((ts) => {
       const list = byDay.get(ts) || [];
-      const visible = list.slice(0, TIMELINE_MAX_STACK);
-      const extra = Math.max(0, list.length - TIMELINE_MAX_STACK);
+      const expanded = expandedDay === ts;
+      const visible = expanded ? list : list.slice(0, TIMELINE_MAX_STACK);
+      const extra = expanded ? 0 : Math.max(0, list.length - TIMELINE_MAX_STACK);
       return {
         key: `day-${ts}`,
         ts,
@@ -249,7 +266,6 @@ function TimelineAtajarEstatus({ itemsFaltaHacer, onSelectTask, onOpenPanel }) {
         items: visible,
         extra,
         total: list.length,
-        allItems: list.map((n) => n.item).filter(Boolean),
         fechaLabel: labelDiaTimelineCorta(ts)
       };
     });
@@ -281,7 +297,7 @@ function TimelineAtajarEstatus({ itemsFaltaHacer, onSelectTask, onOpenPanel }) {
       semanaInicioX: xOf(rangoSemana.inicio) - TIMELINE_PX_DIA / 2,
       xOf
     };
-  }, [nodos, rangoSemana.inicio, rangoSemana.fin, tHoy]);
+  }, [nodos, rangoSemana.inicio, rangoSemana.fin, tHoy, expandedDay]);
 
   useEffect(() => {
     didInitScroll.current = false;
@@ -361,36 +377,13 @@ function TimelineAtajarEstatus({ itemsFaltaHacer, onSelectTask, onOpenPanel }) {
     window.setTimeout(() => { dragRef.current = null; }, 0);
   };
 
-  const abrirPanelSemana = (titulo, items, { atrasado = false } = {}) => {
+  const handleCardClick = (nodo) => {
     if (dragRef.current?.moved) return;
-    if (!items?.length || typeof onOpenPanel !== "function") return;
-    onOpenPanel({
-      titulo,
-      items,
-      modo: "diseno",
-      accent: atrasado ? "#dc2626" : undefined
-    });
-  };
-
-  const handleCardClick = (nodo, cluster) => {
-    const items = cluster.allItems?.length
-      ? cluster.allItems
-      : (nodo.item ? [nodo.item] : []);
-    abrirPanelSemana(`A atajar · ${cluster.fechaLabel}`, items, { atrasado: cluster.atrasado });
+    if (typeof onSelectTask === "function") onSelectTask(nodo.tarea);
   };
 
   const handleAtrasadoClick = (nodo) => {
-    if (nodo.item) {
-      abrirPanelSemana(`Atrasado · ${nodo.fechaLabel}`, [nodo.item], { atrasado: true });
-      setMenuAtrasados(false);
-      return;
-    }
     irAFecha(nodo.ts, nodo.key);
-  };
-
-  const abrirPanelTodas = () => {
-    const items = nodos.map((n) => n.item).filter(Boolean);
-    abrirPanelSemana("A atajar esta semana", items);
   };
 
   if (nodos.length === 0) {
@@ -412,16 +405,9 @@ function TimelineAtajarEstatus({ itemsFaltaHacer, onSelectTask, onOpenPanel }) {
     <section className="estatus-semana-linea-card">
       <div className="estatus-lista-card-head">
         <h3>A atajar esta semana</h3>
-        <button
-          type="button"
-          className="estatus-lista-card-head-btn"
-          onClick={abrirPanelTodas}
-          title="Ver lista completa"
-        >
-          {nodos.length}
-        </button>
+        <span>{nodos.length}</span>
       </div>
-      <p className="estatus-section-hint">Línea por fecha real · toca una tarea para ver el detalle completo</p>
+      <p className="estatus-section-hint">Atrasados te llevan a su fecha en la línea · toca una tarjeta para editarla</p>
 
       <div className="estatus-timeline-toolbar">
         <div className="estatus-timeline-nav">
@@ -528,8 +514,9 @@ function TimelineAtajarEstatus({ itemsFaltaHacer, onSelectTask, onOpenPanel }) {
                     key={nodo.key}
                     type="button"
                     className={`estatus-timeline-cardlet ${nodo.atrasado ? "is-late" : ""} ${flashKey === nodo.key ? "is-flash" : ""}`}
-                    onClick={() => handleCardClick(nodo, cluster)}
-                    title={`Ver ${nodo.titulo} · ${nodo.fechaLabel}`}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={() => handleCardClick(nodo)}
+                    title={`Editar ${nodo.titulo} · ${nodo.fechaLabel}`}
                   >
                     <strong>{nodo.titulo}</strong>
                     <span>{[nodo.marca, nodo.cadena].filter(Boolean).join(" · ")}</span>
@@ -540,12 +527,10 @@ function TimelineAtajarEstatus({ itemsFaltaHacer, onSelectTask, onOpenPanel }) {
                   <button
                     type="button"
                     className="estatus-timeline-cardlet estatus-timeline-cardlet--more"
+                    onPointerDown={(e) => e.stopPropagation()}
                     onClick={() => {
-                      abrirPanelSemana(
-                        `A atajar · ${cluster.fechaLabel}`,
-                        cluster.allItems,
-                        { atrasado: cluster.atrasado }
-                      );
+                      if (dragRef.current?.moved) return;
+                      setExpandedDay(cluster.ts);
                       irAFecha(cluster.ts, cluster.key);
                     }}
                     title={`Ver ${cluster.extra} más del ${cluster.fechaLabel}`}
@@ -607,18 +592,22 @@ function LayoutEstatusGeneral({
   const etiquetaMarca = (nombreMarca || (typeof formatearMarca === "function" ? formatearMarca(marca) : marca) || "esta marca").trim();
   const marcaEstilo = !modoGlobal && typeof getMarcaStyle === "function"
     ? getMarcaStyle(marca)
-    : { accent: "#0D9488" };
+    : { accent: ESTATUS_VARS_GLOBAL["--estatus-accent"] };
   const estatusVars = modoGlobal
-    ? { "--estatus-accent": "#0D9488", "--estatus-accent-2": "#7C3AED", "--estatus-accent-3": "#EA580C" }
-    : { "--estatus-accent": marcaEstilo.accent || "#37352F" };
+    ? ESTATUS_VARS_GLOBAL
+    : varsEstatusDesdeMarca(marcaEstilo.accent);
   const grupos = vistaDetalle === "persona"
     ? gruposPersona
     : (modoGlobal ? gruposMarca : gruposSubcliente);
   const carga = useMemo(
     () => (typeof resumenCargaDisenadoresEstatus === "function"
-      ? resumenCargaDisenadoresEstatus(tareasActivas, listaDisenadores)
+      ? resumenCargaDisenadoresEstatus(
+        tareasActivas,
+        listaDisenadores,
+        modoGlobal ? null : marcaEstilo.accent
+      )
       : { items: [], totalActivas: 0, lideres: [] }),
-    [tareasActivas, listaDisenadores]
+    [tareasActivas, listaDisenadores, modoGlobal, marcaEstilo.accent]
   );
   const presentacion = useMemo(
     () => (typeof resumenPresentacionEstatus === "function"
@@ -712,6 +701,7 @@ function LayoutEstatusGeneral({
   const [filtroSnapshot, setFiltroSnapshot] = useState("todos");
   const [editFechaKey, setEditFechaKey] = useState("");
   const [draftFecha, setDraftFecha] = useState("");
+  const [exportandoCliente, setExportandoCliente] = useState(false);
   useEffect(() => {
     setFiltroSnapshot("todos");
   }, [panelSnapshot]);
@@ -732,6 +722,50 @@ function LayoutEstatusGeneral({
     onCambiarEnvioTipo(tarea, actual === "arte-final" ? "propuesta" : "arte-final");
   };
   const LISTA_VISIBLE_INICIAL = 5;
+
+  const exportarParaCliente = (event) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    if (modoGlobal || exportandoCliente) return;
+    if (typeof exportarEstatusClientePDF !== "function") {
+      window.alert("No está disponible el export · recarga la página");
+      return;
+    }
+    setExportandoCliente(true);
+    const win = typeof window.open === "function"
+      ? window.open("about:blank", "estatus-cliente-pdf")
+      : null;
+    try {
+      Promise.resolve(exportarEstatusClientePDF(tareas, {
+        marca,
+        nombreMarca: etiquetaMarca,
+        accent: marcaEstilo.accent,
+        win,
+        onDone: () => setExportandoCliente(false)
+      })).catch((err) => {
+        setExportandoCliente(false);
+        window.alert(String(err?.message || "No se pudo exportar el PDF"));
+      });
+    } catch (err) {
+      setExportandoCliente(false);
+      window.alert(String(err?.message || "No se pudo exportar el PDF"));
+    }
+  };
+
+  const renderBotonExportarCliente = () => (
+    <button
+      type="button"
+      className="estatus-export-cliente-btn"
+      onClick={exportarParaCliente}
+      disabled={exportandoCliente}
+      title="Exportar proyección para el cliente"
+    >
+      <i className={`fa-solid ${exportandoCliente ? "fa-spinner fa-spin" : "fa-file-arrow-down"}`} aria-hidden="true" />
+      <span>Exportar para cliente</span>
+    </button>
+  );
 
   const nombresGrupos = grupos.map((g) => g.nombre).join("|");
   useEffect(() => {
@@ -1694,13 +1728,17 @@ function LayoutEstatusGeneral({
             title="Estatus general"
             onBack={onBack}
             backLabel={nombreMarca}
+            action={renderBotonExportarCliente()}
           />
           <div className="robin-desktop-only marca-info-desktop-bar">
             <button type="button" onClick={onBack} className="marca-info-desktop-back">
               <i className="fa-solid fa-chevron-left text-[10px]" />
               <span>{nombreMarca}</span>
             </button>
-            <h2 className="marca-info-desktop-title">Estatus general</h2>
+            <div className="estatus-export-title-row">
+              <h2 className="marca-info-desktop-title">Estatus general</h2>
+              {renderBotonExportarCliente()}
+            </div>
           </div>
         </>
       )}
@@ -1712,7 +1750,6 @@ function LayoutEstatusGeneral({
           <TimelineAtajarEstatus
             itemsFaltaHacer={listas.faltaHacer}
             onSelectTask={onSelectTask}
-            onOpenPanel={setPanelSnapshot}
           />
 
           <section className="estatus-porhacer-block">
@@ -1788,9 +1825,24 @@ function LayoutEstatusGeneral({
             <div className="estatus-flujo">
               <div className="estatus-flujo-track">
                 {[
-                  { key: "diseno", label: "Diseño", value: presentacion.diseno, color: marcaEstilo.accent || "#0D9488" },
-                  { key: "enviar", label: "Por enviar", value: presentacion.porEnviar, color: "#7C3AED" },
-                  { key: "cliente", label: "Cliente", value: presentacion.cliente, color: "#EA580C" },
+                  {
+                    key: "diseno",
+                    label: "Diseño",
+                    value: presentacion.diseno,
+                    color: estatusVars["--estatus-accent"]
+                  },
+                  {
+                    key: "enviar",
+                    label: "Por enviar",
+                    value: presentacion.porEnviar,
+                    color: estatusVars["--estatus-accent-2"]
+                  },
+                  {
+                    key: "cliente",
+                    label: "Cliente",
+                    value: presentacion.cliente,
+                    color: estatusVars["--estatus-accent-3"]
+                  },
                   { key: "listo", label: "Listo", value: presentacion.listo, color: "#D4D4D8" }
                 ].filter((seg) => seg.value > 0).map((seg) => (
                   <div

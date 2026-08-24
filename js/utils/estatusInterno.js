@@ -847,7 +847,25 @@ function etiquetaRolCargaEstatus(rol) {
   return "Diseño";
 }
 
-function colorRolCargaEstatus(rol, idx) {
+function ajustarAccentEstatus(hex, amount) {
+  const raw = String(hex || "").replace("#", "").trim();
+  if (raw.length !== 6) return hex || "#37352F";
+  const r = parseInt(raw.slice(0, 2), 16);
+  const g = parseInt(raw.slice(2, 4), 16);
+  const b = parseInt(raw.slice(4, 6), 16);
+  const mix = (channel) => {
+    if (amount < 0) return Math.round(channel * (1 + amount));
+    return Math.round(channel + (255 - channel) * amount);
+  };
+  const toHex = (n) => Math.max(0, Math.min(255, n)).toString(16).padStart(2, "0");
+  return `#${toHex(mix(r))}${toHex(mix(g))}${toHex(mix(b))}`;
+}
+
+function colorRolCargaEstatus(rol, idx, marcaAccent) {
+  if (marcaAccent) {
+    const offsets = [0, -0.2, 0.24, -0.35, 0.14, -0.1, 0.32, -0.45];
+    return ajustarAccentEstatus(marcaAccent, offsets[idx % offsets.length]);
+  }
   const paletas = {
     diseno: ["#0D9488", "#7C3AED", "#EA580C", "#18181B"],
     contenido: ["#7C3AED", "#EA580C", "#0D9488", "#18181B"],
@@ -888,7 +906,7 @@ function resumenCargaAaronDavid(tareas, listaDisenadores) {
   return resumenCargaDisenadoresEstatus(tareas, listaDisenadores);
 }
 
-function resumenCargaDisenadoresEstatus(tareas, listaDisenadores) {
+function resumenCargaDisenadoresEstatus(tareas, listaDisenadores, marcaAccent) {
   const visibles = (tareas || []).filter((t) => !esTareaOcultaEnEstatus(t));
   const handles = new Set();
   visibles.forEach((t) => {
@@ -920,7 +938,7 @@ function resumenCargaDisenadoresEstatus(tareas, listaDisenadores) {
     .sort((a, b) => (ordenRol[a.rol] - ordenRol[b.rol]) || b.activas - a.activas || a.nombre.localeCompare(b.nombre, "es"))
     .map((item, idx, arr) => {
       const idxRol = arr.filter((x) => x.rol === item.rol).findIndex((x) => x.handle === item.handle);
-      return { ...item, color: colorRolCargaEstatus(item.rol, idxRol < 0 ? idx : idxRol) };
+      return { ...item, color: colorRolCargaEstatus(item.rol, idxRol < 0 ? idx : idxRol, marcaAccent) };
     });
 
   const totalActivas = items.reduce((sum, item) => sum + item.activas, 0);

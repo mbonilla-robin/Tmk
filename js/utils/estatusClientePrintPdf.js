@@ -3,7 +3,7 @@
  * Pestaña de impresión (Guardar como PDF) + HTML/CSS/SVG (texto y gráficas reales).
  */
 (function (global) {
-  const CSS_VERSION = "6";
+  const CSS_VERSION = "7";
 
   function absUrl(href) {
     try {

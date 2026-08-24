@@ -4,6 +4,9 @@ function calcularContadoresAtajos(tareas, username, soloMisTareas = false) {
   const mias = username
     ? base.filter((t) => tareaIncluyePersonaFiltro(t.personas || "", username)).length
     : 0;
+  const enProgreso = base.filter(
+    (t) => cleanEstado(t.estado) === "en progreso" && !esTareaCompletada(t)
+  ).length;
   const enRevision = base.filter(
     (t) => cleanEstado(t.estado) === "en revision" && !esTareaCompletada(t)
   ).length;
@@ -13,7 +16,7 @@ function calcularContadoresAtajos(tareas, username, soloMisTareas = false) {
   const activasHoy = base.filter((t) => esRelevanteHoyTarea(t, tHoy)).length;
   const atrasadas = base.filter((t) => cuentaComoAtrasada(t, tHoy)).length;
 
-  return { mias, enRevision, sinDisenador, activasHoy, atrasadas };
+  return { mias, enProgreso, enRevision, sinDisenador, activasHoy, atrasadas };
 }
 
 function ListaAtajosRapidos({ tareas, username, onAtajo, soloMisTareas = false, filtroActivo = null }) {
@@ -23,6 +26,7 @@ function ListaAtajosRapidos({ tareas, username, onAtajo, soloMisTareas = false, 
   );
 
   const atajos = [
+    { id: "activos", label: "En progreso", count: contadores.enProgreso, className: "home-atajo--activos", filtroKey: "estado:En progreso" },
     { id: "hoy", label: "Hoy", count: contadores.activasHoy, className: "home-atajo--hoy", filtroKey: "tiempo:HOY" },
     { id: "atrasadas", label: "Atrasadas", count: contadores.atrasadas, className: "home-atajo--late", filtroKey: "tiempo:ATRASADAS" },
     { id: "revision", label: "En revisión", count: contadores.enRevision, className: "home-atajo--review", filtroKey: "estado:En revision" }

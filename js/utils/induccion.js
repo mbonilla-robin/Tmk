@@ -136,8 +136,8 @@ function construirPasosInduccion({ esDisenador = false } = {}) {
     {
       id: "nav-lista",
       target: "nav-lista",
-      titulo: "Lista completa",
-      texto: "Todos los entregables con filtros y búsqueda.",
+      titulo: "Estatus",
+      texto: "Estatus general de todas las marcas: resumen, carga y pendientes. Como el de cada cliente, pero de un toque.",
       placement: "right",
       pagina: "home"
     }

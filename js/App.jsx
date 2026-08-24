@@ -217,7 +217,11 @@ function App() {
   const [presenceEstado, setPresenceEstado] = useState("idle");
 
   const [syncDetalleVisible, setSyncDetalleVisible] = useState(false);
-  const [dashboardMobileVista, setDashboardMobileVista] = useState(() => initialPrefs.dashboardMobileVista || "lista");
+  const [dashboardMobileVista, setDashboardMobileVista] = useState(() => {
+    const v = initialPrefs.dashboardMobileVista || "estatus";
+    if (["seguimiento", "lista", "general", "operacion"].includes(v)) return "estatus";
+    return v;
+  });
   const [configSeccion, setConfigSeccion] = useState(null);
   const [configOrigenSeccion, setConfigOrigenSeccion] = useState(null);
   const [configUiBump, setConfigUiBump] = useState(0);
@@ -261,6 +265,26 @@ function App() {
       filtroTiempo !== "TODAS" ||
       searchQuery.trim() !== "";
   }, [filtroMarca, filtroEstado, filtroPrioridad, filtroPersona, filtroTiempo, searchQuery]);
+
+  const chipsFiltrosLista = useMemo(
+    () => construirChipsFiltrosActivos({
+      filtroTiempo,
+      filtroEstado,
+      filtroPrioridad,
+      filtroPersona,
+      searchQuery,
+      incluirSubcliente: false
+    }),
+    [filtroTiempo, filtroEstado, filtroPrioridad, filtroPersona, searchQuery]
+  );
+
+  const quitarChipFiltroLista = useCallback((id) => {
+    if (id === "tiempo") setFiltroTiempo("TODAS");
+    else if (id === "estado") setFiltroEstado("TODOS");
+    else if (id === "prioridad") setFiltroPrioridad("TODAS");
+    else if (id === "persona") setFiltroPersona("TODAS");
+    else if (id === "search") setSearchQuery("");
+  }, []);
 
   const pasosInduccion = useMemo(
     () => (typeof construirPasosInduccion === "function" ? construirPasosInduccion({ esDisenador: isDesigner }) : []),
@@ -360,13 +384,14 @@ function App() {
     if (filtroTiempo === "HOY" && filtroEstado === "TODOS" && filtroPersona === "TODAS") return "hoy";
     if (filtroTiempo === "ATRASADAS" && filtroEstado === "TODOS" && filtroPersona === "TODAS") return "atrasadas";
     if (filtroTiempo === "TODAS" && cleanEstado(filtroEstado) === "en revision" && filtroPersona === "TODAS") return "revision";
+    if (filtroTiempo === "TODAS" && cleanEstado(filtroEstado) === "en progreso" && filtroPersona === "TODAS" && filtroPrioridad === "TODAS") return "activos";
     if (filtroPersona === "SIN_DISENADOR") return "sin-disenador";
     if (isDesigner && usuario) {
       const handle = usuario.startsWith("@") ? usuario : `@${usuario}`;
       if (filtroPersona === handle && filtroTiempo === "TODAS" && filtroEstado === "TODOS") return "mias";
     }
     return null;
-  }, [filtroMarca, filtroTiempo, filtroEstado, filtroPersona, isDesigner, usuario]);
+  }, [filtroMarca, filtroTiempo, filtroEstado, filtroPersona, filtroPrioridad, isDesigner, usuario]);
 
   // getMarcaStyle definido en js/utils/marcas.js
   // =========================================================================
@@ -768,7 +793,7 @@ function App() {
     setSyncDetalleVisible(false);
     if (pagina !== "dashboard") {
       limpiarSeleccionTareas();
-      setDashboardMobileVista("lista");
+      setDashboardMobileVista("estatus");
     }
     if (pagina !== "configuracion") {
       setConfigSeccion(null);
@@ -822,7 +847,7 @@ function App() {
     setFiltroPrioridad("TODAS");
     setFiltroPersona("TODAS");
     setSearchQuery("");
-    setDashboardMobileVista("lista");
+    setDashboardMobileVista("estatus");
   }, []);
 
   const aplicarAtajoFiltro = useCallback((atajo) => {
@@ -878,6 +903,23 @@ function App() {
       navegarA("dashboard", aplicar);
     }
   }, [usuario, paginaActiva]);
+
+  const abrirEstatusMobile = useCallback(() => {
+    const aplicar = () => {
+      setFiltroTiempo("TODAS");
+      setFiltroMarca("TODAS");
+      setFiltroEstado("TODOS");
+      setFiltroPrioridad("TODAS");
+      setFiltroPersona("TODAS");
+      setSearchQuery("");
+      setDashboardMobileVista("estatus");
+    };
+    if (paginaActiva === "dashboard") {
+      aplicar();
+    } else {
+      navegarA("dashboard", aplicar);
+    }
+  }, [paginaActiva]);
 
   const aplicarEntradaPasoInduccion = useCallback((paso) => {
     if (!paso) return;
@@ -1739,6 +1781,9 @@ function App() {
       guardarTareasLocales(fusionadas);
       return fusionadas;
     });
+    if (typeof encolarReparacionEnviosCliente === "function") {
+      encolarReparacionEnviosCliente(cargarTareasLocales(), remotas);
+    }
     if (typeof confirmarColaVaciaTrasSync === "function") confirmarColaVaciaTrasSync();
     const fusionadas = cargarTareasLocales();
     const colaVacia = cargarColaSync().length === 0;
@@ -2014,7 +2059,7 @@ function App() {
     sincronizarEnSegundoPlano({ silencioso: true, sinRecarga: true });
   };
 
-  const handleEnviarEstatusCliente = (tarea, tipo) => {
+  const handleEnviarEstatusCliente = async (tarea, tipo) => {
     if (isDesigner) return;
     if (typeof aplicarEnvioClienteEstatus !== "function") return;
     const original = resolverTareaActual(tareas, tarea);
@@ -2041,11 +2086,36 @@ function App() {
       payload: construirPayloadSyncTarea(original, actualizada, { campoSync: "todo" })
     });
     setHayPendientesLocales(true);
+
+    // Escritura inmediata a Supabase: no esperar la cola (si falla, queda en cola).
+    if (typeof upsertEntregablesSupabase === "function" && typeof entregablesSupabaseListos === "function" && entregablesSupabaseListos()) {
+      try {
+        const escrito = await upsertEntregablesSupabase([actualizada], usuario);
+        if (escrito?.ok) {
+          const cola = cargarColaSync().filter((op) => {
+            const key = getTaskSelectionKey(actualizada);
+            return op.taskKey !== key && op.taskKeyOriginal !== key;
+          });
+          guardarColaSync(cola);
+          const limpia = desmarcarTareaPendiente(actualizada);
+          persistTareas((prev) => prev.map((t) => (
+            getTaskSelectionKey(t) === getTaskSelectionKey(actualizada) ? limpia : t
+          )));
+          setHayPendientesLocales(calcularHayPendientesLocales());
+          showToast(tipo === "propuesta" ? "Propuesta enviada. Quedó en espera de comentarios." : "Arte final enviado. Tarea completada.", "success");
+          return;
+        }
+        showToast("Se marcó aquí, pero no se pudo guardar en la nube. Reintentando…", "error");
+      } catch (e) {
+        showToast("Se marcó aquí, pero no se pudo guardar en la nube. Reintentando…", "error");
+      }
+    }
+
     sincronizarEnSegundoPlano();
     showToast(tipo === "propuesta" ? "Propuesta enviada. Quedó en espera de comentarios." : "Arte final enviado. Tarea completada.", "success");
   };
 
-  const handleGuardarComentarioEstatus = (tarea, comentario) => {
+  const handleGuardarComentarioEstatus = (tarea, comentario, medidas) => {
     if (isDesigner) return;
     if (typeof aplicarComentarioEstatus !== "function") return;
     const original = resolverTareaActual(tareas, tarea);
@@ -2054,7 +2124,7 @@ function App() {
     if (index === -1) return;
 
     const actualizada = marcarTareaPendiente(normalizarTareaCampos(
-      aplicarComentarioEstatus(original, comentario, usuario)
+      aplicarComentarioEstatus(original, comentario, usuario, medidas)
     ));
     const temp = [...tareas];
     temp[index] = actualizada;
@@ -2069,7 +2139,7 @@ function App() {
     setHayPendientesLocales(true);
     sincronizarEnSegundoPlano({ silencioso: true, sinRecarga: true });
     showToast(
-      String(comentario || "").trim()
+      String(comentario || "").trim() || (typeof medidasTieneValor === "function" && medidasTieneValor(medidas))
         ? "Comentario guardado. Quedó en Por subir en COR."
         : "Comentario guardado",
       "success"
@@ -2273,10 +2343,18 @@ function App() {
 
       const serializarDetallesGuardado = (notasVal, subtareasVal, historialVal, linkVal, subclienteVal, flujoVal) => (
         typeof serializeDetalles === "function"
-          ? serializeDetalles(notasVal, subtareasVal, historialVal, linkVal, subclienteVal, {
-            flujo: flujoVal || parsedEdit.flujo || parsedOrig.flujo || "",
-            importKey
-          })
+          ? serializeDetalles(notasVal, subtareasVal, historialVal, linkVal, subclienteVal, (typeof extrasDetallesCon === "function"
+            ? extrasDetallesCon(parsedEdit, {
+              flujo: flujoVal || parsedEdit.flujo || parsedOrig.flujo || "",
+              importKey,
+              envioTipo: parsedEdit.envioTipo || parsedOrig.envioTipo || "",
+              pendienteCor: parsedEdit.pendienteCor != null ? parsedEdit.pendienteCor : parsedOrig.pendienteCor,
+              medidas: parsedEdit.medidas !== undefined ? parsedEdit.medidas : parsedOrig.medidas
+            })
+            : {
+              flujo: flujoVal || parsedEdit.flujo || parsedOrig.flujo || "",
+              importKey
+            }))
           : (editedTask.detalles || original.detalles || "")
       );
 
@@ -2729,7 +2807,7 @@ function App() {
         : (parsed.flujo || t.flujo || "");
       const sub = parsed.subcliente || (typeof obtenerSubclienteTarea === "function" ? obtenerSubclienteTarea(t) : t.subcliente);
       const detalles = typeof serializeDetalles === "function"
-        ? serializeDetalles(parsed.notas, parsed.subtareas || [], parsed.historial || [], parsed.link || t.link, sub, { flujo, importKey })
+        ? serializeDetalles(parsed.notas, parsed.subtareas || [], parsed.historial || [], parsed.link || t.link, sub, (typeof extrasDetallesCon === "function" ? extrasDetallesCon(parsed, { flujo, importKey }) : { flujo, importKey }))
         : t.detalles;
       const info = item.infoNuevo || t.info;
       const actualizada = marcarTareaPendiente(normalizarTareaCampos({
@@ -3834,7 +3912,7 @@ function App() {
               <div className="robin-mobile-only flex-col gap-3 animate-fade-in">
                 {dashboardMobileVista === "filtros" ? (
                   <div className="flex flex-col gap-3">
-                    <MobileSubpageBar title="Filtros" onBack={() => setDashboardMobileVista("lista")} backLabel="Lista" />
+                    <MobileSubpageBar title="Filtros" onBack={() => setDashboardMobileVista("estatus")} backLabel="Estatus" />
                     <div className="border border-zinc-200 p-3 rounded-md flex flex-col gap-3 bg-white">
                       <div className="flex flex-col gap-3">
                         <select value={filtroMarca} onChange={(e) => setFiltroMarca(e.target.value)} className="w-full bg-white border border-zinc-200 p-2 text-ui rounded text-zinc-600">
@@ -3874,7 +3952,7 @@ function App() {
                       </button>
                     </div>
                   </div>
-                ) : (
+                ) : dashboardMobileVista === "lista" ? (
                   <>
                     <div className="mobile-dash-toolbar">
                       <div className="min-w-0">
@@ -3882,7 +3960,7 @@ function App() {
                           className="text-sm font-bold truncate"
                           style={filtroMarca !== "TODAS" ? { color: getMarcaStyle(filtroMarca).accent } : undefined}
                         >
-                          {filtroMarca === "TODAS" ? "Todos los entregables" : formatearMarca(filtroMarca)}
+                          {filtroMarca === "TODAS" ? "Resultados" : formatearMarca(filtroMarca)}
                         </h2>
                         <p className="text-[10px] text-zinc-400">
                           {tareasFiltradas.length} resultado{tareasFiltradas.length !== 1 ? "s" : ""}
@@ -3900,16 +3978,6 @@ function App() {
                           <button type="button" onClick={() => { setVistaModo("KANBAN"); setUserPreference("vistaModo", "KANBAN"); }} className={`mobile-icon-btn ${vistaModo === "KANBAN" ? "is-active" : ""}`} title="Tablero">
                             <i className="fa-solid fa-chart-simple"></i>
                           </button>
-                          {vistaModo === "KANBAN" && filtroTiempo === "HOY" && (
-                            <button
-                              type="button"
-                              onClick={alternarKanbanOrdenPrioridad}
-                              className="mobile-icon-btn is-active"
-                              title={kanbanOrdenPrioridad === "desc" ? "Prioridad: alta → media → baja" : "Prioridad: baja → media → alta"}
-                            >
-                              <i className={`fa-solid ${kanbanOrdenPrioridad === "desc" ? "fa-arrow-up" : "fa-arrow-down"}`}></i>
-                            </button>
-                          )}
                         </div>
                       </div>
                     </div>
@@ -3953,6 +4021,17 @@ function App() {
                       <LayoutKanban tareas={tareasFiltradas} ordenPrioridad={kanbanOrdenPrioridadActivo} onUpdateField={isDesigner ? undefined : handleUpdateField} onSelectTask={abrirEdicionTarea} onDeleteTask={isDesigner ? undefined : (t) => setTaskToDelete(t)} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
                     )}
                   </>
+                ) : (
+                  <LayoutEstatusGeneral
+                    modoGlobal
+                    tareas={tareasVisibles}
+                    onSelectTask={abrirEdicionTarea}
+                    listaDisenadores={listaDisenadores}
+                    puedeEditar={!isDesigner}
+                    onEnviarCliente={isDesigner ? undefined : handleEnviarEstatusCliente}
+                    onGuardarComentario={isDesigner ? undefined : handleGuardarComentarioEstatus}
+                    onCambiarEnvioTipo={isDesigner ? undefined : handleCambiarEnvioTipo}
+                  />
                 )}
               </div>
 
@@ -4168,12 +4247,17 @@ function App() {
         theme={theme}
         notificacionesSlot={campanaNotificaciones}
         onAtajoFiltro={aplicarAtajoFiltro}
+        onAbrirEstatusGeneral={abrirEstatusMobile}
         onAbrirEquipos={isDesigner ? undefined : () => navegarA("equipos")}
         onAbrirEstatus={isDesigner ? undefined : () => setShowGeneradorEstatus(true)}
         onAbrirInformes={isDesigner ? undefined : () => navegarA("informes")}
         onCrearRapido={isDesigner ? undefined : () => setFormularioRapidoVisible(true)}
         onAbrirBuscador={() => setBuscadorAbierto(true)}
       />
+      )}
+
+      {!isConfigOnlyAdmin && paginaActiva === "dashboard" && filtroMarca === "TODAS" && dashboardMobileVista === "lista" && (
+        <FiltrosActivosBar chips={chipsFiltrosLista} onQuitar={quitarChipFiltroLista} />
       )}
 
       {/* MODALES ADICIONALES */}

@@ -26,7 +26,7 @@ const DEFAULT_USER_PREFS = {
   filtroPrioridad: "TODAS",
   filtroPersona: "TODAS",
   searchQuery: "",
-  dashboardMobileVista: "lista",
+  dashboardMobileVista: "estatus",
   listaAgrupacion: "estado"
 };
 
@@ -478,7 +478,11 @@ function applyPrefsToReactState(prefs, setters, username) {
     setters.setFiltroPersona(prefs.filtroPersona || "TODAS");
   }
   setters.setSearchQuery(prefs.searchQuery || "");
-  setters.setDashboardMobileVista(prefs.dashboardMobileVista || "lista");
+  setters.setDashboardMobileVista(
+    ["seguimiento", "lista", "general", "operacion"].includes(prefs.dashboardMobileVista)
+      ? "estatus"
+      : (prefs.dashboardMobileVista || "estatus")
+  );
   if (setters.setListaAgrupacion) setters.setListaAgrupacion(prefs.listaAgrupacion || "estado");
   setters.setPaginaActiva(resolvePaginaActivaForUser(username, prefs));
 }

@@ -181,6 +181,7 @@
 .home-atajo--review .home-atajo-pill__count { background: #fef3c7; color: #b45309; }
 .home-atajo--warn .home-atajo-pill__count { background: #ffedd5; color: #c2410c; }
 .home-atajo--mine .home-atajo-pill__count { background: #ede9fe; color: #6d28d9; }
+.home-atajo--activos .home-atajo-pill__count { background: #e7e5e4; color: #44403c; }
 
 .home-mi-dia-card {
   border: 1px solid var(--robin-border-muted, #e4e4e7);

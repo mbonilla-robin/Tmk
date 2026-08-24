@@ -53,7 +53,8 @@ function tareaDesdeFilaSupabase(row) {
         flujo: flujo || parsed.flujo,
         importKey: importKey || parsed.importKey,
         envioTipo,
-        pendienteCor
+        pendienteCor,
+        medidas: parsed.medidas || null
       }
     );
   }
@@ -98,7 +99,8 @@ function filaSupabaseDesdeTarea(tarea, usuario) {
       flujo,
       importKey,
       envioTipo,
-      pendienteCor
+      pendienteCor,
+      medidas: parsed.medidas || null
     })
     : String(t.detalles || "");
   return {
@@ -188,9 +190,11 @@ async function cargarEntregablesSupabase() {
       const res = await fetch(
         `${base}/rest/v1/robin_entregables?select=*&order=updated_at.desc`,
         {
+          cache: "no-store",
           headers: {
             ...getEntregablesSupabaseHeaders(),
-            Range: `${from}-${to}`
+            Range: `${from}-${to}`,
+            "Cache-Control": "no-cache"
           }
         }
       );
@@ -234,9 +238,11 @@ async function cargarMapaIdsEntregables() {
       const res = await fetch(
         `${base}/rest/v1/robin_entregables?select=id_tarea,import_key`,
         {
+          cache: "no-store",
           headers: {
             ...getEntregablesSupabaseHeaders(),
-            Range: `${from}-${to}`
+            Range: `${from}-${to}`,
+            "Cache-Control": "no-cache"
           }
         }
       );
@@ -493,7 +499,9 @@ async function procesarColaEntregablesSupabase(cola, usuario) {
       deadline: payload.deadline,
       fechaInicio: payload.fechaInicio,
       prioridad: payload.prioridad,
-      importKey: payload.importKey
+      importKey: payload.importKey,
+      flujo: payload.flujo,
+      envioTipo: payload.envioTipo
     };
     upserts.push({
       op,

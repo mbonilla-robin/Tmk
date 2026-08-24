@@ -22,13 +22,16 @@ function parseDetallesSeguro(raw) {
         link: parsed.link || "",
         subcliente: parsed.subcliente || "",
         flujo: parsed.flujo || "",
-        importKey: parsed.importKey || ""
+        importKey: parsed.importKey || "",
+        envioTipo: parsed.envioTipo || "",
+        pendienteCor: Boolean(parsed.pendienteCor),
+        medidas: parsed.medidas || null
       };
     }
   } catch (err) {
     console.warn("ROBIN: no se pudieron leer los detalles del entregable", err);
   }
-  return { notes: "", notas: "", subtareas: [], historial: [], link: "", subcliente: "", flujo: "", importKey: "" };
+  return { notes: "", notas: "", subtareas: [], historial: [], link: "", subcliente: "", flujo: "", importKey: "", envioTipo: "", pendienteCor: false, medidas: null };
 }
 
 function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaPersonas, registrarNuevaPersona, listaCategorias, registrarNuevaCategoria, listaSubclientes, registrarNuevoSubcliente, marcasDisponibles, usuario, nombreUsuario, onComentarioPublicado, onToast, soloLectura = false, modoDisenador = false, tareas = [], relacionesTareas = [], onRelacionCreada, onAbrirTareaRelacionada, getMarcaStyle }) {
@@ -101,6 +104,11 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
   const [historialAbierto, setHistorialAbierto] = useState(false);
   const [autosaveEstado, setAutosaveEstado] = useState("");
   const [notes, setNotes] = useState(detallesIniciales.notes || detallesIniciales.notas || "");
+  const [medidas, setMedidas] = useState(() => (
+    typeof normalizarMedidas === "function"
+      ? normalizarMedidas(detallesIniciales.medidas)
+      : { activo: Boolean(detallesIniciales.medidas), ...(detallesIniciales.medidas || { ancho: "", alto: "", profundidad: "", unidad: "cm" }) }
+  ));
   const [subtareas, setSubtareas] = useState(() => Array.isArray(detallesIniciales.subtareas) ? detallesIniciales.subtareas : []);
   const [link, setLink] = useState(detallesIniciales.link || "");
   const [subcliente, setSubcliente] = useState(() => {
@@ -212,6 +220,9 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
     setHistorialAbierto(false);
     setRawDetalles(detalles);
     setNotes(parsedDetalles.notes || parsedDetalles.notas || "");
+    setMedidas(typeof normalizarMedidas === "function"
+      ? normalizarMedidas(parsedDetalles.medidas)
+      : { activo: Boolean(parsedDetalles.medidas), ...(parsedDetalles.medidas || { ancho: "", alto: "", profundidad: "", unidad: "cm" }) });
     setSubtareas(Array.isArray(parsedDetalles.subtareas) ? parsedDetalles.subtareas : []);
     setLink(parsedDetalles.link || "");
     setSubcliente(obtenerSubclienteTarea(tarea) || parsedDetalles.subcliente || "");
@@ -232,30 +243,38 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
     return base;
   }, [marcasDisponibles, marca]);
 
-  const serializarConMeta = (notasVal, subtareasVal, historialVal, linkVal, subclienteVal) =>
+  const serializarConMeta = (notasVal, subtareasVal, historialVal, linkVal, subclienteVal, medidasVal) =>
     serializeDetalles(notasVal, subtareasVal, historialVal, linkVal, subclienteVal, {
       flujo: parsed.flujo || "",
-      importKey: parsed.importKey || ""
+      importKey: parsed.importKey || "",
+      envioTipo: parsed.envioTipo || "",
+      pendienteCor: Boolean(parsed.pendienteCor),
+      medidas: typeof medidasParaGuardar === "function" ? medidasParaGuardar(medidasVal || medidas) : (medidasVal || medidas)
     });
 
   const handleSubtareasChange = (nuevas) => {
     setSubtareas(nuevas);
-    setRawDetalles(serializarConMeta(notes, nuevas, parsed.historial, link, subcliente));
+    setRawDetalles(serializarConMeta(notes, nuevas, parsed.historial, link, subcliente, medidas));
   };
 
   const handleNotasChange = (newNotas) => {
     setNotes(newNotas);
-    setRawDetalles(serializarConMeta(newNotas, subtareas, parsed.historial, link, subcliente));
+    setRawDetalles(serializarConMeta(newNotas, subtareas, parsed.historial, link, subcliente, medidas));
+  };
+
+  const handleMedidasChange = (nuevas) => {
+    setMedidas(nuevas);
+    setRawDetalles(serializarConMeta(notes, subtareas, parsed.historial, link, subcliente, nuevas));
   };
 
   const handleLinkChange = (val) => {
     setLink(val);
-    setRawDetalles(serializarConMeta(notes, subtareas, parsed.historial, val, subcliente));
+    setRawDetalles(serializarConMeta(notes, subtareas, parsed.historial, val, subcliente, medidas));
   };
 
   const handleSubclienteChange = (val) => {
     setSubcliente(val);
-    setRawDetalles(serializarConMeta(notes, subtareas, parsed.historial, link, val));
+    setRawDetalles(serializarConMeta(notes, subtareas, parsed.historial, link, val, medidas));
   };
 
   const handleSubmit = async (e) => {
@@ -264,7 +283,7 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
   };
 
   const armarTareaDesdeFormulario = () => {
-    const tFinal = serializarConMeta(notes, subtareas, parsed.historial, link, subcliente);
+    const tFinal = serializarConMeta(notes, subtareas, parsed.historial, link, subcliente, medidas);
     const subclienteNorm = normalizarNombreSubcliente(subcliente);
 
     if (soloLectura || modoDisenador) {
@@ -359,6 +378,7 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
     personasDisenadores,
     notes,
     subtareas,
+    medidas,
     link,
     subcliente,
     soloLectura,
@@ -372,7 +392,7 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
   const aplicarEstadoRapido = async (nuevoEstado) => {
     if (!modoDisenador || guardando) return;
     setEstado(nuevoEstado);
-    const tFinal = serializarConMeta(notes, subtareas, parsed.historial, link, subcliente);
+    const tFinal = serializarConMeta(notes, subtareas, parsed.historial, link, subcliente, medidas);
     const tareaPreparada = prepararTareaConCategoria({
       ...tarea,
       estado: normalizarEstado(nuevoEstado),
@@ -720,10 +740,18 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
 
           {/* Notas */}
           <div className="py-4 border-b border-zinc-100">
-            <div className="task-section-label flex items-center gap-2 mb-2 text-ui-sm text-zinc-500">
-              <i className="fa-regular fa-note-sticky text-zinc-400 text-[11px]" />
-              <span>Notas</span>
+            <div className="task-section-label flex items-center justify-between gap-2 mb-2 text-ui-sm text-zinc-500">
+              <span className="inline-flex items-center gap-2">
+                <i className="fa-regular fa-note-sticky text-zinc-400 text-[11px]" />
+                <span>Notas</span>
+              </span>
             </div>
+            <CuadroMedidas
+              value={medidas}
+              onChange={handleMedidasChange}
+              onSave={() => persistirCambios({ keepOpen: true })}
+              disabled={soloLectura}
+            />
             <EditorNotasRich
               value={notes}
               onChange={handleNotasChange}

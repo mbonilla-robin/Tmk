@@ -2,7 +2,7 @@ const ESTATUS_INTERNO_MARCA = "La Santé";
 const ESTATUS_FLUJO_POR_ENVIAR = "por-enviar";
 const ESTATUS_FLUJO_ESPERA = "espera-cliente";
 const ESTATUS_DISENADORES_BASE = ["agraterol", "dmatheus"];
-const ESTATUS_CARGA_COLORES = ["#1B4332", "#2F7A4E", "#40916C", "#74C69D", "#B7E4C7"];
+const ESTATUS_CARGA_COLORES = ["#0D9488", "#7C3AED", "#EA580C", "#14B8A6", "#A78BFA"];
 const ESTATUS_PALABRAS_CORTAS = new Set(["de", "del", "la", "las", "el", "los", "y", "e", "o", "u", "en", "para", "con", "a", "al", "un", "una", "por"]);
 const ESTATUS_SIGLAS = new Set(["otc", "af", "qr", "cor", "pop", "tmk", "phq", "ls", "er"]);
 
@@ -388,12 +388,22 @@ function mencionesEquipoCor(tarea) {
 }
 
 function construirMensajeAjusteCor(tarea) {
-  const ajuste = obtenerUltimoAjusteCor(tarea);
+  const crudo = obtenerUltimoAjusteCor(tarea);
+  const ajuste = typeof quitarBloqueMedidasDeTexto === "function"
+    ? quitarBloqueMedidasDeTexto(crudo)
+    : crudo;
+  const parsed = typeof parseDetalles === "function"
+    ? parseDetalles(tarea?.detalles || "")
+    : {};
+  const medidasTxt = typeof textoMedidasParaCor === "function"
+    ? textoMedidasParaCor(parsed.medidas)
+    : "";
+  const detalles = [ajuste || "—", medidasTxt].filter(Boolean).join("\n");
   const menciones = mencionesEquipoCor(tarea);
   const bloques = [
     `Hola equipo, ${saludoCorSegunHora()}. Espero que estén muy bien.`,
     "Para esta pieza les dejamos una solicitud que nos hicieron llegar.",
-    `DETALLES:\n${ajuste || "—"}`,
+    `DETALLES:\n${detalles}`,
     "Quedo pendiente cualquier cosa, muchas gracias."
   ];
   if (menciones.length) bloques.push(menciones.join(" "));
@@ -443,7 +453,7 @@ function aplicarEnvioTipoEstatus(tarea, tipo, extras) {
   const sub = parsed.subcliente || (typeof obtenerSubclienteTarea === "function" ? obtenerSubclienteTarea(tarea) : tarea.subcliente);
   const flujo = extras?.flujo != null ? extras.flujo : (parsed.flujo || tarea.flujo || "");
   const detalles = typeof serializeDetalles === "function"
-    ? serializeDetalles(parsed.notas, parsed.subtareas || [], parsed.historial || [], parsed.link || tarea.link, sub, { flujo, importKey, envioTipo })
+    ? serializeDetalles(parsed.notas, parsed.subtareas || [], parsed.historial || [], parsed.link || tarea.link, sub, { flujo, importKey, envioTipo, medidas: parsed.medidas || null })
     : tarea.detalles;
   return { ...tarea, envioTipo, flujo, importKey, detalles };
 }
@@ -571,7 +581,7 @@ function aplicarFlujoSegunEstadoEstatus(tarea, estadoNuevo) {
     envioTipo = "";
   }
   const detalles = typeof serializeDetalles === "function"
-    ? serializeDetalles(parsed.notas, parsed.subtareas || [], parsed.historial || [], parsed.link || tarea.link, sub, { flujo, importKey, envioTipo })
+    ? serializeDetalles(parsed.notas, parsed.subtareas || [], parsed.historial || [], parsed.link || tarea.link, sub, { flujo, importKey, envioTipo, medidas: parsed.medidas || null })
     : tarea.detalles;
   return { ...tarea, estado, flujo, importKey, envioTipo, detalles };
 }
@@ -587,12 +597,20 @@ function usuarioMarcoEnRevisionEstatus(tarea) {
     || usuarioMarcoEstadoEstatus(tarea, "En revisión");
 }
 
-function debeIrPorEnviarEstatus(t, filasRef, flujo, estado, blob, fila) {
+function detectarTipoEnvioClienteEstatus(tarea) {
+  const blob = String(tarea?.detalles || "");
+  if (/enví[oó]\s+arte final\s+al cliente/i.test(blob)) return "arte-final";
+  if (/enví[oó]\s+propuesta\s+al cliente/i.test(blob)) return "propuesta";
+  return "";
+}
+
+function debeIrPorEnviarEstatus(t, _filasRef, flujo, estado, blob, _fila) {
+  // El CSV original queda congelado en "por enviar". Solo cuenta el estado real de la tarea.
+  if (detectarTipoEnvioClienteEstatus(t) || flujo === ESTATUS_FLUJO_ESPERA) return false;
+  if (estado === "seguimiento" || estado === "espera de comentarios" || estado === "completada") return false;
   if (flujo === ESTATUS_FLUJO_POR_ENVIAR) return true;
-  if (fila && flujoDesdeStatusCsv(fila.status) === ESTATUS_FLUJO_POR_ENVIAR) return true;
   if (textoIndicaPorEnviar(blob)) return true;
-  // Tareas manuales (sin fila CSV) marcadas en revision por el usuario.
-  if (estado === "en revision" && !fila && usuarioMarcoEnRevisionEstatus(t)) return true;
+  if (estado === "en revision" && usuarioMarcoEnRevisionEstatus(t)) return true;
   return false;
 }
 
@@ -822,9 +840,9 @@ function etiquetaRolCargaEstatus(rol) {
 
 function colorRolCargaEstatus(rol, idx) {
   const paletas = {
-    diseno: ["#1B4332", "#2F7A4E", "#40916C"],
-    contenido: ["#1D4E89", "#2563EB", "#3B82F6"],
-    ejecutivo: ["#57534E", "#78716C", "#A8A29E"]
+    diseno: ["#0D9488", "#7C3AED", "#EA580C", "#18181B"],
+    contenido: ["#7C3AED", "#EA580C", "#0D9488", "#18181B"],
+    ejecutivo: ["#EA580C", "#0D9488", "#7C3AED", "#18181B"]
   };
   const lista = paletas[rol] || paletas.diseno;
   return lista[idx % lista.length];
@@ -922,14 +940,32 @@ function etapaOperativaEstatus(t, filasRef) {
   const estado = estadoRobinEstatus(t);
   const parsed = typeof parseDetalles === "function" ? parseDetalles(t.detalles || "") : { notas: t.detalles || "" };
   const partes = notasYComentarioEstatus(parsed.notas);
-  const fila = (filasRef || []).find((f) => tareaCoincideFilaEstatus(t, f));
   const flujo = obtenerFlujoTarea(t);
-  const blob = [partes.comentario, partes.notas, fila && fila.comentarios, fila && fila.status].filter(Boolean).join("\n");
+  // Solo el cuerpo de la tarea (no el CSV): el import viejo dice "por enviar" para siempre.
+  const blob = [partes.comentario, partes.notas].filter(Boolean).join("\n");
   if (estado === "seguimiento" || estado === "espera de comentarios" || flujo === ESTATUS_FLUJO_ESPERA) return "cliente";
+  if (detectarTipoEnvioClienteEstatus(t) === "propuesta") return "cliente";
+  if (detectarTipoEnvioClienteEstatus(t) === "arte-final") return "";
   if (estado === "pendiente" || estado === "en progreso") return "diseno";
   if (estado === "en pausa") return "";
-  if (debeIrPorEnviarEstatus(t, filasRef, flujo, estado, blob, fila)) return "por-enviar";
+  if (debeIrPorEnviarEstatus(t, filasRef, flujo, estado, blob, null)) return "por-enviar";
   return "diseno";
+}
+
+function claveNegocioEstatus(tarea) {
+  const cadena = typeof claveSubcliente === "function"
+    ? claveSubcliente(typeof obtenerSubclienteTarea === "function" ? obtenerSubclienteTarea(tarea) : tarea?.subcliente)
+    : String(tarea?.subcliente || "").trim().toLowerCase();
+  const titulo = claveEstatusInterno(tarea?.info || "");
+  return `${cadena}|${titulo}`;
+}
+
+function pesoEtapaEstatus(etapa, tarea) {
+  if (etapa === "cliente") return 40;
+  if (detectarTipoEnvioClienteEstatus(tarea) === "arte-final" || estadoRobinEstatus(tarea) === "completada") return 50;
+  if (etapa === "por-enviar") return 20;
+  if (etapa === "diseno") return 10;
+  return 0;
 }
 
 function listasOperativasEstatus(tareas, filas) {
@@ -940,6 +976,18 @@ function listasOperativasEstatus(tareas, filas) {
   const vistosPorEnviar = new Set();
   const vistosEspera = new Set();
   const vistosFalta = new Set();
+  const mejorPorNegocio = new Map();
+
+  (tareas || []).forEach((t) => {
+    const etapa = etapaOperativaEstatus(t, filasRef);
+    if (!etapa) return;
+    const biz = claveNegocioEstatus(t);
+    const peso = pesoEtapaEstatus(etapa, t);
+    const prev = mejorPorNegocio.get(biz);
+    if (!prev || peso > prev.peso) {
+      mejorPorNegocio.set(biz, { tarea: t, etapa, peso });
+    }
+  });
 
   const claveItemOperativo = (item) => {
     const t = item?.tarea || {};
@@ -948,6 +996,7 @@ function listasOperativasEstatus(tareas, filas) {
       ? claveSubcliente(item?.cadena || "")
       : String(item?.cadena || "").trim().toLowerCase();
     const tituloBiz = claveEstatusInterno(item?.entregable || t?.info || "");
+    if (cadenaBiz || tituloBiz) return `biz:${cadenaBiz}|${tituloBiz}`;
     if (idImp.startsWith("imp-") && (cadenaBiz || tituloBiz)) {
       return `impbiz:${idImp}|${cadenaBiz}|${tituloBiz}`;
     }
@@ -970,9 +1019,7 @@ function listasOperativasEstatus(tareas, filas) {
     lista.push(item);
   };
 
-  (tareas || []).forEach((t) => {
-    const etapa = etapaOperativaEstatus(t, filasRef);
-    if (!etapa) return;
+  Array.from(mejorPorNegocio.values()).forEach(({ tarea: t, etapa }) => {
     const parsed = typeof parseDetalles === "function" ? parseDetalles(t.detalles || "") : { notas: t.detalles || "" };
     const partes = notasYComentarioEstatus(parsed.notas);
     const item = itemOperativoEstatus(t, partes);
@@ -1113,18 +1160,36 @@ function aplicarEnvioClienteEstatus(tarea, tipo, usuario) {
   const autor = String(usuario || "").replace(/^@/, "");
   const historial = [...(parsed.historial || [])];
   const esPropuesta = tipo === "propuesta";
+  const envioTipo = esPropuesta ? "propuesta" : "arte-final";
   const flujo = esPropuesta ? ESTATUS_FLUJO_ESPERA : "";
   const estado = esPropuesta ? "Seguimiento" : "Completada";
+  const partes = notasYComentarioEstatus(parsed.notas);
+  const comentarioLimpio = String(partes.comentario || "")
+    .replace(/por enviar( a cliente)?/ig, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/^[\s|/,-]+|[\s|/,-]+$/g, "")
+    .trim();
+  const comentarioNuevo = esPropuesta
+    ? (comentarioLimpio || "Enviado a cliente — espera de comentarios")
+    : (comentarioLimpio || "Arte final enviado a cliente");
+  const notasNuevas = construirNotasEstatus(partes.notas, comentarioNuevo);
   historial.push(`• [${timestamp}] Envió ${esPropuesta ? "propuesta" : "arte final"} al cliente por @${autor}`);
   historial.push(`• [${timestamp}] Estado cambiado a "${estado}" por @${autor}`);
   const detalles = typeof serializeDetalles === "function"
-    ? serializeDetalles(parsed.notas, parsed.subtareas || [], historial, parsed.link || tarea.link, sub, { flujo, importKey })
+    ? serializeDetalles(notasNuevas, parsed.subtareas || [], historial, parsed.link || tarea.link, sub, (typeof extrasDetallesCon === "function" ? extrasDetallesCon(parsed, {
+      flujo,
+      importKey,
+      envioTipo,
+      pendienteCor: false
+    }) : { flujo, importKey, envioTipo, pendienteCor: false }))
     : `${tarea.detalles || ""}\n${historial[historial.length - 2]}\n${historial[historial.length - 1]}`;
   return {
     ...tarea,
     estado,
     flujo,
     importKey,
+    envioTipo,
+    pendienteCor: false,
     detalles
   };
 }
@@ -1241,7 +1306,8 @@ function handlesPersonaParaEstatus(tarea) {
   return raw.map((h) => String(h || "").replace(/^@/, "").trim().toLowerCase()).filter(Boolean);
 }
 
-function agruparTareasPorPersonaEstatus(tareas) {
+function agruparTareasPorPersonaEstatus(tareas, opciones = {}) {
+  const subgrupoPorMarca = Boolean(opciones.subgrupoPorMarca);
   const grupos = new Map();
   (tareas || []).forEach((t) => {
     const asignados = handlesPersonaParaEstatus(t);
@@ -1268,13 +1334,28 @@ function agruparTareasPorPersonaEstatus(tareas) {
     .map((grupo) => {
       const subMap = new Map();
       (grupo.tareas || []).forEach((t) => {
-        const cadena = typeof obtenerSubclienteTarea === "function"
-          ? obtenerSubclienteTarea(t)
-          : (t.subcliente || "Sin cadena");
-        const subKey = String(cadena || "Sin cadena").trim().toLowerCase();
+        let nombreSub;
+        if (subgrupoPorMarca) {
+          const marcaLabel = typeof formatearMarca === "function"
+            ? formatearMarca(t.marca)
+            : String(t.marca || "").trim();
+          const cadena = typeof obtenerSubclienteTarea === "function"
+            ? obtenerSubclienteTarea(t)
+            : (t.subcliente || "");
+          const cadenaLabel = String(cadena || "").trim();
+          nombreSub = cadenaLabel
+            ? `${marcaLabel || "Sin marca"} · ${cadenaLabel}`
+            : (marcaLabel || "Sin marca");
+        } else {
+          const cadena = typeof obtenerSubclienteTarea === "function"
+            ? obtenerSubclienteTarea(t)
+            : (t.subcliente || "Sin cadena");
+          nombreSub = String(cadena || "Sin cadena").trim() || "Sin cadena";
+        }
+        const subKey = nombreSub.toLowerCase();
         if (!subMap.has(subKey)) {
           subMap.set(subKey, {
-            nombre: String(cadena || "Sin cadena").trim() || "Sin cadena",
+            nombre: nombreSub,
             tareas: []
           });
         }
@@ -1303,7 +1384,7 @@ function agruparTareasPorPersonaEstatus(tareas) {
     });
 }
 
-function aplicarComentarioEstatus(tarea, comentario, usuario) {
+function aplicarComentarioEstatus(tarea, comentario, usuario, medidas) {
   const parsed = typeof parseDetalles === "function"
     ? parseDetalles(tarea.detalles || "")
     : {
@@ -1315,22 +1396,28 @@ function aplicarComentarioEstatus(tarea, comentario, usuario) {
       importKey: tarea.importKey,
       flujo: tarea.flujo,
       envioTipo: tarea.envioTipo,
-      pendienteCor: tarea.pendienteCor
+      pendienteCor: tarea.pendienteCor,
+      medidas: tarea.medidas
     };
   const partes = notasYComentarioEstatus(parsed.notas);
-  const comentarioLimpio = String(comentario || "").trim();
+  const comentarioLimpio = typeof quitarBloqueMedidasDeTexto === "function"
+    ? quitarBloqueMedidasDeTexto(comentario)
+    : String(comentario || "").trim();
+  const medidasGuardar = medidas !== undefined
+    ? (typeof medidasParaGuardar === "function" ? medidasParaGuardar(medidas) : medidas)
+    : (parsed.medidas || null);
   const notasNuevas = construirNotasEstatus(partes.notas, comentarioLimpio);
   const importKey = parsed.importKey || tarea.importKey || "";
   const sub = parsed.subcliente || (typeof obtenerSubclienteTarea === "function"
     ? obtenerSubclienteTarea(tarea)
     : tarea.subcliente);
   const envioTipo = parsed.envioTipo || tarea.envioTipo || "";
-  const entraColaCor = Boolean(comentarioLimpio);
+  const entraColaCor = Boolean(comentarioLimpio) || Boolean(medidasGuardar);
   // Sale de espera-cliente operativa; queda pendiente de subir a COR.
   const flujo = entraColaCor ? "" : (parsed.flujo || tarea.flujo || "");
   const pendienteCor = entraColaCor ? true : Boolean(parsed.pendienteCor || tarea.pendienteCor);
   const historial = [...(parsed.historial || [])];
-  if (usuario && comentarioLimpio) {
+  if (usuario && (comentarioLimpio || medidasGuardar)) {
     const hoy = new Date();
     const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, "0")}`;
     historial.push(`• [${timestamp}] Comentario de cliente registrado por @${String(usuario).replace(/^@/, "")} — pendiente de subir a COR`);
@@ -1342,7 +1429,7 @@ function aplicarComentarioEstatus(tarea, comentario, usuario) {
       historial,
       parsed.link || tarea.link,
       sub,
-      { flujo, importKey, envioTipo, pendienteCor }
+      { flujo, importKey, envioTipo, pendienteCor, medidas: medidasGuardar }
     )
     : notasNuevas;
   return {
@@ -1389,7 +1476,7 @@ function marcarSubidoCorEstatus(tarea, usuario) {
       historial,
       parsed.link || tarea.link,
       sub,
-      { flujo: "", importKey, envioTipo, pendienteCor: false }
+      { flujo: "", importKey, envioTipo, pendienteCor: false, medidas: parsed.medidas || null }
     )
     : parsed.notas;
   let actualizada = {
@@ -1433,6 +1520,33 @@ function agruparTareasPorSubclienteEstatus(tareas, marca) {
     .sort((a, b) => {
       if (a.nombre === "Sin cadena") return 1;
       if (b.nombre === "Sin cadena") return -1;
+      return String(a.nombre).localeCompare(String(b.nombre), "es");
+    });
+}
+
+function agruparTareasPorMarcaEstatus(tareas) {
+  const map = new Map();
+  (tareas || []).forEach((t) => {
+    if (!t) return;
+    const raw = String(t.marca || "").trim();
+    const nombre = raw
+      ? (typeof formatearMarca === "function" ? formatearMarca(raw) : raw)
+      : "Sin marca";
+    const key = raw ? raw.toLowerCase() : "__sin_marca__";
+    if (!map.has(key)) map.set(key, { nombre, tareas: [] });
+    map.get(key).tareas.push(t);
+  });
+
+  return Array.from(map.values())
+    .map((grupo) => ({
+      ...grupo,
+      tareas: typeof ordenarTareasPorModo === "function"
+        ? ordenarTareasPorModo(grupo.tareas, "estado")
+        : grupo.tareas
+    }))
+    .sort((a, b) => {
+      if (a.nombre === "Sin marca") return 1;
+      if (b.nombre === "Sin marca") return -1;
       return String(a.nombre).localeCompare(String(b.nombre), "es");
     });
 }

@@ -79,6 +79,7 @@ function MobileNavBar({
   theme = "notion",
   notificacionesSlot = null,
   onAtajoFiltro,
+  onAbrirEstatusGeneral,
   onAbrirEquipos,
   onAbrirEstatus,
   onAbrirInformes,
@@ -107,7 +108,8 @@ function MobileNavBar({
       map["dashboard-all"] = [
         { id: "hoy", label: "Hoy", icon: "fa-calendar-day", onClick: () => onAtajoFiltro("hoy") },
         { id: "atrasadas", label: "Atrasadas", icon: "fa-clock", onClick: () => onAtajoFiltro("atrasadas") },
-        { id: "revision", label: "En revisión", icon: "fa-eye", onClick: () => onAtajoFiltro("revision") }
+        { id: "revision", label: "En revisión", icon: "fa-eye", onClick: () => onAtajoFiltro("revision") },
+        { id: "todas", label: "Todas", icon: "fa-layer-group", onClick: () => onAtajoFiltro("total") }
       ];
       if (!esDisenador) {
         map["dashboard-all"].push({
@@ -146,16 +148,22 @@ function MobileNavBar({
     },
     {
       key: "dashboard-all",
-      label: "Lista",
-      icon: "fa-list",
-      active: isActive("dashboard", () => filtroMarca === "TODAS"),
-      onClick: () => navegarA("dashboard", () => {
-        setFiltroTiempo("TODAS");
-        setFiltroMarca("TODAS");
-        setFiltroEstado("TODOS");
-        setFiltroPrioridad("TODAS");
-        setFiltroPersona("TODAS");
-      })
+      label: "Estatus",
+      icon: "fa-chart-pie",
+      active: isActive("dashboard"),
+      onClick: () => {
+        if (typeof onAbrirEstatusGeneral === "function") {
+          onAbrirEstatusGeneral();
+          return;
+        }
+        navegarA("dashboard", () => {
+          setFiltroTiempo("TODAS");
+          setFiltroMarca("TODAS");
+          setFiltroEstado("TODOS");
+          setFiltroPrioridad("TODAS");
+          setFiltroPersona("TODAS");
+        });
+      }
     },
     ...(!esDisenador ? [{
       key: "agregar",

@@ -1,3 +1,136 @@
+function pesoUrgenciaHoyEstatus(tarea) {
+  let w = 1;
+  if (typeof esPrioridadAlta === "function" && esPrioridadAlta(tarea?.prioridad)) w += 3;
+  else if (typeof normalizarPrioridad === "function" && normalizarPrioridad(tarea?.prioridad) === "Media") w += 1;
+  const tHoy = typeof obtenerTiempoHoyLocal === "function" ? obtenerTiempoHoyLocal() : Date.now();
+  if (typeof cuentaComoAtrasada === "function" && cuentaComoAtrasada(tarea, tHoy)) w += 4;
+  else if (typeof obtenerTiempoFecha === "function") {
+    const td = obtenerTiempoFecha(tarea?.deadline);
+    if (td !== Infinity) {
+      const dias = Math.floor((td - tHoy) / 86400000);
+      if (dias <= 0) w += 4;
+      else if (dias <= 2) w += 3;
+      else if (dias <= 7) w += 1;
+    }
+  }
+  return w;
+}
+
+function polarPieEstatus(cx, cy, r, angleDeg) {
+  const a = ((angleDeg - 90) * Math.PI) / 180;
+  return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+}
+
+function pathDonutSliceEstatus(cx, cy, rOuter, rInner, startDeg, endDeg) {
+  const sweep = Math.max(endDeg - startDeg, 0.2);
+  const large = sweep > 180 ? 1 : 0;
+  const [x1, y1] = polarPieEstatus(cx, cy, rOuter, startDeg);
+  const [x2, y2] = polarPieEstatus(cx, cy, rOuter, endDeg);
+  const [x3, y3] = polarPieEstatus(cx, cy, rInner, endDeg);
+  const [x4, y4] = polarPieEstatus(cx, cy, rInner, startDeg);
+  return `M ${x1} ${y1} A ${rOuter} ${rOuter} 0 ${large} 1 ${x2} ${y2} L ${x3} ${y3} A ${rInner} ${rInner} 0 ${large} 0 ${x4} ${y4} Z`;
+}
+
+function PieCargaDiseno({ items, onSelect }) {
+  const total = items.reduce((sum, item) => sum + (item.activas || 0), 0);
+  if (!total) return null;
+  const cx = 50;
+  const cy = 50;
+  const rOuter = 48;
+  const rInner = 27;
+  const gapBase = items.length > 1 ? 5 : 0;
+  let acc = 0;
+  const slices = items.map((item) => {
+    const span = ((item.activas || 0) / total) * 360;
+    const gap = span > 14 ? gapBase : (items.length > 1 ? 2 : 0);
+    const start = acc + gap / 2;
+    const end = acc + span - gap / 2;
+    acc += span;
+    return {
+      ...item,
+      path: end > start
+        ? pathDonutSliceEstatus(cx, cy, rOuter, rInner, start, end)
+        : ""
+    };
+  }).filter((slice) => slice.path);
+  return (
+    <svg viewBox="0 0 100 100" className="estatus-carga-pie-svg" aria-hidden="true">
+      {slices.map((slice) => (
+        <path
+          key={slice.handle}
+          d={slice.path}
+          fill={slice.color}
+          onClick={(e) => {
+            e.stopPropagation();
+            onSelect(slice);
+          }}
+        />
+      ))}
+    </svg>
+  );
+}
+
+function tipoFechaSnapshotEstatus(dias) {
+  const d = String(dias || "");
+  if (/atrasado/i.test(d)) return "atrasado";
+  if (/sin fecha/i.test(d)) return "sin-fecha";
+  return "en-fecha";
+}
+
+function etiquetaChipSnapshotEstatus(dias) {
+  const d = String(dias || "").trim();
+  if (!d) return "Sin fecha";
+  const m = d.match(/(\d+)\s*d\s*atrasado/i);
+  if (m) return `${m[1]}d`;
+  return d;
+}
+
+function pesoOrdenSnapshotEstatus(dias) {
+  const tipo = tipoFechaSnapshotEstatus(dias);
+  const m = String(dias || "").match(/(\d+)/);
+  const n = m ? Number(m[1]) : 0;
+  if (tipo === "atrasado") return 100000 + n;
+  if (tipo === "sin-fecha") return 50000;
+  if (/hoy/i.test(String(dias || ""))) return 40000;
+  return 30000 - n;
+}
+
+function metaPersonaSnapshotEstatus(tarea) {
+  if (typeof handlesResponsablesEstatus !== "function") return "";
+  const handles = handlesResponsablesEstatus(tarea) || [];
+  if (!handles.length) return "";
+  return handles.map((h) => (
+    typeof nombreCortoDisenadorEstatus === "function" ? nombreCortoDisenadorEstatus(h) : h
+  )).filter(Boolean).join(" · ");
+}
+
+function agruparItemsSnapshotPorCadena(items, modo, etiquetaDiasFn) {
+  const map = new Map();
+  (items || []).forEach((item) => {
+    const dias = etiquetaDiasFn(item.tarea, modo);
+    const cadena = String(item.cadena || "").trim() || "Sin cadena";
+    const key = typeof claveSubcliente === "function" ? claveSubcliente(cadena) : cadena.toLowerCase();
+    if (!map.has(key)) map.set(key, { key, nombre: cadena, items: [] });
+    map.get(key).items.push({ item, dias, tipo: tipoFechaSnapshotEstatus(dias) });
+  });
+  return Array.from(map.values())
+    .map((grupo) => {
+      const rows = grupo.items.slice().sort((a, b) => (
+        pesoOrdenSnapshotEstatus(b.dias) - pesoOrdenSnapshotEstatus(a.dias)
+        || String(a.item.entregable || "").localeCompare(String(b.item.entregable || ""), "es")
+      ));
+      const atrasados = rows.filter((r) => r.tipo === "atrasado").length;
+      const maxAtraso = rows.reduce((max, r) => Math.max(max, pesoOrdenSnapshotEstatus(r.dias)), 0);
+      return { ...grupo, items: rows, atrasados, maxAtraso };
+    })
+    .sort((a, b) => (
+      b.maxAtraso - a.maxAtraso
+      || b.atrasados - a.atrasados
+      || b.items.length - a.items.length
+      || String(a.nombre).localeCompare(String(b.nombre), "es")
+    ));
+}
+
 function LayoutEstatusGeneral({
   marca,
   tareas,
@@ -8,7 +141,9 @@ function LayoutEstatusGeneral({
   puedeEditar = false,
   onEnviarCliente,
   onGuardarComentario,
-  onCambiarEnvioTipo
+  onCambiarEnvioTipo,
+  modoGlobal = false,
+  onAbrirLista
 }) {
   const tareasActivas = useMemo(
     () => (tareas || []).filter((t) => (
@@ -22,15 +157,29 @@ function LayoutEstatusGeneral({
       : []),
     [tareasActivas, marca]
   );
+  const gruposMarca = useMemo(
+    () => (modoGlobal && typeof agruparTareasPorMarcaEstatus === "function"
+      ? agruparTareasPorMarcaEstatus(tareasActivas)
+      : []),
+    [tareasActivas, modoGlobal]
+  );
   const gruposPersona = useMemo(
     () => (typeof agruparTareasPorPersonaEstatus === "function"
-      ? agruparTareasPorPersonaEstatus(tareasActivas, listaDisenadores)
+      ? agruparTareasPorPersonaEstatus(tareasActivas, { subgrupoPorMarca: modoGlobal })
       : []),
-    [tareasActivas, listaDisenadores]
+    [tareasActivas, modoGlobal]
   );
-  const [vistaDetalle, setVistaDetalle] = useState("subcliente");
+  const [vistaDetalle, setVistaDetalle] = useState(modoGlobal ? "persona" : "subcliente");
   const etiquetaMarca = (nombreMarca || (typeof formatearMarca === "function" ? formatearMarca(marca) : marca) || "esta marca").trim();
-  const grupos = vistaDetalle === "persona" ? gruposPersona : gruposSubcliente;
+  const marcaEstilo = !modoGlobal && typeof getMarcaStyle === "function"
+    ? getMarcaStyle(marca)
+    : { accent: "#0D9488" };
+  const estatusVars = modoGlobal
+    ? { "--estatus-accent": "#0D9488", "--estatus-accent-2": "#7C3AED", "--estatus-accent-3": "#EA580C" }
+    : { "--estatus-accent": marcaEstilo.accent || "#37352F" };
+  const grupos = vistaDetalle === "persona"
+    ? gruposPersona
+    : (modoGlobal ? gruposMarca : gruposSubcliente);
   const carga = useMemo(
     () => (typeof resumenCargaDisenadoresEstatus === "function"
       ? resumenCargaDisenadoresEstatus(tareasActivas, listaDisenadores)
@@ -56,15 +205,57 @@ function LayoutEstatusGeneral({
     [tareas, tareasActivas.length]
   );
   const listas = presentacion.listas || { porEnviar: [], esperaCliente: [], faltaHacer: [] };
+  const cargaDiseno = useMemo(
+    () => (carga.items || []).filter((item) => item.rol === "diseno"),
+    [carga.items]
+  );
+  const cargaContenido = useMemo(() => (
+    (carga.items || [])
+      .filter((item) => item.rol === "contenido")
+      .map((item) => {
+        const peso = (item.tareasActivas || []).reduce(
+          (sum, row) => sum + pesoUrgenciaHoyEstatus(row.tarea),
+          0
+        );
+        return { ...item, peso: Math.max(peso, item.activas || 0) };
+      })
+      .sort((a, b) => b.peso - a.peso || b.activas - a.activas || String(a.nombre).localeCompare(String(b.nombre), "es"))
+  ), [carga.items]);
+  const porHacerPorMarca = useMemo(() => {
+    const map = new Map();
+    (listas.faltaHacer || []).forEach((item) => {
+      const raw = String(item?.tarea?.marca || "").trim();
+      const key = raw ? raw.toLowerCase() : "__sin_marca__";
+      const nombre = raw
+        ? (typeof formatearMarca === "function" ? formatearMarca(raw) : raw)
+        : "Sin marca";
+      if (!map.has(key)) {
+        const accent = typeof getMarcaStyle === "function"
+          ? (getMarcaStyle(raw || nombre).accent || "#37352F")
+          : "#37352F";
+        map.set(key, { key, nombre, items: [], accent });
+      }
+      map.get(key).items.push(item);
+    });
+    return Array.from(map.values()).sort((a, b) => b.items.length - a.items.length || String(a.nombre).localeCompare(String(b.nombre), "es"));
+  }, [listas.faltaHacer]);
+  const maxPesoContenido = Math.max(1, ...cargaContenido.map((item) => item.peso || 0));
   const [abiertos, setAbiertos] = useState({});
   const [envioPendiente, setEnvioPendiente] = useState("");
   const [disenadorAbierto, setDisenadorAbierto] = useState(null);
   const [comentarioEditando, setComentarioEditando] = useState("");
   const [comentarioDraft, setComentarioDraft] = useState("");
+  const [medidasDraft, setMedidasDraft] = useState(() => (
+    typeof medidasVacias === "function" ? medidasVacias() : { activo: false, ancho: "", alto: "", profundidad: "", unidad: "cm" }
+  ));
   const [comentarioTip, setComentarioTip] = useState(null);
   const [esperaExpandida, setEsperaExpandida] = useState(false);
   const [faltaExpandida, setFaltaExpandida] = useState(false);
   const [panelSnapshot, setPanelSnapshot] = useState(null);
+  const [filtroSnapshot, setFiltroSnapshot] = useState("todos");
+  useEffect(() => {
+    setFiltroSnapshot("todos");
+  }, [panelSnapshot]);
   const filasEstatus = useMemo(
     () => (typeof filasEstatusReferencia === "function" ? filasEstatusReferencia() : []),
     []
@@ -250,21 +441,42 @@ function LayoutEstatusGeneral({
   const confirmarEnvio = (tarea, tipo) => {
     if (onEnviarCliente) onEnviarCliente(tarea, tipo);
     setEnvioPendiente("");
+    if (panelSnapshot) {
+      const key = getTaskSelectionKey(tarea);
+      setPanelSnapshot((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          items: (prev.items || []).filter((it) => getTaskSelectionKey(it.tarea) !== key)
+        };
+      });
+    }
   };
 
-  const abrirEditorComentario = (key, comentarioActual) => {
+  const abrirEditorComentario = (key, comentarioActual, tarea) => {
+    const texto = typeof quitarBloqueMedidasDeTexto === "function"
+      ? quitarBloqueMedidasDeTexto(comentarioActual)
+      : (comentarioActual || "");
+    const parsed = typeof parseDetalles === "function" && tarea
+      ? parseDetalles(tarea.detalles || "")
+      : {};
+    const medidas = typeof normalizarMedidas === "function"
+      ? normalizarMedidas(parsed.medidas)
+      : { activo: false, ancho: "", alto: "", profundidad: "", unidad: "cm" };
     setComentarioEditando(key);
-    setComentarioDraft(comentarioActual || "");
+    setComentarioDraft(texto);
+    setMedidasDraft(medidas);
   };
 
   const cerrarEditorComentario = () => {
     setComentarioEditando("");
     setComentarioDraft("");
+    setMedidasDraft(typeof medidasVacias === "function" ? medidasVacias() : { activo: false, ancho: "", alto: "", profundidad: "", unidad: "cm" });
   };
 
   const guardarComentario = (tarea) => {
     if (!onGuardarComentario) return;
-    onGuardarComentario(tarea, comentarioDraft);
+    onGuardarComentario(tarea, comentarioDraft, medidasDraft);
     cerrarEditorComentario();
   };
 
@@ -382,58 +594,150 @@ function LayoutEstatusGeneral({
     </div>
   ) : null;
 
-  const overlaySnapshot = panelSnapshot ? (
-    <div className="estatus-mini-overlay" onClick={() => setPanelSnapshot(null)}>
-      <div
-        className="estatus-mini-sheet"
-        role="dialog"
-        aria-modal="true"
-        aria-label={panelSnapshot.titulo}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="estatus-mini-sheet-head">
-          <button type="button" className="estatus-mini-sheet-back" onClick={() => setPanelSnapshot(null)}>
-            <i className="fa-solid fa-chevron-left" />
-            <span>Estatus</span>
-          </button>
-          <div className="estatus-mini-sheet-title">
-            <strong>{panelSnapshot.titulo}</strong>
-            <span>{(panelSnapshot.items || []).length} entregables</span>
-          </div>
-        </header>
-        {(panelSnapshot.items || []).length === 0 ? (
-          <p className="estatus-lista-empty">No hay entregables en este grupo</p>
-        ) : (
-          <ul className="estatus-mini-sheet-list">
-            {(panelSnapshot.items || []).map((item) => {
-              const t = item.tarea;
-              const dias = etiquetaDiasItem(t, panelSnapshot.modo);
-              return (
-                <li key={getTaskSelectionKey(t)}>
-                  <button
-                    type="button"
-                    className="estatus-enviar-main estatus-enviar-main--solo"
-                    onClick={() => {
-                      setPanelSnapshot(null);
-                      onSelectTask(t);
-                    }}
-                  >
-                    <span className="estatus-item-title">{tituloEntregable(item.entregable, item.cadena)}</span>
-                    <span className="estatus-item-subtitle">{titulo(item.cadena) || "Sin cadena"}</span>
-                    <em className="estatus-carga-task-meta">
-                      <span className={`estatus-chip ${/atrasado/i.test(dias) ? "is-late" : (panelSnapshot.modo === "cliente" ? "is-wait" : "is-week")}`}>
-                        {dias}
-                      </span>
-                    </em>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+  const overlaySnapshot = (() => {
+    if (!panelSnapshot) return null;
+    const items = panelSnapshot.items || [];
+    const enriquecidos = items.map((item) => {
+      const dias = etiquetaDiasItem(item.tarea, panelSnapshot.modo);
+      return { item, dias, tipo: tipoFechaSnapshotEstatus(dias) };
+    });
+    const contadores = {
+      todos: enriquecidos.length,
+      atrasado: enriquecidos.filter((r) => r.tipo === "atrasado").length,
+      "sin-fecha": enriquecidos.filter((r) => r.tipo === "sin-fecha").length,
+      "en-fecha": enriquecidos.filter((r) => r.tipo === "en-fecha").length
+    };
+    const filtrados = filtroSnapshot === "todos"
+      ? enriquecidos
+      : enriquecidos.filter((r) => r.tipo === filtroSnapshot);
+    const grupos = agruparItemsSnapshotPorCadena(
+      filtrados.map((r) => r.item),
+      panelSnapshot.modo,
+      etiquetaDiasItem
+    );
+    const accent = panelSnapshot.accent || "";
+    const filtros = [
+      { id: "todos", label: "Todos", n: contadores.todos },
+      { id: "atrasado", label: "Atrasados", n: contadores.atrasado },
+      { id: "sin-fecha", label: "Sin fecha", n: contadores["sin-fecha"] },
+      { id: "en-fecha", label: "En fecha", n: contadores["en-fecha"] }
+    ].filter((f) => f.id === "todos" || f.n > 0);
+
+    return (
+      <div className="estatus-mini-overlay" onClick={() => setPanelSnapshot(null)}>
+        <div
+          className="estatus-mini-sheet estatus-mini-sheet--snapshot"
+          role="dialog"
+          aria-modal="true"
+          aria-label={panelSnapshot.titulo}
+          style={accent ? { "--estatus-accent": accent, "--sheet-accent": accent } : undefined}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <header className="estatus-mini-sheet-head">
+            <button type="button" className="estatus-mini-sheet-back" onClick={() => setPanelSnapshot(null)}>
+              <i className="fa-solid fa-chevron-left" />
+              <span>Estatus</span>
+            </button>
+            <div className="estatus-mini-sheet-title">
+              <strong>{panelSnapshot.titulo}</strong>
+              <span>
+                {items.length} entregables
+                {contadores.atrasado > 0 ? ` · ${contadores.atrasado} atrasados` : ""}
+              </span>
+            </div>
+          </header>
+          {filtros.length > 1 ? (
+            <div className="estatus-sheet-filtros" role="tablist" aria-label="Filtrar por fecha">
+              {filtros.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={filtroSnapshot === f.id}
+                  className={`estatus-sheet-filtro ${filtroSnapshot === f.id ? "is-on" : ""}`}
+                  onClick={() => setFiltroSnapshot(f.id)}
+                >
+                  {f.label}
+                  <b>{f.n}</b>
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {filtrados.length === 0 ? (
+            <p className="estatus-lista-empty">No hay entregables en este filtro</p>
+          ) : (
+            <div className="estatus-sheet-grupos">
+              {grupos.map((grupo) => (
+                <section key={grupo.key} className="estatus-sheet-grupo">
+                  <div className="estatus-sheet-grupo-head">
+                    <span>{grupo.nombre}</span>
+                    <strong>{grupo.items.length}</strong>
+                  </div>
+                  <ul className="estatus-mini-sheet-list estatus-mini-sheet-list--compact">
+                    {grupo.items.map(({ item, dias, tipo }) => {
+                      const t = item.tarea;
+                      const key = getTaskSelectionKey(t);
+                      const persona = metaPersonaSnapshotEstatus(t);
+                      const abierto = envioPendiente === key;
+                      const puedeEnviar = !!(puedeEditar && onEnviarCliente);
+                      const chipClass = tipo === "atrasado"
+                        ? "is-late"
+                        : (tipo === "sin-fecha" ? "is-none" : (panelSnapshot.modo === "cliente" ? "is-wait" : "is-week"));
+                      return (
+                        <li key={key} className={abierto ? "is-open" : ""}>
+                          <div className="estatus-sheet-row-wrap">
+                            {puedeEnviar ? (
+                              <button
+                                type="button"
+                                className={`estatus-check-btn estatus-check-btn--sheet ${abierto ? "is-open" : ""}`}
+                                aria-label="Marcar enviado al cliente"
+                                onClick={() => setEnvioPendiente(abierto ? "" : key)}
+                              >
+                                <i className="fa-solid fa-check" />
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              className="estatus-sheet-row"
+                              onClick={() => {
+                                setPanelSnapshot(null);
+                                onSelectTask(t);
+                              }}
+                            >
+                              <span className="estatus-sheet-row-main">
+                                <span className="estatus-item-title">{tituloEntregable(item.entregable, item.cadena)}</span>
+                                {persona ? <span className="estatus-sheet-row-meta">{persona}</span> : null}
+                              </span>
+                              <span className={`estatus-chip ${chipClass}`}>
+                                {etiquetaChipSnapshotEstatus(dias)}
+                              </span>
+                            </button>
+                          </div>
+                          {abierto ? (
+                            <div className="estatus-enviar-menu estatus-enviar-menu--sheet">
+                              <p>¿Qué se envió?</p>
+                              <button type="button" onClick={() => confirmarEnvio(t, "propuesta")}>
+                                Propuesta
+                                <em>Pasa a espera de comentarios</em>
+                              </button>
+                              <button type="button" onClick={() => confirmarEnvio(t, "arte-final")}>
+                                Arte final
+                                <em>La tarea queda completada</em>
+                              </button>
+                            </div>
+                          ) : null}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </section>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  ) : null;
+    );
+  })();
 
   const renderListaFalta = (items) => {
     const restantes = Math.max(0, items.length - LISTA_VISIBLE_INICIAL);
@@ -584,6 +888,13 @@ function LayoutEstatusGeneral({
             {visibles.map((item) => {
               const key = getTaskSelectionKey(item.tarea);
               const comentario = String(item.comentario || "").trim();
+              const comentarioVista = typeof quitarBloqueMedidasDeTexto === "function"
+                ? quitarBloqueMedidasDeTexto(comentario)
+                : comentario;
+              const medidasItem = typeof parseDetalles === "function"
+                ? (parseDetalles(item.tarea?.detalles || "").medidas || null)
+                : null;
+              const medidasTxt = typeof textoMedidasParaCor === "function" ? textoMedidasParaCor(medidasItem) : "";
               const editando = comentarioEditando === key;
               return (
                 <li key={key} className={editando ? "is-open" : ""}>
@@ -603,14 +914,14 @@ function LayoutEstatusGeneral({
                       {tituloEntregable(item.entregable, item.cadena)}
                     </button>
                     <span
-                      className={`estatus-espera-coment-wrap ${comentario ? "has-tip" : ""}`}
-                      onMouseEnter={(e) => mostrarTipComentario(e, comentario)}
+                      className={`estatus-espera-coment-wrap ${comentarioVista ? "has-tip" : ""}`}
+                      onMouseEnter={(e) => mostrarTipComentario(e, [comentarioVista, medidasTxt].filter(Boolean).join("\n"))}
                       onMouseLeave={ocultarTipComentario}
                     >
                       <span
-                        className={`estatus-espera-cell estatus-espera-cell--coment ${comentario ? "" : "is-empty"}`}
+                        className={`estatus-espera-cell estatus-espera-cell--coment ${comentarioVista || medidasTxt ? "" : "is-empty"}`}
                       >
-                        {comentario || "—"}
+                        {comentarioVista || medidasTxt || "—"}
                       </span>
                     </span>
                     {puedeEditar && onGuardarComentario ? (
@@ -618,7 +929,7 @@ function LayoutEstatusGeneral({
                         type="button"
                         className={`estatus-comentario-btn estatus-comentario-btn--icon ${editando ? "is-open" : ""}`}
                         aria-label={comentario ? "Editar comentario" : "Añadir comentario"}
-                        onClick={() => (editando ? cerrarEditorComentario() : abrirEditorComentario(key, comentario))}
+                        onClick={() => (editando ? cerrarEditorComentario() : abrirEditorComentario(key, comentario, item.tarea))}
                       >
                         <i className={`fa-${comentario ? "solid" : "regular"} fa-comment`} />
                       </button>
@@ -633,6 +944,12 @@ function LayoutEstatusGeneral({
                         onChange={(e) => setComentarioDraft(e.target.value)}
                         placeholder="Comentario del cliente…"
                         rows={2}
+                      />
+                      <CuadroMedidas
+                        value={medidasDraft}
+                        onChange={setMedidasDraft}
+                        onSave={() => guardarComentario(item.tarea)}
+                        compact
                       />
                       <div className="estatus-comentario-editor-actions">
                         <button type="button" className="estatus-comentario-cancel" onClick={cerrarEditorComentario}>
@@ -679,20 +996,141 @@ function LayoutEstatusGeneral({
     : overlays;
 
   return (
-    <div className="estatus-general-page">
-      <MobileSubpageBar
-        title="Estatus general"
-        onBack={onBack}
-        backLabel={nombreMarca}
-      />
-      <div className="robin-desktop-only marca-info-desktop-bar">
-        <button type="button" onClick={onBack} className="marca-info-desktop-back">
-          <i className="fa-solid fa-chevron-left text-[10px]" />
-          <span>{nombreMarca}</span>
-        </button>
-        <h2 className="marca-info-desktop-title">Estatus general</h2>
-      </div>
+    <div
+      className={`estatus-general-page ${modoGlobal ? "estatus-general-page--global" : ""}`}
+      style={estatusVars}
+    >
+      {modoGlobal ? (
+        <div className="estatus-global-title-bar">
+          <div className="min-w-0">
+            <h2>Estatus</h2>
+            <p>Todas las marcas · carga, por hacer y detalle</p>
+          </div>
+        </div>
+      ) : (
+        <>
+          <MobileSubpageBar
+            title="Estatus general"
+            onBack={onBack}
+            backLabel={nombreMarca}
+          />
+          <div className="robin-desktop-only marca-info-desktop-bar">
+            <button type="button" onClick={onBack} className="marca-info-desktop-back">
+              <i className="fa-solid fa-chevron-left text-[10px]" />
+              <span>{nombreMarca}</span>
+            </button>
+            <h2 className="marca-info-desktop-title">Estatus general</h2>
+          </div>
+        </>
+      )}
 
+      {modoGlobal ? (
+        <>
+          <section className="estatus-carga-panel estatus-carga-duo">
+            <div className="estatus-section-label">Carga del equipo</div>
+            <div className="estatus-carga-duo-grid">
+              <div className="estatus-carga-duo-col">
+                <p className="estatus-carga-duo-title">Diseño</p>
+                <p className="estatus-section-hint">Quién lleva más peso ahora</p>
+                {cargaDiseno.length === 0 ? (
+                  <p className="estatus-lista-empty">Sin carga de diseño</p>
+                ) : (
+                  <div className="estatus-carga-pie-wrap">
+                    <button
+                      type="button"
+                      className="estatus-carga-pie"
+                      aria-label="Distribución de carga de diseño"
+                      onClick={() => {
+                        const top = cargaDiseno[0];
+                        if (top) setDisenadorAbierto(top);
+                      }}
+                    >
+                      <PieCargaDiseno items={cargaDiseno} onSelect={setDisenadorAbierto} />
+                    </button>
+                    <ul className="estatus-carga-pie-legend">
+                      {cargaDiseno.map((item) => (
+                        <li key={item.handle}>
+                          <button type="button" className="estatus-carga-pie-legend-btn" onClick={() => setDisenadorAbierto(item)}>
+                            <span className="estatus-carga-pie-swatch" style={{ background: item.color }} aria-hidden="true" />
+                            <span className="estatus-carga-pie-name">{item.nombre}</span>
+                            <strong>{item.activas}</strong>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+              <div className="estatus-carga-duo-col">
+                <p className="estatus-carga-duo-title">Contenido</p>
+                <p className="estatus-section-hint">Lo más urgente hoy (prioridad + fechas)</p>
+                {cargaContenido.length === 0 ? (
+                  <p className="estatus-lista-empty">Sin carga de contenido</p>
+                ) : (
+                  <ul className="estatus-carga-bars">
+                    {cargaContenido.map((item) => {
+                      const pct = Math.round(((item.peso || 0) / maxPesoContenido) * 100);
+                      return (
+                        <li key={item.handle}>
+                          <button
+                            type="button"
+                            className="estatus-carga-bar-row"
+                            onClick={() => setDisenadorAbierto(item)}
+                          >
+                            <span className="estatus-carga-bar-person">
+                              <span className="estatus-carga-bar-label">{item.nombre}</span>
+                              <span className="estatus-carga-bar-rol">{item.activas} activas</span>
+                            </span>
+                            <div className="estatus-carga-bar-track">
+                              <div
+                                className="estatus-carga-bar-fill"
+                                style={{ width: `${pct}%`, background: item.color }}
+                              />
+                            </div>
+                            <span className="estatus-carga-bar-count">{item.peso}</span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <section className="estatus-lista-card estatus-lista-card--falta">
+            <div className="estatus-lista-card-head">
+              <h3>Por hacer</h3>
+              <span>{(listas.faltaHacer || []).length}</span>
+            </div>
+            {porHacerPorMarca.length === 0 ? (
+              <p className="estatus-lista-empty">Nada pendiente internamente</p>
+            ) : (
+              <ul className="estatus-porhacer-marcas">
+                {porHacerPorMarca.map((grupo) => (
+                  <li key={grupo.key}>
+                    <button
+                      type="button"
+                      className="estatus-porhacer-marca-btn"
+                      style={{ "--marca-accent": grupo.accent }}
+                      onClick={() => setPanelSnapshot({
+                        titulo: `Por hacer · ${grupo.nombre}`,
+                        items: grupo.items,
+                        modo: "diseno",
+                        accent: grupo.accent
+                      })}
+                    >
+                      <span className="estatus-porhacer-marca-name">{grupo.nombre}</span>
+                      <strong className="estatus-porhacer-marca-count">{grupo.items.length}</strong>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </>
+      ) : (
+        <>
       <section className="estatus-semana">
         <div className="estatus-section-label">Resumen de la semana</div>
         <ul className="estatus-snapshot">
@@ -732,10 +1170,10 @@ function LayoutEstatusGeneral({
         <div className="estatus-flujo">
           <div className="estatus-flujo-track">
             {[
-              { key: "diseno", label: "Diseño", value: presentacion.diseno, color: "#2F7A4E" },
-              { key: "enviar", label: "Por enviar", value: presentacion.porEnviar, color: "#40916C" },
-              { key: "cliente", label: "Cliente", value: presentacion.cliente, color: "#74C69D" },
-              { key: "listo", label: "Listo", value: presentacion.listo, color: "#D8F3DC" }
+              { key: "diseno", label: "Diseño", value: presentacion.diseno, color: marcaEstilo.accent || "#0D9488" },
+              { key: "enviar", label: "Por enviar", value: presentacion.porEnviar, color: "#7C3AED" },
+              { key: "cliente", label: "Cliente", value: presentacion.cliente, color: "#EA580C" },
+              { key: "listo", label: "Listo", value: presentacion.listo, color: "#D4D4D8" }
             ].filter((seg) => seg.value > 0).map((seg) => (
               <div
                 key={seg.key}
@@ -790,19 +1228,21 @@ function LayoutEstatusGeneral({
         {renderListaEnviar(listas.porEnviar)}
         {renderListaEspera(listas.esperaCliente)}
       </div>
+        </>
+      )}
 
       <div className="estatus-cadenas-head">
         <div>
           <h3>Detalle de entregables</h3>
-          <span>{grupos.length} {vistaDetalle === "persona" ? "personas" : "cadenas"} · {tareasActivas.length} entregables</span>
+          <span>{grupos.length} {vistaDetalle === "persona" ? "personas" : (modoGlobal ? "marcas" : "cadenas")} · {tareasActivas.length} entregables</span>
         </div>
         <div className="lista-agrupacion-pills estatus-detalle-pills">
           <button
             type="button"
-            onClick={() => setVistaDetalle("subcliente")}
-            className={`lista-agrupacion-pill ${vistaDetalle === "subcliente" ? "is-active" : ""}`}
+            onClick={() => setVistaDetalle(modoGlobal ? "marca" : "subcliente")}
+            className={`lista-agrupacion-pill ${vistaDetalle !== "persona" ? "is-active" : ""}`}
           >
-            Por subcliente
+            {modoGlobal ? "Por marca" : "Por subcliente"}
           </button>
           <button
             type="button"
@@ -818,7 +1258,9 @@ function LayoutEstatusGeneral({
         <div className="marca-subclientes-empty">
           {vistaDetalle === "persona"
             ? "Aún no hay entregables activos con persona asignada."
-            : `Aún no hay entregables con cadena en ${etiquetaMarca}.`}
+            : modoGlobal
+              ? "Aún no hay entregables activos por marca."
+              : `Aún no hay entregables con cadena en ${etiquetaMarca}.`}
         </div>
       ) : (
         <div className="estatus-notion">

@@ -14,6 +14,33 @@ function atajoSpotlightLabel() {
   return "Ctrl K";
 }
 
+/** Orden fijo: marca → subclientes con ese nombre → entregables. */
+function mezclarResultadosSpotlight(items, limite = 22) {
+  const paginas = items.filter((i) => i.tipo === "pagina");
+  const marcas = items.filter((i) => i.tipo === "marca");
+  const subsDirectos = items.filter((i) => i.tipo === "subcliente" && i.matchNombre);
+  const tareas = items
+    .filter((i) => i.tipo === "tarea")
+    .sort((a, b) => Number(!!b.matchTitulo) - Number(!!a.matchTitulo));
+  const subsDeMarca = items.filter((i) => i.tipo === "subcliente" && !i.matchNombre);
+
+  const out = [];
+  const tomar = (lista, n) => {
+    if (n <= 0 || !lista.length) return 0;
+    const slice = lista.slice(0, n);
+    out.push(...slice);
+    return slice.length;
+  };
+
+  tomar(paginas, paginas.length);
+  tomar(marcas, marcas.length);
+  tomar(subsDirectos, Math.max(0, limite - out.length));
+  tomar(tareas, Math.max(0, limite - out.length));
+  tomar(subsDeMarca, Math.max(0, limite - out.length));
+
+  return out;
+}
+
 function BuscadorSpotlight({
   abierto,
   onAbrir,
@@ -123,14 +150,17 @@ function BuscadorSpotlight({
         const marcaRaw = s?.marca || "";
         if (!nombre || !marcaRaw) return;
         const marcaNombre = typeof formatearMarca === "function" ? formatearMarca(marcaRaw) : String(marcaRaw);
-        const blob = normalizarBusquedaSpotlight(`${nombre} ${marcaNombre}`);
-        if (!blob.includes(q)) return;
+        const nombreNorm = normalizarBusquedaSpotlight(nombre);
+        const marcaNorm = normalizarBusquedaSpotlight(marcaNombre);
+        const coincideNombre = nombreNorm.includes(q);
+        const coincideMarca = marcaNorm.includes(q);
+        if (!coincideNombre && !coincideMarca) return;
         const claveMarca = typeof claveMarcaSubcliente === "function"
           ? claveMarcaSubcliente(marcaRaw)
-          : normalizarBusquedaSpotlight(marcaNombre);
+          : marcaNorm;
         const claveSub = typeof claveSubcliente === "function"
           ? claveSubcliente(nombre)
-          : normalizarBusquedaSpotlight(nombre);
+          : nombreNorm;
         const id = `sub-${claveMarca}-${claveSub}`;
         if (vistosSub.has(id)) return;
         vistosSub.add(id);
@@ -142,31 +172,79 @@ function BuscadorSpotlight({
           icon: "fa-shop",
           marca: marcaRaw,
           subcliente: nombre,
-          grupo: "Subclientes"
+          grupo: "Subclientes",
+          matchNombre: coincideNombre
         });
       });
     }
 
-    const listaTareas = (tareas || []).filter((t) => t && !(typeof esTareaSuspendida === "function" && esTareaSuspendida(t)));
-    listaTareas.forEach((t) => {
+    // Entregables activos que coinciden con la query
+    const todasTareas = (tareas || []).filter(Boolean);
+    const esInactivaSpotlight = (t) => {
+      if (typeof esTareaCompletada === "function" && esTareaCompletada(t)) return true;
+      if (typeof esTareaSuspendida === "function" && esTareaSuspendida(t)) return true;
+      return typeof cleanEstado === "function" && cleanEstado(t.estado) === "completada";
+    };
+    const etiquetaEstadoSpotlight = (t) => {
+      if (typeof esTareaSuspendida === "function" && esTareaSuspendida(t)) return "En pausa";
+      if (typeof normalizarEstado === "function") return normalizarEstado(t.estado) || String(t.estado || "");
+      return String(t.estado || "");
+    };
+    const pushTareaSpotlight = (t, { forzar = false } = {}) => {
       const titulo = String(t.info || "Sin título");
       const marca = typeof formatearMarca === "function" ? formatearMarca(t.marca) : String(t.marca || "");
-      const estado = String(t.estado || "");
+      const estadoLabel = etiquetaEstadoSpotlight(t);
       const personas = String(t.personas || "");
       const sub = typeof obtenerSubclienteTarea === "function" ? obtenerSubclienteTarea(t) : String(t.subcliente || "");
-      const blob = normalizarBusquedaSpotlight([titulo, marca, estado, personas, sub].filter(Boolean).join(" "));
-      if (q && !blob.includes(q)) return;
+      if (!forzar) {
+        const blob = normalizarBusquedaSpotlight([titulo, marca, estadoLabel, personas, sub].filter(Boolean).join(" "));
+        if (q && !blob.includes(q)) return;
+      }
+      const id = typeof getTaskSelectionKey === "function" ? `tarea-${getTaskSelectionKey(t)}` : `tarea-${titulo}`;
+      if (items.some((i) => i.id === id)) return;
+      const tituloNorm = normalizarBusquedaSpotlight(titulo);
       items.push({
-        id: typeof getTaskSelectionKey === "function" ? `tarea-${getTaskSelectionKey(t)}` : `tarea-${titulo}`,
+        id,
         tipo: "tarea",
         titulo,
-        meta: [marca, estado].filter(Boolean).join(" · "),
+        meta: [marca, estadoLabel].filter(Boolean).join(" · "),
         icon: "fa-file-lines",
         tarea: t,
         marca: t.marca,
-        grupo: "Entregables"
+        grupo: "Entregables",
+        matchTitulo: !!(q && tituloNorm.includes(q)),
+        inactiva: esInactivaSpotlight(t)
       });
+    };
+
+    todasTareas.forEach((t) => {
+      if (esInactivaSpotlight(t)) return;
+      pushTareaSpotlight(t);
     });
+
+    // Solo si buscas un subcliente por nombre y no tiene activos: mostrar pausa/completadas
+    if (q) {
+      items
+        .filter((i) => i.tipo === "subcliente" && i.matchNombre)
+        .forEach((subItem) => {
+          const delSub = todasTareas.filter((t) => {
+            const mismaMarca = typeof marcasCoinciden === "function"
+              ? marcasCoinciden(t.marca, subItem.marca)
+              : t.marca === subItem.marca;
+            if (!mismaMarca) return false;
+            const sub = typeof obtenerSubclienteTarea === "function"
+              ? obtenerSubclienteTarea(t)
+              : String(t.subcliente || "").trim();
+            return typeof subclientesCoinciden === "function"
+              ? subclientesCoinciden(sub, subItem.subcliente)
+              : sub === subItem.subcliente;
+          });
+          const activas = delSub.filter((t) => !esInactivaSpotlight(t));
+          const inactivas = delSub.filter((t) => esInactivaSpotlight(t));
+          if (activas.length > 0 || inactivas.length === 0) return;
+          inactivas.forEach((t) => pushTareaSpotlight(t, { forzar: true }));
+        });
+    }
 
     if (!q) {
       const atajos = items.filter((i) => i.tipo === "pagina");
@@ -175,7 +253,7 @@ function BuscadorSpotlight({
       return [...atajos, ...marcasTop, ...tareasTop];
     }
 
-    return items.slice(0, 18);
+    return mezclarResultadosSpotlight(items, 22);
   }, [query, tareas, marcas, subclientes, esDisenador]);
 
   useEffect(() => {

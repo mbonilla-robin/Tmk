@@ -277,9 +277,7 @@ function LayoutTablaAgrupada({
         return (
           <section
             key={grupoKey}
-            id={agruparPor === "subcliente" && typeof idGrupoEntregableSubcliente === "function"
-              ? idGrupoEntregableSubcliente(grupoKey)
-              : undefined}
+            data-sub-clave={agruparPor === "subcliente" ? claveDomSubcliente(grupoKey) : undefined}
             className="notion-group"
           >
             <header

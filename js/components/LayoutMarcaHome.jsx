@@ -86,6 +86,41 @@ function MarcaInfoSubpagina({ metadata, nombreMarca, marcaEstilo, onVerFichaClie
   );
 }
 
+function scrollerPrincipalRobin() {
+  return document.querySelector("[data-robin-content-main]");
+}
+
+function listaEntregablesVisible() {
+  return Array.from(document.querySelectorAll(".notion-task-list")).find((nodo) => {
+    const caja = nodo.getBoundingClientRect();
+    return caja.width > 8 && caja.height > 8;
+  }) || null;
+}
+
+function grupoSubclienteEnLista(nombre) {
+  const lista = listaEntregablesVisible();
+  if (!lista) return null;
+  const clave = claveDomSubcliente(nombre);
+  return Array.from(lista.querySelectorAll("[data-sub-clave]")).find((nodo) => (
+    nodo.getAttribute("data-sub-clave") === clave
+  )) || null;
+}
+
+function alinearGrupoEnScroller(el) {
+  const scroller = scrollerPrincipalRobin();
+  if (!el) return false;
+  if (scroller) {
+    const delta = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top - 10;
+    if (Math.abs(delta) > 1) scroller.scrollTop += delta;
+  } else {
+    el.scrollIntoView({ block: "start", inline: "nearest" });
+  }
+  const scroller2 = scrollerPrincipalRobin();
+  if (!scroller2) return true;
+  const top = el.getBoundingClientRect().top - scroller2.getBoundingClientRect().top;
+  return top >= -4 && top < 120;
+}
+
 function LayoutMarcaHome({
   marca,
   tareas,
@@ -140,6 +175,8 @@ function LayoutMarcaHome({
 
   const [vistaSubpagina, setVistaSubpagina] = useState(null);
   const [filtroSubcliente, setFiltroSubcliente] = useState("TODOS");
+  const [subclienteEnfocado, setSubclienteEnfocado] = useState("");
+  const subclientePendienteRef = useRef("");
 
   const idBloqueSubcliente = (nombre) => {
     const clave = typeof claveSubcliente === "function"
@@ -176,20 +213,38 @@ function LayoutMarcaHome({
     )) || subclienteDestino.nombre;
     setVistaSubpagina(null);
     if (typeof setVistaModo === "function") setVistaModo("TABLE");
-    const idGrupo = typeof idGrupoEntregableSubcliente === "function"
-      ? idGrupoEntregableSubcliente(nombreDestino)
-      : `marca-entregable-sub-${String(nombreDestino || "").toLowerCase().replace(/\s+/g, "-")}`;
-    const t = window.setTimeout(() => {
-      const el = (idGrupo && document.getElementById(idGrupo)) || document.getElementById("marca-entregables");
-      if (el) {
-        el.classList.add("is-spotlight-focus");
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-        window.setTimeout(() => el.classList.remove("is-spotlight-focus"), 1800);
-      }
+    setFiltroSubcliente(nombreDestino);
+    subclientePendienteRef.current = nombreDestino;
+    setSubclienteEnfocado(nombreDestino);
+
+    let cancelado = false;
+    const timers = [];
+    const intentar = () => {
+      if (cancelado || !subclientePendienteRef.current) return;
+      const grupo = grupoSubclienteEnLista(nombreDestino);
+      if (!grupo) return false;
+      return alinearGrupoEnScroller(grupo);
+    };
+    [150, 320, 560, 900, 1300].forEach((ms) => {
+      timers.push(window.setTimeout(() => {
+        if (intentar()) {
+          subclientePendienteRef.current = "";
+          setSubclienteEnfocado("");
+          if (typeof onSubclienteDestinoConsumido === "function") onSubclienteDestinoConsumido();
+        }
+      }, ms));
+    });
+    timers.push(window.setTimeout(() => {
+      if (!subclientePendienteRef.current) return;
+      subclientePendienteRef.current = "";
+      setSubclienteEnfocado("");
       if (typeof onSubclienteDestinoConsumido === "function") onSubclienteDestinoConsumido();
-    }, 120);
-    return () => window.clearTimeout(t);
-  }, [subclienteDestino, marca, subclientesDisponibles]);
+    }, 1600));
+    return () => {
+      cancelado = true;
+      timers.forEach((id) => window.clearTimeout(id));
+    };
+  }, [subclienteDestino, marca]);
 
   const gruposSubclientes = useMemo(
     () => agruparTareasPorSubcliente(tareasMarca, marca),
@@ -238,8 +293,22 @@ function LayoutMarcaHome({
 
   const tareasVista = useMemo(() => {
     if (filtroSubcliente === "TODOS") return tareasEntregablesMarca;
-    return tareasEntregablesMarca.filter((t) => subclientesCoinciden(obtenerSubclienteTarea(t), filtroSubcliente));
-  }, [tareasEntregablesMarca, filtroSubcliente]);
+
+    const delSub = (lista) => lista.filter((t) => (
+      typeof subclientesCoinciden === "function"
+        ? subclientesCoinciden(obtenerSubclienteTarea(t), filtroSubcliente)
+        : obtenerSubclienteTarea(t) === filtroSubcliente
+    ));
+
+    const activos = delSub(tareasEntregablesMarca);
+    if (activos.length > 0) return activos;
+
+    // Subcliente filtrado sin activos: mostrar pausa/completadas solo en esta vista
+    return delSub(tareasMarca).filter((t) => (
+      (typeof esTareaCompletada === "function" && esTareaCompletada(t))
+      || (typeof esTareaSuspendida === "function" && esTareaSuspendida(t))
+    ));
+  }, [tareasEntregablesMarca, tareasMarca, filtroSubcliente]);
 
   const tareasActivasMarca = useMemo(() => {
     return tareasMarca.filter(t => !esTareaCompletada(t) && !esTareaSuspendida(t)).length;
@@ -291,6 +360,28 @@ function LayoutMarcaHome({
     filtroTiempo !== "TODAS" ||
     filtroSubcliente !== "TODOS" ||
     searchQuery.trim() !== "";
+
+  const chipsFiltrosActivos = useMemo(
+    () => construirChipsFiltrosActivos({
+      filtroTiempo,
+      filtroEstado,
+      filtroPrioridad,
+      filtroPersona,
+      searchQuery,
+      filtroSubcliente,
+      incluirSubcliente: true
+    }),
+    [filtroTiempo, filtroEstado, filtroPrioridad, filtroPersona, searchQuery, filtroSubcliente]
+  );
+
+  const quitarChipFiltro = (id) => {
+    if (id === "tiempo") setFiltroTiempo("TODAS");
+    else if (id === "estado") setFiltroEstado("TODOS");
+    else if (id === "prioridad") setFiltroPrioridad("TODAS");
+    else if (id === "persona") setFiltroPersona("TODAS");
+    else if (id === "search") setSearchQuery("");
+    else if (id === "subcliente") setFiltroSubcliente("TODOS");
+  };
 
   const limpiarFiltrosLocales = () => {
     setFiltroSubcliente("TODOS");
@@ -547,6 +638,7 @@ function LayoutMarcaHome({
 
   return (
     <div className="marca-home animate-fade-in">
+      <FiltrosActivosBar chips={chipsFiltrosActivos} onQuitar={quitarChipFiltro} />
       <header className="marca-home-hero" style={{ background: gradienteHeader }}>
         <div className="marca-home-hero-inner">
           <h1 className="marca-home-hero-title">{nombreMarca}</h1>
@@ -730,7 +822,8 @@ function LayoutMarcaHome({
                   <LayoutTablaAgrupada
                     {...layoutTablaProps}
                     tareas={tareasVista}
-                    agruparPor={tieneSubclientes ? "subcliente" : "marca"}
+                    agruparPor={subclienteEnfocado || tieneSubclientes ? "subcliente" : "marca"}
+                    subclienteEnfocado={subclienteEnfocado}
                   />
                 ) : (
                   <LayoutKanban tareas={tareasVista} ordenPrioridad={kanbanOrdenPrioridadActivo} onUpdateField={onUpdateField} onSelectTask={onSelectTask} onDeleteTask={onDeleteTask} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
@@ -745,7 +838,8 @@ function LayoutMarcaHome({
               <LayoutTablaAgrupada
                 {...layoutTablaProps}
                 tareas={tareasVista}
-                agruparPor={tieneSubclientes ? "subcliente" : "marca"}
+                agruparPor={subclienteEnfocado || tieneSubclientes ? "subcliente" : "marca"}
+                subclienteEnfocado={subclienteEnfocado}
               />
             ) : (
               <LayoutKanban tareas={tareasVista} ordenPrioridad={kanbanOrdenPrioridadActivo} onUpdateField={onUpdateField} onSelectTask={onSelectTask} onDeleteTask={onDeleteTask} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />

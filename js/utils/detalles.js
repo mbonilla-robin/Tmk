@@ -4,7 +4,14 @@ const ROBIN_FLUJO_RE = /<!--\s*robin-flujo:([^>]+?)\s*-->/i;
 const ROBIN_IMPORT_KEY_RE = /<!--\s*robin-import-key:([^>]+?)\s*-->/i;
 const ROBIN_ENVIO_TIPO_RE = /<!--\s*robin-envio-tipo:([^>]+?)\s*-->/i;
 const ROBIN_PENDIENTE_COR_RE = /<!--\s*robin-pendiente-cor:([^>]+?)\s*-->/i;
+const ROBIN_MEDIDAS_RE = /<!--\s*robin-medidas:([^>]+?)\s*-->/i;
 const HISTORIAL_LINE_RE = /^•\s*\[(\d{1,2})\/(\d{1,2})\s+(\d{1,2}):(\d{2})\]\s*(.+)$/;
+const MEDIDAS_BLOQUE_RE = /(?:^|\n)\s*MEDIDAS:\s*[^\n]*(?:\n(?!\s*\n)[^\n]*)*$/i;
+const UNIDADES_MEDIDA = [
+  { id: "m", label: "Metros", corto: "m" },
+  { id: "cm", label: "Centímetros", corto: "cm" },
+  { id: "mm", label: "Milímetros", corto: "mm" }
+];
 
 function extraerMarcadorLink(text) {
   const raw = String(text || "");
@@ -73,13 +80,117 @@ function extraerMarcadorPendienteCor(text) {
   };
 }
 
+function unidadMedidaValida(val) {
+  const u = String(val || "").trim().toLowerCase();
+  return u === "m" || u === "cm" || u === "mm" ? u : "cm";
+}
+
+function medidasVacias() {
+  return { activo: false, ancho: "", alto: "", profundidad: "", unidad: "cm" };
+}
+
+function normalizarNumeroMedida(val) {
+  const s = String(val || "").trim().replace(",", ".");
+  if (!s) return "";
+  if (!/^\d+(\.\d+)?$/.test(s)) return String(val || "").trim();
+  return s;
+}
+
+function normalizarMedidas(raw) {
+  const base = medidasVacias();
+  if (!raw || typeof raw !== "object") return base;
+  const medidas = {
+    ancho: normalizarNumeroMedida(raw.ancho),
+    alto: normalizarNumeroMedida(raw.alto),
+    profundidad: normalizarNumeroMedida(raw.profundidad),
+    unidad: unidadMedidaValida(raw.unidad)
+  };
+  medidas.activo = raw.activo === true || medidasTieneValor(medidas);
+  return medidas;
+}
+
+function medidasTieneValor(medidas) {
+  if (!medidas) return false;
+  return Boolean(medidas.ancho || medidas.alto || medidas.profundidad);
+}
+
+function medidasParaGuardar(medidas) {
+  const n = normalizarMedidas(medidas);
+  if (!n.activo || !medidasTieneValor(n)) return null;
+  return {
+    ancho: n.ancho,
+    alto: n.alto,
+    profundidad: n.profundidad,
+    unidad: n.unidad
+  };
+}
+
+function etiquetaUnidadMedida(unidad) {
+  const u = unidadMedidaValida(unidad);
+  const hit = UNIDADES_MEDIDA.find((item) => item.id === u);
+  return hit ? hit.corto : "cm";
+}
+
+function textoMedidasParaCor(medidas) {
+  const n = medidasParaGuardar(medidas) || (medidasTieneValor(medidas) ? normalizarMedidas(medidas) : null);
+  if (!n) return "";
+  const u = etiquetaUnidadMedida(n.unidad);
+  const partes = [];
+  if (n.ancho) partes.push(`${n.ancho} ${u} (ancho)`);
+  if (n.alto) partes.push(`${n.alto} ${u} (alto)`);
+  if (n.profundidad) partes.push(`${n.profundidad} ${u} (profundidad)`);
+  return partes.length ? `MEDIDAS: ${partes.join(" x ")}` : "";
+}
+
+function extraerMarcadorMedidas(text) {
+  const raw = String(text || "");
+  const match = raw.match(ROBIN_MEDIDAS_RE);
+  if (!match) return { medidas: null, resto: raw };
+  const partes = String(match[1] || "").split("|").map((p) => p.trim());
+  const medidas = medidasParaGuardar({
+    ancho: partes[0] || "",
+    alto: partes[1] || "",
+    profundidad: partes[2] || "",
+    unidad: partes[3] || "cm",
+    activo: true
+  });
+  return {
+    medidas,
+    resto: raw.replace(ROBIN_MEDIDAS_RE, "").trim()
+  };
+}
+
+function serializarMarcadorMedidas(medidas) {
+  const n = medidasParaGuardar(medidas);
+  if (!n) return "";
+  return `<!--robin-medidas:${n.ancho}|${n.alto}|${n.profundidad}|${n.unidad}-->`;
+}
+
+function quitarBloqueMedidasDeTexto(texto) {
+  return String(texto || "").replace(MEDIDAS_BLOQUE_RE, "").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+function extrasDetallesCon(parsed, extra) {
+  const base = parsed && typeof parsed === "object" ? parsed : {};
+  const e = extra && typeof extra === "object" ? extra : {};
+  return {
+    flujo: e.flujo != null ? e.flujo : (base.flujo || ""),
+    importKey: e.importKey != null ? e.importKey : (base.importKey || ""),
+    envioTipo: e.envioTipo != null ? e.envioTipo : (base.envioTipo || ""),
+    pendienteCor: e.pendienteCor != null ? e.pendienteCor : Boolean(base.pendienteCor),
+    medidas: e.medidas !== undefined ? e.medidas : (base.medidas || null)
+  };
+}
+
 function parseDetalles(detallesRaw) {
   const sinLink = extraerMarcadorLink(detallesRaw || "");
   const sinSub = extraerMarcadorSubcliente(sinLink.resto);
   const sinFlujo = extraerMarcadorFlujo(sinSub.resto);
   const sinImport = extraerMarcadorImportKey(sinFlujo.resto);
   const sinEnvio = extraerMarcadorEnvioTipo(sinImport.resto);
-  const { pendienteCor, resto } = extraerMarcadorPendienteCor(sinEnvio.resto);
+  const sinPendiente = extraerMarcadorPendienteCor(sinEnvio.resto);
+  const { medidas, resto } = extraerMarcadorMedidas(sinPendiente.resto);
+  const pendienteCor = sinPendiente.pendienteCor;
   const subcliente = sinSub.subcliente;
   const flujo = sinFlujo.flujo;
   const importKey = sinImport.importKey;
@@ -109,6 +220,7 @@ function parseDetalles(detallesRaw) {
     importKey,
     envioTipo,
     pendienteCor,
+    medidas,
     notas: notasLines.join("\n"),
     subtareas,
     historial
@@ -143,6 +255,8 @@ function serializeDetalles(notas, subtareas, historial, link, subcliente, extras
   if (extras?.pendienteCor) {
     markers.push("<!--robin-pendiente-cor:1-->");
   }
+  const medidasMarker = serializarMarcadorMedidas(extras?.medidas);
+  if (medidasMarker) markers.push(medidasMarker);
   if (markers.length) {
     const prefix = markers.join("\n");
     text = text ? `${prefix}\n${text}` : prefix;

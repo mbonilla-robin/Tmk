@@ -3,8 +3,11 @@
  * Generación directa con jsPDF (descarga sin diálogo de impresión).
  */
 (function (global) {
-  const CSS_VERSION = "10";
+  const CSS_VERSION = "11";
   const PDF_PAGE_WIDTH_PX = 794;
+  const PDF_MARGIN_X_PX = 53; // ~14mm
+  const PDF_MARGIN_Y_PX = 45; // ~12mm
+  const PDF_CONTENT_WIDTH_PX = PDF_PAGE_WIDTH_PX - PDF_MARGIN_X_PX * 2;
 
   function absUrl(href) {
     try {
@@ -94,7 +97,7 @@
 
     const frame = global.document.createElement("iframe");
     frame.setAttribute("aria-hidden", "true");
-    frame.style.cssText = `position:fixed;left:-10000px;top:0;width:${PDF_PAGE_WIDTH_PX}px;height:1px;border:0;opacity:0;pointer-events:none;`;
+    frame.style.cssText = `position:fixed;left:-10000px;top:0;width:${PDF_CONTENT_WIDTH_PX}px;height:1px;border:0;opacity:0;pointer-events:none;`;
     global.document.body.appendChild(frame);
 
     try {
@@ -107,8 +110,8 @@
       await waitDocumentReady(frame.contentWindow);
 
       const root = idoc.body;
-      const contentHeight = Math.max(root.scrollHeight, root.offsetHeight);
-      frame.style.height = `${contentHeight}px`;
+      const rootHeight = Math.max(root.scrollHeight, root.offsetHeight);
+      frame.style.height = `${rootHeight}px`;
 
       const canvas = await global.html2canvas(root, {
         scale: 2,
@@ -116,9 +119,9 @@
         allowTaint: true,
         backgroundColor: "#ffffff",
         logging: false,
-        windowWidth: PDF_PAGE_WIDTH_PX,
-        width: PDF_PAGE_WIDTH_PX,
-        height: contentHeight,
+        windowWidth: PDF_CONTENT_WIDTH_PX,
+        width: PDF_CONTENT_WIDTH_PX,
+        height: rootHeight,
         scrollX: 0,
         scrollY: 0
       });
@@ -133,7 +136,11 @@
       });
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pageWidth;
+      const marginX = (PDF_MARGIN_X_PX / PDF_PAGE_WIDTH_PX) * pageWidth;
+      const marginY = (PDF_MARGIN_Y_PX / PDF_PAGE_WIDTH_PX) * pageWidth;
+      const contentWidth = pageWidth - marginX * 2;
+      const pageContentHeight = pageHeight - marginY * 2;
+      const imgWidth = contentWidth;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       const imgData = canvas.toDataURL("image/png");
 
@@ -143,9 +150,18 @@
 
       while (heightLeft > 0) {
         if (pageIndex > 0) pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight, undefined, "FAST");
-        heightLeft -= pageHeight;
-        position -= pageHeight;
+        pdf.addImage(
+          imgData,
+          "PNG",
+          marginX,
+          marginY + position,
+          imgWidth,
+          imgHeight,
+          undefined,
+          "FAST"
+        );
+        heightLeft -= pageContentHeight;
+        position -= pageContentHeight;
         pageIndex += 1;
       }
 
@@ -303,10 +319,7 @@
   function renderSeccionLista(titulo, total, grupos, emptyText, opts) {
     const options = opts || {};
     const extraClass = options.extraClass ? ` ${options.extraClass}` : "";
-    const divider = options.divider
-      ? '<div class="ec-seccion-divider" role="presentation"></div>'
-      : "";
-    return `${divider}<section class="ec-lista${extraClass}">
+    return `<section class="ec-lista${extraClass}">
       <div class="ec-lista-head">
         <h2>${escapeHtml(titulo)}</h2>
         <span>${total}</span>
@@ -370,7 +383,7 @@ ${inlineCss || ""}
 
     ${renderSeccionLista("En espera de comentarios", totalEspera, data.gruposEspera, "Nada en espera de comentarios.", { extraClass: "ec-lista--espera" })}
 
-    ${renderSeccionLista("Pendientes", totalPendientes, data.gruposPendientes, "No hay entregables pendientes.", { divider: true, extraClass: "ec-lista--pendientes" })}
+    ${renderSeccionLista("Pendientes", totalPendientes, data.gruposPendientes, "No hay entregables pendientes.", { extraClass: "ec-lista--pendientes" })}
 
     <footer class="ec-foot">ROBIN · Trade &amp; Shopper Marketing</footer>
   </main>

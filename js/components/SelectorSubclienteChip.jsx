@@ -4,6 +4,7 @@ function SelectorSubclienteChip({
   marca,
   listaGlobal,
   registrarNuevoSubcliente,
+  onEliminarSubcliente,
   tareas = [],
   variant = "default",
   titulo = "Subcliente"
@@ -59,6 +60,14 @@ function SelectorSubclienteChip({
   const handleClear = (e) => {
     e.stopPropagation();
     onChange("");
+  };
+
+  const handleEliminar = (e, nombre) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (typeof onEliminarSubcliente !== "function") return;
+    setDropdownOpen(false);
+    onEliminarSubcliente(marca, nombre);
   };
 
   const handleAddCustom = (e) => {
@@ -141,18 +150,33 @@ function SelectorSubclienteChip({
           opcionesFiltradas.map((nombre) => {
             const isSel = subclientesCoinciden(seleccionado, nombre);
             return (
-              <button
+              <div
                 key={nombre}
-                type="button"
-                onClick={() => handleSelect(nombre)}
-                className={`selector-chip-option ${isSel ? "is-selected" : ""}`}
+                className={`selector-chip-option selector-chip-option--row ${isSel ? "is-selected" : ""}`}
               >
-                <span className="selector-chip-option__label">
-                  <i className="fa-solid fa-store selector-chip-option__icon" aria-hidden="true" />
-                  {nombre}
-                </span>
-                {isSel && <i className="fa-solid fa-check" aria-hidden="true" />}
-              </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelect(nombre)}
+                  className="selector-chip-option__main"
+                >
+                  <span className="selector-chip-option__label">
+                    <i className="fa-solid fa-store selector-chip-option__icon" aria-hidden="true" />
+                    {nombre}
+                  </span>
+                  {isSel && <i className="fa-solid fa-check" aria-hidden="true" />}
+                </button>
+                {typeof onEliminarSubcliente === "function" && (
+                  <button
+                    type="button"
+                    className="selector-chip-option__delete"
+                    title={`Eliminar ${nombre}`}
+                    aria-label={`Eliminar subcliente ${nombre}`}
+                    onClick={(e) => handleEliminar(e, nombre)}
+                  >
+                    &times;
+                  </button>
+                )}
+              </div>
             );
           })
         )}

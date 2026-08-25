@@ -31,7 +31,9 @@ function FormularioRapidoEntregable({
     try {
       const tarea = prepararTareaConCategoria({
         marca: marcaNorm,
-        categoria: "Solicitud",
+        categoria: typeof serializarCategoriasTarea === "function"
+          ? serializarCategoriasTarea("", ["Solicitud"])
+          : ", Solicitud",
         info: info.trim(),
         personas: combinarEjecutivosYDisenadores("", personasDisenadores),
         detalles: "",

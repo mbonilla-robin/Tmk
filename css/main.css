@@ -873,9 +873,66 @@
       cursor: pointer;
     }
 
+    .selector-chip-option--row {
+      padding: 0;
+      gap: 0;
+    }
+
+    .selector-chip-option__main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      min-height: 2.25rem;
+      padding: 0.5rem 0.35rem 0.5rem 0.625rem;
+      border: none;
+      border-radius: 0.5rem;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-weight: 600;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .selector-chip-option__delete {
+      flex-shrink: 0;
+      width: 1.75rem;
+      height: 1.75rem;
+      margin-right: 0.35rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      border-radius: 9999px;
+      background: transparent;
+      color: #a1a1aa;
+      font-size: 1rem;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .selector-chip-option__delete:hover,
+    .selector-chip-option__delete:focus-visible {
+      background: #fef2f2;
+      color: #dc2626;
+      outline: none;
+    }
+
     .selector-chip-option:hover,
     .selector-chip-option:active {
       background: #f4f4f5;
+    }
+
+    .selector-chip-option--row:hover,
+    .selector-chip-option--row:active {
+      background: #f4f4f5;
+    }
+
+    .selector-chip-option--row .selector-chip-option__main:hover,
+    .selector-chip-option--row .selector-chip-option__main:active {
+      background: transparent;
     }
 
     .selector-chip-option.is-selected {
@@ -1059,6 +1116,15 @@
     html.robin-app[data-theme="midnight"] .selector-chip-option.is-selected {
       background: #27272a;
       color: #fafafa;
+    }
+
+    html.robin-app[data-theme="midnight"] .selector-chip-option__delete {
+      color: #a1a1aa;
+    }
+    html.robin-app[data-theme="midnight"] .selector-chip-option__delete:hover,
+    html.robin-app[data-theme="midnight"] .selector-chip-option__delete:focus-visible {
+      background: rgba(248, 113, 113, 0.15);
+      color: #f87171;
     }
 
     html.robin-app[data-theme="midnight"] .selector-chip-sheet__title {
@@ -3418,6 +3484,13 @@
       min-width: 0;
     }
 
+    .task-siblings-card__actions {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      flex-shrink: 0;
+    }
+
     .task-siblings-card__kicker {
       display: block;
       font-size: 10px;
@@ -3820,6 +3893,32 @@
       border-radius: 0.2rem;
       background: rgba(55, 53, 47, 0.08);
       opacity: 0.85;
+    }
+
+    .subcliente-add-btn {
+      flex-shrink: 0;
+      width: 1.5rem;
+      height: 1.5rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #e4e4e7;
+      border-radius: 9999px;
+      background: #fff;
+      color: #71717a;
+      cursor: pointer;
+      transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+    }
+    .subcliente-add-btn:hover,
+    .subcliente-add-btn:focus-visible {
+      background: #37352f;
+      border-color: #37352f;
+      color: #fff;
+      outline: none;
+    }
+    .subcliente-add-btn i {
+      font-size: 0.62rem;
+      line-height: 1;
     }
     .notion-group-items {
       display: flex;
@@ -5546,6 +5645,8 @@
     }
 
     .marca-subcliente-block-title {
+      flex: 1;
+      min-width: 0;
       font-size: 0.875rem;
       font-weight: 700;
       color: #37352f;
@@ -10078,6 +10179,18 @@
     html.robin-app[data-theme="midnight"] .notion-group-count {
       background: rgba(255, 255, 255, 0.1);
       color: var(--robin-text-muted);
+    }
+
+    html.robin-app[data-theme="midnight"] .subcliente-add-btn {
+      background: #27272a;
+      border-color: #3f3f46;
+      color: #a1a1aa;
+    }
+    html.robin-app[data-theme="midnight"] .subcliente-add-btn:hover,
+    html.robin-app[data-theme="midnight"] .subcliente-add-btn:focus-visible {
+      background: #fafafa;
+      border-color: #fafafa;
+      color: #18181b;
     }
 
     html.robin-app[data-theme="midnight"] .notion-task-delete {

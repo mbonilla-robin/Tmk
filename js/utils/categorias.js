@@ -41,7 +41,9 @@ const CATEGORIAS_CATALOGO = [
 const CATEGORIAS_SHEET_VALIDAS = ["Reunión", "Solicitud", "Visita PDV", "Ideas", "Otro", "Robin"];
 
 function categoriaParaSheet(categoria) {
-  const raw = String(categoria || "").trim();
+  const parsed = parseCategoriasTarea(categoria);
+  const primera = parsed.principal || (parsed.subcategorias && parsed.subcategorias[0]) || "";
+  const raw = String(primera || categoria || "").trim().replace(/^[,;\s]+/, "");
   if (CATEGORIAS_SHEET_VALIDAS.includes(raw)) return raw;
   const clave = claveCategoria(raw);
   if (clave === "reunion") return "Reunión";
@@ -133,7 +135,10 @@ function esNombreCategoriaNuevaValido(valor) {
 
 function parseCategoriasTarea(raw) {
   if (!raw) return { principal: "", subcategorias: [] };
-  const partes = String(raw).split(/[,;]|\s+y\s+/i);
+  const str = String(raw).trim();
+  // Prefijo ", ..." = categorías sin principal (no van al título).
+  const sinPrincipal = /^[,;]/.test(str);
+  const partes = str.split(/[,;]|\s+y\s+/i);
   const unicas = [];
   partes.forEach((p) => {
     const canon = resolverCategoriaCanonica(p.trim()) || normalizarNombreCategoria(p.trim());
@@ -141,6 +146,9 @@ function parseCategoriasTarea(raw) {
       unicas.push(canon);
     }
   });
+  if (sinPrincipal || unicas.length === 0) {
+    return { principal: "", subcategorias: unicas };
+  }
   return {
     principal: unicas[0] || "",
     subcategorias: unicas.slice(1)
@@ -148,14 +156,22 @@ function parseCategoriasTarea(raw) {
 }
 
 function serializarCategoriasTarea(principal, subcategorias) {
-  const todas = [principal, ...(subcategorias || [])]
+  const principalNorm = resolverCategoriaCanonica(principal) || normalizarNombreCategoria(principal) || "";
+  const resto = (subcategorias || [])
     .map((c) => resolverCategoriaCanonica(c) || normalizarNombreCategoria(c))
     .filter(Boolean);
   const unicas = [];
-  todas.forEach((p) => {
-    if (!unicas.some((u) => claveCategoria(u) === claveCategoria(p))) unicas.push(p);
-  });
-  return unicas.join(", ");
+  const push = (p) => {
+    if (p && !unicas.some((u) => claveCategoria(u) === claveCategoria(p))) unicas.push(p);
+  };
+  if (principalNorm) {
+    push(principalNorm);
+    resto.forEach(push);
+    return unicas.join(", ");
+  }
+  resto.forEach(push);
+  // Sin estrella: guardar con coma inicial para no tratar la primera como principal.
+  return unicas.length ? `, ${unicas.join(", ")}` : "";
 }
 
 function partesCampoCategorias(raw) {

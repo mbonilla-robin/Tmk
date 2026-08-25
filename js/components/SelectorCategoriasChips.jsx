@@ -14,9 +14,17 @@ function SelectorCategoriasChips({
   const containerRef = useRef(null);
   const panelRef = useRef(null);
 
-  const seleccionadas = useMemo(() => partesCampoCategorias(categoriasSeleccionadas), [categoriasSeleccionadas]);
-  const principal = seleccionadas[0] || "";
-  const subcategorias = seleccionadas.slice(1);
+  const parsed = useMemo(() => parseCategoriasTarea(categoriasSeleccionadas), [categoriasSeleccionadas]);
+  const principal = parsed.principal || "";
+  const subcategorias = parsed.subcategorias || [];
+  const seleccionadas = useMemo(() => {
+    const list = [];
+    if (principal) list.push(principal);
+    subcategorias.forEach((c) => {
+      if (!list.some((x) => claveCategoria(x) === claveCategoria(c))) list.push(c);
+    });
+    return list;
+  }, [principal, subcategorias]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.matchMedia) return undefined;
@@ -31,26 +39,37 @@ function SelectorCategoriasChips({
     };
   }, []);
 
-  const aplicarCambio = (items) => {
-    const principalNueva = items[0] || "";
-    onChange(serializarCategoriasTarea(principalNueva, items.slice(1)));
+  const aplicar = (nuevoPrincipal, nuevasSubs) => {
+    onChange(serializarCategoriasTarea(nuevoPrincipal || "", nuevasSubs || []));
   };
 
   const handleToggle = (nombre) => {
     const clave = claveCategoria(nombre);
     const yaEsta = seleccionadas.some((c) => claveCategoria(c) === clave);
     if (yaEsta) {
-      aplicarCambio(seleccionadas.filter((c) => claveCategoria(c) !== clave));
+      const restantes = seleccionadas.filter((c) => claveCategoria(c) !== clave);
+      if (claveCategoria(principal) === clave) {
+        aplicar("", restantes);
+        return;
+      }
+      const subs = restantes.filter((c) => claveCategoria(c) !== claveCategoria(principal));
+      aplicar(principal, subs);
       return;
     }
-    aplicarCambio([...seleccionadas, normalizarNombreCategoria(nombre)]);
+    const canon = resolverCategoriaCanonica(nombre) || normalizarNombreCategoria(nombre);
+    if (!canon) return;
+    aplicar(principal, [...subcategorias, canon]);
   };
 
-  const handlePromover = (e, nombre) => {
+  const handleStar = (e, nombre) => {
     e.stopPropagation();
     const clave = claveCategoria(nombre);
+    if (claveCategoria(principal) === clave) {
+      aplicar("", seleccionadas);
+      return;
+    }
     const resto = seleccionadas.filter((c) => claveCategoria(c) !== clave);
-    aplicarCambio([nombre, ...resto]);
+    aplicar(nombre, resto);
   };
 
   const handleAddCustom = (e) => {
@@ -62,7 +81,7 @@ function SelectorCategoriasChips({
       if (!canon) return;
       registrarNuevaCategoria(canon);
       if (!seleccionadas.some((c) => claveCategoria(c) === claveCategoria(val))) {
-        aplicarCambio([...seleccionadas, val]);
+        aplicar(principal, [...subcategorias, canon]);
       }
       setBuscar("");
     }
@@ -96,33 +115,37 @@ function SelectorCategoriasChips({
     ? "selector-chip-trigger selector-chip-trigger--minimal"
     : "selector-chip-trigger";
 
-  const renderChip = (nombre, esPrincipal) => {
+  const renderChip = (nombre) => {
     const estilo = obtenerEstiloCategoriaPorNombre(nombre, listaGlobal);
+    const esPrincipal = Boolean(principal) && claveCategoria(nombre) === claveCategoria(principal);
     return (
       <span
         key={nombre}
         className={`selector-chip-pill ${estilo.bg} ${estilo.text} ${estilo.border} ${esPrincipal ? "is-principal" : ""}`}
-        title={esPrincipal ? "Categoría principal (va al título)" : "Subcategoría — toca la estrella para hacer principal"}
+        title={esPrincipal
+          ? "Va en el título — toca la estrella para quitarla"
+          : "Toca la estrella para mostrar esta categoría en el título"}
       >
-        {esPrincipal ? (
-          <i className="fa-solid fa-star selector-chip-pill__star" aria-hidden="true" />
-        ) : (
-          <span
-            role="button"
-            tabIndex={0}
-            onClick={(e) => handlePromover(e, nombre)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                handlePromover(e, nombre);
-              }
-            }}
-            className="selector-chip-pill__star-btn"
-            title="Hacer principal"
-          >
-            <i className="fa-regular fa-star" aria-hidden="true" />
-          </span>
-        )}
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => handleStar(e, nombre)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              handleStar(e, nombre);
+            }
+          }}
+          className="selector-chip-pill__star-btn"
+          title={esPrincipal ? "Quitar del título" : "Mostrar en el título"}
+          aria-label={esPrincipal ? `Quitar ${nombre} del título` : `Mostrar ${nombre} en el título`}
+          aria-pressed={esPrincipal}
+        >
+          <i
+            className={`${esPrincipal ? "fa-solid" : "fa-regular"} fa-star${esPrincipal ? " selector-chip-pill__star" : ""}`}
+            aria-hidden="true"
+          />
+        </span>
         {nombre}
         <span
           role="button"
@@ -151,7 +174,7 @@ function SelectorCategoriasChips({
   const renderOpciones = () => (
     <>
       <p className="selector-chip-panel__hint">
-        La primera es la principal y se agrega al título. Las demás son subcategorías.
+        Por defecto la categoría solo queda como etiqueta. Activa la estrella si quieres que aparezca en el título.
       </p>
       <div className="selector-chip-panel__search">
         <input
@@ -171,6 +194,7 @@ function SelectorCategoriasChips({
         {listaFiltrada.map((c) => {
           const isSel = seleccionadas.some((s) => claveCategoria(s) === claveCategoria(c.nombre));
           const estilo = obtenerEstiloCategoria(c.color);
+          const esPrincipal = isSel && claveCategoria(c.nombre) === claveCategoria(principal);
           return (
             <button
               key={c.nombre}
@@ -181,8 +205,8 @@ function SelectorCategoriasChips({
               <span className="selector-chip-option__label">
                 <span className={`selector-chip-option__dot ${estilo.dot}`} />
                 {c.nombre}
-                {isSel && claveCategoria(c.nombre) === claveCategoria(principal) && (
-                  <span className="selector-chip-option__badge">principal</span>
+                {esPrincipal && (
+                  <span className="selector-chip-option__badge">en título</span>
                 )}
               </span>
               {isSel && <i className="fa-solid fa-check" aria-hidden="true" />}
@@ -230,10 +254,7 @@ function SelectorCategoriasChips({
         {seleccionadas.length === 0 ? (
           <span className="selector-chip-trigger__placeholder">Tocar para elegir</span>
         ) : (
-          <>
-            {principal && renderChip(principal, true)}
-            {subcategorias.map((cat) => renderChip(cat, false))}
-          </>
+          seleccionadas.map((cat) => renderChip(cat))
         )}
       </button>
 

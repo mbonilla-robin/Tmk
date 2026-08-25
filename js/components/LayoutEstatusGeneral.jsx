@@ -562,7 +562,8 @@ function LayoutEstatusGeneral({
   onCambiarEnvioTipo,
   onUpdateField,
   modoGlobal = false,
-  onAbrirLista
+  onAbrirLista,
+  onDuplicarSubcliente
 }) {
   const tareasActivas = useMemo(
     () => (tareas || []).filter((t) => (
@@ -961,6 +962,29 @@ function LayoutEstatusGeneral({
             <i className={`fa-solid ${abierto ? "fa-chevron-down" : "fa-chevron-right"}`} />
             <span className="estatus-cadena-title">{titulo(grupo.nombre)}</span>
           </button>
+          {!modoGlobal
+            && vistaDetalle !== "persona"
+            && typeof onDuplicarSubcliente === "function"
+            && puedeEditar
+            && (typeof grupoSubclientePermiteDuplicar === "function"
+              ? grupoSubclientePermiteDuplicar(grupo.nombre)
+              : grupo.nombre !== "Sin cadena") && (
+            <button
+              type="button"
+              className="subcliente-add-btn"
+              title="Nuevo entregable con la misma base"
+              aria-label={`Crear entregable en ${grupo.nombre}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                const plantilla = typeof elegirPlantillaGrupo === "function"
+                  ? elegirPlantillaGrupo(grupo.tareas)
+                  : (grupo.tareas || [])[0];
+                onDuplicarSubcliente(plantilla || { marca, subcliente: grupo.nombre });
+              }}
+            >
+              <i className="fa-solid fa-plus" aria-hidden="true" />
+            </button>
+          )}
           <span className="estatus-cadena-count">{grupo.tareas.length}</span>
         </div>
         {abierto && (

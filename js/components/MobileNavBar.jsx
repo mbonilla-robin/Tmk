@@ -84,6 +84,7 @@ function MobileNavBar({
   onAbrirEstatus,
   onAbrirInformes,
   onCrearRapido,
+  onCrearCompleto,
   onAbrirBuscador
 }) {
   const [quickMenu, setQuickMenu] = useState(null);
@@ -131,12 +132,14 @@ function MobileNavBar({
     if (!esDisenador) {
       map.agregar = [
         ...(onCrearRapido ? [{ id: "rapido", label: "Crear rápido", icon: "fa-bolt", onClick: onCrearRapido }] : []),
-        { id: "completo", label: "Formulario completo", icon: "fa-file-circle-plus", onClick: () => navegarA("agregar") }
+        { id: "completo", label: "Formulario completo", icon: "fa-file-circle-plus", onClick: () => (
+          typeof onCrearCompleto === "function" ? onCrearCompleto() : navegarA("agregar")
+        ) }
       ];
     }
 
     return map;
-  }, [esDisenador, onAtajoFiltro, onAbrirEquipos, onAbrirEstatus, onAbrirInformes, onCrearRapido, navegarA]);
+  }, [esDisenador, onAtajoFiltro, onAbrirEquipos, onAbrirEstatus, onAbrirInformes, onCrearRapido, onCrearCompleto, navegarA]);
 
   const navItems = [
     {
@@ -171,7 +174,7 @@ function MobileNavBar({
       icon: "fa-plus",
       highlight: true,
       active: isActive("agregar"),
-      onClick: () => navegarA("agregar")
+      onClick: () => (typeof onCrearCompleto === "function" ? onCrearCompleto() : navegarA("agregar"))
     }] : []),
     ...(!esDisenador ? [{
       key: "clientes",

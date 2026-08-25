@@ -137,6 +137,7 @@ function ListaHermanasSubcliente({
   hermanas,
   relacionadas,
   onAbrir,
+  onDuplicar,
   getMarcaStyle,
   variant = "card"
 }) {
@@ -151,7 +152,23 @@ function ListaHermanasSubcliente({
           <span className="task-siblings-card__kicker">Mismo subcliente</span>
           <span className="task-siblings-card__title">{subcliente}</span>
         </div>
-        <span className="task-siblings-card__count">{hermanas.length}</span>
+        <div className="task-siblings-card__actions">
+          {typeof onDuplicar === "function" && (
+            <button
+              type="button"
+              className="subcliente-add-btn"
+              title="Nuevo entregable con la misma base"
+              aria-label={`Crear entregable en ${subcliente}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDuplicar();
+              }}
+            >
+              <i className="fa-solid fa-plus" aria-hidden="true" />
+            </button>
+          )}
+          <span className="task-siblings-card__count">{hermanas.length}</span>
+        </div>
       </div>
       <div className="task-siblings-card__list">
         {hermanas.map((t) => (
@@ -192,7 +209,8 @@ function TareasRelacionadas({
   getMarcaStyle,
   zona = "controls",
   subcliente = "",
-  marca = ""
+  marca = "",
+  onDuplicarSubcliente
 }) {
   const [buscadorAbierto, setBuscadorAbierto] = useState(false);
   const [query, setQuery] = useState("");
@@ -285,6 +303,7 @@ function TareasRelacionadas({
             hermanas={hermanas}
             relacionadas={relacionadas}
             onAbrir={onAbrirTarea}
+            onDuplicar={typeof onDuplicarSubcliente === "function" ? () => onDuplicarSubcliente(tarea) : undefined}
             getMarcaStyle={getMarcaStyle}
             variant="inline"
           />
@@ -317,6 +336,7 @@ function TareasRelacionadas({
             hermanas={hermanas}
             relacionadas={relacionadas}
             onAbrir={onAbrirTarea}
+            onDuplicar={typeof onDuplicarSubcliente === "function" ? () => onDuplicarSubcliente(tarea) : undefined}
             getMarcaStyle={getMarcaStyle}
             variant="card"
           />

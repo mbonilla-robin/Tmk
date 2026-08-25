@@ -225,7 +225,8 @@ function LayoutTablaAgrupada({
   tareasSeleccionadas = new Set(),
   onToggleSeleccion = () => {},
   onToggleSeleccionGrupo = () => {},
-  listaCategorias = []
+  listaCategorias = [],
+  onDuplicarSubcliente
 }) {
   const tareasAgrupadas = useMemo(() => {
     if (agruparPor === "subcliente") {
@@ -299,6 +300,27 @@ function LayoutTablaAgrupada({
                 )}
                 {tituloGrupo}
               </h3>
+              {agruparPor === "subcliente"
+                && typeof onDuplicarSubcliente === "function"
+                && (typeof grupoSubclientePermiteDuplicar === "function"
+                  ? grupoSubclientePermiteDuplicar(grupoKey)
+                  : grupoKey !== "Sin subcliente") && (
+                <button
+                  type="button"
+                  className="subcliente-add-btn"
+                  title="Nuevo entregable con la misma base"
+                  aria-label={`Crear entregable en ${tituloGrupo}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const plantilla = typeof elegirPlantillaGrupo === "function"
+                      ? elegirPlantillaGrupo(tareasDeGrupo)
+                      : tareasDeGrupo[0];
+                    onDuplicarSubcliente(plantilla || { subcliente: grupoKey });
+                  }}
+                >
+                  <i className="fa-solid fa-plus" aria-hidden="true" />
+                </button>
+              )}
               <span className="notion-group-count" style={{ color: badgeStyle.accent }}>
                 {tareasDeGrupo.length}
               </span>

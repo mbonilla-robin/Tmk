@@ -166,7 +166,8 @@ function LayoutMarcaHome({
   onMarcarSubidoCor,
   onToast,
   subclienteDestino = null,
-  onSubclienteDestinoConsumido
+  onSubclienteDestinoConsumido,
+  onDuplicarSubcliente
 }) {
   const marcaEstilo = getMarcaStyle(marca);
   const nombreMarca = formatearMarca(marca);
@@ -555,6 +556,7 @@ function LayoutMarcaHome({
           onGuardarComentario={onGuardarComentario}
           onCambiarEnvioTipo={onCambiarEnvioTipo}
           onUpdateField={onUpdateField}
+          onDuplicarSubcliente={onDuplicarSubcliente}
         />
       </div>
     );
@@ -613,6 +615,23 @@ function LayoutMarcaHome({
               <section key={grupo.nombre} id={idBloqueSubcliente(grupo.nombre)} className="marca-subcliente-block">
                 <div className="marca-subcliente-block-header">
                   <h3 className="marca-subcliente-block-title">{grupo.nombre}</h3>
+                  {typeof onDuplicarSubcliente === "function" && (
+                    <button
+                      type="button"
+                      className="subcliente-add-btn"
+                      title="Nuevo entregable con la misma base"
+                      aria-label={`Crear entregable en ${grupo.nombre}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const plantilla = typeof elegirPlantillaGrupo === "function"
+                          ? elegirPlantillaGrupo(grupo.tareas)
+                          : grupo.tareas[0];
+                        onDuplicarSubcliente(plantilla || { marca, subcliente: grupo.nombre });
+                      }}
+                    >
+                      <i className="fa-solid fa-plus" aria-hidden="true" />
+                    </button>
+                  )}
                   <span className="marca-subcliente-block-count">
                     {grupo.tareas.length} tarea{grupo.tareas.length !== 1 ? "s" : ""}
                   </span>

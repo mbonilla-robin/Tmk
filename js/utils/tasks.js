@@ -142,6 +142,67 @@ function crearNuevaTareaVacia() {
   };
 }
 
+function grupoSubclientePermiteDuplicar(nombre) {
+  const n = String(nombre || "").trim().toLowerCase();
+  return Boolean(n) && n !== "sin subcliente" && n !== "sin cadena";
+}
+
+function elegirPlantillaGrupo(tareas) {
+  const lista = Array.isArray(tareas) ? tareas : [];
+  if (!lista.length) return null;
+  const activa = lista.find((t) => {
+    const completada = typeof esTareaCompletada === "function"
+      ? esTareaCompletada(t)
+      : String(t?.estado || "").trim().toLowerCase() === "completada";
+    const suspendida = typeof esTareaSuspendida === "function" ? esTareaSuspendida(t) : false;
+    return !completada && !suspendida;
+  });
+  return activa || lista[0];
+}
+
+function crearTareaDesdePlantilla(tareaOrigen) {
+  const vacia = crearNuevaTareaVacia();
+  if (!tareaOrigen || typeof tareaOrigen !== "object") return vacia;
+
+  let parsed = { notas: "", notes: "", subtareas: [], medidas: null, subcliente: "" };
+  try {
+    if (typeof parseDetalles === "function") {
+      parsed = parseDetalles(tareaOrigen.detalles || "") || parsed;
+    }
+  } catch (_) {}
+
+  const subcliente = typeof obtenerSubclienteTarea === "function"
+    ? obtenerSubclienteTarea(tareaOrigen)
+    : (parsed.subcliente || tareaOrigen.subcliente || "");
+
+  const completada = typeof esTareaCompletada === "function" && esTareaCompletada(tareaOrigen);
+  const suspendida = typeof esTareaSuspendida === "function" && esTareaSuspendida(tareaOrigen);
+  const estado = (completada || suspendida)
+    ? vacia.estado
+    : (tareaOrigen.estado || vacia.estado);
+
+  const subtareas = Array.isArray(parsed.subtareas)
+    ? parsed.subtareas.map((s) => ({ text: s.text || "", completed: false }))
+    : [];
+
+  return {
+    ...vacia,
+    marca: tareaOrigen.marca || "",
+    categoria: tareaOrigen.categoria || "",
+    subcliente: subcliente || "",
+    personas: tareaOrigen.personas || "",
+    estado,
+    prioridad: tareaOrigen.prioridad || vacia.prioridad,
+    deadline: tareaOrigen.deadline || "",
+    fechaInicio: tareaOrigen.fechaInicio || vacia.fechaInicio,
+    info: "",
+    link: "",
+    detalles: parsed.notas || parsed.notes || "",
+    subtareas,
+    medidas: parsed.medidas || null
+  };
+}
+
 function encontrarIndiceTarea(lista, ref) {
   if (!ref || !lista || !lista.length) return -1;
   return lista.findIndex((t) => tareasMismaEntidad(t, ref));
@@ -637,6 +698,9 @@ function construirEnlaceTarea(tarea) {
 const ESTADOS_DISENADOR_PERMITIDOS = ["En progreso", "En revision", "Completada"];
 
 window.crearNuevaTareaVacia = crearNuevaTareaVacia;
+window.grupoSubclientePermiteDuplicar = grupoSubclientePermiteDuplicar;
+window.elegirPlantillaGrupo = elegirPlantillaGrupo;
+window.crearTareaDesdePlantilla = crearTareaDesdePlantilla;
 window.ESTADOS_DISENADOR_PERMITIDOS = ESTADOS_DISENADOR_PERMITIDOS;
 window.tareaSinDisenadorAsignado = tareaSinDisenadorAsignado;
 window.resumirSubtareasTarea = resumirSubtareasTarea;

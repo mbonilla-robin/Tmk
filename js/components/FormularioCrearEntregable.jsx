@@ -25,9 +25,21 @@ function FormularioCrearEntregable({
   registrarNuevaCategoria,
   listaSubclientes,
   registrarNuevoSubcliente,
+  onEliminarSubcliente,
   tareas = []
 }) {
-  const [subtareas, setSubtareas] = useState([]);
+  const [subtareas, setSubtareas] = useState(() => {
+    if (Array.isArray(nuevaTarea.subtareas) && nuevaTarea.subtareas.length) {
+      return nuevaTarea.subtareas.map((s) => ({ text: s.text || "", completed: Boolean(s.completed) }));
+    }
+    try {
+      if (typeof parseDetalles === "function") {
+        const parsed = parseDetalles(nuevaTarea.detalles || "");
+        return Array.isArray(parsed.subtareas) ? parsed.subtareas : [];
+      }
+    } catch (_) {}
+    return [];
+  });
   const rolesIniciales = dividirCampoPersonasPorRol(nuevaTarea.personas || "");
   const [personasEjecutivos, setPersonasEjecutivos] = useState(rolesIniciales.ejecutivos);
   const [personasContenido, setPersonasContenido] = useState(rolesIniciales.contenido);
@@ -97,15 +109,20 @@ function FormularioCrearEntregable({
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const extras = typeof extrasDetallesCon === "function"
+      ? extrasDetallesCon(null, { medidas: nuevaTarea.medidas })
+      : { medidas: nuevaTarea.medidas || null };
     const detallesFinal = serializeDetalles(
       nuevaTarea.detalles,
       subtareas,
       [],
       nuevaTarea.link,
-      nuevaTarea.subcliente
+      nuevaTarea.subcliente,
+      extras
     );
+    const { subtareas: _subtareasPlantilla, medidas: _medidasPlantilla, ...restoNueva } = nuevaTarea;
     const tareaPreparada = prepararTareaConCategoria({
-      ...nuevaTarea,
+      ...restoNueva,
       subcliente: normalizarNombreSubcliente(nuevaTarea.subcliente)
     });
     onSubmit(e, detallesFinal, tareaPreparada);
@@ -148,6 +165,7 @@ function FormularioCrearEntregable({
                 marca={nuevaTarea.marca}
                 listaGlobal={listaSubclientes}
                 registrarNuevoSubcliente={registrarNuevoSubcliente}
+                onEliminarSubcliente={onEliminarSubcliente}
                 tareas={tareas}
                 variant="minimal"
               />

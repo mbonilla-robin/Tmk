@@ -34,7 +34,7 @@ function parseDetallesSeguro(raw) {
   return { notes: "", notas: "", subtareas: [], historial: [], link: "", subcliente: "", flujo: "", importKey: "", envioTipo: "", pendienteCor: false, medidas: null };
 }
 
-function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaPersonas, registrarNuevaPersona, listaCategorias, registrarNuevaCategoria, listaSubclientes, registrarNuevoSubcliente, marcasDisponibles, usuario, nombreUsuario, onComentarioPublicado, onToast, soloLectura = false, modoDisenador = false, tareas = [], relacionesTareas = [], onRelacionCreada, onAbrirTareaRelacionada, getMarcaStyle }) {
+function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaPersonas, registrarNuevaPersona, listaCategorias, registrarNuevaCategoria, listaSubclientes, registrarNuevoSubcliente, onEliminarSubcliente, marcasDisponibles, usuario, nombreUsuario, onComentarioPublicado, onToast, soloLectura = false, modoDisenador = false, tareas = [], relacionesTareas = [], onRelacionCreada, onAbrirTareaRelacionada, onDuplicarSubcliente, getMarcaStyle }) {
   const tarea = tareaProp && typeof tareaProp === "object" ? tareaProp : {};
   const resolverEstadoInicial = () => {
     let categoriaInicial = tarea.categoria || "";
@@ -238,6 +238,19 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
     setSubcliente(obtenerSubclienteTarea(tarea) || parsedDetalles.subcliente || "");
     setAutosaveEstado("");
   }, [taskKey]);
+
+  useEffect(() => {
+    if (!listoAutosaveRef.current) return;
+    const externo = typeof obtenerSubclienteTarea === "function"
+      ? (obtenerSubclienteTarea(tarea) || "")
+      : String(tarea.subcliente || "").trim();
+    setSubcliente((prev) => {
+      if (typeof subclientesCoinciden === "function") {
+        return subclientesCoinciden(prev, externo) ? prev : externo;
+      }
+      return String(prev || "") === String(externo || "") ? prev : externo;
+    });
+  }, [tarea.detalles, tarea.subcliente, taskKey]);
 
   const estadoVisual = useMemo(() => {
     const mapa = Array.isArray(ESTADOS_MAPA) ? ESTADOS_MAPA : [];
@@ -453,7 +466,8 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
     onToast,
     getMarcaStyle,
     subcliente,
-    marca
+    marca,
+    onDuplicarSubcliente: (!soloLectura && !modoDisenador) ? onDuplicarSubcliente : undefined
   };
 
   return (
@@ -539,6 +553,7 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
                   marca={marca}
                   listaGlobal={listaSubclientes}
                   registrarNuevoSubcliente={registrarNuevoSubcliente}
+                  onEliminarSubcliente={onEliminarSubcliente}
                   tareas={tareas}
                   variant="minimal"
                 />
@@ -612,7 +627,14 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
 
             <PropertyRow icon="fa-regular fa-folder" label="Categoría">
               {metadatosSoloLectura ? (
-                <span className={readOnlyClass}>{parseCategoriasTarea(categoria).principal || categoria || "—"}</span>
+                <span className={readOnlyClass}>
+                  {(() => {
+                    const partes = typeof partesCampoCategorias === "function"
+                      ? partesCampoCategorias(categoria)
+                      : [];
+                    return partes.length ? partes.join(", ") : (categoria || "—");
+                  })()}
+                </span>
               ) : (
                 <SelectorCategoriasChips
                   categoriasSeleccionadas={categoria}

@@ -1,4 +1,5 @@
 const SUBCLIENTES_STORAGE_KEY = "robin_subclientes_v1";
+const SUBCLIENTES_ELIMINADOS_KEY = "robin_subclientes_eliminados_v1";
 
 /** Catálogo base por marca. La Santé: cadenas del estatus / CSV interno. */
 const SUBCLIENTES_CATALOGO = [
@@ -154,32 +155,154 @@ function obtenerListaSubclientesDefecto() {
   return SUBCLIENTES_CATALOGO.map((s) => ({ ...s }));
 }
 
+function cargarClavesSubclientesEliminados() {
+  try {
+    const raw = getLocalStorageItemSafe(SUBCLIENTES_ELIMINADOS_KEY, null);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.map(String).filter(Boolean) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function guardarClavesSubclientesEliminados(claves) {
+  const unicas = Array.from(new Set((claves || []).map(String).filter(Boolean)));
+  try {
+    setLocalStorageItemSafe(SUBCLIENTES_ELIMINADOS_KEY, JSON.stringify(unicas));
+  } catch (_) {}
+  return unicas;
+}
+
+function filtrarSubclientesNoEliminados(lista, eliminadosOpt) {
+  const eliminados = eliminadosOpt instanceof Set
+    ? eliminadosOpt
+    : new Set(eliminadosOpt || cargarClavesSubclientesEliminados());
+  return (lista || []).filter((s) => {
+    const key = claveEntradaSubcliente(s);
+    return Boolean(key) && !eliminados.has(key);
+  });
+}
+
 function cargarListaSubclientes() {
   try {
     const raw = getLocalStorageItemSafe(SUBCLIENTES_STORAGE_KEY, null);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length) {
-        return fusionarListasSubclientes(obtenerListaSubclientesDefecto(), parsed);
+        return filtrarSubclientesNoEliminados(
+          fusionarListasSubclientes(obtenerListaSubclientesDefecto(), parsed)
+        );
       }
     }
   } catch (e) {}
-  return obtenerListaSubclientesDefecto();
+  return filtrarSubclientesNoEliminados(obtenerListaSubclientesDefecto());
 }
 
 function guardarListaSubclientes(lista) {
-  const fusionada = fusionarListasSubclientes(obtenerListaSubclientesDefecto(), lista || []);
+  const fusionada = filtrarSubclientesNoEliminados(
+    fusionarListasSubclientes(obtenerListaSubclientesDefecto(), lista || [])
+  );
   try {
     setLocalStorageItemSafe(SUBCLIENTES_STORAGE_KEY, JSON.stringify(fusionada));
   } catch (e) {}
   return fusionada;
 }
 
-function registrarSubclientesEnLista(listaActual, entradas) {
-  const nuevas = (entradas || [])
+function registrarSubclientesEnLista(listaActual, entradas, opciones = {}) {
+  const forzar = Boolean(opciones && opciones.forzar);
+  const eliminados = new Set(cargarClavesSubclientesEliminados());
+  let nuevas = (entradas || [])
     .map(normalizarEntradaSubcliente)
     .filter(Boolean);
+  if (forzar && nuevas.length) {
+    const keysForzar = new Set(nuevas.map((n) => claveEntradaSubcliente(n)).filter(Boolean));
+    if (keysForzar.size) {
+      guardarClavesSubclientesEliminados(
+        [...eliminados].filter((k) => !keysForzar.has(k))
+      );
+    }
+  } else if (eliminados.size) {
+    nuevas = nuevas.filter((n) => !eliminados.has(claveEntradaSubcliente(n)));
+  }
+  if (!nuevas.length) {
+    return filtrarSubclientesNoEliminados(listaActual || []);
+  }
   return guardarListaSubclientes(fusionarListasSubclientes(listaActual, nuevas));
+}
+
+function eliminarSubclienteDeLista(listaActual, marca, nombre) {
+  const entrada = normalizarEntradaSubcliente({ marca, nombre });
+  if (!entrada || !entrada.nombre) return filtrarSubclientesNoEliminados(listaActual || []);
+  const key = claveEntradaSubcliente(entrada);
+  if (key) {
+    const eliminados = cargarClavesSubclientesEliminados();
+    if (!eliminados.includes(key)) {
+      guardarClavesSubclientesEliminados([...eliminados, key]);
+    }
+  }
+  const filtrada = (listaActual || []).filter((s) => claveEntradaSubcliente(s) !== key);
+  return guardarListaSubclientes(filtrada);
+}
+
+function listarTareasDeSubcliente(tareas, marca, nombre) {
+  const nombreNorm = normalizarNombreSubcliente(nombre);
+  if (!nombreNorm) return [];
+  return (tareas || []).filter((t) => {
+    if (!t) return false;
+    if (marca && typeof marcasCoinciden === "function" && !marcasCoinciden(t.marca, marca)) return false;
+    return subclientesCoinciden(obtenerSubclienteTarea(t), nombreNorm);
+  });
+}
+
+function contarTareasDeSubcliente(tareas, marca, nombre) {
+  return listarTareasDeSubcliente(tareas, marca, nombre).length;
+}
+
+function aplicarNuevoSubclienteATarea(tarea, nuevoSubcliente) {
+  if (!tarea || typeof tarea !== "object") return tarea;
+  const subNorm = normalizarNombreSubcliente(nuevoSubcliente);
+  let parsed = {
+    notas: "",
+    notes: "",
+    subtareas: [],
+    historial: [],
+    link: "",
+    flujo: "",
+    importKey: "",
+    envioTipo: "",
+    pendienteCor: false,
+    medidas: null
+  };
+  try {
+    if (typeof parseDetalles === "function") {
+      parsed = parseDetalles(tarea.detalles || "") || parsed;
+    }
+  } catch (_) {}
+  const extras = typeof extrasDetallesCon === "function"
+    ? extrasDetallesCon(parsed)
+    : {
+      flujo: parsed.flujo || "",
+      importKey: parsed.importKey || "",
+      envioTipo: parsed.envioTipo || "",
+      pendienteCor: Boolean(parsed.pendienteCor),
+      medidas: parsed.medidas || null
+    };
+  const detalles = typeof serializeDetalles === "function"
+    ? serializeDetalles(
+      parsed.notas || parsed.notes || "",
+      parsed.subtareas || [],
+      parsed.historial || [],
+      parsed.link || tarea.link || "",
+      subNorm,
+      extras
+    )
+    : (tarea.detalles || "");
+  return {
+    ...tarea,
+    subcliente: subNorm,
+    detalles
+  };
 }
 
 function listarSubclientesPorMarca(lista, marca) {
@@ -233,12 +356,15 @@ function filtrarEntradasSubclientesNuevas(lista, entradas) {
 }
 
 function listarSubclientesDisponiblesParaMarca(lista, marca, tareas) {
+  const eliminados = new Set(cargarClavesSubclientesEliminados());
   const delCatalogo = listarSubclientesPorMarca(lista, marca).map((s) => s.nombre);
   const deTareas = recolectarSubclientesDeTareas(tareas, marca);
   const mapa = new Map();
   [...delCatalogo, ...deTareas].forEach((nombre) => {
     const norm = normalizarNombreSubcliente(nombre);
     if (!norm) return;
+    const keyEntrada = claveEntradaSubcliente({ marca, nombre: norm });
+    if (keyEntrada && eliminados.has(keyEntrada)) return;
     const key = claveSubcliente(norm);
     if (!mapa.has(key)) {
       mapa.set(key, norm);
@@ -348,6 +474,32 @@ async function insertarSubclienteRemoto(marca, nombre) {
     return res.ok || res.status === 409;
   } catch (e) {
     console.warn("ROBIN: error guardando subcliente remoto", e);
+    return false;
+  }
+}
+
+async function eliminarSubclienteRemoto(marca, nombre) {
+  if (typeof isSupabaseConfigured !== "function" || !isSupabaseConfigured()) return false;
+  const url = typeof SUPABASE_URL !== "undefined" ? SUPABASE_URL : "";
+  if (!url) return false;
+
+  const entrada = normalizarEntradaSubcliente({ marca, nombre });
+  if (!entrada || !entrada.marca || !entrada.nombre) return false;
+
+  try {
+    const qs = new URLSearchParams({
+      marca: `eq.${entrada.marca}`,
+      nombre: `eq.${entrada.nombre}`
+    });
+    const res = await fetch(`${url}/rest/v1/robin_subclientes?${qs.toString()}`, {
+      method: "DELETE",
+      headers: typeof getSupabaseRestHeaders === "function"
+        ? getSupabaseRestHeaders("return=minimal")
+        : { "Content-Type": "application/json", Prefer: "return=minimal" }
+    });
+    return res.ok || res.status === 404;
+  } catch (e) {
+    console.warn("ROBIN: error eliminando subcliente remoto", e);
     return false;
   }
 }

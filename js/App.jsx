@@ -187,6 +187,7 @@ function App() {
   const [buscadorAbierto, setBuscadorAbierto] = useState(false);
   const [subclienteDestino, setSubclienteDestino] = useState(null);
   const [taskToDelete, setTaskToDelete] = useState(null);
+  const [subclienteAEliminar, setSubclienteAEliminar] = useState(null);
   const [taskToComplete, setTaskToComplete] = useState(null);
   const [clientesReset, setClientesReset] = useState(0);
   const [clientesDetalleMarca, setClientesDetalleMarca] = useState(null);
@@ -296,14 +297,16 @@ function App() {
     return pasosInduccion.filter((p) => !(p.soloDesktop && mobile));
   }, [pasosInduccion]);
 
-  const [nuevaTarea, setNuevaTarea] = useState(() => (
+  const tareaVaciaNueva = () => (
     typeof window.crearNuevaTareaVacia === "function"
       ? window.crearNuevaTareaVacia()
       : (typeof crearNuevaTareaVacia === "function" ? crearNuevaTareaVacia() : {
           marca: "", categoria: "", subcliente: "", info: "", personas: "", detalles: "",
           link: "", estado: "Pendiente", deadline: "", fechaInicio: "", prioridad: "Media"
         })
-  ));
+  );
+  const [nuevaTarea, setNuevaTarea] = useState(() => tareaVaciaNueva());
+  const [formCrearKey, setFormCrearKey] = useState(0);
 
   // 🚨 UBICACIÓN CORRECTA DE VARIABLES COMPUTADAS Y useMemo (Evita ReferenceError y TDZ)
   const tareasVisibles = useMemo(() => {
@@ -1689,8 +1692,100 @@ function App() {
     const marcaNorm = normalizarMarca(marca);
     const nombreNorm = normalizarNombreSubcliente(nombre);
     if (!marcaNorm || !nombreNorm) return;
-    setListaSubclientes((prev) => registrarSubclientesEnLista(prev, [{ marca: marcaNorm, nombre: nombreNorm }]));
+    setListaSubclientes((prev) => registrarSubclientesEnLista(prev, [{ marca: marcaNorm, nombre: nombreNorm }], { forzar: true }));
     insertarSubclienteRemoto(marcaNorm, nombreNorm);
+  };
+
+  const solicitarEliminarSubcliente = (marca, nombre) => {
+    if (isDesigner) return;
+    const marcaNorm = normalizarMarca(marca);
+    const nombreNorm = normalizarNombreSubcliente(nombre);
+    if (!marcaNorm || !nombreNorm) return;
+    const cantidad = typeof contarTareasDeSubcliente === "function"
+      ? contarTareasDeSubcliente(tareas, marcaNorm, nombreNorm)
+      : 0;
+    const destinos = (typeof listarSubclientesDisponiblesParaMarca === "function"
+      ? listarSubclientesDisponiblesParaMarca(listaSubclientes, marcaNorm, tareas)
+      : [])
+      .filter((n) => !subclientesCoinciden(n, nombreNorm));
+    setSubclienteAEliminar({
+      marca: marcaNorm,
+      nombre: nombreNorm,
+      cantidad,
+      destino: destinos[0] || "",
+      destinos
+    });
+  };
+
+  const confirmarEliminarSubcliente = () => {
+    if (isDesigner || !subclienteAEliminar) return;
+    const { marca, nombre, cantidad, destino } = subclienteAEliminar;
+
+    if (cantidad > 0 && typeof listarTareasDeSubcliente === "function") {
+      const afectadas = listarTareasDeSubcliente(tareas, marca, nombre);
+      if (afectadas.length) {
+        const destinoNorm = normalizarNombreSubcliente(destino || "");
+        const actualizaciones = afectadas.map((t) => {
+          const actualizada = marcarTareaPendiente(normalizarTareaCampos(
+            typeof aplicarNuevoSubclienteATarea === "function"
+              ? aplicarNuevoSubclienteATarea(t, destinoNorm)
+              : { ...t, subcliente: destinoNorm }
+          ));
+          return { original: t, actualizada };
+        });
+        const porKey = new Map(
+          actualizaciones.map(({ original, actualizada }) => [getTaskSelectionKey(original), actualizada])
+        );
+        persistTareas((prev) => prev.map((t) => porKey.get(getTaskSelectionKey(t)) || t));
+        actualizaciones.forEach(({ original, actualizada }) => {
+          encolarSync({
+            type: "update",
+            taskKey: getTaskSelectionKey(actualizada),
+            taskKeyOriginal: getTaskSelectionKey(original),
+            payload: construirPayloadSyncTarea(original, actualizada, { campoSync: "todo" })
+          });
+        });
+        setHayPendientesLocales(true);
+      }
+    }
+
+    setListaSubclientes((prev) => (
+      typeof eliminarSubclienteDeLista === "function"
+        ? eliminarSubclienteDeLista(prev, marca, nombre)
+        : prev
+    ));
+    if (typeof eliminarSubclienteRemoto === "function") {
+      eliminarSubclienteRemoto(marca, nombre);
+    }
+
+    setNuevaTarea((prev) => (
+      subclientesCoinciden(prev?.subcliente, nombre)
+        ? { ...prev, subcliente: "" }
+        : prev
+    ));
+
+    if (isEditing && activeTask && subclientesCoinciden(
+      typeof obtenerSubclienteTarea === "function" ? obtenerSubclienteTarea(activeTask) : activeTask.subcliente,
+      nombre
+    )) {
+      const destinoNorm = normalizarNombreSubcliente(destino || "");
+      setActiveTask((prev) => (
+        typeof aplicarNuevoSubclienteATarea === "function"
+          ? aplicarNuevoSubclienteATarea(prev, destinoNorm)
+          : { ...prev, subcliente: destinoNorm }
+      ));
+    }
+
+    setSubclienteAEliminar(null);
+    showToast(
+      cantidad > 0
+        ? (destino
+          ? `Subcliente eliminado · ${cantidad} entregable${cantidad === 1 ? "" : "s"} movido${cantidad === 1 ? "" : "s"} a ${destino}`
+          : `Subcliente eliminado · ${cantidad} entregable${cantidad === 1 ? "" : "s"} sin subcliente`)
+        : "Subcliente eliminado",
+      "success"
+    );
+    if (cantidad > 0) sincronizarEnSegundoPlano({ silencioso: true, sinRecarga: true });
   };
 
   useEffect(() => {
@@ -2241,6 +2336,38 @@ function App() {
     setIsEditing(true);
   };
 
+  const irAFormularioCrear = (plantilla) => {
+    if (isDesigner) return;
+    setIsEditing(false);
+    setActiveTask(null);
+    setNuevaTarea(plantilla && typeof plantilla === "object" ? plantilla : tareaVaciaNueva());
+    setFormCrearKey((n) => n + 1);
+    navegarA("agregar");
+  };
+
+  const abrirCrearDesdePlantilla = (tareaOrigen) => {
+    if (isDesigner) return;
+    const plantilla = typeof crearTareaDesdePlantilla === "function"
+      ? crearTareaDesdePlantilla(tareaOrigen)
+      : {
+          ...tareaVaciaNueva(),
+          marca: tareaOrigen?.marca || "",
+          categoria: tareaOrigen?.categoria || "",
+          subcliente: typeof obtenerSubclienteTarea === "function"
+            ? obtenerSubclienteTarea(tareaOrigen)
+            : (tareaOrigen?.subcliente || ""),
+          personas: tareaOrigen?.personas || "",
+          estado: tareaOrigen?.estado || "Pendiente",
+          prioridad: tareaOrigen?.prioridad || "Media",
+          deadline: tareaOrigen?.deadline || "",
+          fechaInicio: tareaOrigen?.fechaInicio || "",
+          info: "",
+          link: "",
+          detalles: ""
+        };
+    irAFormularioCrear(plantilla);
+  };
+
   const abrirTareaPorKey = (taskKey) => {
     const buscada = String(taskKey || "").trim().toLowerCase();
     if (!buscada) return;
@@ -2320,7 +2447,8 @@ function App() {
         return next;
       });
     },
-    listaCategorias
+    listaCategorias,
+    onDuplicarSubcliente: isDesigner ? undefined : abrirCrearDesdePlantilla
   };
 
   const tareasSeleccionadasLista = useMemo(
@@ -3570,7 +3698,7 @@ function App() {
             </div>
 
             {!isDesigner && (
-              <button type="button" onClick={() => navegarA("agregar")} className="robin-sidebar__cta" data-induccion="nav-agregar">
+              <button type="button" onClick={() => irAFormularioCrear()} className="robin-sidebar__cta" data-induccion="nav-agregar">
                 <SVGIcon.Plus />
                 <span>Añadir entregable</span>
               </button>
@@ -3870,10 +3998,14 @@ function App() {
 
           {!isConfigOnlyAdmin && !isDesigner && paginaActiva === "agregar" && (
             <FormularioCrearEntregable
+              key={formCrearKey}
               nuevaTarea={nuevaTarea}
               setNuevaTarea={setNuevaTarea}
               onSubmit={handleCreateTask}
-              onCancel={() => setPaginaActiva("home")}
+              onCancel={() => {
+                setNuevaTarea(tareaVaciaNueva());
+                setPaginaActiva(filtroMarca !== "TODAS" ? "dashboard" : "home");
+              }}
               marcasDisponibles={marcasDisponibles}
               listaPersonas={listaPersonas}
               registrarNuevaPersona={registrarNuevaPersonaGlobal}
@@ -3881,6 +4013,7 @@ function App() {
               registrarNuevaCategoria={registrarNuevaCategoriaGlobal}
               listaSubclientes={listaSubclientes}
               registrarNuevoSubcliente={registrarNuevoSubclienteGlobal}
+              onEliminarSubcliente={solicitarEliminarSubcliente}
               tareas={tareas}
             />
           )}
@@ -3941,6 +4074,7 @@ function App() {
               onToast={showToast}
               subclienteDestino={subclienteDestino}
               onSubclienteDestinoConsumido={() => setSubclienteDestino(null)}
+              onDuplicarSubcliente={isDesigner ? undefined : abrirCrearDesdePlantilla}
             />
           )}
 
@@ -4307,6 +4441,7 @@ function App() {
         onAbrirEstatus={isDesigner ? undefined : () => setShowGeneradorEstatus(true)}
         onAbrirInformes={isDesigner ? undefined : () => navegarA("informes")}
         onCrearRapido={isDesigner ? undefined : () => setFormularioRapidoVisible(true)}
+        onCrearCompleto={isDesigner ? undefined : () => irAFormularioCrear()}
         onAbrirBuscador={() => setBuscadorAbierto(true)}
       />
       )}
@@ -4349,6 +4484,7 @@ function App() {
             registrarNuevaCategoria={registrarNuevaCategoriaGlobal}
             listaSubclientes={listaSubclientes}
             registrarNuevoSubcliente={registrarNuevoSubclienteGlobal}
+            onEliminarSubcliente={solicitarEliminarSubcliente}
             marcasDisponibles={marcasDisponibles}
             usuario={usuario}
             nombreUsuario={nombreCompleto}
@@ -4360,6 +4496,7 @@ function App() {
             relacionesTareas={relacionesTareas}
             onRelacionCreada={handleRelacionCreada}
             onAbrirTareaRelacionada={abrirEdicionTarea}
+            onDuplicarSubcliente={isDesigner ? undefined : abrirCrearDesdePlantilla}
             getMarcaStyle={getMarcaStyle}
           />
         </ModalPortal>
@@ -4485,6 +4622,67 @@ function App() {
               <button 
                 type="button"
                 onClick={() => handleDeleteTask(taskToDelete)}
+                className="robin-confirm-delete-btn"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!isConfigOnlyAdmin && !isDesigner && subclienteAEliminar && (
+        <div className="fixed inset-0 bg-black/10 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+          <div className="bg-white p-5 rounded-md border border-zinc-300 shadow-md w-full max-w-sm animate-zoom-in flex flex-col gap-4">
+            <h4 className="text-xs font-bold uppercase text-zinc-500 tracking-wider border-b pb-2">
+              Eliminar subcliente
+            </h4>
+            <div className="p-2 bg-zinc-50 border rounded text-[13px] font-semibold text-[#37352F]">
+              {subclienteAEliminar.nombre}
+              <span className="block mt-0.5 text-[11px] font-medium text-zinc-500">
+                {formatearMarca(subclienteAEliminar.marca)}
+              </span>
+            </div>
+            {subclienteAEliminar.cantidad > 0 ? (
+              <>
+                <p className="text-xs text-zinc-600 leading-relaxed font-semibold">
+                  Tiene {subclienteAEliminar.cantidad} entregable{subclienteAEliminar.cantidad === 1 ? "" : "s"} en este cliente.
+                  Elige a dónde los enviamos antes de eliminarlo.
+                </p>
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                    Mover entregables a
+                  </span>
+                  <select
+                    value={subclienteAEliminar.destino}
+                    onChange={(e) => setSubclienteAEliminar((prev) => (
+                      prev ? { ...prev, destino: e.target.value } : prev
+                    ))}
+                    className="w-full bg-white border border-zinc-200 rounded-md px-3 py-2 text-xs font-semibold text-[#37352F]"
+                  >
+                    <option value="">Sin subcliente</option>
+                    {(subclienteAEliminar.destinos || []).map((n) => (
+                      <option key={n} value={n}>{n}</option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            ) : (
+              <p className="text-xs text-zinc-600 leading-relaxed font-semibold">
+                No tiene entregables. ¿Seguro que quieres eliminarlo?
+              </p>
+            )}
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setSubclienteAEliminar(null)}
+                className="px-3 py-1.5 text-xs text-zinc-500 hover:text-zinc-800"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={confirmarEliminarSubcliente}
                 className="robin-confirm-delete-btn"
               >
                 Eliminar

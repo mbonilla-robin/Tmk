@@ -4259,23 +4259,44 @@ function App() {
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
-                  <select value={filtroMarca} onChange={(e) => setFiltroMarca(e.target.value)} className="notion-filter-select" data-induccion="dashboard-filtros">
+                  <NotionFilterChip
+                    icon={SVGIcon.NewsMarca}
+                    value={filtroMarca}
+                    defaultValue="TODAS"
+                    onChange={(e) => setFiltroMarca(e.target.value)}
+                    induccionTarget="dashboard-filtros"
+                  >
                     <option value="TODAS">Cliente</option>
                     {marcasDisponibles.map(m => (<option key={m} value={m}>{formatearMarca(m)}</option>))}
-                  </select>
-                  <select value={filtroEstado} onChange={(e) => setFiltroEstado(e.target.value)} className="notion-filter-select">
+                  </NotionFilterChip>
+                  <NotionFilterChip
+                    icon={SVGIcon.Status}
+                    value={filtroEstado}
+                    defaultValue="TODOS"
+                    onChange={(e) => setFiltroEstado(e.target.value)}
+                  >
                     <option value="TODOS">Estado</option>
                     {obtenerEstadosFiltroLista().map(opt => (<option key={opt} value={opt}>{opt}</option>))}
-                  </select>
-                  <select value={filtroPrioridad} onChange={(e) => setFiltroPrioridad(e.target.value)} className="notion-filter-select">
+                  </NotionFilterChip>
+                  <NotionFilterChip
+                    icon={SVGIcon.Flag}
+                    value={filtroPrioridad}
+                    defaultValue="TODAS"
+                    onChange={(e) => setFiltroPrioridad(e.target.value)}
+                  >
                     <option value="TODAS">Prioridad</option>
                     {PRIORIDADES_MAPA.map(p => (<option key={p.id} value={p.id}>{p.label}</option>))}
-                  </select>
-                  <select value={filtroPersona} onChange={(e) => setFiltroPersona(e.target.value)} className="notion-filter-select">
+                  </NotionFilterChip>
+                  <NotionFilterChip
+                    icon={SVGIcon.User}
+                    value={filtroPersona}
+                    defaultValue="TODAS"
+                    onChange={(e) => setFiltroPersona(e.target.value)}
+                  >
                     <option value="TODAS">Persona</option>
                     {!isDesigner && <option value="SIN_DISENADOR">Sin diseñador</option>}
                     {listaPersonas.map(p => (<option key={claveUnicaPersonaLista(p) || p} value={p}>{etiquetaDisplayListaPersona(p)}</option>))}
-                  </select>
+                  </NotionFilterChip>
                 </div>
                 <div className="notion-time-pills" data-induccion="dashboard-tiempo">
                   <button type="button" onClick={() => setFiltroTiempo("TODAS")} className={`notion-time-pill ${filtroTiempo === "TODAS" ? "is-active" : ""}`}>Todo</button>

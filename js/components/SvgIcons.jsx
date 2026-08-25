@@ -210,6 +210,38 @@ const SVGIcon = {
   }
 };
 
+function NotionFilterChip({
+  icon: Icon,
+  value,
+  defaultValue,
+  onChange,
+  children,
+  className = "",
+  induccionTarget
+}) {
+  const activo = String(value ?? "") !== String(defaultValue ?? "");
+  return (
+    <label
+      className={`notion-filter-chip${activo ? " is-active" : ""}${className ? ` ${className}` : ""}`}
+      data-induccion={induccionTarget || undefined}
+    >
+      {typeof Icon === "function" ? (
+        <span className="notion-filter-chip__icon" aria-hidden="true">
+          <Icon className="w-3 h-3" />
+        </span>
+      ) : null}
+      <select
+        value={value}
+        onChange={onChange}
+        className="notion-filter-select"
+      >
+        {children}
+      </select>
+      <i className="fa-solid fa-chevron-down notion-filter-chip__caret" aria-hidden="true" />
+    </label>
+  );
+}
+
 // =========================================================================
 // 📅 COMPONENTE: CALENDARIO MENSUAL INTEGRADO (NOTION CALENDAR VIEW - FULL WIDTH)
 // =========================================================================

@@ -310,6 +310,101 @@ function textoPlanoAjusteCor(valor) {
   return raw;
 }
 
+const COMENTARIO_STAMP_RE = /^\[(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\s+\d{1,2}:\d{2})\]\s*/;
+
+function stampComentarioEstatusAhora(fecha) {
+  const d = fecha instanceof Date ? fecha : new Date();
+  const dia = String(d.getDate()).padStart(2, "0");
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const anio = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${dia}/${mes}/${anio} ${hh}:${mm}`;
+}
+
+function tiempoDesdeStampComentarioEstatus(stamp) {
+  const s = String(stamp || "").trim();
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\s+(\d{1,2}):(\d{2})$/);
+  if (!m) return 0;
+  let anio = m[3] != null ? Number(m[3]) : new Date().getFullYear();
+  if (anio < 100) anio += 2000;
+  const d = new Date(anio, Number(m[2]) - 1, Number(m[1]), Number(m[4]), Number(m[5]));
+  const t = d.getTime();
+  return Number.isFinite(t) ? t : 0;
+}
+
+function parseEntradasComentarioEstatus(comentarioRaw) {
+  const texto = textoPlanoAjusteCor(comentarioRaw);
+  if (!texto) return [];
+  const re = new RegExp(COMENTARIO_STAMP_RE.source, "gm");
+  const matches = [];
+  let m;
+  while ((m = re.exec(texto)) !== null) {
+    matches.push({ index: m.index, stamp: m[1], bodyStart: m.index + m[0].length });
+  }
+  if (!matches.length) {
+    return [{ stamp: "", texto, at: 0 }];
+  }
+  const entradas = [];
+  if (matches[0].index > 0) {
+    const pre = texto.slice(0, matches[0].index).trim();
+    if (pre) entradas.push({ stamp: "", texto: pre, at: 0 });
+  }
+  matches.forEach((match, i) => {
+    const end = i + 1 < matches.length ? matches[i + 1].index : texto.length;
+    const body = texto.slice(match.bodyStart, end).trim();
+    if (!body) return;
+    entradas.push({
+      stamp: match.stamp,
+      texto: body,
+      at: tiempoDesdeStampComentarioEstatus(match.stamp)
+    });
+  });
+  return entradas;
+}
+
+function serializarEntradasComentarioEstatus(entradas) {
+  return (entradas || [])
+    .map((e) => {
+      const body = String(e?.texto || "").trim();
+      if (!body) return "";
+      const stamp = String(e?.stamp || "").trim();
+      return stamp ? `[${stamp}] ${body}` : body;
+    })
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+function obtenerEntradasComentarioEstatus(tarea) {
+  const parsed = typeof parseDetalles === "function"
+    ? parseDetalles(tarea?.detalles || "")
+    : { notas: tarea?.detalles || "" };
+  const partes = typeof notasYComentarioEstatus === "function"
+    ? notasYComentarioEstatus(parsed.notas)
+    : { notas: parsed.notas || "", comentario: "" };
+  return parseEntradasComentarioEstatus(partes.comentario || partes.notas || "");
+}
+
+function obtenerUltimaEntradaComentarioEstatus(tareaOComentario) {
+  const entradas = typeof tareaOComentario === "string" || tareaOComentario == null
+    ? parseEntradasComentarioEstatus(tareaOComentario)
+    : obtenerEntradasComentarioEstatus(tareaOComentario);
+  if (!entradas.length) return null;
+  return entradas[entradas.length - 1];
+}
+
+function textoVistaComentarioEstatus(comentarioRaw) {
+  const ultima = obtenerUltimaEntradaComentarioEstatus(comentarioRaw);
+  return ultima ? ultima.texto : "";
+}
+
+function textoHistorialComentarioEstatus(comentarioRaw) {
+  const entradas = parseEntradasComentarioEstatus(comentarioRaw);
+  if (!entradas.length) return "";
+  if (entradas.length === 1 && !entradas[0].stamp) return entradas[0].texto;
+  return entradas.map((e) => (e.stamp ? `[${e.stamp}] ${e.texto}` : e.texto)).join("\n\n");
+}
+
 function obtenerAjusteComentarioEstatus(tarea) {
   const parsed = typeof parseDetalles === "function"
     ? parseDetalles(tarea?.detalles || "")
@@ -321,15 +416,10 @@ function obtenerAjusteComentarioEstatus(tarea) {
 }
 
 function obtenerUltimoAjusteCor(tarea) {
-  const parsed = typeof parseDetalles === "function"
-    ? parseDetalles(tarea?.detalles || "")
-    : { notas: tarea?.detalles || "" };
-  const partes = typeof notasYComentarioEstatus === "function"
-    ? notasYComentarioEstatus(parsed.notas)
-    : { notas: parsed.notas || "", comentario: "" };
-  const comentario = textoPlanoAjusteCor(partes.comentario);
-  const notas = textoPlanoAjusteCor(partes.notas);
-  const fuente = comentario || notas;
+  const ultima = obtenerUltimaEntradaComentarioEstatus(tarea);
+  if (ultima && ultima.texto) return ultima.texto;
+  // Fallback legacy: último bloque / última línea del blob completo
+  const fuente = textoPlanoAjusteCor(obtenerAjusteComentarioEstatus(tarea));
   if (!fuente) return "";
   const bloques = fuente.split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
   if (bloques.length > 1) return bloques[bloques.length - 1];
@@ -609,7 +699,8 @@ function debeIrPorEnviarEstatus(t, _filasRef, flujo, estado, blob, _fila) {
   if (estado === "seguimiento" || estado === "espera de comentarios" || estado === "completada") return false;
   if (flujo === ESTATUS_FLUJO_POR_ENVIAR) return true;
   if (textoIndicaPorEnviar(blob)) return true;
-  if (estado === "en revision" && usuarioMarcoEnRevisionEstatus(t)) return true;
+  // En revisión ya salió de diseño/contenido: va a por enviar.
+  if (estado === "en revision" || estado === "en revisión") return true;
   return false;
 }
 
@@ -804,7 +895,8 @@ function esTareaOcultaEnEstatus(tarea) {
   return estado === "en pausa";
 }
 
-const ESTATUS_CARGA_DISENO = new Set(["pendiente", "en progreso", "en revision"]);
+// Solo pendiente / en progreso: en revisión y demás ya no cuentan como carga de diseño/contenido.
+const ESTATUS_CARGA_DISENO = new Set(["pendiente", "en progreso"]);
 
 function esTareaActivaCarga(tarea) {
   if (!tarea) return false;
@@ -973,10 +1065,11 @@ function etapaOperativaEstatus(t, filasRef) {
   if (estado === "seguimiento" || estado === "espera de comentarios" || flujo === ESTATUS_FLUJO_ESPERA) return "cliente";
   if (detectarTipoEnvioClienteEstatus(t) === "propuesta") return "cliente";
   if (detectarTipoEnvioClienteEstatus(t) === "arte-final") return "";
+  // Diseño/contenido solo mientras les pertenece: pendiente o en progreso.
   if (estado === "pendiente" || estado === "en progreso") return "diseno";
   if (estado === "en pausa") return "";
   if (debeIrPorEnviarEstatus(t, filasRef, flujo, estado, blob, null)) return "por-enviar";
-  return "diseno";
+  return "";
 }
 
 function claveNegocioEstatus(tarea) {
@@ -1433,7 +1526,14 @@ function aplicarComentarioEstatus(tarea, comentario, usuario, medidas) {
   const medidasGuardar = medidas !== undefined
     ? (typeof medidasParaGuardar === "function" ? medidasParaGuardar(medidas) : medidas)
     : (parsed.medidas || null);
-  const notasNuevas = construirNotasEstatus(partes.notas, comentarioLimpio);
+  let comentarioFinal = String(partes.comentario || "").trim();
+  if (comentarioLimpio) {
+    const entradas = parseEntradasComentarioEstatus(partes.comentario);
+    const stamp = stampComentarioEstatusAhora();
+    entradas.push({ stamp, texto: comentarioLimpio, at: Date.now() });
+    comentarioFinal = serializarEntradasComentarioEstatus(entradas);
+  }
+  const notasNuevas = construirNotasEstatus(partes.notas, comentarioFinal);
   const importKey = parsed.importKey || tarea.importKey || "";
   const sub = parsed.subcliente || (typeof obtenerSubclienteTarea === "function"
     ? obtenerSubclienteTarea(tarea)

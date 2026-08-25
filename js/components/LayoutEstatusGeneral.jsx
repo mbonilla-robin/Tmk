@@ -697,6 +697,8 @@ function LayoutEstatusGeneral({
   const [comentarioTip, setComentarioTip] = useState(null);
   const [esperaExpandida, setEsperaExpandida] = useState(false);
   const [faltaExpandida, setFaltaExpandida] = useState(false);
+  const [faltaRol, setFaltaRol] = useState("diseno");
+  const faltaSwitchTouchRef = useRef({ x: 0, activo: false });
   const [panelSnapshot, setPanelSnapshot] = useState(null);
   const [filtroSnapshot, setFiltroSnapshot] = useState("todos");
   const [editFechaKey, setEditFechaKey] = useState("");
@@ -788,15 +790,18 @@ function LayoutEstatusGeneral({
     if (!val || val === "—" || (typeof esDeadlineTbd === "function" && esDeadlineTbd(val))) {
       return typeof DEADLINE_TBD !== "undefined" ? DEADLINE_TBD : "TBD";
     }
+    if (typeof formatearFecha === "function") {
+      const formatted = formatearFecha(val);
+      if (formatted) return formatted;
+    }
     if (typeof parsearFechaLibre === "function") {
       const parsed = parsearFechaLibre(val);
       if (parsed) {
-        const aa = String(parsed.anio).slice(-2);
-        return `${String(parsed.dia).padStart(2, "0")}/${String(parsed.mes).padStart(2, "0")}/${aa}`;
+        return `${String(parsed.dia).padStart(2, "0")}/${String(parsed.mes).padStart(2, "0")}/${parsed.anio}`;
       }
     }
     const iso = String(val).match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (iso) return `${iso[3]}/${iso[2]}/${iso[1].slice(-2)}`;
+    if (iso) return `${iso[3]}/${iso[2]}/${iso[1]}`;
     return String(val);
   };
 
@@ -1168,10 +1173,8 @@ function LayoutEstatusGeneral({
     }
   };
 
-  const abrirEditorComentario = (key, comentarioActual, tarea) => {
-    const texto = typeof quitarBloqueMedidasDeTexto === "function"
-      ? quitarBloqueMedidasDeTexto(comentarioActual)
-      : (comentarioActual || "");
+  const abrirEditorComentario = (key, _comentarioActual, tarea) => {
+    // El editor es para añadir una entrada nueva: no rellenar con el historial completo.
     const parsed = typeof parseDetalles === "function" && tarea
       ? parseDetalles(tarea.detalles || "")
       : {};
@@ -1179,7 +1182,7 @@ function LayoutEstatusGeneral({
       ? normalizarMedidas(parsed.medidas)
       : { activo: false, ancho: "", alto: "", profundidad: "", unidad: "cm" };
     setComentarioEditando(key);
-    setComentarioDraft(texto);
+    setComentarioDraft("");
     setMedidasDraft(medidas);
   };
 
@@ -1297,7 +1300,7 @@ function LayoutEstatusGeneral({
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cEstado.dot}`} />
                         {normalizarEstado(t.estado) || "Sin estado"}
                       </span>
-                      {t.deadline || t.fechaInicio || ""}
+                      {(t.deadline || t.fechaInicio) ? fechaCorta(t.deadline || t.fechaInicio) : ""}
                     </em>
                   </button>
                 </li>
@@ -1454,19 +1457,90 @@ function LayoutEstatusGeneral({
     );
   })();
 
+  const itemEsRolFalta = (item, rol) => {
+    const t = item?.tarea;
+    const handlesRaw = typeof obtenerHandlesDesdeCampoPersonas === "function"
+      ? obtenerHandlesDesdeCampoPersonas(t?.personas || "")
+      : [];
+    const handles = handlesRaw.length
+      ? handlesRaw
+      : (typeof handlesResponsablesEstatus === "function" ? handlesResponsablesEstatus(t) : []);
+    let tieneContenido = false;
+    let tieneDiseno = false;
+    (handles || []).forEach((h) => {
+      const r = typeof rolPersonaCargaEstatus === "function"
+        ? rolPersonaCargaEstatus(h, listaDisenadores)
+        : "";
+      if (r === "contenido") tieneContenido = true;
+      if (r === "diseno") tieneDiseno = true;
+    });
+    if (rol === "contenido") return tieneContenido;
+    if (tieneDiseno) return true;
+    return !tieneContenido;
+  };
+
+  const cambiarFaltaRol = (rol) => {
+    if (rol !== "contenido" && rol !== "diseno") return;
+    if (rol === faltaRol) return;
+    setFaltaRol(rol);
+    setFaltaExpandida(false);
+  };
+
   const renderListaFalta = (items) => {
-    const restantes = Math.max(0, items.length - LISTA_VISIBLE_INICIAL);
+    const filtrados = (items || []).filter((item) => itemEsRolFalta(item, faltaRol));
+    const restantes = Math.max(0, filtrados.length - LISTA_VISIBLE_INICIAL);
     const visibles = faltaExpandida || restantes === 0
-      ? items
-      : items.slice(0, LISTA_VISIBLE_INICIAL);
+      ? filtrados
+      : filtrados.slice(0, LISTA_VISIBLE_INICIAL);
     return (
       <section className="estatus-lista-card estatus-lista-card--falta">
         <div className="estatus-lista-card-head">
           <h3>Falta por hacer</h3>
-          <span>{items.length}</span>
+          <span>{filtrados.length}</span>
         </div>
-        {items.length === 0 ? (
-          <p className="estatus-lista-empty">Nada pendiente internamente</p>
+        <div
+          className={`estatus-falta-switch is-${faltaRol}`}
+          role="tablist"
+          aria-label="Filtrar por rol"
+          onTouchStart={(e) => {
+            const t = e.changedTouches?.[0];
+            if (!t) return;
+            faltaSwitchTouchRef.current = { x: t.clientX, activo: true };
+          }}
+          onTouchEnd={(e) => {
+            if (!faltaSwitchTouchRef.current.activo) return;
+            const t = e.changedTouches?.[0];
+            faltaSwitchTouchRef.current.activo = false;
+            if (!t) return;
+            const dx = t.clientX - faltaSwitchTouchRef.current.x;
+            if (Math.abs(dx) < 28) return;
+            cambiarFaltaRol(dx < 0 ? "contenido" : "diseno");
+          }}
+        >
+          <span className="estatus-falta-switch-thumb" aria-hidden="true" />
+          <button
+            type="button"
+            role="tab"
+            className="estatus-falta-switch-btn"
+            aria-selected={faltaRol === "diseno"}
+            onClick={() => cambiarFaltaRol("diseno")}
+          >
+            Diseño
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className="estatus-falta-switch-btn"
+            aria-selected={faltaRol === "contenido"}
+            onClick={() => cambiarFaltaRol("contenido")}
+          >
+            Contenido
+          </button>
+        </div>
+        {filtrados.length === 0 ? (
+          <p className="estatus-lista-empty">
+            {faltaRol === "contenido" ? "Nada pendiente de contenido" : "Nada pendiente de diseño"}
+          </p>
         ) : (
           <>
             <ul>
@@ -1603,13 +1677,23 @@ function LayoutEstatusGeneral({
             {visibles.map((item) => {
               const key = getTaskSelectionKey(item.tarea);
               const comentario = String(item.comentario || "").trim();
-              const comentarioVista = typeof quitarBloqueMedidasDeTexto === "function"
+              const comentarioSinMedidas = typeof quitarBloqueMedidasDeTexto === "function"
                 ? quitarBloqueMedidasDeTexto(comentario)
                 : comentario;
+              const comentarioVista = typeof textoVistaComentarioEstatus === "function"
+                ? textoVistaComentarioEstatus(comentarioSinMedidas)
+                : comentarioSinMedidas;
+              const comentarioHistorial = typeof textoHistorialComentarioEstatus === "function"
+                ? textoHistorialComentarioEstatus(comentarioSinMedidas)
+                : comentarioSinMedidas;
+              const ultimaEntrada = typeof obtenerUltimaEntradaComentarioEstatus === "function"
+                ? obtenerUltimaEntradaComentarioEstatus(comentarioSinMedidas)
+                : null;
               const medidasItem = typeof parseDetalles === "function"
                 ? (parseDetalles(item.tarea?.detalles || "").medidas || null)
                 : null;
               const medidasTxt = typeof textoMedidasParaCor === "function" ? textoMedidasParaCor(medidasItem) : "";
+              const tipTexto = [comentarioHistorial, medidasTxt].filter(Boolean).join("\n\n");
               const editando = comentarioEditando === key;
               return (
                 <li key={key} className={editando ? "is-open" : ""}>
@@ -1629,21 +1713,26 @@ function LayoutEstatusGeneral({
                       {tituloEntregable(item.entregable, item.cadena)}
                     </button>
                     <span
-                      className={`estatus-espera-coment-wrap ${comentarioVista ? "has-tip" : ""}`}
-                      onMouseEnter={(e) => mostrarTipComentario(e, [comentarioVista, medidasTxt].filter(Boolean).join("\n"))}
+                      className={`estatus-espera-coment-wrap ${tipTexto ? "has-tip" : ""}`}
+                      onMouseEnter={(e) => mostrarTipComentario(e, tipTexto)}
                       onMouseLeave={ocultarTipComentario}
                     >
                       <span
                         className={`estatus-espera-cell estatus-espera-cell--coment ${comentarioVista || medidasTxt ? "" : "is-empty"}`}
                       >
-                        {comentarioVista || medidasTxt || "—"}
+                        <span className="estatus-espera-coment-text">
+                          {comentarioVista || medidasTxt || "—"}
+                        </span>
+                        {ultimaEntrada?.stamp ? (
+                          <em className="estatus-espera-coment-stamp">{ultimaEntrada.stamp}</em>
+                        ) : null}
                       </span>
                     </span>
                     {puedeEditar && onGuardarComentario ? (
                       <button
                         type="button"
                         className={`estatus-comentario-btn estatus-comentario-btn--icon ${editando ? "is-open" : ""}`}
-                        aria-label={comentario ? "Editar comentario" : "Añadir comentario"}
+                        aria-label="Añadir comentario"
                         onClick={() => (editando ? cerrarEditorComentario() : abrirEditorComentario(key, comentario, item.tarea))}
                       >
                         <i className={`fa-${comentario ? "solid" : "regular"} fa-comment`} />
@@ -1657,7 +1746,7 @@ function LayoutEstatusGeneral({
                       <textarea
                         value={comentarioDraft}
                         onChange={(e) => setComentarioDraft(e.target.value)}
-                        placeholder="Comentario del cliente…"
+                        placeholder="Nuevo comentario del cliente…"
                         rows={2}
                       />
                       <CuadroMedidas
@@ -1671,7 +1760,7 @@ function LayoutEstatusGeneral({
                           Cancelar
                         </button>
                         <button type="button" className="estatus-comentario-save" onClick={() => guardarComentario(item.tarea)}>
-                          Guardar
+                          Añadir
                         </button>
                       </div>
                     </div>

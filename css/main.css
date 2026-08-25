@@ -7443,6 +7443,67 @@
       padding: 0.1rem 0.45rem;
     }
 
+    .estatus-falta-switch {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      margin: 0.65rem 0.85rem 0.25rem;
+      padding: 0.2rem;
+      border-radius: 9999px;
+      background: #f4f4f5;
+      border: 1px solid #e4e4e7;
+      touch-action: pan-y;
+      user-select: none;
+    }
+
+    .estatus-falta-switch-thumb {
+      position: absolute;
+      top: 0.2rem;
+      bottom: 0.2rem;
+      left: 0.2rem;
+      width: calc(50% - 0.2rem);
+      border-radius: 9999px;
+      background: #fff;
+      box-shadow: 0 1px 2px rgba(24, 24, 27, 0.12);
+      transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .estatus-falta-switch.is-contenido .estatus-falta-switch-thumb {
+      transform: translateX(100%);
+    }
+
+    .estatus-falta-switch-btn {
+      appearance: none;
+      border: 0;
+      background: transparent;
+      position: relative;
+      z-index: 1;
+      margin: 0;
+      padding: 0.45rem 0.5rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+      color: #71717a;
+      cursor: pointer;
+      border-radius: 9999px;
+      transition: color 0.18s ease;
+    }
+
+    .estatus-falta-switch-btn[aria-selected="true"] {
+      color: #37352f;
+    }
+
+    .estatus-falta-switch.is-diseno .estatus-falta-switch-btn[aria-selected="true"] {
+      color: #0f766e;
+    }
+
+    .estatus-falta-switch.is-contenido .estatus-falta-switch-btn[aria-selected="true"] {
+      color: #6d28d9;
+    }
+
     .estatus-lista-empty {
       margin: 0;
       padding: 1rem;
@@ -7679,12 +7740,32 @@
     }
 
     .estatus-espera-cell--coment {
-      display: block;
+      display: flex;
+      align-items: baseline;
+      gap: 0.4rem;
       width: 100%;
       color: #3f3f46;
       font-size: 0.72rem;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .estatus-espera-coment-text {
+      min-width: 0;
+      flex: 1 1 auto;
       overflow: hidden;
       text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .estatus-espera-coment-stamp {
+      flex: 0 0 auto;
+      margin: 0;
+      font-size: 0.62rem;
+      font-style: normal;
+      font-weight: 600;
+      color: #a1a1aa;
+      letter-spacing: 0.01em;
       white-space: nowrap;
     }
 

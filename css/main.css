@@ -1277,36 +1277,37 @@
       color: #71717a;
     }
 
-    /* Colores de marca — planos y fuertes */
-    .marca-bg-la-sante { background-color: #2F7A4E; }
-    .marca-text-la-sante { color: #2F7A4E; }
-    .marca-border-la-sante { border-color: #256B40; }
-    .marca-surface-la-sante { background-color: #2F7A4E; color: #FFFFFF; border-color: #256B40; }
+    /* Colores de marca — suaves para chips / headers / lista de entregables.
+       Las tiles de Clientes usan overrides planos más abajo. */
+    .marca-bg-la-sante { background-color: #EDF6EC; }
+    .marca-text-la-sante { color: #1B4332; }
+    .marca-border-la-sante { border-color: #B7DFC5; }
+    .marca-surface-la-sante { background-color: #EDF6EC; color: #1B4332; border-color: #B7DFC5; }
 
-    .marca-bg-diageo { background-color: #52525B; }
+    .marca-bg-diageo { background-color: #F4F4F5; }
     .marca-text-diageo { color: #52525B; }
-    .marca-border-diageo { border-color: #3F3F46; }
-    .marca-surface-diageo { background-color: #52525B; color: #FFFFFF; border-color: #3F3F46; }
+    .marca-border-diageo { border-color: #E4E4E7; }
+    .marca-surface-diageo { background-color: #F4F4F5; color: #52525B; border-color: #E4E4E7; }
 
-    .marca-bg-gama { background-color: #DC2626; }
-    .marca-text-gama { color: #DC2626; }
-    .marca-border-gama { border-color: #B91C1C; }
-    .marca-surface-gama { background-color: #DC2626; color: #FFFFFF; border-color: #B91C1C; }
+    .marca-bg-gama { background-color: #FEE2E2; }
+    .marca-text-gama { color: #7F1D1D; }
+    .marca-border-gama { border-color: #FECACA; }
+    .marca-surface-gama { background-color: #FEE2E2; color: #7F1D1D; border-color: #FECACA; }
 
-    .marca-bg-robin { background-color: #18181B; }
-    .marca-text-robin { color: #18181B; }
-    .marca-border-robin { border-color: #27272A; }
-    .marca-surface-robin { background-color: #18181B; color: #FFFFFF; border-color: #27272A; }
+    .marca-bg-robin { background-color: #F4F4F5; }
+    .marca-text-robin { color: #37352F; }
+    .marca-border-robin { border-color: #D4D4D8; }
+    .marca-surface-robin { background-color: #F4F4F5; color: #37352F; border-color: #D4D4D8; }
 
-    .marca-bg-trade { background-color: #EA580C; }
-    .marca-text-trade { color: #EA580C; }
-    .marca-border-trade { border-color: #C2410C; }
-    .marca-surface-trade { background-color: #EA580C; color: #FFFFFF; border-color: #C2410C; }
+    .marca-bg-trade { background-color: #FFEDD5; }
+    .marca-text-trade { color: #9A3412; }
+    .marca-border-trade { border-color: #FDBA74; }
+    .marca-surface-trade { background-color: #FFEDD5; color: #9A3412; border-color: #FDBA74; }
 
-    .marca-bg-otros { background-color: #71717A; }
-    .marca-text-otros { color: #71717A; }
-    .marca-border-otros { border-color: #52525B; }
-    .marca-surface-otros { background-color: #71717A; color: #FFFFFF; border-color: #52525B; }
+    .marca-bg-otros { background-color: #F4F4F5; }
+    .marca-text-otros { color: #52525B; }
+    .marca-border-otros { border-color: #E4E4E7; }
+    .marca-surface-otros { background-color: #F4F4F5; color: #52525B; border-color: #E4E4E7; }
 
     .robin-sidebar__marca-dot {
       width: 0.4375rem;
@@ -10020,36 +10021,32 @@
       border-color: var(--robin-border) !important;
     }
 
-    /* Marcas — superficies planas en oscuro */
+    /* Marcas — superficies suaves en oscuro (lista / chips) */
     html.robin-app[data-theme="midnight"] .marca-surface-la-sante {
-      background-color: #2F7A4E !important;
-      color: #FFFFFF !important;
-      border-color: #256B40 !important;
+      background-color: rgba(47, 122, 78, 0.22) !important;
+      color: #86efac !important;
+      border-color: rgba(47, 122, 78, 0.45) !important;
     }
-    html.robin-app[data-theme="midnight"] .marca-surface-diageo {
-      background-color: #52525B !important;
-      color: #FFFFFF !important;
-      border-color: #3F3F46 !important;
-    }
+    html.robin-app[data-theme="midnight"] .marca-surface-diageo,
     html.robin-app[data-theme="midnight"] .marca-surface-otros {
-      background-color: #71717A !important;
-      color: #FFFFFF !important;
-      border-color: #52525B !important;
+      background-color: #3f3f46 !important;
+      color: #e4e4e7 !important;
+      border-color: #52525b !important;
     }
     html.robin-app[data-theme="midnight"] .marca-surface-gama {
-      background-color: #DC2626 !important;
-      color: #FFFFFF !important;
-      border-color: #B91C1C !important;
+      background-color: rgba(220, 38, 38, 0.18) !important;
+      color: #fca5a5 !important;
+      border-color: rgba(220, 38, 38, 0.4) !important;
     }
     html.robin-app[data-theme="midnight"] .marca-surface-robin {
-      background-color: #18181B !important;
-      color: #FFFFFF !important;
-      border-color: #27272A !important;
+      background-color: #3f3f46 !important;
+      color: #e4e4e7 !important;
+      border-color: #52525b !important;
     }
     html.robin-app[data-theme="midnight"] .marca-surface-trade {
-      background-color: #EA580C !important;
-      color: #FFFFFF !important;
-      border-color: #C2410C !important;
+      background-color: rgba(234, 88, 12, 0.18) !important;
+      color: #fdba74 !important;
+      border-color: rgba(234, 88, 12, 0.4) !important;
     }
 
     /* Estados y categorías — pastels → tonos oscuros legibles */

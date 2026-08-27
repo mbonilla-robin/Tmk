@@ -126,7 +126,11 @@ function formatearLineaTareaEstatusCompacta(tarea, { incluirSubtareas = false } 
   const estado = normalizarEstado(tarea.estado) || "Sin estado";
   const titulo = (tarea.info || "Sin título").trim();
   const link = typeof obtenerLinkTarea === "function" ? obtenerLinkTarea(tarea) : "";
-  const base = `- ${titulo} | _${estado}_ | ${link || "—"}`;
+  const prioridad = typeof normalizarPrioridad === "function"
+    ? normalizarPrioridad(tarea.prioridad)
+    : String(tarea.prioridad || "").trim();
+  const sufijoPrioridad = prioridad === "Alta" ? "  ⚠️" : "";
+  const base = `- ${titulo} | _${estado}_ | ${link || "—"}${sufijoPrioridad}`;
   if (!incluirSubtareas || typeof parseDetalles !== "function") return base;
 
   const { subtareas } = parseDetalles(tarea.detalles || "");

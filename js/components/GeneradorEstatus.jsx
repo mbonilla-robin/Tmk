@@ -10,6 +10,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
   const [ordenarPor, setOrdenarPor] = useState("estado");
   const [organizarPor, setOrganizarPor] = useState("persona");
   const [incluirSubtareas, setIncluirSubtareas] = useState(false);
+  const [incluirPrioridad, setIncluirPrioridad] = useState(false);
   const [subclientesDesplegados, setSubclientesDesplegados] = useState(false);
   const [textoGenerado, setTextoGenerado] = useState("");
   const [copiado, setCopiado] = useState(false);
@@ -64,7 +65,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
     generarConOpciones(organizarPor);
   };
 
-  const generarConOpciones = (modoOrganizar = organizarPor, conSubtareas = incluirSubtareas) => {
+  const generarConOpciones = (modoOrganizar = organizarPor, conSubtareas = incluirSubtareas, conPrioridad = incluirPrioridad) => {
     const texto = generarTextoEstatus(tareas, {
       marcas: marcasSeleccionadas,
       estados: estadosSeleccionados,
@@ -73,11 +74,13 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
       organizarPor: modoOrganizar,
       personas: personasFiltroArray,
       subclientes: subclientesFiltro,
-      incluirSubtareas: conSubtareas
+      incluirSubtareas: conSubtareas,
+      incluirPrioridad: conPrioridad
     });
 
     setOrganizarPor(modoOrganizar);
     setIncluirSubtareas(Boolean(conSubtareas));
+    setIncluirPrioridad(Boolean(conPrioridad));
     setTextoGenerado(texto || "No hay tareas que coincidan con los filtros seleccionados.");
     setVista("resultado");
     setCopiado(false);
@@ -302,22 +305,37 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-2">Subtareas</label>
-                <button
-                  type="button"
-                  onClick={() => setIncluirSubtareas((v) => !v)}
-                  className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
-                    incluirSubtareas
-                      ? "bg-zinc-900 text-white border-zinc-900"
-                      : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
-                  }`}
-                  aria-pressed={incluirSubtareas}
-                >
-                  <i className={`fa-solid ${incluirSubtareas ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
-                  {incluirSubtareas ? "Con subtareas" : "Sin subtareas"}
-                </button>
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-2">Opciones</label>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIncluirSubtareas((v) => !v)}
+                    className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                      incluirSubtareas
+                        ? "bg-zinc-900 text-white border-zinc-900"
+                        : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                    }`}
+                    aria-pressed={incluirSubtareas}
+                  >
+                    <i className={`fa-solid ${incluirSubtareas ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
+                    {incluirSubtareas ? "Con subtareas" : "Sin subtareas"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIncluirPrioridad((v) => !v)}
+                    className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                      incluirPrioridad
+                        ? "bg-zinc-900 text-white border-zinc-900"
+                        : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                    }`}
+                    aria-pressed={incluirPrioridad}
+                  >
+                    <i className={`fa-solid ${incluirPrioridad ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
+                    Agregar prioridad
+                  </button>
+                </div>
                 <p className="mt-1.5 text-[10px] text-zinc-400">
-                  Por defecto el estatus no incluye las subtareas de cada entregable.
+                  Prioridad marca con ⚠️ las tareas altas. Por defecto no se incluyen subtareas ni prioridad.
                 </p>
               </div>
 
@@ -384,7 +402,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                     <button
                       key={opcion.id}
                       type="button"
-                      onClick={() => generarConOpciones(opcion.id, incluirSubtareas)}
+                      onClick={() => generarConOpciones(opcion.id, incluirSubtareas, incluirPrioridad)}
                       className={`text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
                         organizarPor === opcion.id
                           ? "bg-zinc-900 text-white border-zinc-900"
@@ -397,20 +415,35 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                 </div>
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-2">Subtareas</label>
-                <button
-                  type="button"
-                  onClick={() => generarConOpciones(organizarPor, !incluirSubtareas)}
-                  className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
-                    incluirSubtareas
-                      ? "bg-zinc-900 text-white border-zinc-900"
-                      : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
-                  }`}
-                  aria-pressed={incluirSubtareas}
-                >
-                  <i className={`fa-solid ${incluirSubtareas ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
-                  {incluirSubtareas ? "Con subtareas" : "Sin subtareas"}
-                </button>
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-2">Opciones</label>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => generarConOpciones(organizarPor, !incluirSubtareas, incluirPrioridad)}
+                    className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                      incluirSubtareas
+                        ? "bg-zinc-900 text-white border-zinc-900"
+                        : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                    }`}
+                    aria-pressed={incluirSubtareas}
+                  >
+                    <i className={`fa-solid ${incluirSubtareas ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
+                    {incluirSubtareas ? "Con subtareas" : "Sin subtareas"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => generarConOpciones(organizarPor, incluirSubtareas, !incluirPrioridad)}
+                    className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                      incluirPrioridad
+                        ? "bg-zinc-900 text-white border-zinc-900"
+                        : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                    }`}
+                    aria-pressed={incluirPrioridad}
+                  >
+                    <i className={`fa-solid ${incluirPrioridad ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
+                    Agregar prioridad
+                  </button>
+                </div>
               </div>
               <pre className="text-[12px] text-[#37352F] leading-relaxed whitespace-pre-wrap font-mono bg-zinc-50 border border-zinc-200 rounded-lg p-4 max-h-[50vh] overflow-y-auto">
                 {textoGenerado}

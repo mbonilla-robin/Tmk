@@ -167,7 +167,8 @@ function LayoutMarcaHome({
   onToast,
   subclienteDestino = null,
   onSubclienteDestinoConsumido,
-  onDuplicarSubcliente
+  onDuplicarSubcliente,
+  onAbrirMacroSubcliente
 }) {
   const marcaEstilo = getMarcaStyle(marca);
   const nombreMarca = formatearMarca(marca);
@@ -247,10 +248,22 @@ function LayoutMarcaHome({
     };
   }, [subclienteDestino, marca]);
 
-  const gruposSubclientes = useMemo(
-    () => agruparTareasPorSubcliente(tareasMarca, marca),
-    [tareasMarca, marca]
-  );
+  const gruposSubclientes = useMemo(() => {
+    const grupos = typeof agruparTareasPorSubcliente === "function"
+      ? agruparTareasPorSubcliente(tareasMarca, marca)
+      : [];
+    const mapa = new Map();
+    grupos.forEach((g) => {
+      const key = typeof claveSubcliente === "function" ? claveSubcliente(g.nombre) : String(g.nombre || "").toLowerCase();
+      if (key) mapa.set(key, g);
+    });
+    (subclientesDisponibles || []).forEach((nombre) => {
+      const key = typeof claveSubcliente === "function" ? claveSubcliente(nombre) : String(nombre || "").toLowerCase();
+      if (!key || mapa.has(key)) return;
+      mapa.set(key, { nombre, tareas: [] });
+    });
+    return Array.from(mapa.values()).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  }, [tareasMarca, marca, subclientesDisponibles]);
   const tareasEntregablesMarca = useMemo(() => {
     const tHoy = obtenerTiempoHoyLocal();
     return tareasMarca.filter((t) => {
@@ -626,16 +639,27 @@ function LayoutMarcaHome({
         <div className="marca-subclientes-page">
           {gruposSubclientes.length === 0 ? (
             <div className="marca-subclientes-empty">
-              <p>No hay tareas con subcliente asignado en esta marca.</p>
+              <p>No hay subclientes en esta marca.</p>
               <p className="text-ui-sm text-zinc-400 mt-1">
-                Asigna un subcliente al crear o editar un entregable.
+                Crea uno al asignar un subcliente en un entregable.
               </p>
             </div>
           ) : (
             gruposSubclientes.map((grupo) => (
               <section key={grupo.nombre} id={idBloqueSubcliente(grupo.nombre)} className="marca-subcliente-block">
                 <div className="marca-subcliente-block-header">
-                  <h3 className="marca-subcliente-block-title">{grupo.nombre}</h3>
+                  {typeof onAbrirMacroSubcliente === "function" ? (
+                    <button
+                      type="button"
+                      className="marca-subcliente-block-title marca-subcliente-block-title--btn"
+                      onClick={() => onAbrirMacroSubcliente(marca, grupo.nombre)}
+                      title={`Abrir macro de ${grupo.nombre}`}
+                    >
+                      {grupo.nombre}
+                    </button>
+                  ) : (
+                    <h3 className="marca-subcliente-block-title">{grupo.nombre}</h3>
+                  )}
                   {typeof onDuplicarSubcliente === "function" && (
                     <button
                       type="button"
@@ -873,6 +897,8 @@ function LayoutMarcaHome({
                     tareas={tareasVista}
                     agruparPor={subclienteEnfocado || tieneSubclientes ? "subcliente" : "marca"}
                     subclienteEnfocado={subclienteEnfocado}
+                    marca={marca}
+                    onAbrirMacroSubcliente={onAbrirMacroSubcliente}
                   />
                 ) : (
                   <LayoutKanban tareas={tareasVista} ordenPrioridad={kanbanOrdenPrioridadActivo} onUpdateField={onUpdateField} onSelectTask={onSelectTask} onDeleteTask={onDeleteTask} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />
@@ -889,6 +915,8 @@ function LayoutMarcaHome({
                 tareas={tareasVista}
                 agruparPor={subclienteEnfocado || tieneSubclientes ? "subcliente" : "marca"}
                 subclienteEnfocado={subclienteEnfocado}
+                marca={marca}
+                onAbrirMacroSubcliente={onAbrirMacroSubcliente}
               />
             ) : (
               <LayoutKanban tareas={tareasVista} ordenPrioridad={kanbanOrdenPrioridadActivo} onUpdateField={onUpdateField} onSelectTask={onSelectTask} onDeleteTask={onDeleteTask} getMarcaStyle={getMarcaStyle} currentTheme={currentTheme} />

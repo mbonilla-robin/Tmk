@@ -3262,7 +3262,60 @@
       height: 0.25rem;
       background: #d4d4d8;
       border-radius: 9999px;
-      margin: 0 auto 1rem;
+      margin: 0 auto 0.65rem;
+    }
+
+    .task-sheet-breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      min-width: 0;
+      margin: 0 0 0.15rem;
+      font-size: 11px;
+      line-height: 1.3;
+      color: #a1a1aa;
+    }
+
+    .task-sheet-breadcrumb__sep {
+      flex-shrink: 0;
+      color: #d4d4d8;
+    }
+
+    .task-sheet-breadcrumb__link {
+      appearance: none;
+      background: transparent;
+      border: 0;
+      padding: 0;
+      margin: 0;
+      font: inherit;
+      color: #71717a;
+      cursor: pointer;
+      max-width: 28%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .task-sheet-breadcrumb__link:hover,
+    .task-sheet-breadcrumb__link:focus-visible {
+      color: #3f3f46;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      outline: none;
+    }
+
+    .task-sheet-breadcrumb__text,
+    .task-sheet-breadcrumb__current {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .task-sheet-breadcrumb__current {
+      flex: 1;
+      color: #52525b;
+      font-weight: 600;
     }
 
     @media (min-width: 1024px) {
@@ -3878,6 +3931,25 @@
       letter-spacing: -0.01em;
       line-height: 1.3;
       margin: 0;
+    }
+    button.notion-group-title--btn {
+      appearance: none;
+      background: transparent;
+      border: 0;
+      padding: 0;
+      text-align: left;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      color: inherit;
+      display: inline-flex;
+      align-items: center;
+    }
+    button.notion-group-title--btn:hover,
+    button.notion-group-title--btn:focus-visible {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      outline: none;
     }
     .notion-group-count {
       flex-shrink: 0;
@@ -5721,6 +5793,27 @@
       font-size: 0.875rem;
       font-weight: 700;
       color: #37352f;
+    }
+
+    .marca-subcliente-block-title--btn {
+      appearance: none;
+      background: transparent;
+      border: 0;
+      padding: 0;
+      margin: 0;
+      text-align: left;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+      color: inherit;
+    }
+
+    .marca-subcliente-block-title--btn:hover,
+    .marca-subcliente-block-title--btn:focus-visible {
+      color: #18181b;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      outline: none;
     }
 
     .marca-subcliente-block-count {

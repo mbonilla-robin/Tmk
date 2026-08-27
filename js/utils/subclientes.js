@@ -83,19 +83,48 @@ function esNombreSubclienteNuevoValido(valor) {
   return true;
 }
 
+function normalizarPrioridadSubcliente(valor) {
+  if (typeof normalizarPrioridad === "function") {
+    const n = normalizarPrioridad(valor);
+    if (n === "Alta" || n === "Media" || n === "Baja") return n;
+  }
+  const limpio = String(valor || "").trim();
+  if (limpio === "Alta" || limpio === "Media" || limpio === "Baja") return limpio;
+  return "Media";
+}
+
+function normalizarLinkSubcliente(valor) {
+  return String(valor || "").trim().slice(0, 2000);
+}
+
 function normalizarEntradaSubcliente(item) {
   if (!item) return null;
   if (typeof item === "string") {
     const nombre = normalizarNombreSubcliente(item);
     if (!nombre) return null;
-    return { marca: "", nombre };
+    return { marca: "", nombre, prioridad: "Media", link: "" };
   }
   const nombre = normalizarNombreSubcliente(item.nombre);
   if (!nombre) return null;
   const marca = typeof normalizarMarca === "function"
     ? normalizarMarca(item.marca || "")
     : String(item.marca || "").trim();
-  return { marca, nombre };
+  const tienePrioridad = item.prioridad != null && String(item.prioridad).trim() !== "";
+  const tieneLink = item.link != null && String(item.link).trim() !== "";
+  return {
+    marca,
+    nombre,
+    prioridad: normalizarPrioridadSubcliente(item.prioridad),
+    link: normalizarLinkSubcliente(item.link),
+    _metaPrioridad: tienePrioridad,
+    _metaLink: tieneLink
+  };
+}
+
+function limpiarMetaFlagsSubcliente(entrada) {
+  if (!entrada || typeof entrada !== "object") return entrada;
+  const { _metaPrioridad, _metaLink, ...rest } = entrada;
+  return rest;
 }
 
 function subclientesCoinciden(a, b) {
@@ -127,8 +156,11 @@ function preferirCasingSubcliente(actual, entrante) {
 function fusionarListasSubclientes(base, extra) {
   const mapa = new Map();
   const add = (item, preferIncoming) => {
-    const norm = normalizarEntradaSubcliente(item);
-    if (!norm || !norm.nombre) return;
+    const raw = normalizarEntradaSubcliente(item);
+    if (!raw || !raw.nombre) return;
+    const metaPrioridad = Boolean(raw._metaPrioridad);
+    const metaLink = Boolean(raw._metaLink);
+    const norm = limpiarMetaFlagsSubcliente(raw);
     const key = `${claveMarcaSubcliente(norm.marca)}::${claveSubcliente(norm.nombre)}`;
     if (!mapa.has(key)) {
       mapa.set(key, norm);
@@ -139,7 +171,9 @@ function fusionarListasSubclientes(base, extra) {
     mapa.set(key, {
       ...prev,
       marca: norm.marca || prev.marca,
-      nombre: preferirCasingSubcliente(prev.nombre, norm.nombre)
+      nombre: preferirCasingSubcliente(prev.nombre, norm.nombre),
+      prioridad: metaPrioridad ? norm.prioridad : (prev.prioridad || norm.prioridad || "Media"),
+      link: metaLink ? norm.link : (prev.link || norm.link || "")
     });
   };
   (base || []).forEach((item) => add(item, false));
@@ -152,7 +186,45 @@ function fusionarListasSubclientes(base, extra) {
 }
 
 function obtenerListaSubclientesDefecto() {
-  return SUBCLIENTES_CATALOGO.map((s) => ({ ...s }));
+  return SUBCLIENTES_CATALOGO.map((s) => limpiarMetaFlagsSubcliente(normalizarEntradaSubcliente(s))).filter(Boolean);
+}
+
+function obtenerEntradaSubcliente(lista, marca, nombre) {
+  const marcaKey = claveMarcaSubcliente(marca);
+  const nombreKey = claveSubcliente(nombre);
+  if (!nombreKey) return null;
+  return (lista || []).find((s) => {
+    if (!s) return false;
+    if (marcaKey && claveMarcaSubcliente(s.marca) !== marcaKey) return false;
+    return claveSubcliente(s.nombre) === nombreKey;
+  }) || null;
+}
+
+function actualizarMetaSubclienteEnLista(lista, marca, nombre, meta = {}) {
+  const entradaBase = normalizarEntradaSubcliente({
+    marca,
+    nombre,
+    prioridad: meta.prioridad,
+    link: meta.link
+  });
+  if (!entradaBase) return lista || [];
+  const limpia = limpiarMetaFlagsSubcliente(entradaBase);
+  const key = `${claveMarcaSubcliente(limpia.marca)}::${claveSubcliente(limpia.nombre)}`;
+  let encontrado = false;
+  const next = (lista || []).map((s) => {
+    const k = `${claveMarcaSubcliente(s.marca)}::${claveSubcliente(s.nombre)}`;
+    if (k !== key) return s;
+    encontrado = true;
+    return {
+      ...s,
+      ...limpia,
+      nombre: preferirCasingSubcliente(s.nombre, limpia.nombre),
+      prioridad: meta.prioridad != null ? limpia.prioridad : (s.prioridad || limpia.prioridad),
+      link: meta.link != null ? limpia.link : (s.link || limpia.link)
+    };
+  });
+  if (!encontrado) next.push(limpia);
+  return guardarListaSubclientes(next);
 }
 
 function cargarClavesSubclientesEliminados() {
@@ -405,13 +477,23 @@ async function cargarSubclientesRemotos() {
 
   try {
     const res = await fetch(
-      `${url}/rest/v1/robin_subclientes?select=marca,nombre&order=marca.asc,nombre.asc`,
+      `${url}/rest/v1/robin_subclientes?select=marca,nombre,prioridad,link&order=marca.asc,nombre.asc`,
       { headers: typeof getSupabaseRestHeaders === "function" ? getSupabaseRestHeaders() : {} }
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      // Fallback si la migración de meta aún no está aplicada
+      const resBasic = await fetch(
+        `${url}/rest/v1/robin_subclientes?select=marca,nombre&order=marca.asc,nombre.asc`,
+        { headers: typeof getSupabaseRestHeaders === "function" ? getSupabaseRestHeaders() : {} }
+      );
+      if (!resBasic.ok) return null;
+      const dataBasic = await resBasic.json();
+      if (!Array.isArray(dataBasic)) return null;
+      return dataBasic.map((row) => limpiarMetaFlagsSubcliente(normalizarEntradaSubcliente(row))).filter(Boolean);
+    }
     const data = await res.json();
     if (!Array.isArray(data)) return null;
-    return data.map((row) => normalizarEntradaSubcliente(row)).filter(Boolean);
+    return data.map((row) => limpiarMetaFlagsSubcliente(normalizarEntradaSubcliente(row))).filter(Boolean);
   } catch (e) {
     console.warn("ROBIN: error cargando subclientes remotos", e);
     return null;
@@ -452,13 +534,25 @@ function listarTareasMismoSubcliente(tarea, tareas, opciones = {}) {
     });
 }
 
-async function insertarSubclienteRemoto(marca, nombre) {
+async function insertarSubclienteRemoto(marca, nombre, meta = {}) {
   if (typeof isSupabaseConfigured !== "function" || !isSupabaseConfigured()) return false;
   const url = typeof SUPABASE_URL !== "undefined" ? SUPABASE_URL : "";
   if (!url) return false;
 
-  const entrada = normalizarEntradaSubcliente({ marca, nombre });
+  const entrada = limpiarMetaFlagsSubcliente(normalizarEntradaSubcliente({
+    marca,
+    nombre,
+    prioridad: meta.prioridad,
+    link: meta.link
+  }));
   if (!entrada || !entrada.marca || !entrada.nombre) return false;
+
+  const body = {
+    marca: entrada.marca,
+    nombre: entrada.nombre,
+    prioridad: entrada.prioridad || "Media",
+    link: entrada.link || ""
+  };
 
   try {
     const res = await fetch(`${url}/rest/v1/robin_subclientes`, {
@@ -466,14 +560,60 @@ async function insertarSubclienteRemoto(marca, nombre) {
       headers: typeof getSupabaseRestHeaders === "function"
         ? getSupabaseRestHeaders("return=minimal")
         : { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        marca: entrada.marca,
-        nombre: entrada.nombre
-      })
+      body: JSON.stringify(body)
     });
-    return res.ok || res.status === 409;
+    if (res.ok || res.status === 409) return true;
+    // Fallback sin columnas meta
+    const resBasic = await fetch(`${url}/rest/v1/robin_subclientes`, {
+      method: "POST",
+      headers: typeof getSupabaseRestHeaders === "function"
+        ? getSupabaseRestHeaders("return=minimal")
+        : { "Content-Type": "application/json" },
+      body: JSON.stringify({ marca: entrada.marca, nombre: entrada.nombre })
+    });
+    return resBasic.ok || resBasic.status === 409;
   } catch (e) {
     console.warn("ROBIN: error guardando subcliente remoto", e);
+    return false;
+  }
+}
+
+async function actualizarSubclienteRemoto(marca, nombre, meta = {}) {
+  if (typeof isSupabaseConfigured !== "function" || !isSupabaseConfigured()) return false;
+  const url = typeof SUPABASE_URL !== "undefined" ? SUPABASE_URL : "";
+  if (!url) return false;
+
+  const entrada = limpiarMetaFlagsSubcliente(normalizarEntradaSubcliente({ marca, nombre }));
+  if (!entrada || !entrada.marca || !entrada.nombre) return false;
+
+  const patch = {};
+  if (meta.prioridad != null) patch.prioridad = normalizarPrioridadSubcliente(meta.prioridad);
+  if (meta.link != null) patch.link = normalizarLinkSubcliente(meta.link);
+  if (!Object.keys(patch).length) return true;
+
+  try {
+    const qs = new URLSearchParams({
+      marca: `eq.${entrada.marca}`,
+      nombre: `eq.${entrada.nombre}`
+    });
+    const res = await fetch(`${url}/rest/v1/robin_subclientes?${qs.toString()}`, {
+      method: "PATCH",
+      headers: typeof getSupabaseRestHeaders === "function"
+        ? getSupabaseRestHeaders("return=minimal")
+        : { "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify(patch)
+    });
+    if (res.ok) return true;
+    // Si no existe fila aún, insertar con meta
+    if (res.status === 404 || res.status === 406) {
+      return insertarSubclienteRemoto(entrada.marca, entrada.nombre, {
+        prioridad: patch.prioridad,
+        link: patch.link
+      });
+    }
+    return false;
+  } catch (e) {
+    console.warn("ROBIN: error actualizando subcliente remoto", e);
     return false;
   }
 }

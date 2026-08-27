@@ -226,7 +226,9 @@ function LayoutTablaAgrupada({
   onToggleSeleccion = () => {},
   onToggleSeleccionGrupo = () => {},
   listaCategorias = [],
-  onDuplicarSubcliente
+  onDuplicarSubcliente,
+  onAbrirMacroSubcliente,
+  marca = ""
 }) {
   const tareasAgrupadas = useMemo(() => {
     if (agruparPor === "subcliente") {
@@ -294,12 +296,32 @@ function LayoutTablaAgrupada({
                 className="notion-task-check notion-group-check"
                 title="Seleccionar grupo"
               />
-              <h3 className="notion-group-title">
-                {agruparPor === "subcliente" && grupoKey !== "Sin subcliente" && (
+              {agruparPor === "subcliente"
+                && grupoKey !== "Sin subcliente"
+                && typeof onAbrirMacroSubcliente === "function" ? (
+                <button
+                  type="button"
+                  className="notion-group-title notion-group-title--btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const marcaGrupo = marca
+                      || (tareasDeGrupo[0] && tareasDeGrupo[0].marca)
+                      || "";
+                    onAbrirMacroSubcliente(marcaGrupo, grupoKey);
+                  }}
+                  title={`Abrir macro de ${tituloGrupo}`}
+                >
                   <i className="fa-solid fa-store text-[11px] text-zinc-400 mr-1.5" aria-hidden="true" />
-                )}
-                {tituloGrupo}
-              </h3>
+                  {tituloGrupo}
+                </button>
+              ) : (
+                <h3 className="notion-group-title">
+                  {agruparPor === "subcliente" && grupoKey !== "Sin subcliente" && (
+                    <i className="fa-solid fa-store text-[11px] text-zinc-400 mr-1.5" aria-hidden="true" />
+                  )}
+                  {tituloGrupo}
+                </h3>
+              )}
               {agruparPor === "subcliente"
                 && typeof onDuplicarSubcliente === "function"
                 && (typeof grupoSubclientePermiteDuplicar === "function"

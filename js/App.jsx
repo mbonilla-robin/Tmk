@@ -184,6 +184,7 @@ function App() {
 
   const [activeTask, setActiveTask] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [macroSubclienteActivo, setMacroSubclienteActivo] = useState(null);
   const [buscadorAbierto, setBuscadorAbierto] = useState(false);
   const [subclienteDestino, setSubclienteDestino] = useState(null);
   const [taskToDelete, setTaskToDelete] = useState(null);
@@ -1692,8 +1693,103 @@ function App() {
     const marcaNorm = normalizarMarca(marca);
     const nombreNorm = normalizarNombreSubcliente(nombre);
     if (!marcaNorm || !nombreNorm) return;
-    setListaSubclientes((prev) => registrarSubclientesEnLista(prev, [{ marca: marcaNorm, nombre: nombreNorm }], { forzar: true }));
-    insertarSubclienteRemoto(marcaNorm, nombreNorm);
+    setListaSubclientes((prev) => registrarSubclientesEnLista(prev, [{ marca: marcaNorm, nombre: nombreNorm, prioridad: "Media", link: "" }], { forzar: true }));
+    insertarSubclienteRemoto(marcaNorm, nombreNorm, { prioridad: "Media", link: "" });
+    if (!isDesigner) {
+      setMacroSubclienteActivo({ marca: marcaNorm, nombre: nombreNorm });
+    }
+  };
+
+  const abrirMacroSubcliente = (marca, nombre) => {
+    const marcaNorm = normalizarMarca(marca);
+    const nombreNorm = normalizarNombreSubcliente(nombre);
+    if (!marcaNorm || !nombreNorm) return;
+    setMacroSubclienteActivo({ marca: marcaNorm, nombre: nombreNorm });
+  };
+
+  const handleSaveMacroSubcliente = async ({ marca, nombre, prioridad, link, propagarPrioridad }) => {
+    const marcaNorm = normalizarMarca(marca);
+    const nombreNorm = normalizarNombreSubcliente(nombre);
+    if (!marcaNorm || !nombreNorm) return;
+
+    const prioridadNorm = typeof normalizarPrioridadSubcliente === "function"
+      ? normalizarPrioridadSubcliente(prioridad)
+      : normalizarPrioridad(prioridad);
+    const linkNorm = typeof normalizarLinkSubcliente === "function"
+      ? normalizarLinkSubcliente(link)
+      : String(link || "").trim();
+
+    setListaSubclientes((prev) => actualizarMetaSubclienteEnLista(prev, marcaNorm, nombreNorm, {
+      prioridad: prioridadNorm,
+      link: linkNorm
+    }));
+    actualizarSubclienteRemoto(marcaNorm, nombreNorm, {
+      prioridad: prioridadNorm,
+      link: linkNorm
+    });
+
+    setMacroSubclienteActivo((prev) => (
+      prev && subclientesCoinciden(prev.nombre, nombreNorm) && marcasCoinciden(prev.marca, marcaNorm)
+        ? { ...prev, prioridad: prioridadNorm, link: linkNorm }
+        : prev
+    ));
+
+    if (!propagarPrioridad || isDesigner) return;
+
+    const afectadas = typeof listarTareasDeSubcliente === "function"
+      ? listarTareasDeSubcliente(tareas, marcaNorm, nombreNorm)
+      : [];
+    if (!afectadas.length) {
+      showToast("Prioridad del subcliente guardada", "success");
+      return;
+    }
+
+    const hoy = new Date();
+    const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, "0")}`;
+    const keysObjetivo = new Set();
+    afectadas.forEach((t) => {
+      keysObjetivo.add(getTaskSelectionKey(t));
+      keysObjetivo.add(getTaskSelectionKeyLegacy(t));
+    });
+    const esObjetivo = (t) => {
+      const key = getTaskSelectionKey(t);
+      const legacy = getTaskSelectionKeyLegacy(t);
+      return keysObjetivo.has(key) || keysObjetivo.has(legacy);
+    };
+
+    let cambios = 0;
+    const actualizadas = tareas.map((t) => {
+      if (!esObjetivo(t)) return t;
+      if (normalizarPrioridad(t.prioridad) === prioridadNorm) return t;
+      cambios += 1;
+      const detalles = `${t.detalles || ""}\n• [${timestamp}] Prioridad cambiada a "${prioridadNorm}" (macro subcliente) por @${usuario}`;
+      const actualizada = marcarTareaPendiente(normalizarTareaCampos({
+        ...t,
+        idTarea: t.idTarea || generateBrandId(t.marca),
+        prioridad: prioridadNorm,
+        detalles
+      }));
+      encolarSync({
+        type: "update",
+        taskKey: getTaskSelectionKey(actualizada),
+        taskKeyOriginal: getTaskSelectionKey(t),
+        payload: construirPayloadSyncTarea(t, actualizada, {
+          campoSync: "prioridad",
+          valor: prioridadNorm
+        })
+      });
+      return actualizada;
+    });
+
+    if (!cambios) {
+      showToast("Prioridad del subcliente guardada", "success");
+      return;
+    }
+
+    persistTareas(actualizadas);
+    setHayPendientesLocales(true);
+    showToast(`Prioridad ${prioridadNorm} aplicada a ${cambios} entregable(s)`, "success");
+    sincronizarEnSegundoPlano({ silencioso: true, sinRecarga: true });
   };
 
   const solicitarEliminarSubcliente = (marca, nombre) => {
@@ -2336,6 +2432,10 @@ function App() {
     setIsEditing(true);
   };
 
+  const abrirTareaDesdeMacro = (t) => {
+    abrirEdicionTarea(t);
+  };
+
   const irAFormularioCrear = (plantilla) => {
     if (isDesigner) return;
     setIsEditing(false);
@@ -2416,6 +2516,11 @@ function App() {
         setActiveTask(null);
         return;
       }
+      if (macroSubclienteActivo) {
+        e.preventDefault();
+        setMacroSubclienteActivo(null);
+        return;
+      }
       if (formularioRapidoVisible) {
         e.preventDefault();
         setFormularioRapidoVisible(false);
@@ -2423,7 +2528,7 @@ function App() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [taskToDelete, taskToComplete, buscadorAbierto, isEditing, formularioRapidoVisible]);
+  }, [taskToDelete, taskToComplete, buscadorAbierto, isEditing, macroSubclienteActivo, formularioRapidoVisible]);
 
   const layoutTablaProps = {
     tareas: tareasFiltradas,
@@ -4075,6 +4180,7 @@ function App() {
               subclienteDestino={subclienteDestino}
               onSubclienteDestinoConsumido={() => setSubclienteDestino(null)}
               onDuplicarSubcliente={isDesigner ? undefined : abrirCrearDesdePlantilla}
+              onAbrirMacroSubcliente={abrirMacroSubcliente}
             />
           )}
 
@@ -4491,6 +4597,50 @@ function App() {
         />
       )}
 
+      {!isConfigOnlyAdmin && macroSubclienteActivo && (
+        <ModalPortal>
+          <ModalMacroSubcliente
+            marca={macroSubclienteActivo.marca}
+            nombre={macroSubclienteActivo.nombre}
+            prioridad={(typeof obtenerEntradaSubcliente === "function"
+              ? obtenerEntradaSubcliente(listaSubclientes, macroSubclienteActivo.marca, macroSubclienteActivo.nombre)
+              : null)?.prioridad || macroSubclienteActivo.prioridad || "Media"}
+            link={(typeof obtenerEntradaSubcliente === "function"
+              ? obtenerEntradaSubcliente(listaSubclientes, macroSubclienteActivo.marca, macroSubclienteActivo.nombre)
+              : null)?.link || macroSubclienteActivo.link || ""}
+            tareas={tareas}
+            onClose={() => setMacroSubclienteActivo(null)}
+            onSave={isDesigner ? undefined : handleSaveMacroSubcliente}
+            onAbrirTarea={abrirTareaDesdeMacro}
+            onAbrirMarca={(m) => {
+              setMacroSubclienteActivo(null);
+              handleAbrirMarcaCliente(m);
+            }}
+            onCrearEntregable={isDesigner ? undefined : ((origen) => {
+              setMacroSubclienteActivo(null);
+              abrirCrearDesdePlantilla({
+                marca: origen?.marca || macroSubclienteActivo.marca,
+                subcliente: origen?.subcliente || macroSubclienteActivo.nombre,
+                prioridad: origen?.prioridad
+                  || (typeof obtenerEntradaSubcliente === "function"
+                    ? obtenerEntradaSubcliente(listaSubclientes, macroSubclienteActivo.marca, macroSubclienteActivo.nombre)?.prioridad
+                    : null)
+                  || "Media",
+                categoria: origen?.categoria || "",
+                personas: origen?.personas || "",
+                estado: "Pendiente",
+                deadline: "",
+                fechaInicio: "",
+                info: "",
+                link: "",
+                detalles: ""
+              });
+            })}
+            soloLectura={isDesigner}
+          />
+        </ModalPortal>
+      )}
+
       {!isConfigOnlyAdmin && isEditing && activeTask && (
         <ModalPortal>
           <ModalEdicionTarea 
@@ -4519,6 +4669,17 @@ function App() {
             onAbrirTareaRelacionada={abrirEdicionTarea}
             onDuplicarSubcliente={isDesigner ? undefined : abrirCrearDesdePlantilla}
             getMarcaStyle={getMarcaStyle}
+            onAbrirMarca={(m) => {
+              setIsEditing(false);
+              setActiveTask(null);
+              handleAbrirMarcaCliente(m);
+            }}
+            onAbrirMacro={(m, n) => {
+              setIsEditing(false);
+              setActiveTask(null);
+              if (m) handleAbrirMarcaCliente(m);
+              abrirMacroSubcliente(m, n);
+            }}
           />
         </ModalPortal>
       )}

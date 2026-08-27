@@ -34,7 +34,7 @@ function parseDetallesSeguro(raw) {
   return { notes: "", notas: "", subtareas: [], historial: [], link: "", subcliente: "", flujo: "", importKey: "", envioTipo: "", pendienteCor: false, medidas: null };
 }
 
-function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaPersonas, registrarNuevaPersona, listaCategorias, registrarNuevaCategoria, listaSubclientes, registrarNuevoSubcliente, onEliminarSubcliente, marcasDisponibles, usuario, nombreUsuario, onComentarioPublicado, onToast, soloLectura = false, modoDisenador = false, tareas = [], relacionesTareas = [], onRelacionCreada, onAbrirTareaRelacionada, onDuplicarSubcliente, getMarcaStyle }) {
+function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaPersonas, registrarNuevaPersona, listaCategorias, registrarNuevaCategoria, listaSubclientes, registrarNuevoSubcliente, onEliminarSubcliente, marcasDisponibles, usuario, nombreUsuario, onComentarioPublicado, onToast, soloLectura = false, modoDisenador = false, tareas = [], relacionesTareas = [], onRelacionCreada, onAbrirTareaRelacionada, onDuplicarSubcliente, getMarcaStyle, onAbrirMarca, onAbrirMacro }) {
   const tarea = tareaProp && typeof tareaProp === "object" ? tareaProp : {};
   const resolverEstadoInicial = () => {
     let categoriaInicial = tarea.categoria || "";
@@ -493,6 +493,51 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
             >
               <i className="fa-solid fa-xmark text-sm" />
             </button>
+            {(marca || subcliente) && (
+              <nav className="task-sheet-breadcrumb max-w-3xl mx-auto w-full pr-8" aria-label="Ruta del entregable">
+                {marca ? (
+                  typeof onAbrirMarca === "function" ? (
+                    <button
+                      type="button"
+                      className="task-sheet-breadcrumb__link"
+                      onClick={() => {
+                        if (typeof onClose === "function") onClose();
+                        onAbrirMarca(marca);
+                      }}
+                    >
+                      {typeof formatearMarca === "function" ? formatearMarca(marca) : marca}
+                    </button>
+                  ) : (
+                    <span className="task-sheet-breadcrumb__text">
+                      {typeof formatearMarca === "function" ? formatearMarca(marca) : marca}
+                    </span>
+                  )
+                ) : null}
+                {subcliente ? (
+                  <>
+                    <span className="task-sheet-breadcrumb__sep" aria-hidden="true">/</span>
+                    {typeof onAbrirMacro === "function" ? (
+                      <button
+                        type="button"
+                        className="task-sheet-breadcrumb__link"
+                        onClick={() => {
+                          if (typeof onClose === "function") onClose();
+                          onAbrirMacro(marca, subcliente);
+                        }}
+                      >
+                        {subcliente}
+                      </button>
+                    ) : (
+                      <span className="task-sheet-breadcrumb__text">{subcliente}</span>
+                    )}
+                  </>
+                ) : null}
+                <span className="task-sheet-breadcrumb__sep" aria-hidden="true">/</span>
+                <span className="task-sheet-breadcrumb__current" aria-current="page" title={info || "Sin título"}>
+                  {info || "Sin título"}
+                </span>
+              </nav>
+            )}
           </div>
 
           {/* Encabezado estilo Notion */}

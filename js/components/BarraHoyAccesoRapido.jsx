@@ -106,6 +106,9 @@ function TarjetaTareaHoy({ tarea, esUltimo, onSelectTask, getMarcaStyle, pieFech
   const cEstado = ESTADOS_MAPA.find((e) => cleanEstado(e.id) === cleanEstado(tarea.estado)) || ESTADOS_MAPA[0];
   const cPrioridad = PRIORIDADES_MAPA.find((p) => cleanPrioridad(p.id) === cleanPrioridad(tarea.prioridad)) || PRIORIDADES_MAPA[1];
   const fechaInicio = resolverFechaInicioTarea(tarea);
+  const subcliente = typeof obtenerSubclienteTarea === "function"
+    ? obtenerSubclienteTarea(tarea)
+    : String(tarea.subcliente || "").trim();
 
   return (
     <div className="flex gap-2 min-w-0">
@@ -136,6 +139,12 @@ function TarjetaTareaHoy({ tarea, esUltimo, onSelectTask, getMarcaStyle, pieFech
           <HoyTagPill className={cMarca.surface}>
             {formatearMarca(tarea.marca)}
           </HoyTagPill>
+          {subcliente ? (
+            <HoyTagPill className="bg-zinc-100 text-zinc-700 border-zinc-200">
+              <i className="fa-solid fa-store text-[8px] text-zinc-400" aria-hidden="true" />
+              {subcliente}
+            </HoyTagPill>
+          ) : null}
           <HoyTagPill className={cEstado.bg}>
             <span className={`w-1 h-1 rounded-full shrink-0 ${cEstado.dot}`} aria-hidden="true" />
             {normalizarEstado(tarea.estado)}

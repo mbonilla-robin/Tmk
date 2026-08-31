@@ -790,6 +790,9 @@ function LayoutMarcaHome({
               ) : (
                 highPriorityTasks.map(t => {
                   const cEstado = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(t.estado)) || { dot: "bg-zinc-400" };
+                  const subcliente = typeof obtenerSubclienteTarea === "function"
+                    ? obtenerSubclienteTarea(t)
+                    : String(t.subcliente || "").trim();
                   const personasCorta = t.personas
                     ? t.personas.split(/[\s,]+/).filter(Boolean).slice(0, 2).join(", ")
                     : "";
@@ -803,6 +806,12 @@ function LayoutMarcaHome({
                       <div className="urgent-task-card-body">
                         <p className="urgent-task-card-title">{t.info}</p>
                         <div className="urgent-task-card-meta">
+                          {subcliente ? (
+                            <>
+                              <span className="truncate font-medium text-zinc-600">{subcliente}</span>
+                              <span className="urgent-task-card-dot" aria-hidden="true">·</span>
+                            </>
+                          ) : null}
                           <span className="inline-flex items-center gap-1 min-w-0">
                             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cEstado.dot}`} />
                             <span className="truncate">{normalizarEstado(t.estado) || "Sin estado"}</span>

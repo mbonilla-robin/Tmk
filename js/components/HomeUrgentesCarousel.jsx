@@ -29,7 +29,12 @@ function HomeUrgentesCarousel({ tareas, onSelectTask, getMarcaStyle, onVerTodas 
 
       <div className="home-tiles-scroll">
         {tareas.map((t) => {
-          const metaParts = [normalizarEstado(t.estado)];
+          const subcliente = typeof obtenerSubclienteTarea === "function"
+            ? obtenerSubclienteTarea(t)
+            : String(t.subcliente || "").trim();
+          const metaParts = [];
+          if (subcliente) metaParts.push(subcliente);
+          metaParts.push(normalizarEstado(t.estado));
           if (t.deadline) metaParts.push(formatearFecha(t.deadline));
 
           return (

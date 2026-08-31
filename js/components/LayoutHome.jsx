@@ -120,6 +120,9 @@ function LayoutHome({
             highPriorityTasks.map(t => {
               const cMarca = getMarcaStyle(t.marca);
               const cEstado = ESTADOS_MAPA.find(e => cleanEstado(e.id) === cleanEstado(t.estado)) || { dot: "bg-zinc-400" };
+              const subcliente = typeof obtenerSubclienteTarea === "function"
+                ? obtenerSubclienteTarea(t)
+                : String(t.subcliente || "").trim();
               const personasCorta = t.personas
                 ? t.personas.split(/[\s,]+/).filter(Boolean).slice(0, 2).join(", ")
                 : "";
@@ -140,6 +143,12 @@ function LayoutHome({
                       >
                         {formatearMarca(t.marca)}
                       </span>
+                      {subcliente ? (
+                        <>
+                          <span className="urgent-task-card-dot" aria-hidden="true">·</span>
+                          <span className="truncate">{subcliente}</span>
+                        </>
+                      ) : null}
                       <span className="urgent-task-card-dot" aria-hidden="true">·</span>
                       <span className="inline-flex items-center gap-1 min-w-0">
                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cEstado.dot}`} />

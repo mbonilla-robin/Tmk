@@ -286,6 +286,14 @@ function LayoutMarcaHome({
         return false;
       }
       if (filtroPrioridad !== "TODAS" && normalizarPrioridad(t.prioridad) !== normalizarPrioridad(filtroPrioridad)) return false;
+      if (
+        filtroEstado === "TODOS"
+        && normalizarPrioridad(filtroPrioridad) === "Alta"
+        && typeof esTareaPendienteOEnProgreso === "function"
+        && !esTareaPendienteOEnProgreso(t)
+      ) {
+        return false;
+      }
       if (filtroPersona === "SIN_DISENADOR") {
         if (!tareaSinDisenadorAsignado(t)) return false;
       } else if (filtroPersona !== "TODAS" && !tareaIncluyePersonaFiltro(t.personas || "", filtroPersona)) return false;
@@ -348,7 +356,11 @@ function LayoutMarcaHome({
 
   const highPriorityTasks = useMemo(() => {
     return tareasMarca
-      .filter(t => esPrioridadAlta(t.prioridad) && !esTareaCompletada(t) && !esTareaSuspendida(t))
+      .filter((t) => (
+        typeof esTareaPrioridadAltaActiva === "function"
+          ? esTareaPrioridadAltaActiva(t)
+          : (esPrioridadAlta(t.prioridad) && typeof esTareaPendienteOEnProgreso === "function" && esTareaPendienteOEnProgreso(t))
+      ))
       .sort((a, b) => {
         const pesoA = getPriorityWeight(a.prioridad);
         const pesoB = getPriorityWeight(b.prioridad);

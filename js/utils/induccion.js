@@ -82,7 +82,7 @@ function construirPasosInduccion({ esDisenador = false } = {}) {
       id: "urgentes",
       target: "urgentes",
       titulo: "Urgentes",
-      texto: "Prioridad alta pendiente. Toca una tarjeta para abrir la tarea.",
+      texto: "Prioridad alta en Pendiente o En progreso. Toca una tarjeta para abrir la tarea.",
       placement: "bottom",
       pagina: "home"
     },

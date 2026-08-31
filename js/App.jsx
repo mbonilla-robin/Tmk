@@ -353,6 +353,15 @@ function App() {
         return false;
       }
       if (filtroPrioridad !== "TODAS" && normalizarPrioridad(t.prioridad) !== normalizarPrioridad(filtroPrioridad)) return false;
+      // Prioridad alta (sin otro estado): solo Pendiente / En progreso — igual que el panel de urgentes.
+      if (
+        filtroEstado === "TODOS"
+        && normalizarPrioridad(filtroPrioridad) === "Alta"
+        && typeof esTareaPendienteOEnProgreso === "function"
+        && !esTareaPendienteOEnProgreso(t)
+      ) {
+        return false;
+      }
       if (filtroPersona === "SIN_DISENADOR") {
         if (!tareaSinDisenadorAsignado(t)) return false;
       } else if (filtroPersona !== "TODAS" && !tareaIncluyePersonaFiltro(t.personas || "", filtroPersona)) return false;

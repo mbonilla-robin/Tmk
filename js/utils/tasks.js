@@ -366,6 +366,20 @@ function esTareaSuspendida(tarea) {
   return estado === "suspendido" || estado === "en pausa";
 }
 
+/** Pendiente o En progreso — estados operativos activos (no revisión, seguimiento, pausa, etc.). */
+function esTareaPendienteOEnProgreso(tarea) {
+  const estado = cleanEstado(tarea?.estado);
+  return estado === "pendiente" || estado === "en progreso";
+}
+
+/** Prioridad alta que aún requiere trabajo interno activo. */
+function esTareaPrioridadAltaActiva(tarea) {
+  if (typeof esPrioridadAlta === "function" ? !esPrioridadAlta(tarea?.prioridad) : normalizarPrioridad(tarea?.prioridad) !== "Alta") {
+    return false;
+  }
+  return esTareaPendienteOEnProgreso(tarea);
+}
+
 function esEstadoSoloVistaCliente(estado) {
   return (ESTADOS_SOLO_VISTA_CLIENTE || []).some((e) => cleanEstado(e) === cleanEstado(estado));
 }
@@ -711,6 +725,8 @@ window.normalizarTareaCampos = normalizarTareaCampos;
 window.obtenerTiempoHoyLocal = obtenerTiempoHoyLocal;
 window.esTareaCompletada = esTareaCompletada;
 window.esTareaSuspendida = esTareaSuspendida;
+window.esTareaPendienteOEnProgreso = esTareaPendienteOEnProgreso;
+window.esTareaPrioridadAltaActiva = esTareaPrioridadAltaActiva;
 window.esEstadoSoloVistaCliente = esEstadoSoloVistaCliente;
 window.obtenerEstadosKanban = obtenerEstadosKanban;
 window.obtenerEstadosFiltroLista = obtenerEstadosFiltroLista;

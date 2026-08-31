@@ -57,7 +57,11 @@ function LayoutHome({
 
   const highPriorityTasks = useMemo(() => {
     return tareas
-      .filter(t => esPrioridadAlta(t.prioridad) && !esTareaCompletada(t) && !esTareaSuspendida(t))
+      .filter((t) => (
+        typeof esTareaPrioridadAltaActiva === "function"
+          ? esTareaPrioridadAltaActiva(t)
+          : (esPrioridadAlta(t.prioridad) && esTareaPendienteOEnProgreso(t))
+      ))
       .sort((a, b) => {
         const pesoA = getPriorityWeight(a.prioridad);
         const pesoB = getPriorityWeight(b.prioridad);

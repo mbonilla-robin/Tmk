@@ -1831,6 +1831,25 @@
       background: rgba(24, 24, 27, 0.06);
     }
 
+    .task-prop-label--action {
+      border: 0;
+      padding: 0;
+      margin: 0;
+      background: transparent;
+      cursor: pointer;
+      font: inherit;
+      text-align: left;
+      border-radius: 0.25rem;
+    }
+
+    .task-prop-label--action:hover {
+      color: #3f3f46;
+    }
+
+    .task-prop-label--action:hover i {
+      color: #52525b;
+    }
+
     [data-theme="midnight"] .task-link-open-btn {
       color: #60a5fa;
     }
@@ -1842,6 +1861,14 @@
     [data-theme="midnight"] .task-link-edit-btn:hover {
       color: #e4e4e7;
       background: rgba(255, 255, 255, 0.06);
+    }
+
+    [data-theme="midnight"] .task-prop-label--action:hover {
+      color: #e4e4e7;
+    }
+
+    [data-theme="midnight"] .task-prop-label--action:hover i {
+      color: #a1a1aa;
     }
     .presence-user-name {
       min-width: 0;

@@ -1,10 +1,27 @@
-function PropertyRow({ icon, label, children }) {
+function PropertyRow({ icon, label, children, onLabelClick, labelTitle }) {
+  const labelClass = `task-prop-label flex items-center gap-2 w-[128px] shrink-0 text-ui-sm text-zinc-500${onLabelClick ? " task-prop-label--action" : ""}`;
+  const labelInner = (
+    <>
+      <i className={`${icon} w-3.5 text-center text-zinc-400 text-[11px]`} />
+      <span>{label}</span>
+    </>
+  );
   return (
     <div className="task-prop-row group flex items-center min-h-[34px] py-0.5 px-1 -mx-1 rounded hover:bg-zinc-50/80 transition-colors">
-      <div className="task-prop-label flex items-center gap-2 w-[128px] shrink-0 text-ui-sm text-zinc-500">
-        <i className={`${icon} w-3.5 text-center text-zinc-400 text-[11px]`} />
-        <span>{label}</span>
-      </div>
+      {typeof onLabelClick === "function" ? (
+        <button
+          type="button"
+          className={labelClass}
+          title={labelTitle || undefined}
+          onClick={onLabelClick}
+        >
+          {labelInner}
+        </button>
+      ) : (
+        <div className={labelClass}>
+          {labelInner}
+        </div>
+      )}
       <div className="task-prop-value flex-1 min-w-0">{children}</div>
     </div>
   );
@@ -519,6 +536,25 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
     }
   };
 
+  const handleCopiarLinkPropiedad = async () => {
+    const texto = linkNormalizado || String(link || "").trim();
+    if (!texto) {
+      if (onToast) onToast("No hay enlace para copiar", "error");
+      return;
+    }
+    try {
+      if (typeof copiarTextoAlPortapapeles === "function") {
+        const ok = await copiarTextoAlPortapapeles(texto);
+        if (!ok) throw new Error("copy failed");
+      } else {
+        await navigator.clipboard.writeText(texto);
+      }
+      if (onToast) onToast("Enlace copiado", "success");
+    } catch {
+      if (onToast) onToast("No se pudo copiar el enlace", "error");
+    }
+  };
+
   const abrirRelacionada = (otra) => {
     if (typeof onAbrirTareaRelacionada === "function") {
       onAbrirTareaRelacionada(otra);
@@ -806,7 +842,12 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
               )}
             </PropertyRow>
 
-            <PropertyRow icon="fa-solid fa-link" label="Enlace">
+            <PropertyRow
+              icon="fa-solid fa-link"
+              label="Enlace"
+              labelTitle={linkNormalizado || link ? "Copiar enlace" : "Sin enlace"}
+              onLabelClick={handleCopiarLinkPropiedad}
+            >
               <div className="flex items-center gap-2 min-w-0">
                 {linkNormalizado && !editandoLink ? (
                   <a

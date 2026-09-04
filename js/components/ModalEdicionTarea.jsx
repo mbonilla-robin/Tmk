@@ -116,6 +116,8 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
   ));
   const [subtareas, setSubtareas] = useState(() => Array.isArray(detallesIniciales.subtareas) ? detallesIniciales.subtareas : []);
   const [link, setLink] = useState(detallesIniciales.link || "");
+  const [editandoLink, setEditandoLink] = useState(false);
+  const linkInputRef = useRef(null);
   const [subcliente, setSubcliente] = useState(() => {
     try {
       if (typeof obtenerSubclienteTarea === "function") {
@@ -128,6 +130,19 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
   const listoAutosaveRef = useRef(false);
   const persistirCambiosRef = useRef(null);
   const taskKey = typeof getTaskSelectionKey === "function" ? getTaskSelectionKey(tarea) : String(tarea.idTarea || "");
+
+  const linkNormalizado = typeof normalizarUrlEnlace === "function"
+    ? normalizarUrlEnlace(link)
+    : String(link || "").trim();
+
+  useEffect(() => {
+    if (!editandoLink) return undefined;
+    const el = linkInputRef.current;
+    if (!el) return undefined;
+    el.focus();
+    el.select();
+    return undefined;
+  }, [editandoLink]);
 
   const filasTitulo = useMemo(() => {
     if (!info) return 2;
@@ -235,6 +250,7 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
       : { activo: Boolean(parsedDetalles.medidas), ...(parsedDetalles.medidas || { ancho: "", alto: "", profundidad: "", unidad: "cm" }) });
     setSubtareas(Array.isArray(parsedDetalles.subtareas) ? parsedDetalles.subtareas : []);
     setLink(parsedDetalles.link || "");
+    setEditandoLink(false);
     setSubcliente(obtenerSubclienteTarea(tarea) || parsedDetalles.subcliente || "");
     setAutosaveEstado("");
   }, [taskKey]);
@@ -792,29 +808,51 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
 
             <PropertyRow icon="fa-solid fa-link" label="Enlace">
               <div className="flex items-center gap-2 min-w-0">
-                {metadatosSoloLectura ? (
+                {linkNormalizado && !editandoLink ? (
+                  <a
+                    href={linkNormalizado}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="task-link-open-btn"
+                    title="Abrir enlace"
+                  >
+                    <span className="task-link-open-btn__text">{link}</span>
+                    <i className="fa-solid fa-arrow-up-right-from-square task-link-open-btn__icon" aria-hidden="true" />
+                  </a>
+                ) : metadatosSoloLectura ? (
                   <span className={`${readOnlyClass} truncate`}>{link || "—"}</span>
                 ) : (
                   <input
+                    ref={linkInputRef}
                     type="url"
                     value={link}
                     onChange={(e) => handleLinkChange(e.target.value)}
+                    onBlur={() => setEditandoLink(false)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        setEditandoLink(false);
+                      }
+                      if (e.key === "Escape") {
+                        e.preventDefault();
+                        setEditandoLink(false);
+                      }
+                    }}
                     placeholder="https://..."
                     className={inputPropTextClass}
                   />
                 )}
-                {normalizarUrlEnlace(link) && (
-                  <a
-                    href={normalizarUrlEnlace(link)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="task-link-open shrink-0 text-zinc-400 hover:text-blue-600 transition-colors"
-                    title="Abrir enlace"
-                    onClick={(e) => e.stopPropagation()}
+                {!metadatosSoloLectura && linkNormalizado && !editandoLink ? (
+                  <button
+                    type="button"
+                    className="task-link-edit-btn"
+                    title="Editar enlace"
+                    aria-label="Editar enlace"
+                    onClick={() => setEditandoLink(true)}
                   >
-                    <i className="fa-solid fa-arrow-up-right-from-square text-[11px]" />
-                  </a>
-                )}
+                    <i className="fa-solid fa-pen" aria-hidden="true" />
+                  </button>
+                ) : null}
               </div>
             </PropertyRow>
 

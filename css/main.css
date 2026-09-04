@@ -1771,6 +1771,78 @@
     .task-link-open:hover {
       background: #eff6ff;
     }
+
+    .task-link-open-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      min-width: 0;
+      max-width: 100%;
+      padding: 0.15rem 0.35rem 0.15rem 0;
+      margin: 0;
+      border: 0;
+      background: transparent;
+      color: #2563eb;
+      font: inherit;
+      font-size: inherit;
+      font-weight: 600;
+      line-height: 1.35;
+      text-align: left;
+      text-decoration: none;
+      cursor: pointer;
+      border-radius: 0.25rem;
+    }
+
+    .task-link-open-btn:hover {
+      color: #1d4ed8;
+      text-decoration: underline;
+    }
+
+    .task-link-open-btn__text {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .task-link-open-btn__icon {
+      flex-shrink: 0;
+      font-size: 11px;
+      opacity: 0.75;
+    }
+
+    .task-link-edit-btn {
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.5rem;
+      height: 1.5rem;
+      border: 0;
+      border-radius: 0.25rem;
+      background: transparent;
+      color: #a1a1aa;
+      cursor: pointer;
+      font-size: 0.7rem;
+    }
+
+    .task-link-edit-btn:hover {
+      color: #3f3f46;
+      background: rgba(24, 24, 27, 0.06);
+    }
+
+    [data-theme="midnight"] .task-link-open-btn {
+      color: #60a5fa;
+    }
+
+    [data-theme="midnight"] .task-link-open-btn:hover {
+      color: #93c5fd;
+    }
+
+    [data-theme="midnight"] .task-link-edit-btn:hover {
+      color: #e4e4e7;
+      background: rgba(255, 255, 255, 0.06);
+    }
     .presence-user-name {
       min-width: 0;
       overflow: visible;

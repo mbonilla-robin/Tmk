@@ -2340,7 +2340,7 @@ function App() {
     if (index === -1) return;
 
     const actualizada = marcarTareaPendiente(normalizarTareaCampos(
-      aplicarComentarioEstatus(original, comentario, usuario, medidas)
+      aplicarComentarioEstatus(original, comentario, usuario, medidas, { pendienteCor: true })
     ));
     const temp = [...tareas];
     temp[index] = actualizada;

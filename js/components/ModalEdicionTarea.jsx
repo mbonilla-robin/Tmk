@@ -363,6 +363,59 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
     };
   };
 
+  const handleNotasChatCommit = async ({ modo, texto, pendienteCor }) => {
+    if (soloLectura) return false;
+    const detallesBase = serializarConMeta(notes, subtareas, parsed.historial, link, subcliente, medidas);
+    const baseTarea = {
+      ...tarea,
+      detalles: detallesBase,
+      pendienteCor: parsed.pendienteCor
+    };
+    const opts = { pendienteCor: Boolean(pendienteCor) };
+    let actualizada = baseTarea;
+    if (modo === "edit" && typeof actualizarUltimaEntradaComentarioEstatus === "function") {
+      actualizada = actualizarUltimaEntradaComentarioEstatus(baseTarea, texto, usuario, opts);
+    } else if (typeof aplicarComentarioEstatus === "function") {
+      actualizada = aplicarComentarioEstatus(baseTarea, texto, usuario, undefined, opts);
+    } else {
+      return false;
+    }
+
+    const p = parseDetallesSeguro(actualizada.detalles);
+    setNotes(p.notas || p.notes || "");
+    setRawDetalles(actualizada.detalles);
+
+    const armado = armarTareaDesdeFormulario();
+    if (!armado.ok) {
+      setDeadlineError(armado.deadlineError || "");
+      setFechaInicioError(armado.fechaInicioError || "");
+      return false;
+    }
+    const tareaGuardar = {
+      ...armado.tarea,
+      detalles: actualizada.detalles,
+      pendienteCor: Boolean(actualizada.pendienteCor)
+    };
+    setAutosaveEstado("saving");
+    try {
+      await Promise.resolve(onSave(tareaGuardar, { keepOpen: true, silencioso: true }));
+      setAutosaveEstado("saved");
+      if (typeof onToast === "function") {
+        onToast(
+          pendienteCor
+            ? "Comentario guardado. Quedó en Por subir en COR."
+            : "Comentario guardado",
+          "success"
+        );
+      }
+      return true;
+    } catch (err) {
+      setAutosaveEstado("error");
+      if (typeof onToast === "function") onToast("No se pudo guardar el comentario", "error");
+      return false;
+    }
+  };
+
   const persistirCambios = async (opciones = {}) => {
     const resultado = armarTareaDesdeFormulario();
     if (!resultado.ok) {
@@ -837,9 +890,13 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
               onSave={() => persistirCambios({ keepOpen: true })}
               disabled={soloLectura}
             />
-            <EditorNotasRich
-              value={notes}
-              onChange={handleNotasChange}
+            <NotasChatPanel
+              notes={notes}
+              usuario={usuario}
+              nombreUsuario={nombreUsuario}
+              soloLectura={soloLectura}
+              disabled={guardando}
+              onCommit={handleNotasChatCommit}
             />
           </div>
 

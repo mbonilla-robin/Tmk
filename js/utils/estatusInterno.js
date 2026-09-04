@@ -311,6 +311,7 @@ function textoPlanoAjusteCor(valor) {
 }
 
 const COMENTARIO_STAMP_RE = /^\[(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\s+\d{1,2}:\d{2})\]\s*/;
+const COMENTARIO_AUTOR_RE = /^@([A-Za-z0-9._-]+)\s*:\s*/;
 
 function stampComentarioEstatusAhora(fecha) {
   const d = fecha instanceof Date ? fecha : new Date();
@@ -333,6 +334,28 @@ function tiempoDesdeStampComentarioEstatus(stamp) {
   return Number.isFinite(t) ? t : 0;
 }
 
+function normalizarHandleComentarioEstatus(usuario) {
+  return String(usuario || "").replace(/^@/, "").trim();
+}
+
+function separarAutorDeTextoComentario(body) {
+  const raw = String(body || "").trim();
+  if (!raw) return { author: "", texto: "" };
+  const m = raw.match(COMENTARIO_AUTOR_RE);
+  if (!m) return { author: "", texto: raw };
+  return {
+    author: normalizarHandleComentarioEstatus(m[1]),
+    texto: raw.slice(m[0].length).trim()
+  };
+}
+
+function formatearCuerpoEntradaComentarioEstatus(entrada) {
+  const body = String(entrada?.texto || "").trim();
+  if (!body) return "";
+  const author = normalizarHandleComentarioEstatus(entrada?.author);
+  return author ? `@${author}: ${body}` : body;
+}
+
 function parseEntradasComentarioEstatus(comentarioRaw) {
   const texto = textoPlanoAjusteCor(comentarioRaw);
   if (!texto) return [];
@@ -342,23 +365,29 @@ function parseEntradasComentarioEstatus(comentarioRaw) {
   while ((m = re.exec(texto)) !== null) {
     matches.push({ index: m.index, stamp: m[1], bodyStart: m.index + m[0].length });
   }
-  if (!matches.length) {
-    return [{ stamp: "", texto, at: 0 }];
-  }
   const entradas = [];
+  const pushEntrada = (stamp, body, at) => {
+    const partes = separarAutorDeTextoComentario(body);
+    if (!partes.texto) return;
+    entradas.push({
+      stamp: stamp || "",
+      author: partes.author || "",
+      texto: partes.texto,
+      at: at || 0
+    });
+  };
+  if (!matches.length) {
+    pushEntrada("", texto, 0);
+    return entradas;
+  }
   if (matches[0].index > 0) {
     const pre = texto.slice(0, matches[0].index).trim();
-    if (pre) entradas.push({ stamp: "", texto: pre, at: 0 });
+    if (pre) pushEntrada("", pre, 0);
   }
   matches.forEach((match, i) => {
     const end = i + 1 < matches.length ? matches[i + 1].index : texto.length;
     const body = texto.slice(match.bodyStart, end).trim();
-    if (!body) return;
-    entradas.push({
-      stamp: match.stamp,
-      texto: body,
-      at: tiempoDesdeStampComentarioEstatus(match.stamp)
-    });
+    pushEntrada(match.stamp, body, tiempoDesdeStampComentarioEstatus(match.stamp));
   });
   return entradas;
 }
@@ -366,13 +395,24 @@ function parseEntradasComentarioEstatus(comentarioRaw) {
 function serializarEntradasComentarioEstatus(entradas) {
   return (entradas || [])
     .map((e) => {
-      const body = String(e?.texto || "").trim();
+      const body = formatearCuerpoEntradaComentarioEstatus(e);
       if (!body) return "";
       const stamp = String(e?.stamp || "").trim();
       return stamp ? `[${stamp}] ${body}` : body;
     })
     .filter(Boolean)
     .join("\n\n");
+}
+
+function reconstruirNotasConEntradasComentario(notasRaw, entradas) {
+  const partes = notasYComentarioEstatus(notasRaw);
+  const comentario = serializarEntradasComentarioEstatus(entradas);
+  // Si no había sección Comentario y el blob entero era el hilo, no inventar notas base vacías raras.
+  if (!partes.comentario && partes.notas && !comentario) return partes.notas;
+  if (!partes.comentario && !String(partes.notas || "").trim()) {
+    return construirNotasEstatus("", comentario);
+  }
+  return construirNotasEstatus(partes.notas, comentario);
 }
 
 function obtenerEntradasComentarioEstatus(tarea) {
@@ -401,8 +441,19 @@ function textoVistaComentarioEstatus(comentarioRaw) {
 function textoHistorialComentarioEstatus(comentarioRaw) {
   const entradas = parseEntradasComentarioEstatus(comentarioRaw);
   if (!entradas.length) return "";
-  if (entradas.length === 1 && !entradas[0].stamp) return entradas[0].texto;
-  return entradas.map((e) => (e.stamp ? `[${e.stamp}] ${e.texto}` : e.texto)).join("\n\n");
+  if (entradas.length === 1 && !entradas[0].stamp && !entradas[0].author) return entradas[0].texto;
+  return serializarEntradasComentarioEstatus(entradas);
+}
+
+function obtenerEntradasNotasChat(notasRaw) {
+  const partes = notasYComentarioEstatus(notasRaw);
+  const fuente = partes.comentario || partes.notas || "";
+  const entradas = parseEntradasComentarioEstatus(fuente);
+  // Si hay contexto (notas) separado de Comentario:, exponerlo aparte.
+  return {
+    contexto: partes.comentario ? String(partes.notas || "").trim() : "",
+    entradas
+  };
 }
 
 function obtenerAjusteComentarioEstatus(tarea) {
@@ -1504,7 +1555,9 @@ function agruparTareasPorPersonaEstatus(tareas, opciones = {}) {
     });
 }
 
-function aplicarComentarioEstatus(tarea, comentario, usuario, medidas) {
+function aplicarComentarioEstatus(tarea, comentario, usuario, medidas, opciones) {
+  const opts = opciones && typeof opciones === "object" ? opciones : {};
+  const forzarPendienteCor = opts.pendienteCor;
   const parsed = typeof parseDetalles === "function"
     ? parseDetalles(tarea.detalles || "")
     : {
@@ -1526,28 +1579,42 @@ function aplicarComentarioEstatus(tarea, comentario, usuario, medidas) {
   const medidasGuardar = medidas !== undefined
     ? (typeof medidasParaGuardar === "function" ? medidasParaGuardar(medidas) : medidas)
     : (parsed.medidas || null);
+  const author = normalizarHandleComentarioEstatus(usuario);
   let comentarioFinal = String(partes.comentario || "").trim();
+  let notasBase = partes.notas;
   if (comentarioLimpio) {
-    const entradas = parseEntradasComentarioEstatus(partes.comentario);
+    let entradas;
+    if (partes.comentario) {
+      entradas = parseEntradasComentarioEstatus(partes.comentario);
+    } else {
+      // Sin sección Comentario: el blob era el hilo; no dejarlo como contexto duplicado.
+      entradas = parseEntradasComentarioEstatus(partes.notas);
+      notasBase = "";
+    }
     const stamp = stampComentarioEstatusAhora();
-    entradas.push({ stamp, texto: comentarioLimpio, at: Date.now() });
+    entradas.push({ stamp, author, texto: comentarioLimpio, at: Date.now() });
     comentarioFinal = serializarEntradasComentarioEstatus(entradas);
   }
-  const notasNuevas = construirNotasEstatus(partes.notas, comentarioFinal);
+  const notasNuevas = construirNotasEstatus(notasBase, comentarioFinal);
   const importKey = parsed.importKey || tarea.importKey || "";
   const sub = parsed.subcliente || (typeof obtenerSubclienteTarea === "function"
     ? obtenerSubclienteTarea(tarea)
     : tarea.subcliente);
   const envioTipo = parsed.envioTipo || tarea.envioTipo || "";
-  const entraColaCor = Boolean(comentarioLimpio) || Boolean(medidasGuardar);
-  // Sale de espera-cliente operativa; queda pendiente de subir a COR.
+  const huboCambio = Boolean(comentarioLimpio) || Boolean(medidasGuardar && medidas !== undefined);
+  // Si el caller no decide, mantener comportamiento legacy: encolar al registrar comentario.
+  const entraColaCor = forzarPendienteCor === true
+    || (forzarPendienteCor !== false && huboCambio && Boolean(comentarioLimpio || medidasGuardar));
   const flujo = entraColaCor ? "" : (parsed.flujo || tarea.flujo || "");
-  const pendienteCor = entraColaCor ? true : Boolean(parsed.pendienteCor || tarea.pendienteCor);
+  const pendienteCor = entraColaCor
+    ? true
+    : Boolean(parsed.pendienteCor || tarea.pendienteCor);
   const historial = [...(parsed.historial || [])];
-  if (usuario && (comentarioLimpio || medidasGuardar)) {
+  if (usuario && huboCambio) {
     const hoy = new Date();
     const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, "0")}`;
-    historial.push(`• [${timestamp}] Comentario de cliente registrado por @${String(usuario).replace(/^@/, "")} — pendiente de subir a COR`);
+    const colaTxt = entraColaCor ? " — pendiente de subir a COR" : "";
+    historial.push(`• [${timestamp}] Comentario de cliente registrado por @${author}${colaTxt}`);
   }
   const detalles = typeof serializeDetalles === "function"
     ? serializeDetalles(
@@ -1566,6 +1633,144 @@ function aplicarComentarioEstatus(tarea, comentario, usuario, medidas) {
     flujo,
     envioTipo,
     pendienteCor,
+    estado: tarea.estado
+  };
+}
+
+function actualizarUltimaEntradaComentarioEstatus(tarea, textoNuevo, usuario, opciones) {
+  const opts = opciones && typeof opciones === "object" ? opciones : {};
+  const forzarPendienteCor = opts.pendienteCor;
+  if (!tarea) return tarea;
+  const parsed = typeof parseDetalles === "function"
+    ? parseDetalles(tarea.detalles || "")
+    : {
+      notas: tarea.detalles || "",
+      subtareas: [],
+      historial: [],
+      link: tarea.link,
+      subcliente: tarea.subcliente,
+      importKey: tarea.importKey,
+      flujo: tarea.flujo,
+      envioTipo: tarea.envioTipo,
+      pendienteCor: tarea.pendienteCor,
+      medidas: tarea.medidas
+    };
+  const partes = notasYComentarioEstatus(parsed.notas);
+  const fuente = partes.comentario || partes.notas || "";
+  const entradas = parseEntradasComentarioEstatus(fuente);
+  const limpio = typeof quitarBloqueMedidasDeTexto === "function"
+    ? quitarBloqueMedidasDeTexto(textoNuevo)
+    : String(textoNuevo || "").trim();
+  if (!limpio) return tarea;
+  const author = normalizarHandleComentarioEstatus(usuario);
+  if (!entradas.length) {
+    entradas.push({
+      stamp: stampComentarioEstatusAhora(),
+      author,
+      texto: limpio,
+      at: Date.now()
+    });
+  } else {
+    const ultima = entradas[entradas.length - 1];
+    entradas[entradas.length - 1] = {
+      ...ultima,
+      author: ultima.author || author,
+      texto: limpio
+    };
+  }
+  const comentarioFinal = serializarEntradasComentarioEstatus(entradas);
+  const notasBase = partes.comentario ? partes.notas : "";
+  const notasNuevas = construirNotasEstatus(notasBase, comentarioFinal);
+  const importKey = parsed.importKey || tarea.importKey || "";
+  const sub = parsed.subcliente || (typeof obtenerSubclienteTarea === "function"
+    ? obtenerSubclienteTarea(tarea)
+    : tarea.subcliente);
+  const envioTipo = parsed.envioTipo || tarea.envioTipo || "";
+  const entraColaCor = forzarPendienteCor === true;
+  const flujo = entraColaCor ? "" : (parsed.flujo || tarea.flujo || "");
+  const pendienteCor = entraColaCor
+    ? true
+    : Boolean(parsed.pendienteCor || tarea.pendienteCor);
+  const historial = [...(parsed.historial || [])];
+  if (usuario) {
+    const hoy = new Date();
+    const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, "0")}`;
+    const colaTxt = entraColaCor ? " — pendiente de subir a COR" : "";
+    historial.push(`• [${timestamp}] Comentario de cliente editado por @${author}${colaTxt}`);
+  }
+  const detalles = typeof serializeDetalles === "function"
+    ? serializeDetalles(
+      notasNuevas,
+      parsed.subtareas || [],
+      historial,
+      parsed.link || tarea.link,
+      sub,
+      { flujo, importKey, envioTipo, pendienteCor, medidas: parsed.medidas || null }
+    )
+    : notasNuevas;
+  return {
+    ...tarea,
+    detalles,
+    importKey,
+    flujo,
+    envioTipo,
+    pendienteCor,
+    estado: tarea.estado
+  };
+}
+
+function marcarPendienteCorEstatus(tarea, usuario, pendiente) {
+  if (!tarea) return tarea;
+  const quiere = pendiente !== false;
+  const parsed = typeof parseDetalles === "function"
+    ? parseDetalles(tarea.detalles || "")
+    : {
+      notas: tarea.detalles || "",
+      subtareas: [],
+      historial: [],
+      link: tarea.link,
+      subcliente: tarea.subcliente,
+      importKey: tarea.importKey,
+      flujo: tarea.flujo,
+      envioTipo: tarea.envioTipo,
+      pendienteCor: tarea.pendienteCor,
+      medidas: tarea.medidas
+    };
+  if (Boolean(parsed.pendienteCor || tarea.pendienteCor) === quiere) {
+    return {
+      ...tarea,
+      pendienteCor: quiere
+    };
+  }
+  const importKey = parsed.importKey || tarea.importKey || "";
+  const sub = parsed.subcliente || (typeof obtenerSubclienteTarea === "function"
+    ? obtenerSubclienteTarea(tarea)
+    : tarea.subcliente);
+  const envioTipo = parsed.envioTipo || tarea.envioTipo || "";
+  const flujo = quiere ? "" : (parsed.flujo || tarea.flujo || "");
+  const historial = [...(parsed.historial || [])];
+  if (usuario && quiere) {
+    const hoy = new Date();
+    const timestamp = `${hoy.getDate()}/${hoy.getMonth() + 1} ${hoy.getHours()}:${String(hoy.getMinutes()).padStart(2, "0")}`;
+    historial.push(`• [${timestamp}] Marcado pendiente de subir a COR por @${String(usuario).replace(/^@/, "")}`);
+  }
+  const detalles = typeof serializeDetalles === "function"
+    ? serializeDetalles(
+      parsed.notas,
+      parsed.subtareas || [],
+      historial,
+      parsed.link || tarea.link,
+      sub,
+      { flujo, importKey, envioTipo, pendienteCor: quiere, medidas: parsed.medidas || null }
+    )
+    : parsed.notas;
+  return {
+    ...tarea,
+    detalles,
+    importKey,
+    flujo,
+    envioTipo,
+    pendienteCor: quiere,
     estado: tarea.estado
   };
 }

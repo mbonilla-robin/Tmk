@@ -310,8 +310,9 @@ function textoPlanoAjusteCor(valor) {
   return raw;
 }
 
-const COMENTARIO_STAMP_RE = /^\[(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\s+\d{1,2}:\d{2})\]\s*/;
+const COMENTARIO_STAMP_RE = /\[(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\s+\d{1,2}:\d{2})\]\s*/;
 const COMENTARIO_AUTOR_RE = /^@([A-Za-z0-9._-]+)\s*:\s*/;
+const COMENTARIO_ETIQUETA_RE = /^Comentario:\s*/i;
 
 function stampComentarioEstatusAhora(fecha) {
   const d = fecha instanceof Date ? fecha : new Date();
@@ -338,8 +339,12 @@ function normalizarHandleComentarioEstatus(usuario) {
   return String(usuario || "").replace(/^@/, "").trim();
 }
 
+function quitarEtiquetaComentarioNotas(texto) {
+  return String(texto || "").replace(COMENTARIO_ETIQUETA_RE, "").trim();
+}
+
 function separarAutorDeTextoComentario(body) {
-  const raw = String(body || "").trim();
+  let raw = quitarEtiquetaComentarioNotas(body);
   if (!raw) return { author: "", texto: "" };
   const m = raw.match(COMENTARIO_AUTOR_RE);
   if (!m) return { author: "", texto: raw };
@@ -350,16 +355,23 @@ function separarAutorDeTextoComentario(body) {
 }
 
 function formatearCuerpoEntradaComentarioEstatus(entrada) {
-  const body = String(entrada?.texto || "").trim();
+  const body = quitarEtiquetaComentarioNotas(entrada?.texto);
   if (!body) return "";
   const author = normalizarHandleComentarioEstatus(entrada?.author);
   return author ? `@${author}: ${body}` : body;
 }
 
+function unirNotasChatSinEtiqueta(notasBase, hiloComentarios) {
+  const base = quitarEtiquetaComentarioNotas(notasBase);
+  const hilo = quitarEtiquetaComentarioNotas(hiloComentarios);
+  return [base, hilo].filter(Boolean).join("\n\n");
+}
+
 function parseEntradasComentarioEstatus(comentarioRaw) {
-  const texto = textoPlanoAjusteCor(comentarioRaw);
+  const texto = quitarEtiquetaComentarioNotas(textoPlanoAjusteCor(comentarioRaw));
   if (!texto) return [];
-  const re = new RegExp(COMENTARIO_STAMP_RE.source, "gm");
+  // Stamps pueden ir a mitad de frase: "En diseño[27/08/2026 15:02] …"
+  const re = new RegExp(COMENTARIO_STAMP_RE.source, "g");
   const matches = [];
   let m;
   while ((m = re.exec(texto)) !== null) {
@@ -380,13 +392,15 @@ function parseEntradasComentarioEstatus(comentarioRaw) {
     pushEntrada("", texto, 0);
     return entradas;
   }
-  if (matches[0].index > 0) {
-    const pre = texto.slice(0, matches[0].index).trim();
-    if (pre) pushEntrada("", pre, 0);
-  }
+
+  const pre = texto.slice(0, matches[0].index).trim();
   matches.forEach((match, i) => {
     const end = i + 1 < matches.length ? matches[i + 1].index : texto.length;
-    const body = texto.slice(match.bodyStart, end).trim();
+    let body = texto.slice(match.bodyStart, end).trim();
+    // Prefijo corto antes del primer stamp (ej. "En diseño") va con esa burbuja, no solo.
+    if (i === 0 && pre) {
+      body = body ? `${pre}\n${body}` : pre;
+    }
     pushEntrada(match.stamp, body, tiempoDesdeStampComentarioEstatus(match.stamp));
   });
   return entradas;
@@ -406,13 +420,13 @@ function serializarEntradasComentarioEstatus(entradas) {
 
 function reconstruirNotasConEntradasComentario(notasRaw, entradas) {
   const partes = notasYComentarioEstatus(notasRaw);
-  const comentario = serializarEntradasComentarioEstatus(entradas);
-  // Si no había sección Comentario y el blob entero era el hilo, no inventar notas base vacías raras.
-  if (!partes.comentario && partes.notas && !comentario) return partes.notas;
-  if (!partes.comentario && !String(partes.notas || "").trim()) {
-    return construirNotasEstatus("", comentario);
-  }
-  return construirNotasEstatus(partes.notas, comentario);
+  const hilo = serializarEntradasComentarioEstatus(entradas);
+  const contexto = partes.comentario ? quitarEtiquetaComentarioNotas(partes.notas) : "";
+  // No persistir el subtítulo "Comentario:".
+  if (!contexto && !hilo) return "";
+  if (!hilo) return contexto;
+  if (!contexto) return hilo;
+  return unirNotasChatSinEtiqueta(contexto, hilo);
 }
 
 function obtenerEntradasComentarioEstatus(tarea) {
@@ -447,12 +461,22 @@ function textoHistorialComentarioEstatus(comentarioRaw) {
 
 function obtenerEntradasNotasChat(notasRaw) {
   const partes = notasYComentarioEstatus(notasRaw);
-  const fuente = partes.comentario || partes.notas || "";
-  const entradas = parseEntradasComentarioEstatus(fuente);
-  // Si hay contexto (notas) separado de Comentario:, exponerlo aparte.
+  let contexto = "";
+  let fuente = "";
+  if (partes.comentario) {
+    const ctx = quitarEtiquetaComentarioNotas(partes.notas);
+    const stampRe = new RegExp(COMENTARIO_STAMP_RE.source);
+    // Contexto libre (sin fechas) se muestra aparte; si trae fechas, es parte del hilo.
+    if (ctx && !stampRe.test(ctx)) contexto = ctx;
+    else if (ctx) fuente = `${ctx}\n\n${partes.comentario}`;
+    else fuente = partes.comentario;
+    if (!fuente) fuente = partes.comentario;
+  } else {
+    fuente = partes.notas;
+  }
   return {
-    contexto: partes.comentario ? String(partes.notas || "").trim() : "",
-    entradas
+    contexto,
+    entradas: parseEntradasComentarioEstatus(fuente)
   };
 }
 
@@ -1586,6 +1610,13 @@ function aplicarComentarioEstatus(tarea, comentario, usuario, medidas, opciones)
     let entradas;
     if (partes.comentario) {
       entradas = parseEntradasComentarioEstatus(partes.comentario);
+      // Si el "contexto" también trae fechas, absorberlo al hilo.
+      const ctx = quitarEtiquetaComentarioNotas(partes.notas);
+      const stampRe = new RegExp(COMENTARIO_STAMP_RE.source);
+      if (ctx && stampRe.test(ctx)) {
+        entradas = parseEntradasComentarioEstatus(`${ctx}\n\n${partes.comentario}`);
+        notasBase = "";
+      }
     } else {
       // Sin sección Comentario: el blob era el hilo; no dejarlo como contexto duplicado.
       entradas = parseEntradasComentarioEstatus(partes.notas);
@@ -1595,7 +1626,7 @@ function aplicarComentarioEstatus(tarea, comentario, usuario, medidas, opciones)
     entradas.push({ stamp, author, texto: comentarioLimpio, at: Date.now() });
     comentarioFinal = serializarEntradasComentarioEstatus(entradas);
   }
-  const notasNuevas = construirNotasEstatus(notasBase, comentarioFinal);
+  const notasNuevas = unirNotasChatSinEtiqueta(notasBase, comentarioFinal);
   const importKey = parsed.importKey || tarea.importKey || "";
   const sub = parsed.subcliente || (typeof obtenerSubclienteTarea === "function"
     ? obtenerSubclienteTarea(tarea)
@@ -1679,8 +1710,13 @@ function actualizarUltimaEntradaComentarioEstatus(tarea, textoNuevo, usuario, op
     };
   }
   const comentarioFinal = serializarEntradasComentarioEstatus(entradas);
-  const notasBase = partes.comentario ? partes.notas : "";
-  const notasNuevas = construirNotasEstatus(notasBase, comentarioFinal);
+  let notasBase = "";
+  if (partes.comentario) {
+    const ctx = quitarEtiquetaComentarioNotas(partes.notas);
+    const stampRe = new RegExp(COMENTARIO_STAMP_RE.source);
+    if (ctx && !stampRe.test(ctx)) notasBase = ctx;
+  }
+  const notasNuevas = unirNotasChatSinEtiqueta(notasBase, comentarioFinal);
   const importKey = parsed.importKey || tarea.importKey || "";
   const sub = parsed.subcliente || (typeof obtenerSubclienteTarea === "function"
     ? obtenerSubclienteTarea(tarea)

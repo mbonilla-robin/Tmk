@@ -9,16 +9,16 @@ function pullRefreshHabilitado() {
   return typeof esPlataformaPullRefresh === "function" && esPlataformaPullRefresh();
 }
 
-function PullToRefresh({
-  onRefresh,
-  onSearch,
-  loading = false,
-  disabled = false,
-  mode = "refresh",
-  className = "",
-  children,
-  ...rest
-}) {
+function PullToRefresh(props) {
+  const {
+    onRefresh,
+    onSearch,
+    loading = false,
+    disabled = false,
+    mode = "refresh",
+    className = "",
+    children
+  } = props;
   const scrollRef = useRef(null);
   const touchStartYRef = useRef(0);
   const activePullRef = useRef(false);
@@ -252,7 +252,7 @@ function PullToRefresh({
 
   if (!pullRefreshActivo) {
     return (
-      <div ref={scrollRef} className={className} {...rest}>
+      <div ref={scrollRef} className={className}>
         {children}
       </div>
     );
@@ -293,7 +293,6 @@ function PullToRefresh({
       <div
         ref={scrollRef}
         className={`pull-to-refresh-scroll ${className}`}
-        {...rest}
       >
         <div className="pull-to-refresh-body" style={bodyStyle}>
           {children}

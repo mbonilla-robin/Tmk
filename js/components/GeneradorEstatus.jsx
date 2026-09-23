@@ -11,6 +11,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
   const [organizarPor, setOrganizarPor] = useState("persona");
   const [incluirSubtareas, setIncluirSubtareas] = useState(false);
   const [incluirPrioridad, setIncluirPrioridad] = useState(false);
+  const [incluirDetalle, setIncluirDetalle] = useState(false);
   const [subclientesDesplegados, setSubclientesDesplegados] = useState(false);
   const [textoGenerado, setTextoGenerado] = useState("");
   const [copiado, setCopiado] = useState(false);
@@ -65,7 +66,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
     generarConOpciones(organizarPor);
   };
 
-  const generarConOpciones = (modoOrganizar = organizarPor, conSubtareas = incluirSubtareas, conPrioridad = incluirPrioridad) => {
+  const generarConOpciones = (modoOrganizar = organizarPor, conSubtareas = incluirSubtareas, conPrioridad = incluirPrioridad, conDetalle = incluirDetalle) => {
     const texto = generarTextoEstatus(tareas, {
       marcas: marcasSeleccionadas,
       estados: estadosSeleccionados,
@@ -75,12 +76,14 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
       personas: personasFiltroArray,
       subclientes: subclientesFiltro,
       incluirSubtareas: conSubtareas,
-      incluirPrioridad: conPrioridad
+      incluirPrioridad: conPrioridad,
+      incluirDetalle: conDetalle
     });
 
     setOrganizarPor(modoOrganizar);
     setIncluirSubtareas(Boolean(conSubtareas));
     setIncluirPrioridad(Boolean(conPrioridad));
+    setIncluirDetalle(Boolean(conDetalle));
     setTextoGenerado(texto || "No hay tareas que coincidan con los filtros seleccionados.");
     setVista("resultado");
     setCopiado(false);
@@ -307,35 +310,56 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
               <div>
                 <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-2">Opciones</label>
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIncluirSubtareas((v) => !v)}
-                    className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
-                      incluirSubtareas
-                        ? "bg-zinc-900 text-white border-zinc-900"
-                        : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
-                    }`}
-                    aria-pressed={incluirSubtareas}
-                  >
-                    <i className={`fa-solid ${incluirSubtareas ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
-                    {incluirSubtareas ? "Con subtareas" : "Sin subtareas"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIncluirPrioridad((v) => !v)}
-                    className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
-                      incluirPrioridad
-                        ? "bg-zinc-900 text-white border-zinc-900"
-                        : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
-                    }`}
-                    aria-pressed={incluirPrioridad}
-                  >
-                    <i className={`fa-solid ${incluirPrioridad ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
-                    Agregar prioridad
-                  </button>
+                  {organizarPor !== "espera-comentarios" && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setIncluirSubtareas((v) => !v)}
+                        className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                          incluirSubtareas
+                            ? "bg-zinc-900 text-white border-zinc-900"
+                            : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                        }`}
+                        aria-pressed={incluirSubtareas}
+                      >
+                        <i className={`fa-solid ${incluirSubtareas ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
+                        {incluirSubtareas ? "Con subtareas" : "Sin subtareas"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIncluirPrioridad((v) => !v)}
+                        className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                          incluirPrioridad
+                            ? "bg-zinc-900 text-white border-zinc-900"
+                            : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                        }`}
+                        aria-pressed={incluirPrioridad}
+                      >
+                        <i className={`fa-solid ${incluirPrioridad ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
+                        Agregar prioridad
+                      </button>
+                    </>
+                  )}
+                  {organizarPor === "espera-comentarios" && (
+                    <button
+                      type="button"
+                      onClick={() => setIncluirDetalle((v) => !v)}
+                      className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                        incluirDetalle
+                          ? "bg-zinc-900 text-white border-zinc-900"
+                          : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                      }`}
+                      aria-pressed={incluirDetalle}
+                    >
+                      <i className={`fa-solid ${incluirDetalle ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
+                      Agregar detalle
+                    </button>
+                  )}
                 </div>
                 <p className="mt-1.5 text-[10px] text-zinc-400">
-                  Prioridad marca con ⚠️ las tareas altas. Por defecto no se incluyen subtareas ni prioridad.
+                  {organizarPor === "espera-comentarios" 
+                    ? "El detalle muestra los entregables específicos con sus links y estados."
+                    : "Prioridad marca con ⚠️ las tareas altas. Por defecto no se incluyen subtareas ni prioridad."}
                 </p>
               </div>
 
@@ -402,7 +426,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                     <button
                       key={opcion.id}
                       type="button"
-                      onClick={() => generarConOpciones(opcion.id, incluirSubtareas, incluirPrioridad)}
+                      onClick={() => generarConOpciones(opcion.id, incluirSubtareas, incluirPrioridad, incluirDetalle)}
                       className={`text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
                         organizarPor === opcion.id
                           ? "bg-zinc-900 text-white border-zinc-900"
@@ -417,32 +441,51 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
               <div>
                 <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-2">Opciones</label>
                 <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => generarConOpciones(organizarPor, !incluirSubtareas, incluirPrioridad)}
-                    className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
-                      incluirSubtareas
-                        ? "bg-zinc-900 text-white border-zinc-900"
-                        : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
-                    }`}
-                    aria-pressed={incluirSubtareas}
-                  >
-                    <i className={`fa-solid ${incluirSubtareas ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
-                    {incluirSubtareas ? "Con subtareas" : "Sin subtareas"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => generarConOpciones(organizarPor, incluirSubtareas, !incluirPrioridad)}
-                    className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
-                      incluirPrioridad
-                        ? "bg-zinc-900 text-white border-zinc-900"
-                        : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
-                    }`}
-                    aria-pressed={incluirPrioridad}
-                  >
-                    <i className={`fa-solid ${incluirPrioridad ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
-                    Agregar prioridad
-                  </button>
+                  {organizarPor !== "espera-comentarios" && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => generarConOpciones(organizarPor, !incluirSubtareas, incluirPrioridad, incluirDetalle)}
+                        className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                          incluirSubtareas
+                            ? "bg-zinc-900 text-white border-zinc-900"
+                            : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                        }`}
+                        aria-pressed={incluirSubtareas}
+                      >
+                        <i className={`fa-solid ${incluirSubtareas ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
+                        {incluirSubtareas ? "Con subtareas" : "Sin subtareas"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => generarConOpciones(organizarPor, incluirSubtareas, !incluirPrioridad, incluirDetalle)}
+                        className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                          incluirPrioridad
+                            ? "bg-zinc-900 text-white border-zinc-900"
+                            : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                        }`}
+                        aria-pressed={incluirPrioridad}
+                      >
+                        <i className={`fa-solid ${incluirPrioridad ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
+                        Agregar prioridad
+                      </button>
+                    </>
+                  )}
+                  {organizarPor === "espera-comentarios" && (
+                    <button
+                      type="button"
+                      onClick={() => generarConOpciones(organizarPor, incluirSubtareas, incluirPrioridad, !incluirDetalle)}
+                      className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                        incluirDetalle
+                          ? "bg-zinc-900 text-white border-zinc-900"
+                          : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                      }`}
+                      aria-pressed={incluirDetalle}
+                    >
+                      <i className={`fa-solid ${incluirDetalle ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
+                      Agregar detalle
+                    </button>
+                  )}
                 </div>
               </div>
               <pre className="text-[12px] text-[#37352F] leading-relaxed whitespace-pre-wrap font-mono bg-zinc-50 border border-zinc-200 rounded-lg p-4 max-h-[50vh] overflow-y-auto">

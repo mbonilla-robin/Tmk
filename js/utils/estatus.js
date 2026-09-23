@@ -351,20 +351,29 @@ function encabezadoEsperaComentariosEstatus() {
   ].join("\n");
 }
 
-function generarCuerpoEstatusEsperaComentarios(tareas) {
+function generarCuerpoEstatusEsperaComentarios(tareas, { incluirDetalle = false } = {}) {
   const grupos = agruparTareasEstatusPorSubcliente(tareas);
   if (!grupos.length) return "";
+
+  if (!incluirDetalle) {
+    return grupos.map((grupo) => {
+      const n = (grupo.tareas || []).length;
+      const etiqueta = n === 1 ? "1 entregable" : `${n} entregables`;
+      return `- Espera de comentarios: *${grupo.titulo}* (${etiqueta})`;
+    }).join("\n");
+  }
 
   return grupos.map((grupo) => {
     const n = (grupo.tareas || []).length;
     const etiqueta = n === 1 ? "1 entregable" : `${n} entregables`;
-    return `- Espera de comentarios: *${grupo.titulo}* (${etiqueta})`;
-  }).join("\n");
+    const lineasTareas = (grupo.tareas || []).map((t) => formatearLineaTareaEstatusCompacta(t, { incluirSubtareas: false, incluirPrioridad: false }));
+    return `*${grupo.titulo}* (${etiqueta})\n${lineasTareas.join("\n")}`;
+  }).join("\n\n");
 }
 
-function generarCuerpoEstatus(tareas, { marcas, estados, ordenarPor, organizarPor, personasFiltro, incluirSubtareas = false, incluirPrioridad = false }) {
+function generarCuerpoEstatus(tareas, { marcas, estados, ordenarPor, organizarPor, personasFiltro, incluirSubtareas = false, incluirPrioridad = false, incluirDetalle = false }) {
   if (organizarPor === "espera-comentarios") {
-    return generarCuerpoEstatusEsperaComentarios(tareas);
+    return generarCuerpoEstatusEsperaComentarios(tareas, { incluirDetalle });
   }
 
   if (organizarPor === "persona") {
@@ -381,7 +390,7 @@ function generarCuerpoEstatus(tareas, { marcas, estados, ordenarPor, organizarPo
   }).join("\n\n");
 }
 
-function generarTextoEstatus(tareas, { marcas, estados, filtroTiempo, ordenarPor, personas, subclientes, organizarPor, incluirSubtareas = false, incluirPrioridad = false }) {
+function generarTextoEstatus(tareas, { marcas, estados, filtroTiempo, ordenarPor, personas, subclientes, organizarPor, incluirSubtareas = false, incluirPrioridad = false, incluirDetalle = false }) {
   if (!marcas || marcas.length === 0) return "";
 
   const modo = organizarPor || "persona";
@@ -405,7 +414,8 @@ function generarTextoEstatus(tareas, { marcas, estados, filtroTiempo, ordenarPor
     organizarPor: modo,
     personasFiltro: personas,
     incluirSubtareas: Boolean(incluirSubtareas),
-    incluirPrioridad: Boolean(incluirPrioridad)
+    incluirPrioridad: Boolean(incluirPrioridad),
+    incluirDetalle: Boolean(incluirDetalle)
   });
 
   if (!cuerpo) return "";

@@ -121,6 +121,7 @@ function ComentariosTarea({ tarea, usuario, nombreUsuario, listaPersonas, onCome
   const [perfilesAutores, setPerfilesAutores] = useState({});
   const [miPerfil, setMiPerfil] = useState(null);
   const [eliminandoId, setEliminandoId] = useState(null);
+  const [mostrarTodos, setMostrarTodos] = useState(false);
   const textareaRef = useRef(null);
   const mirrorRef = useRef(null);
 
@@ -318,34 +319,89 @@ function ComentariosTarea({ tarea, usuario, nombreUsuario, listaPersonas, onCome
 
   const puedeEnviar = Boolean(texto.trim()) && !enviando;
 
+  const comentariosAnteriores = comentarios.slice(0, -1);
+  const ultimoComentario = comentarios.length > 0 ? comentarios[comentarios.length - 1] : null;
+  const hayComentariosAnteriores = comentariosAnteriores.length > 0;
+
   return (
     <div className="robin-comments-block">
       <h3 className="robin-comments-title">Comentarios</h3>
 
       {comentarios.length > 0 && (
         <div className="robin-comments-thread">
-          {comentarios.map((c) => {
+          {hayComentariosAnteriores && (
+            <>
+              {mostrarTodos && (
+                <>
+                  {comentariosAnteriores.map((c) => {
+                    const key = typeof normalizeRobinUser === "function"
+                      ? normalizeRobinUser(c.author)
+                      : String(c.author || "").replace(/^@/, "").trim().toLowerCase();
+                    return (
+                      <ComentarioItem
+                        key={c.id}
+                        comentario={c}
+                        usuarioActual={usuario}
+                        perfil={perfilesAutores[key]}
+                        perfilesMap={perfilesAutores}
+                        eliminando={eliminandoId === c.id}
+                        onEliminar={handleEliminar}
+                        onResponder={(com) => {
+                          setRespondiendoA(com);
+                          const mencion = formatearHandleCanonico(com.author);
+                          setTexto((prev) => (prev.trim() ? prev : mencion));
+                          textareaRef.current?.focus();
+                        }}
+                      />
+                    );
+                  })}
+                </>
+              )}
+              {!mostrarTodos && (
+                <button
+                  type="button"
+                  className="robin-comments-show-more"
+                  onClick={() => setMostrarTodos(true)}
+                >
+                  <i className="fa-solid fa-chevron-down" />
+                  Ver {comentariosAnteriores.length} comentario{comentariosAnteriores.length !== 1 ? 's' : ''} anterior{comentariosAnteriores.length !== 1 ? 'es' : ''}
+                </button>
+              )}
+              {mostrarTodos && (
+                <button
+                  type="button"
+                  className="robin-comments-show-less"
+                  onClick={() => setMostrarTodos(false)}
+                >
+                  <i className="fa-solid fa-chevron-up" />
+                  Ocultar comentarios anteriores
+                </button>
+              )}
+            </>
+          )}
+
+          {ultimoComentario && (() => {
             const key = typeof normalizeRobinUser === "function"
-              ? normalizeRobinUser(c.author)
-              : String(c.author || "").replace(/^@/, "").trim().toLowerCase();
+              ? normalizeRobinUser(ultimoComentario.author)
+              : String(ultimoComentario.author || "").replace(/^@/, "").trim().toLowerCase();
             return (
-            <ComentarioItem
-              key={c.id}
-              comentario={c}
-              usuarioActual={usuario}
-              perfil={perfilesAutores[key]}
-              perfilesMap={perfilesAutores}
-              eliminando={eliminandoId === c.id}
-              onEliminar={handleEliminar}
-              onResponder={(com) => {
-                setRespondiendoA(com);
-                const mencion = formatearHandleCanonico(com.author);
-                setTexto((prev) => (prev.trim() ? prev : mencion));
-                textareaRef.current?.focus();
-              }}
-            />
+              <ComentarioItem
+                key={ultimoComentario.id}
+                comentario={ultimoComentario}
+                usuarioActual={usuario}
+                perfil={perfilesAutores[key]}
+                perfilesMap={perfilesAutores}
+                eliminando={eliminandoId === ultimoComentario.id}
+                onEliminar={handleEliminar}
+                onResponder={(com) => {
+                  setRespondiendoA(com);
+                  const mencion = formatearHandleCanonico(com.author);
+                  setTexto((prev) => (prev.trim() ? prev : mencion));
+                  textareaRef.current?.focus();
+                }}
+              />
             );
-          })}
+          })()}
         </div>
       )}
 

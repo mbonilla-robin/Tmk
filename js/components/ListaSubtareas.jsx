@@ -1,4 +1,4 @@
-function ListaSubtareas({ subtareas, onChange }) {
+function ListaSubtareas({ subtareas, onChange, linkTareaPadre }) {
   const lista = Array.isArray(subtareas) ? subtareas : [];
   const [nuevoSubtareaText, setNuevoSubtareaText] = useState("");
   const [completadasAbiertas, setCompletadasAbiertas] = useState(false);
@@ -16,6 +16,10 @@ function ListaSubtareas({ subtareas, onChange }) {
     });
     return { pendientes: pend, completadas: comp };
   }, [lista]);
+
+  const linkNormalizado = typeof normalizarUrlEnlace === "function"
+    ? normalizarUrlEnlace(linkTareaPadre)
+    : String(linkTareaPadre || "").trim();
 
   const handleAddSubtarea = (e) => {
     e.preventDefault();
@@ -47,6 +51,13 @@ function ListaSubtareas({ subtareas, onChange }) {
     onChange(lista.filter((_, i) => i !== index));
   };
 
+  const handleAbrirLink = (e) => {
+    e.stopPropagation();
+    if (linkNormalizado) {
+      window.open(linkNormalizado, "_blank", "noopener,noreferrer");
+    }
+  };
+
   const renderSubtarea = (s, { secundaria = false } = {}) => (
     <div
       key={s.index}
@@ -75,6 +86,17 @@ function ListaSubtareas({ subtareas, onChange }) {
           s.completed ? "line-through text-zinc-400" : "text-[#37352F]"
         }`}
       />
+      {linkNormalizado && (
+        <button
+          type="button"
+          onClick={handleAbrirLink}
+          className="opacity-0 group-hover:opacity-100 mt-0.5 w-5 h-5 flex items-center justify-center rounded text-zinc-400 hover:text-blue-500 hover:bg-blue-50 transition-all shrink-0"
+          title="Abrir enlace"
+          aria-label="Abrir enlace"
+        >
+          <i className="fa-solid fa-arrow-up-right-from-square text-[10px]" />
+        </button>
+      )}
       <button
         type="button"
         onClick={() => handleDeleteSubtarea(s.index)}

@@ -331,7 +331,11 @@ function FormularioCrearEntregable({
             />
           </div>
 
-          <ListaSubtareas subtareas={subtareas} onChange={setSubtareas} />
+          <ListaSubtareas 
+            subtareas={subtareas} 
+            onChange={setSubtareas} 
+            linkTareaPadre={normalizarUrlEnlace(nuevaTarea.link)} 
+          />
 
           <div className="task-form-actions task-form-actions--flow px-0 py-4 flex justify-end gap-2">
             <button

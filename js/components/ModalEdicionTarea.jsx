@@ -266,11 +266,12 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
       ? normalizarMedidas(parsedDetalles.medidas)
       : { activo: Boolean(parsedDetalles.medidas), ...(parsedDetalles.medidas || { ancho: "", alto: "", profundidad: "", unidad: "cm" }) });
     setSubtareas(Array.isArray(parsedDetalles.subtareas) ? parsedDetalles.subtareas : []);
-    setLink(parsedDetalles.link || "");
-    setEditandoLink(false);
+    if (!editandoLink) {
+      setLink(parsedDetalles.link || "");
+    }
     setSubcliente(obtenerSubclienteTarea(tarea) || parsedDetalles.subcliente || "");
     setAutosaveEstado("");
-  }, [taskKey]);
+  }, [taskKey, editandoLink]);
 
   useEffect(() => {
     if (!listoAutosaveRef.current) return;
@@ -953,7 +954,7 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
             />
           )}
 
-          <ListaSubtareas subtareas={subtareas} onChange={handleSubtareasChange} />
+          <ListaSubtareas subtareas={subtareas} onChange={handleSubtareasChange} linkTareaPadre={linkNormalizado} />
 
           {/* Notas */}
           <div className="py-4 border-b border-zinc-100">

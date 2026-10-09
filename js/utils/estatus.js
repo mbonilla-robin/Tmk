@@ -122,96 +122,118 @@ function ordenarTareasEstatus(tareas, estadosOrden, ordenarPor) {
   });
 }
 
-function extraerAccionPendienteEstatus(tarea) {
-  if (!tarea) return "";
-  
-  const parsed = typeof parseDetalles === "function" 
-    ? parseDetalles(tarea.detalles || "")
-    : { notas: "", historial: [] };
-  
-  const ultima = typeof obtenerUltimaEntradaComentarioEstatus === "function"
-    ? obtenerUltimaEntradaComentarioEstatus(tarea)
-    : null;
-  
-  if (ultima && ultima.texto) {
-    let texto = String(ultima.texto).trim();
-    
-    texto = texto
-      .replace(/<!--[^>]*-->/g, "")
-      .replace(/^[-•*]\s*/, "")
-      .replace(/\s*\|\s*https?:\/\/[^\s]+\s*$/, "")
-      .replace(/^\s*@\w+:\s*/g, "")
-      .replace(/\s*\([^)]{0,40}\)\s*$/g, "")
-      .trim();
-    
-    const resumen = resumirAccionEstatus(texto, 12);
-    if (resumen && resumen.length > 5) return resumen;
+// Verbos/keywords que marcan el inicio de una acción. Todo lo anterior se descarta
+// ("Dani, estoy recuperando esta tarea para trabajar X" → "Trabajar X").
+const ESTATUS_ACCION_VERBOS = [
+  "pendiente", "pendientes", "falta", "faltan", "espera", "esperando", "esperar",
+  "ajustar", "corregir", "cambiar", "modificar", "actualizar", "adaptar", "reemplazar",
+  "enviar", "entregar", "compartir", "subir", "bajar", "cargar", "mandar", "pasar",
+  "realizar", "ejecutar", "hacer", "trabajar", "armar", "montar", "preparar", "producir",
+  "diseñar", "disenar", "diagramar", "maquetar", "ilustrar", "renderizar", "animar",
+  "revisar", "validar", "aprobar", "confirmar", "definir", "consultar", "solicitar", "pedir",
+  "cotizar", "imprimir", "instalar", "coordinar", "asignar", "agendar", "programar",
+  "crear", "generar", "desarrollar", "proponer", "presentar", "organizar", "planificar",
+  "incluir", "agregar", "añadir", "quitar", "eliminar", "resolver", "cerrar", "finalizar",
+  "terminar", "completar", "continuar", "avanzar", "retomar", "seguir", "buscar", "levantar",
+  "medir", "tomar", "visitar", "grabar", "editar", "redactar", "traducir", "unificar",
+  "enviado", "enviada", "entregado", "entregada", "aprobado", "aprobada", "subido", "subida"
+];
+
+// Sustantivos de entregable: solo se usan si no aparece ningún verbo
+// ("Contenido y artes para el lanzamiento de Vonexa").
+const ESTATUS_ACCION_SUSTANTIVOS = [
+  "contenido", "contendido", "artes", "arte final", "propuesta", "ajustes", "ajuste",
+  "cotización", "cotizacion", "bajada", "render", "boceto", "mockup", "diseño", "diseno"
+];
+
+const ESTATUS_ACCION_STOP_FIN = new Set([
+  "para", "de", "del", "con", "en", "a", "al", "y", "o", "u", "e", "por", "sobre", "que",
+  "el", "la", "los", "las", "un", "una", "unos", "unas", "este", "esta", "estos", "estas",
+  "ese", "esa", "lo", "su", "sus", "mi", "nuestro", "nuestra", "finales", "principios"
+]);
+
+function limpiarTextoAccionEstatus(texto) {
+  return String(texto || "")
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/https?:\/\/\S+/gi, " ")
+    .replace(/@xn--\S+/gi, " ")
+    .replace(/@[\w.\-]+:/g, " . ")
+    .replace(/@[\w.\-]+/g, " ")
+    .replace(/\[[^\]]*\]/g, " ")
+    .replace(/[“”"«»]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function segmentosAccionEstatus(texto) {
+  return String(texto || "")
+    .split(/(?:\r?\n|[.;!?¿¡]|\s\|\s|\s:\s|:\s(?=[A-ZÁÉÍÓÚÑ])|\s(?:en cuanto|cuando|ya que|porque|pero|aunque|mientras)\s)/i)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 3);
+}
+
+function recortarAccionEstatus(frase, maxPalabras) {
+  let palabras = frase
+    .split(/\s+/)
+    .map((p) => p.replace(/^[,(\-–—]+|[,:(\-–—]+$/g, ""))
+    .filter(Boolean)
+    .filter((p, i, arr) => i === 0 || p.toLowerCase() !== arr[i - 1].toLowerCase());
+
+  while (palabras.length && /^(el|la|los|las|un|una|unos|unas|de|del|al|que|lo)$/i.test(palabras[0])) {
+    palabras.shift();
   }
-  
+  while (palabras.length > 1 && /^(el|la|los|las)$/i.test(palabras[1])) {
+    palabras.splice(1, 1);
+  }
+
+  palabras = palabras.slice(0, maxPalabras);
+  while (palabras.length && ESTATUS_ACCION_STOP_FIN.has(palabras[palabras.length - 1].toLowerCase())) {
+    palabras.pop();
+  }
+  if (palabras.length < 2) return "";
+
+  let out = palabras.join(" ").replace(/\s+([,;:])/g, "$1").trim();
+  out = out
+    .replace(/^pendiente\s+(de|por)\s+/i, "Pendiente ")
+    .replace(/^espera\s+(de|por)\s+/i, "Espera ")
+    .replace(/^contendido\b/i, "Contenido")
+    .replace(/^disenar\b/i, "Diseñar");
+  return out.charAt(0).toUpperCase() + out.slice(1);
+}
+
+function buscarAccionEnSegmentos(segmentos, lista, maxPalabras) {
+  const alternativa = lista
+    .slice()
+    .sort((a, b) => b.length - a.length)
+    .map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|");
+  const re = new RegExp(`(?:^|[\\s,(])(${alternativa})\\b`, "i");
+  for (const seg of segmentos) {
+    const m = seg.match(re);
+    if (!m) continue;
+    const inicio = m.index + m[0].length - m[1].length;
+    const frase = recortarAccionEstatus(seg.slice(inicio), maxPalabras);
+    if (frase) return frase;
+  }
   return "";
 }
 
 function resumirAccionEstatus(texto, maxPalabras = 12) {
-  if (!texto) return "";
-  
-  let limpio = String(texto).trim();
-  
-  limpio = limpio
-    .replace(/^(a continuación,?\s*|por favor,?\s*|les?\s*comparto\s*|les?\s*envío\s*|les?\s*dejo\s*|hola\s*equipo,?\s*)/i, "")
-    .replace(/^(debemos\s*|hay que\s*|necesitamos\s*|tenemos que\s*|vamos a\s*)/i, "")
-    .replace(/^(realizar\s*|hacer\s*|ejecutar\s*)(el\s*|la\s*|los\s*|las\s*)?/i, "")
-    .replace(/^(estoy\s*|esto\s*|esto no significa nada|planificado\s*|recuperando\s*esta\s*tarea\s*para\s*)/i, "")
-    .trim();
-  
-  limpio = limpio.replace(/\s+/g, " ");
-  
-  const patronesPendiente = [
-    /^(pendiente|espera|esperando|en espera)\s+(de\s+)?(.+)/i,
-    /^(ajustar|corregir|modificar|cambiar|actualizar)\s+(.+)/i,
-    /^(enviar|compartir|entregar|subir)\s+(.+)/i,
-    /^(contenido|contendido|artes|diseño|propuesta|ajustes?)\s+(y\s+\w+\s+)?para\s+(.+)/i,
-    /^(.+?)\s+para\s+(el\s+)?(lanzamiento|cliente|revision|envio)\s+de\s+(.+)/i
-  ];
-  
-  for (const patron of patronesPendiente) {
-    const match = limpio.match(patron);
-    if (match) {
-      if (patron.source.includes("pendiente")) {
-        limpio = match[3] || limpio;
-      } else if (patron.source.includes("ajustar|corregir")) {
-        limpio = `Ajustar ${match[2] || ""}`;
-      } else if (patron.source.includes("enviar|compartir")) {
-        limpio = `Enviar ${match[2] || ""}`;
-      } else if (patron.source.includes("contenido|contendido")) {
-        limpio = `${match[1] || ""} para ${match[3] || ""}`;
-      } else if (match.length > 4) {
-        limpio = `${match[1] || ""} para ${match[4] || ""}`;
-      }
-      limpio = limpio.trim();
-      break;
-    }
-  }
-  
-  const palabrasComunes = /^(el|la|los|las|un|una|unos|unas|de|del|al|a|en|con|para|por|sobre|como|que|se|es|son|está|están)\s+/i;
-  limpio = limpio.replace(palabrasComunes, "");
-  
-  if (!limpio || limpio.length < 5) return "";
-  
-  limpio = limpio.charAt(0).toUpperCase() + limpio.slice(1);
-  
-  const palabras = limpio.split(/\s+/).filter(p => p.length > 0);
-  
-  if (palabras.length <= maxPalabras) {
-    return limpio;
-  }
-  
-  const primeras = palabras.slice(0, maxPalabras).join(" ");
-  
-  if (primeras.match(/\b(para|de|con|en|a|al|del|y)\s*$/)) {
-    return palabras.slice(0, maxPalabras - 1).join(" ");
-  }
-  
-  return primeras;
+  const limpio = limpiarTextoAccionEstatus(texto);
+  if (!limpio) return "";
+  const segmentos = segmentosAccionEstatus(limpio);
+  if (!segmentos.length) return "";
+  return buscarAccionEnSegmentos(segmentos, ESTATUS_ACCION_VERBOS, maxPalabras)
+    || buscarAccionEnSegmentos(segmentos, ESTATUS_ACCION_SUSTANTIVOS, maxPalabras);
+}
+
+function extraerAccionPendienteEstatus(tarea) {
+  if (!tarea) return "";
+  const ultima = typeof obtenerUltimaEntradaComentarioEstatus === "function"
+    ? obtenerUltimaEntradaComentarioEstatus(tarea)
+    : null;
+  if (!ultima || !ultima.texto) return "";
+  return resumirAccionEstatus(ultima.texto, 12);
 }
 
 function formatearLineaTareaEstatusCompacta(tarea, { incluirSubtareas = false, incluirPrioridad = false, incluirAcciones = false } = {}) {

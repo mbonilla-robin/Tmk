@@ -150,9 +150,9 @@ function extraerAccionPendienteEstatus(tarea) {
   return "";
 }
 
-function formatearLineaTareaEstatusCompacta(tarea, { incluirSubtareas = false, incluirPrioridad = false } = {}) {
+function formatearLineaTareaEstatusCompacta(tarea, { incluirSubtareas = false, incluirPrioridad = false, incluirAcciones = false } = {}) {
   const estado = normalizarEstado(tarea.estado) || "Sin estado";
-  const accion = extraerAccionPendienteEstatus(tarea);
+  const accion = incluirAcciones ? extraerAccionPendienteEstatus(tarea) : "";
   const descripcion = accion || `_${estado}_`;
   const titulo = (tarea.info || "Sin título").trim();
   const link = typeof obtenerLinkTarea === "function" ? obtenerLinkTarea(tarea) : "";
@@ -344,7 +344,7 @@ function ordenarGruposPersonasEstatus(grupos, personasFiltro) {
   });
 }
 
-function generarCuerpoEstatusPorPersona(tareas, { estados, ordenarPor, personasFiltro, incluirSubtareas = false, incluirPrioridad = false }) {
+function generarCuerpoEstatusPorPersona(tareas, { estados, ordenarPor, personasFiltro, incluirSubtareas = false, incluirPrioridad = false, incluirAcciones = false }) {
   const personas = ordenarGruposPersonasEstatus(
     agruparTareasEstatusPorPersona(tareas),
     personasFiltro
@@ -354,7 +354,7 @@ function generarCuerpoEstatusPorPersona(tareas, { estados, ordenarPor, personasF
   return personas.map((persona) => {
     const bloquesSub = persona.subgrupos.map((sub) => {
       const ordenadas = ordenarTareasEstatus(sub.tareas, estados, ordenarPor);
-      const lineas = ordenadas.map((t) => formatearLineaTareaEstatusCompacta(t, { incluirSubtareas, incluirPrioridad }));
+      const lineas = ordenadas.map((t) => formatearLineaTareaEstatusCompacta(t, { incluirSubtareas, incluirPrioridad, incluirAcciones }));
       return `*${sub.titulo}*\n${lineas.join("\n")}`;
     }).join("\n\n");
     return `*${persona.titulo}*\n${bloquesSub}`;
@@ -401,13 +401,13 @@ function generarCuerpoEstatusEsperaComentarios(tareas, { incluirDetalle = false 
   }).join("\n\n");
 }
 
-function generarCuerpoEstatus(tareas, { marcas, estados, ordenarPor, organizarPor, personasFiltro, incluirSubtareas = false, incluirPrioridad = false, incluirDetalle = false }) {
+function generarCuerpoEstatus(tareas, { marcas, estados, ordenarPor, organizarPor, personasFiltro, incluirSubtareas = false, incluirPrioridad = false, incluirAcciones = false, incluirDetalle = false }) {
   if (organizarPor === "espera-comentarios") {
     return generarCuerpoEstatusEsperaComentarios(tareas, { incluirDetalle });
   }
 
   if (organizarPor === "persona") {
-    return generarCuerpoEstatusPorPersona(tareas, { estados, ordenarPor, personasFiltro, incluirSubtareas, incluirPrioridad });
+    return generarCuerpoEstatusPorPersona(tareas, { estados, ordenarPor, personasFiltro, incluirSubtareas, incluirPrioridad, incluirAcciones });
   }
 
   const grupos = agruparTareasEstatus(tareas, { organizarPor, marcas });
@@ -415,12 +415,12 @@ function generarCuerpoEstatus(tareas, { marcas, estados, ordenarPor, organizarPo
 
   return grupos.map((grupo) => {
     const ordenadas = ordenarTareasEstatus(grupo.tareas, estados, ordenarPor);
-    const lineas = ordenadas.map((t) => formatearLineaTareaEstatusCompacta(t, { incluirSubtareas, incluirPrioridad }));
+    const lineas = ordenadas.map((t) => formatearLineaTareaEstatusCompacta(t, { incluirSubtareas, incluirPrioridad, incluirAcciones }));
     return `*${grupo.titulo}*\n${lineas.join("\n")}`;
   }).join("\n\n");
 }
 
-function generarTextoEstatus(tareas, { marcas, estados, filtroTiempo, ordenarPor, personas, subclientes, organizarPor, incluirSubtareas = false, incluirPrioridad = false, incluirDetalle = false }) {
+function generarTextoEstatus(tareas, { marcas, estados, filtroTiempo, ordenarPor, personas, subclientes, organizarPor, incluirSubtareas = false, incluirPrioridad = false, incluirAcciones = false, incluirDetalle = false }) {
   if (!marcas || marcas.length === 0) return "";
 
   const modo = organizarPor || "persona";
@@ -445,6 +445,7 @@ function generarTextoEstatus(tareas, { marcas, estados, filtroTiempo, ordenarPor
     personasFiltro: personas,
     incluirSubtareas: Boolean(incluirSubtareas),
     incluirPrioridad: Boolean(incluirPrioridad),
+    incluirAcciones: Boolean(incluirAcciones),
     incluirDetalle: Boolean(incluirDetalle)
   });
 

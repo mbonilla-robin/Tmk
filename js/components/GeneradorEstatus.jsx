@@ -11,6 +11,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
   const [organizarPor, setOrganizarPor] = useState("persona");
   const [incluirSubtareas, setIncluirSubtareas] = useState(false);
   const [incluirPrioridad, setIncluirPrioridad] = useState(false);
+  const [incluirAcciones, setIncluirAcciones] = useState(false);
   const [incluirDetalle, setIncluirDetalle] = useState(false);
   const [subclientesDesplegados, setSubclientesDesplegados] = useState(false);
   const [textoGenerado, setTextoGenerado] = useState("");
@@ -66,7 +67,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
     generarConOpciones(organizarPor);
   };
 
-  const generarConOpciones = (modoOrganizar = organizarPor, conSubtareas = incluirSubtareas, conPrioridad = incluirPrioridad, conDetalle = incluirDetalle) => {
+  const generarConOpciones = (modoOrganizar = organizarPor, conSubtareas = incluirSubtareas, conPrioridad = incluirPrioridad, conAcciones = incluirAcciones, conDetalle = incluirDetalle) => {
     const texto = generarTextoEstatus(tareas, {
       marcas: marcasSeleccionadas,
       estados: estadosSeleccionados,
@@ -77,12 +78,14 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
       subclientes: subclientesFiltro,
       incluirSubtareas: conSubtareas,
       incluirPrioridad: conPrioridad,
+      incluirAcciones: conAcciones,
       incluirDetalle: conDetalle
     });
 
     setOrganizarPor(modoOrganizar);
     setIncluirSubtareas(Boolean(conSubtareas));
     setIncluirPrioridad(Boolean(conPrioridad));
+    setIncluirAcciones(Boolean(conAcciones));
     setIncluirDetalle(Boolean(conDetalle));
     setTextoGenerado(texto || "No hay tareas que coincidan con los filtros seleccionados.");
     setVista("resultado");
@@ -338,6 +341,19 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                         <i className={`fa-solid ${incluirPrioridad ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
                         Agregar prioridad
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => setIncluirAcciones((v) => !v)}
+                        className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                          incluirAcciones
+                            ? "bg-zinc-900 text-white border-zinc-900"
+                            : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                        }`}
+                        aria-pressed={incluirAcciones}
+                      >
+                        <i className={`fa-solid ${incluirAcciones ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
+                        Mostrar acciones
+                      </button>
                     </>
                   )}
                   {organizarPor === "espera-comentarios" && (
@@ -426,7 +442,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                     <button
                       key={opcion.id}
                       type="button"
-                      onClick={() => generarConOpciones(opcion.id, incluirSubtareas, incluirPrioridad, incluirDetalle)}
+                      onClick={() => generarConOpciones(opcion.id, incluirSubtareas, incluirPrioridad, incluirAcciones, incluirDetalle)}
                       className={`text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
                         organizarPor === opcion.id
                           ? "bg-zinc-900 text-white border-zinc-900"
@@ -445,7 +461,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                     <>
                       <button
                         type="button"
-                        onClick={() => generarConOpciones(organizarPor, !incluirSubtareas, incluirPrioridad, incluirDetalle)}
+                        onClick={() => generarConOpciones(organizarPor, !incluirSubtareas, incluirPrioridad, incluirAcciones, incluirDetalle)}
                         className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
                           incluirSubtareas
                             ? "bg-zinc-900 text-white border-zinc-900"
@@ -458,7 +474,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                       </button>
                       <button
                         type="button"
-                        onClick={() => generarConOpciones(organizarPor, incluirSubtareas, !incluirPrioridad, incluirDetalle)}
+                        onClick={() => generarConOpciones(organizarPor, incluirSubtareas, !incluirPrioridad, incluirAcciones, incluirDetalle)}
                         className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
                           incluirPrioridad
                             ? "bg-zinc-900 text-white border-zinc-900"
@@ -469,12 +485,25 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                         <i className={`fa-solid ${incluirPrioridad ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
                         Agregar prioridad
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => generarConOpciones(organizarPor, incluirSubtareas, incluirPrioridad, !incluirAcciones, incluirDetalle)}
+                        className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                          incluirAcciones
+                            ? "bg-zinc-900 text-white border-zinc-900"
+                            : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
+                        }`}
+                        aria-pressed={incluirAcciones}
+                      >
+                        <i className={`fa-solid ${incluirAcciones ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
+                        Mostrar acciones
+                      </button>
                     </>
                   )}
                   {organizarPor === "espera-comentarios" && (
                     <button
                       type="button"
-                      onClick={() => generarConOpciones(organizarPor, incluirSubtareas, incluirPrioridad, !incluirDetalle)}
+                      onClick={() => generarConOpciones(organizarPor, incluirSubtareas, incluirPrioridad, incluirAcciones, !incluirDetalle)}
                       className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
                         incluirDetalle
                           ? "bg-zinc-900 text-white border-zinc-900"

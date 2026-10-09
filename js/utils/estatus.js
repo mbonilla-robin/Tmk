@@ -122,15 +122,45 @@ function ordenarTareasEstatus(tareas, estadosOrden, ordenarPor) {
   });
 }
 
+function extraerAccionPendienteEstatus(tarea) {
+  if (!tarea) return "";
+  
+  const parsed = typeof parseDetalles === "function" 
+    ? parseDetalles(tarea.detalles || "")
+    : { notas: "", historial: [] };
+  
+  const ultima = typeof obtenerUltimaEntradaComentarioEstatus === "function"
+    ? obtenerUltimaEntradaComentarioEstatus(tarea)
+    : null;
+  
+  if (ultima && ultima.texto) {
+    let texto = String(ultima.texto).trim();
+    texto = texto
+      .replace(/^[-•*]\s*/, "")
+      .replace(/\s*\|\s*https?:\/\/[^\s]+\s*$/, "")
+      .replace(/^\s*@\w+:\s*/, "");
+    
+    if (texto.length > 60) {
+      texto = texto.slice(0, 57).trim() + "…";
+    }
+    
+    if (texto && texto.length > 5) return texto;
+  }
+  
+  return "";
+}
+
 function formatearLineaTareaEstatusCompacta(tarea, { incluirSubtareas = false, incluirPrioridad = false } = {}) {
   const estado = normalizarEstado(tarea.estado) || "Sin estado";
+  const accion = extraerAccionPendienteEstatus(tarea);
+  const descripcion = accion || `_${estado}_`;
   const titulo = (tarea.info || "Sin título").trim();
   const link = typeof obtenerLinkTarea === "function" ? obtenerLinkTarea(tarea) : "";
   const prioridad = typeof normalizarPrioridad === "function"
     ? normalizarPrioridad(tarea.prioridad)
     : String(tarea.prioridad || "").trim();
   const sufijoPrioridad = (incluirPrioridad && prioridad === "Alta") ? "  ⚠️" : "";
-  const base = `- ${titulo} | _${estado}_ | ${link || "—"}${sufijoPrioridad}`;
+  const base = `- ${titulo} | ${descripcion} | ${link || "—"}${sufijoPrioridad}`;
   if (!incluirSubtareas || typeof parseDetalles !== "function") return base;
 
   const { subtareas } = parseDetalles(tarea.detalles || "");

@@ -161,13 +161,18 @@ function limpiarTextoAccionEstatus(texto) {
     .replace(/@[\w.\-]+/g, " ")
     .replace(/\[[^\]]*\]/g, " ")
     .replace(/[“”"«»]/g, "")
-    .replace(/\s+/g, " ")
+    .replace(/[ \t]*:[ \t]*\r?\n\s*(?:\d+[.)]|[-•*])\s*/g, " ")
+    .replace(/\r?\n\s*(?:\d+[.)]|[-•*])\s*/g, ", ")
+    .replace(/\s*[()]\s*/g, ", ")
+    .replace(/(?:,\s*){2,}/g, ", ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\s*\n\s*/g, "\n")
     .trim();
 }
 
 function segmentosAccionEstatus(texto) {
   return String(texto || "")
-    .split(/(?:\r?\n|[.;!?¿¡]|\s\|\s|\s:\s|:\s(?=[A-ZÁÉÍÓÚÑ])|\s(?:en cuanto|cuando|ya que|porque|pero|aunque|mientras)\s)/i)
+    .split(/(?:\r?\n|[.;!?¿¡]|\s\|\s|\s:\s|:\s(?=[A-ZÁÉÍÓÚÑ])|\s(?:en cuanto|cuando|ya que|porque|pero|aunque|mientras)\s|,\s*(?:por favor|favor de)\s)/i)
     .map((s) => s.trim())
     .filter((s) => s.length > 3);
 }
@@ -175,8 +180,8 @@ function segmentosAccionEstatus(texto) {
 function recortarAccionEstatus(frase, maxPalabras) {
   let palabras = frase
     .split(/\s+/)
-    .map((p) => p.replace(/^[,(\-–—]+|[,:(\-–—]+$/g, ""))
-    .filter(Boolean)
+    .map((p) => p.replace(/^[,(\-–—]+|[:(\-–—]+$/g, ""))
+    .filter((p) => p && p !== ",")
     .filter((p, i, arr) => i === 0 || p.toLowerCase() !== arr[i - 1].toLowerCase());
 
   while (palabras.length && /^(el|la|los|las|un|una|unos|unas|de|del|al|que|lo)$/i.test(palabras[0])) {
@@ -187,12 +192,12 @@ function recortarAccionEstatus(frase, maxPalabras) {
   }
 
   palabras = palabras.slice(0, maxPalabras);
-  while (palabras.length && ESTATUS_ACCION_STOP_FIN.has(palabras[palabras.length - 1].toLowerCase())) {
+  while (palabras.length && ESTATUS_ACCION_STOP_FIN.has(palabras[palabras.length - 1].toLowerCase().replace(/,$/, ""))) {
     palabras.pop();
   }
   if (palabras.length < 2) return "";
 
-  let out = palabras.join(" ").replace(/\s+([,;:])/g, "$1").trim();
+  let out = palabras.join(" ").replace(/\s+([,;:])/g, "$1").replace(/[,;:]+$/, "").trim();
   out = out
     .replace(/^pendiente\s+(de|por)\s+/i, "Pendiente ")
     .replace(/^espera\s+(de|por)\s+/i, "Espera ")
@@ -207,7 +212,7 @@ function buscarAccionEnSegmentos(segmentos, lista, maxPalabras) {
     .sort((a, b) => b.length - a.length)
     .map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
     .join("|");
-  const re = new RegExp(`(?:^|[\\s,(])(${alternativa})\\b`, "i");
+  const re = new RegExp(`(?:^|[\\s,(])((?:por\\s+)?(?:${alternativa}))\\b`, "i");
   for (const seg of segmentos) {
     const m = seg.match(re);
     if (!m) continue;
@@ -227,13 +232,33 @@ function resumirAccionEstatus(texto, maxPalabras = 12) {
     || buscarAccionEnSegmentos(segmentos, ESTATUS_ACCION_SUSTANTIVOS, maxPalabras);
 }
 
-function extraerAccionPendienteEstatus(tarea) {
+// Separa las notas en mensajes individuales del chat. Cada mensaje nuevo empieza
+// con un stamp "[dd/mm/aaaa hh:mm]" o con una línea "@usuario:". Devuelve el último.
+const ESTATUS_MSG_STAMP_SRC = "\\[\\d{1,2}\\/\\d{1,2}(?:\\/\\d{2,4})?\\s+\\d{1,2}:\\d{2}\\]";
+
+function ultimoMensajeNotasEstatus(tarea) {
   if (!tarea) return "";
-  const ultima = typeof obtenerUltimaEntradaComentarioEstatus === "function"
-    ? obtenerUltimaEntradaComentarioEstatus(tarea)
-    : null;
-  if (!ultima || !ultima.texto) return "";
-  return resumirAccionEstatus(ultima.texto, 12);
+  const parsed = typeof parseDetalles === "function"
+    ? parseDetalles(tarea.detalles || "")
+    : { notas: String(tarea.detalles || "") };
+  let notas = String(parsed.notas || "");
+  if (typeof htmlNotasAPlainText === "function") notas = htmlNotasAPlainText(notas);
+  notas = notas.replace(/<!--[\s\S]*?-->/g, "\n");
+  if (!notas.trim()) return "";
+
+  const separador = new RegExp(`(?=${ESTATUS_MSG_STAMP_SRC})|\\n(?=\\s*@[\\w.\\-]+\\s*:)|\\n(?=\\s*Comentario:)`, "gi");
+  const prefijo = new RegExp(`^\\s*(?:${ESTATUS_MSG_STAMP_SRC}\\s*)?(?:@[\\w.\\-]+\\s*:\\s*)?(?:Comentario:\\s*)?`, "i");
+  const mensajes = notas
+    .split(separador)
+    .map((m) => m.replace(prefijo, "").trim())
+    .filter(Boolean);
+  return mensajes.length ? mensajes[mensajes.length - 1] : "";
+}
+
+function extraerAccionPendienteEstatus(tarea) {
+  const ultimo = ultimoMensajeNotasEstatus(tarea);
+  if (!ultimo) return "";
+  return resumirAccionEstatus(ultimo, 12);
 }
 
 function formatearLineaTareaEstatusCompacta(tarea, { incluirSubtareas = false, incluirPrioridad = false, incluirAcciones = false } = {}) {

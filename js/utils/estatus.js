@@ -135,10 +135,14 @@ function extraerAccionPendienteEstatus(tarea) {
   
   if (ultima && ultima.texto) {
     let texto = String(ultima.texto).trim();
+    
     texto = texto
+      .replace(/<!--[^>]*-->/g, "")
       .replace(/^[-•*]\s*/, "")
       .replace(/\s*\|\s*https?:\/\/[^\s]+\s*$/, "")
-      .replace(/^\s*@\w+:\s*/, "");
+      .replace(/^\s*@\w+:\s*/g, "")
+      .replace(/\s*\([^)]{0,40}\)\s*$/g, "")
+      .trim();
     
     const resumen = resumirAccionEstatus(texto, 12);
     if (resumen && resumen.length > 5) return resumen;
@@ -153,16 +157,49 @@ function resumirAccionEstatus(texto, maxPalabras = 12) {
   let limpio = String(texto).trim();
   
   limpio = limpio
-    .replace(/^(a continuación,?\s*|por favor,?\s*|les?\s*comparto\s*|les?\s*envío\s*|les?\s*dejo\s*)/i, "")
-    .replace(/^(debemos\s*|hay que\s*|necesitamos\s*|tenemos que\s*)/i, "")
-    .replace(/^(realizar\s*|hacer\s*|ejecutar\s*)(el\s*|la\s*|los\s*|las\s*)?/i, "");
+    .replace(/^(a continuación,?\s*|por favor,?\s*|les?\s*comparto\s*|les?\s*envío\s*|les?\s*dejo\s*|hola\s*equipo,?\s*)/i, "")
+    .replace(/^(debemos\s*|hay que\s*|necesitamos\s*|tenemos que\s*|vamos a\s*)/i, "")
+    .replace(/^(realizar\s*|hacer\s*|ejecutar\s*)(el\s*|la\s*|los\s*|las\s*)?/i, "")
+    .replace(/^(estoy\s*|esto\s*|esto no significa nada|planificado\s*|recuperando\s*esta\s*tarea\s*para\s*)/i, "")
+    .trim();
+  
+  limpio = limpio.replace(/\s+/g, " ");
+  
+  const patronesPendiente = [
+    /^(pendiente|espera|esperando|en espera)\s+(de\s+)?(.+)/i,
+    /^(ajustar|corregir|modificar|cambiar|actualizar)\s+(.+)/i,
+    /^(enviar|compartir|entregar|subir)\s+(.+)/i,
+    /^(contenido|contendido|artes|diseño|propuesta|ajustes?)\s+(y\s+\w+\s+)?para\s+(.+)/i,
+    /^(.+?)\s+para\s+(el\s+)?(lanzamiento|cliente|revision|envio)\s+de\s+(.+)/i
+  ];
+  
+  for (const patron of patronesPendiente) {
+    const match = limpio.match(patron);
+    if (match) {
+      if (patron.source.includes("pendiente")) {
+        limpio = match[3] || limpio;
+      } else if (patron.source.includes("ajustar|corregir")) {
+        limpio = `Ajustar ${match[2] || ""}`;
+      } else if (patron.source.includes("enviar|compartir")) {
+        limpio = `Enviar ${match[2] || ""}`;
+      } else if (patron.source.includes("contenido|contendido")) {
+        limpio = `${match[1] || ""} para ${match[3] || ""}`;
+      } else if (match.length > 4) {
+        limpio = `${match[1] || ""} para ${match[4] || ""}`;
+      }
+      limpio = limpio.trim();
+      break;
+    }
+  }
   
   const palabrasComunes = /^(el|la|los|las|un|una|unos|unas|de|del|al|a|en|con|para|por|sobre|como|que|se|es|son|está|están)\s+/i;
   limpio = limpio.replace(palabrasComunes, "");
   
+  if (!limpio || limpio.length < 5) return "";
+  
   limpio = limpio.charAt(0).toUpperCase() + limpio.slice(1);
   
-  const palabras = limpio.split(/\s+/);
+  const palabras = limpio.split(/\s+/).filter(p => p.length > 0);
   
   if (palabras.length <= maxPalabras) {
     return limpio;
@@ -170,7 +207,7 @@ function resumirAccionEstatus(texto, maxPalabras = 12) {
   
   const primeras = palabras.slice(0, maxPalabras).join(" ");
   
-  if (primeras.match(/\b(para|de|con|en|a|al|del)\s*$/)) {
+  if (primeras.match(/\b(para|de|con|en|a|al|del|y)\s*$/)) {
     return palabras.slice(0, maxPalabras - 1).join(" ");
   }
   

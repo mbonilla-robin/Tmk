@@ -140,14 +140,41 @@ function extraerAccionPendienteEstatus(tarea) {
       .replace(/\s*\|\s*https?:\/\/[^\s]+\s*$/, "")
       .replace(/^\s*@\w+:\s*/, "");
     
-    if (texto.length > 60) {
-      texto = texto.slice(0, 57).trim() + "…";
-    }
-    
-    if (texto && texto.length > 5) return texto;
+    const resumen = resumirAccionEstatus(texto, 12);
+    if (resumen && resumen.length > 5) return resumen;
   }
   
   return "";
+}
+
+function resumirAccionEstatus(texto, maxPalabras = 12) {
+  if (!texto) return "";
+  
+  let limpio = String(texto).trim();
+  
+  limpio = limpio
+    .replace(/^(a continuación,?\s*|por favor,?\s*|les?\s*comparto\s*|les?\s*envío\s*|les?\s*dejo\s*)/i, "")
+    .replace(/^(debemos\s*|hay que\s*|necesitamos\s*|tenemos que\s*)/i, "")
+    .replace(/^(realizar\s*|hacer\s*|ejecutar\s*)(el\s*|la\s*|los\s*|las\s*)?/i, "");
+  
+  const palabrasComunes = /^(el|la|los|las|un|una|unos|unas|de|del|al|a|en|con|para|por|sobre|como|que|se|es|son|está|están)\s+/i;
+  limpio = limpio.replace(palabrasComunes, "");
+  
+  limpio = limpio.charAt(0).toUpperCase() + limpio.slice(1);
+  
+  const palabras = limpio.split(/\s+/);
+  
+  if (palabras.length <= maxPalabras) {
+    return limpio;
+  }
+  
+  const primeras = palabras.slice(0, maxPalabras).join(" ");
+  
+  if (primeras.match(/\b(para|de|con|en|a|al|del)\s*$/)) {
+    return palabras.slice(0, maxPalabras - 1).join(" ");
+  }
+  
+  return primeras;
 }
 
 function formatearLineaTareaEstatusCompacta(tarea, { incluirSubtareas = false, incluirPrioridad = false, incluirAcciones = false } = {}) {

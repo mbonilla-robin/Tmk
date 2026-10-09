@@ -144,34 +144,28 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
 
   return (
     <ModalPortal>
-      <div className="fixed inset-0 bg-black/20 backdrop-blur-md z-[250] flex items-center justify-center p-4 overflow-y-auto">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl animate-zoom-in my-auto max-h-[92vh] flex flex-col overflow-hidden">
-          <div className="flex items-center justify-between px-8 py-5 bg-gradient-to-b from-zinc-50 to-white border-b border-zinc-100 shrink-0">
-            <div>
-              <h2 className="text-sm font-bold text-zinc-900 mb-0.5">
-                {vista === "formulario" ? "Generador de estatus" : "Estatus generado"}
-              </h2>
-              <p className="text-[11px] text-zinc-500">
-                {vista === "formulario" ? "Configura los filtros para tu reporte" : "Revisa y comparte tu estatus"}
-              </p>
-            </div>
+      <div className="fixed inset-0 bg-black/5 backdrop-blur-[2px] z-[250] flex items-center justify-center p-4 overflow-y-auto">
+        <div className="bg-white rounded-lg border border-zinc-200 shadow-xl w-full max-w-5xl animate-zoom-in my-auto flex flex-col overflow-hidden" style={{maxHeight: "min(90vh, 800px)"}}>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 shrink-0">
+            <h2 className="text-sm font-semibold text-zinc-900">
+              {vista === "formulario" ? "Generador de estatus" : "Estatus generado"}
+            </h2>
             <button
               type="button"
               onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition-all"
+              className="w-6 h-6 flex items-center justify-center rounded hover:bg-zinc-100 text-zinc-400 hover:text-zinc-600 transition-colors"
             >
-              <i className="fa-solid fa-xmark text-lg"></i>
+              <i className="fa-solid fa-xmark text-sm"></i>
             </button>
           </div>
 
           {vista === "formulario" ? (
-            <form onSubmit={handleGenerar} className="flex flex-col gap-8 p-8 overflow-y-auto bg-gradient-to-b from-white to-zinc-50/30">
-              <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-1 h-5 bg-blue-500 rounded-full"></div>
-                  <label className="text-sm font-semibold text-zinc-700">Marcas</label>
-                </div>
-                <div className="flex flex-wrap gap-2">
+            <form onSubmit={handleGenerar} className="grid grid-cols-2 gap-x-6 p-6 overflow-y-auto bg-white">
+              {/* Columna izquierda */}
+              <div className="space-y-5">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-600 mb-2">Marcas</label>
+                  <div className="flex flex-wrap gap-1.5">
                   {marcasDisponibles.map(m => {
                     const seleccionada = marcasSeleccionadas.some(ms => marcasCoinciden(ms, m));
                     const estilo = getMarcaStyle(m);
@@ -180,10 +174,10 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                         key={m}
                         type="button"
                         onClick={() => toggleMarca(m)}
-                        className={`text-sm font-medium px-4 py-2.5 rounded-xl border-2 transition-all duration-200 ${
+                        className={`text-xs font-medium px-2.5 py-1.5 rounded border transition-colors ${
                           seleccionada
-                            ? `${estilo.surface} border-current shadow-sm scale-[1.02]`
-                            : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300 hover:shadow-sm"
+                            ? `${estilo.surface} border-current`
+                            : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300"
                         }`}
                       >
                         {formatearMarca(m)}
@@ -194,11 +188,8 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
               </div>
 
               <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-1 h-5 bg-purple-500 rounded-full"></div>
-                  <label className="text-sm font-semibold text-zinc-700">Estados a incluir</label>
-                </div>
-                <div className={`flex flex-wrap gap-2 ${organizarPor === "espera-comentarios" ? "opacity-50 pointer-events-none" : ""}`}>
+                <label className="block text-xs font-medium text-zinc-600 mb-2">Estados a incluir</label>
+                <div className={`flex flex-wrap gap-1.5 ${organizarPor === "espera-comentarios" ? "opacity-50 pointer-events-none" : ""}`}>
                   {obtenerEstadosGeneradorEstatus().map(estado => {
                     const seleccionado = organizarPor === "espera-comentarios"
                       ? cleanEstado(estado) === "seguimiento"
@@ -209,35 +200,29 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                         key={estado}
                         type="button"
                         onClick={() => toggleEstado(estado)}
-                        className={`inline-flex items-center gap-2 text-sm font-medium px-4 py-2.5 rounded-xl border-2 transition-all duration-200 ${
+                        className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded border transition-colors ${
                           seleccionado
-                            ? `${config?.bg || "bg-zinc-50"} border-current shadow-sm scale-[1.02]`
-                            : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300 hover:shadow-sm"
+                            ? `${config?.bg || "bg-zinc-50"} border-current`
+                            : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
                         }`}
                       >
-                        <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${config?.dot || "bg-zinc-400"}`}></span>
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${config?.dot || "bg-zinc-400"}`}></span>
                         {estado}
                       </button>
                     );
                   })}
                 </div>
                 {organizarPor === "espera-comentarios" && (
-                  <div className="mt-3 flex items-start gap-2 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-                    <i className="fa-solid fa-circle-info text-blue-500 text-sm mt-0.5"></i>
-                    <p className="text-xs text-blue-700 leading-relaxed">
-                      Este modo usa solo tareas en <span className="font-semibold">Seguimiento</span> (espera al cliente).
-                    </p>
-                  </div>
+                  <p className="mt-2 text-[11px] text-zinc-500">
+                    Este modo usa solo tareas en <span className="font-medium">Seguimiento</span> (espera al cliente).
+                  </p>
                 )}
               </div>
 
               <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-1 h-5 bg-green-500 rounded-full"></div>
-                  <label className="text-sm font-semibold text-zinc-700">
-                    Personas <span className="font-normal text-zinc-500">(opcional)</span>
-                  </label>
-                </div>
+                <label className="block text-xs font-medium text-zinc-600 mb-2">
+                  Personas <span className="font-normal text-zinc-400">(opcional)</span>
+                </label>
                 <SelectorPersonasChips
                   personasSeleccionadas={personasFiltro}
                   onChange={setPersonasFiltro}
@@ -246,28 +231,28 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                   titulo="Personas"
                 />
               </div>
+              </div>
 
+              {/* Columna derecha */}
+              <div className="space-y-5">
               {subclientesDisponibles.length > 0 && (
-                <div className="rounded-xl border-2 border-zinc-200 overflow-hidden bg-white shadow-sm">
+                <div className="rounded border border-zinc-200 overflow-hidden">
                   <button
                     type="button"
                     onClick={() => setSubclientesDesplegados((v) => !v)}
-                    className="w-full flex items-center justify-between gap-3 px-5 py-4 hover:bg-zinc-50 transition-colors text-left"
+                    className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-zinc-50 hover:bg-zinc-100 transition-colors text-left"
                     aria-expanded={subclientesDesplegados}
                   >
-                    <span className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
                       <i
-                        className={`fa-solid ${subclientesDesplegados ? "fa-chevron-down" : "fa-chevron-right"} text-xs text-zinc-400 shrink-0 transition-transform`}
+                        className={`fa-solid ${subclientesDesplegados ? "fa-chevron-down" : "fa-chevron-right"} text-[10px] text-zinc-400 shrink-0`}
                         aria-hidden="true"
                       />
-                      <div>
-                        <span className="text-sm font-semibold text-zinc-700 block">
-                          Subclientes
-                        </span>
-                        <span className="text-xs text-zinc-500">Filtra por proyecto específico</span>
-                      </div>
-                    </span>
-                    <span className="text-xs font-semibold text-zinc-600 bg-zinc-100 px-2.5 py-1 rounded-lg shrink-0">
+                      <span className="text-xs font-medium text-zinc-600">
+                        Subclientes
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-medium text-zinc-500 shrink-0">
                       {subclientesFiltro.length > 0
                         ? `${subclientesFiltro.length} de ${subclientesDisponibles.length}`
                         : `${subclientesDisponibles.length} disponibles`}
@@ -275,8 +260,8 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                   </button>
 
                   {subclientesDesplegados && (
-                    <div className="px-5 py-4 border-t-2 border-zinc-100 bg-zinc-50/50">
-                      <div className="flex flex-wrap gap-2">
+                    <div className="px-3 py-2 border-t border-zinc-200">
+                      <div className="flex flex-wrap gap-1.5">
                         {subclientesDisponibles.map((nombre) => {
                           const seleccionado = subclientesFiltro.some((s) => subclientesCoinciden(s, nombre));
                           return (
@@ -284,13 +269,13 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                               key={nombre}
                               type="button"
                               onClick={() => toggleSubcliente(nombre)}
-                              className={`inline-flex items-center gap-2 text-sm font-medium px-4 py-2.5 rounded-xl border-2 transition-all duration-200 ${
+                              className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded border transition-colors ${
                                 seleccionado
-                                  ? "bg-zinc-900 text-white border-zinc-900 shadow-md scale-[1.02]"
-                                  : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300 hover:shadow-sm"
+                                  ? "bg-zinc-900 text-white border-zinc-900"
+                                  : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300"
                               }`}
                             >
-                              <i className="fa-solid fa-store text-sm opacity-70" />
+                              <i className="fa-solid fa-store text-[10px]" />
                               {nombre}
                             </button>
                           );
@@ -302,11 +287,8 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
               )}
 
               <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-1 h-5 bg-orange-500 rounded-full"></div>
-                  <label className="text-sm font-semibold text-zinc-700">Organizar estatus</label>
-                </div>
-                <div className="flex flex-wrap gap-2">
+                <label className="block text-xs font-medium text-zinc-600 mb-2">Organizar estatus</label>
+                <div className="flex flex-wrap gap-1.5">
                   {(typeof ORGANIZAR_ESTATUS_OPCIONES !== "undefined" ? ORGANIZAR_ESTATUS_OPCIONES : [
                     { id: "persona", label: "Por personas" },
                     { id: "marca", label: "Por marca" },
@@ -317,10 +299,10 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                       key={opcion.id}
                       type="button"
                       onClick={() => setOrganizarPor(opcion.id)}
-                      className={`text-sm font-medium px-5 py-2.5 rounded-xl border-2 transition-all duration-200 ${
+                      className={`text-xs font-medium px-2.5 py-1.5 rounded border transition-colors ${
                         organizarPor === opcion.id
-                          ? "bg-zinc-900 text-white border-zinc-900 shadow-md scale-[1.02]"
-                          : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300 hover:shadow-sm"
+                          ? "bg-zinc-900 text-white border-zinc-900"
+                          : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300"
                       }`}
                     >
                       {opcion.label}
@@ -330,37 +312,34 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
               </div>
 
               <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-1 h-5 bg-pink-500 rounded-full"></div>
-                  <label className="text-sm font-semibold text-zinc-700">Opciones</label>
-                </div>
-                <div className="flex flex-wrap gap-2">
+                <label className="block text-xs font-medium text-zinc-600 mb-2">Opciones</label>
+                <div className="flex flex-wrap gap-1.5">
                   {organizarPor !== "espera-comentarios" && (
                     <>
                       <button
                         type="button"
                         onClick={() => setIncluirSubtareas((v) => !v)}
-                        className={`inline-flex items-center gap-2.5 text-sm font-medium px-5 py-2.5 rounded-xl border-2 transition-all duration-200 ${
+                        className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded border transition-colors ${
                           incluirSubtareas
-                            ? "bg-zinc-900 text-white border-zinc-900 shadow-md"
-                            : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300 hover:shadow-sm"
+                            ? "bg-zinc-900 text-white border-zinc-900"
+                            : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300"
                         }`}
                         aria-pressed={incluirSubtareas}
                       >
-                        <i className={`fa-solid ${incluirSubtareas ? "fa-check-circle" : "fa-circle"} text-base`} aria-hidden="true" />
+                        <i className={`fa-solid ${incluirSubtareas ? "fa-check-square" : "fa-square"} text-xs`} aria-hidden="true" />
                         {incluirSubtareas ? "Con subtareas" : "Sin subtareas"}
                       </button>
                       <button
                         type="button"
                         onClick={() => setIncluirPrioridad((v) => !v)}
-                        className={`inline-flex items-center gap-2.5 text-sm font-medium px-5 py-2.5 rounded-xl border-2 transition-all duration-200 ${
+                        className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded border transition-colors ${
                           incluirPrioridad
-                            ? "bg-zinc-900 text-white border-zinc-900 shadow-md"
-                            : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300 hover:shadow-sm"
+                            ? "bg-zinc-900 text-white border-zinc-900"
+                            : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300"
                         }`}
                         aria-pressed={incluirPrioridad}
                       >
-                        <i className={`fa-solid ${incluirPrioridad ? "fa-check-circle" : "fa-circle"} text-base`} aria-hidden="true" />
+                        <i className={`fa-solid ${incluirPrioridad ? "fa-check-square" : "fa-square"} text-xs`} aria-hidden="true" />
                         Agregar prioridad
                       </button>
                     </>
@@ -369,35 +348,32 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                     <button
                       type="button"
                       onClick={() => setIncluirDetalle((v) => !v)}
-                      className={`inline-flex items-center gap-2.5 text-sm font-medium px-5 py-2.5 rounded-xl border-2 transition-all duration-200 ${
+                      className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded border transition-colors ${
                         incluirDetalle
-                          ? "bg-zinc-900 text-white border-zinc-900 shadow-md"
-                          : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300 hover:shadow-sm"
+                          ? "bg-zinc-900 text-white border-zinc-900"
+                          : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300"
                       }`}
                       aria-pressed={incluirDetalle}
                     >
-                      <i className={`fa-solid ${incluirDetalle ? "fa-check-circle" : "fa-circle"} text-base`} aria-hidden="true" />
+                      <i className={`fa-solid ${incluirDetalle ? "fa-check-square" : "fa-square"} text-xs`} aria-hidden="true" />
                       Agregar detalle
                     </button>
                   )}
                 </div>
-                <div className="mt-3 flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-lg">
-                  <i className="fa-solid fa-lightbulb text-amber-600 text-sm mt-0.5"></i>
-                  <p className="text-xs text-amber-800 leading-relaxed">
+                <p className="mt-2 text-[11px] text-zinc-400">
                   {organizarPor === "espera-comentarios" 
                     ? "El detalle muestra los entregables específicos con sus links y estados."
                     : "Prioridad marca con ⚠️ las tareas altas. Por defecto no se incluyen subtareas ni prioridad."}
-                  </p>
-                </div>
+                </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-5">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-sm font-semibold text-zinc-700 mb-2 block">Filtro de fecha</label>
+                  <label className="text-xs font-medium text-zinc-600 mb-2 block">Filtro de fecha</label>
                   <select
                     value={filtroTiempo}
                     onChange={(e) => setFiltroTiempo(e.target.value)}
-                    className="w-full bg-white border-2 border-zinc-200 px-4 py-2.5 text-sm font-medium rounded-xl focus:border-zinc-400 focus:outline-none text-zinc-700 cursor-pointer hover:border-zinc-300 transition-colors"
+                    className="w-full bg-white border border-zinc-200 px-2.5 py-1.5 text-xs rounded focus:border-zinc-400 focus:outline-none text-zinc-700 cursor-pointer hover:border-zinc-300 transition-colors"
                   >
                     <option value="todas">Todas las fechas</option>
                     <option value="hoy">Solo hoy</option>
@@ -405,11 +381,11 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-semibold text-zinc-700 mb-2 block">Ordenar por</label>
+                  <label className="text-xs font-medium text-zinc-600 mb-2 block">Ordenar por</label>
                   <select
                     value={ordenarPor}
                     onChange={(e) => setOrdenarPor(e.target.value)}
-                    className="w-full bg-white border-2 border-zinc-200 px-4 py-2.5 text-sm font-medium rounded-xl focus:border-zinc-400 focus:outline-none text-zinc-700 cursor-pointer hover:border-zinc-300 transition-colors"
+                    className="w-full bg-white border border-zinc-200 px-2.5 py-1.5 text-xs rounded focus:border-zinc-400 focus:outline-none text-zinc-700 cursor-pointer hover:border-zinc-300 transition-colors"
                   >
                     <option value="estado">Estado</option>
                     <option value="deadline">Deadline</option>
@@ -417,46 +393,38 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                 </div>
               </div>
 
+              </div>
+              </div>
+
               {marcasSeleccionadas.length > 0 && (
-                <div className="flex items-center gap-3 p-4 bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-100 rounded-xl">
-                  <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center shrink-0">
-                    <i className="fa-solid fa-list-check text-white text-lg"></i>
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-zinc-900">
-                      {tareasPreview} tarea{tareasPreview !== 1 ? "s" : ""} encontrada{tareasPreview !== 1 ? "s" : ""}
-                    </p>
-                    <p className="text-xs text-zinc-600">Coinciden con los filtros seleccionados</p>
-                  </div>
-                </div>
+                <p className="text-xs text-zinc-500 px-3 py-2 bg-zinc-50 border border-zinc-100 rounded col-span-2">
+                  <span className="font-medium text-zinc-700">{tareasPreview}</span> tarea{tareasPreview !== 1 ? "s" : ""} coinciden con los filtros
+                </p>
               )}
 
-              <div className="flex gap-3 justify-end pt-6 border-t-2 border-zinc-100">
+              <div className="flex gap-2 justify-end pt-4 border-t border-zinc-100 col-span-2">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-5 py-2.5 text-sm font-semibold text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 rounded-xl transition-all"
+                  className="px-3 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 rounded transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={marcasSeleccionadas.length === 0 || (organizarPor !== "espera-comentarios" && estadosSeleccionados.length === 0)}
-                  className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-bold rounded-xl hover:from-blue-700 hover:to-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg disabled:shadow-none flex items-center gap-2"
+                  className="px-4 py-1.5 bg-zinc-900 text-white text-xs font-medium rounded hover:bg-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                 >
-                  <i className="fa-solid fa-wand-magic-sparkles"></i>
                   Generar estatus
                 </button>
               </div>
             </form>
           ) : (
-            <div className="flex flex-col gap-8 p-8 overflow-y-auto bg-gradient-to-b from-white to-zinc-50/30">
-              <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-1 h-5 bg-orange-500 rounded-full"></div>
-                  <label className="text-sm font-semibold text-zinc-700">Organizar estatus</label>
-                </div>
-                <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col gap-4 p-6 overflow-y-auto bg-white">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-600 mb-2">Organizar estatus</label>
+                  <div className="flex flex-wrap gap-1.5">
                   {(typeof ORGANIZAR_ESTATUS_OPCIONES !== "undefined" ? ORGANIZAR_ESTATUS_OPCIONES : [
                     { id: "persona", label: "Por personas" },
                     { id: "marca", label: "Por marca" },
@@ -467,10 +435,10 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                       key={opcion.id}
                       type="button"
                       onClick={() => generarConOpciones(opcion.id, incluirSubtareas, incluirPrioridad, incluirDetalle)}
-                      className={`text-sm font-medium px-5 py-2.5 rounded-xl border-2 transition-all duration-200 ${
+                      className={`text-xs font-medium px-2.5 py-1.5 rounded border transition-colors ${
                         organizarPor === opcion.id
-                          ? "bg-zinc-900 text-white border-zinc-900 shadow-md scale-[1.02]"
-                          : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300 hover:shadow-sm"
+                          ? "bg-zinc-900 text-white border-zinc-900"
+                          : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300"
                       }`}
                     >
                       {opcion.label}
@@ -479,37 +447,34 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                 </div>
               </div>
               <div>
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-1 h-5 bg-pink-500 rounded-full"></div>
-                  <label className="text-sm font-semibold text-zinc-700">Opciones</label>
-                </div>
-                <div className="flex flex-wrap gap-2">
+                <label className="block text-xs font-medium text-zinc-600 mb-2">Opciones</label>
+                <div className="flex flex-wrap gap-1.5">
                   {organizarPor !== "espera-comentarios" && (
                     <>
                       <button
                         type="button"
                         onClick={() => generarConOpciones(organizarPor, !incluirSubtareas, incluirPrioridad, incluirDetalle)}
-                        className={`inline-flex items-center gap-2.5 text-sm font-medium px-5 py-2.5 rounded-xl border-2 transition-all duration-200 ${
+                        className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded border transition-colors ${
                           incluirSubtareas
-                            ? "bg-zinc-900 text-white border-zinc-900 shadow-md"
-                            : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300 hover:shadow-sm"
+                            ? "bg-zinc-900 text-white border-zinc-900"
+                            : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300"
                         }`}
                         aria-pressed={incluirSubtareas}
                       >
-                        <i className={`fa-solid ${incluirSubtareas ? "fa-check-circle" : "fa-circle"} text-base`} aria-hidden="true" />
+                        <i className={`fa-solid ${incluirSubtareas ? "fa-check-square" : "fa-square"} text-xs`} aria-hidden="true" />
                         {incluirSubtareas ? "Con subtareas" : "Sin subtareas"}
                       </button>
                       <button
                         type="button"
                         onClick={() => generarConOpciones(organizarPor, incluirSubtareas, !incluirPrioridad, incluirDetalle)}
-                        className={`inline-flex items-center gap-2.5 text-sm font-medium px-5 py-2.5 rounded-xl border-2 transition-all duration-200 ${
+                        className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded border transition-colors ${
                           incluirPrioridad
-                            ? "bg-zinc-900 text-white border-zinc-900 shadow-md"
-                            : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300 hover:shadow-sm"
+                            ? "bg-zinc-900 text-white border-zinc-900"
+                            : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300"
                         }`}
                         aria-pressed={incluirPrioridad}
                       >
-                        <i className={`fa-solid ${incluirPrioridad ? "fa-check-circle" : "fa-circle"} text-base`} aria-hidden="true" />
+                        <i className={`fa-solid ${incluirPrioridad ? "fa-check-square" : "fa-square"} text-xs`} aria-hidden="true" />
                         Agregar prioridad
                       </button>
                     </>
@@ -518,54 +483,46 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                     <button
                       type="button"
                       onClick={() => generarConOpciones(organizarPor, incluirSubtareas, incluirPrioridad, !incluirDetalle)}
-                      className={`inline-flex items-center gap-2.5 text-sm font-medium px-5 py-2.5 rounded-xl border-2 transition-all duration-200 ${
+                      className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded border transition-colors ${
                         incluirDetalle
-                          ? "bg-zinc-900 text-white border-zinc-900 shadow-md"
-                          : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300 hover:shadow-sm"
+                          ? "bg-zinc-900 text-white border-zinc-900"
+                          : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300"
                       }`}
                       aria-pressed={incluirDetalle}
                     >
-                      <i className={`fa-solid ${incluirDetalle ? "fa-check-circle" : "fa-circle"} text-base`} aria-hidden="true" />
+                      <i className={`fa-solid ${incluirDetalle ? "fa-check-square" : "fa-square"} text-xs`} aria-hidden="true" />
                       Agregar detalle
                     </button>
                   )}
                 </div>
               </div>
-              <div className="rounded-xl border-2 border-zinc-200 overflow-hidden bg-white shadow-sm">
-                <div className="bg-gradient-to-r from-zinc-50 to-zinc-100 px-5 py-3 border-b-2 border-zinc-200">
-                  <div className="flex items-center gap-2">
-                    <i className="fa-solid fa-file-lines text-zinc-600"></i>
-                    <span className="text-sm font-semibold text-zinc-700">Vista previa del estatus</span>
-                  </div>
-                </div>
-                <pre className="text-sm text-zinc-800 leading-relaxed whitespace-pre-wrap font-mono bg-white p-6 max-h-[50vh] overflow-y-auto">
-                  {textoGenerado}
-                </pre>
               </div>
+              
+              <pre className="text-xs text-zinc-700 leading-relaxed whitespace-pre-wrap font-mono bg-zinc-50 border border-zinc-200 rounded p-4 flex-1 overflow-y-auto">
+                {textoGenerado}
+              </pre>
 
-              <div className="flex gap-3 justify-end pt-6 border-t-2 border-zinc-100">
+              <div className="flex gap-2 justify-end pt-4 border-t border-zinc-100">
                 <button
                   type="button"
                   onClick={() => setVista("formulario")}
-                  className="px-5 py-2.5 text-sm font-semibold text-zinc-600 border-2 border-zinc-200 rounded-xl hover:bg-zinc-50 hover:border-zinc-300 transition-all flex items-center gap-2"
+                  className="px-3 py-1.5 text-xs font-medium text-zinc-600 border border-zinc-200 rounded hover:bg-zinc-50 transition-colors"
                 >
-                  <i className="fa-solid fa-arrow-left text-xs"></i>
                   Editar
                 </button>
                 <button
                   type="button"
                   onClick={handleCopiar}
-                  className="px-5 py-2.5 text-sm font-semibold text-zinc-700 bg-zinc-100 border-2 border-zinc-200 rounded-xl hover:bg-zinc-200 hover:border-zinc-300 transition-all flex items-center gap-2"
+                  className="px-3 py-1.5 text-xs font-medium text-zinc-700 bg-zinc-100 border border-zinc-200 rounded hover:bg-zinc-200 transition-colors"
                 >
-                  <i className={`fa-solid ${copiado ? "fa-check" : "fa-copy"} text-sm`}></i>
                   {copiado ? "¡Copiado!" : "Copiar"}
                 </button>
                 <button
                   type="button"
                   onClick={handleCompartir}
-                  className="px-6 py-2.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-bold rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg flex items-center gap-2"
+                  className="px-4 py-1.5 bg-zinc-900 text-white text-xs font-medium rounded hover:bg-zinc-700 transition-colors inline-flex items-center gap-1.5"
                 >
-                  <i className={`fa-solid ${compartido ? "fa-check" : "fa-share-nodes"}`} aria-hidden="true" />
+                  <i className={`fa-solid ${compartido ? "fa-check" : "fa-share-nodes"} text-xs`} aria-hidden="true" />
                   {compartido ? "¡Listo!" : "Compartir"}
                 </button>
               </div>

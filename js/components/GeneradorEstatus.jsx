@@ -11,7 +11,6 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
   const [organizarPor, setOrganizarPor] = useState("persona");
   const [incluirSubtareas, setIncluirSubtareas] = useState(false);
   const [incluirPrioridad, setIncluirPrioridad] = useState(false);
-  const [incluirAcciones, setIncluirAcciones] = useState(false);
   const [incluirDetalle, setIncluirDetalle] = useState(false);
   const [subclientesDesplegados, setSubclientesDesplegados] = useState(false);
   const [textoGenerado, setTextoGenerado] = useState("");
@@ -67,7 +66,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
     generarConOpciones(organizarPor);
   };
 
-  const generarConOpciones = (modoOrganizar = organizarPor, conSubtareas = incluirSubtareas, conPrioridad = incluirPrioridad, conAcciones = incluirAcciones, conDetalle = incluirDetalle) => {
+  const generarConOpciones = (modoOrganizar = organizarPor, conSubtareas = incluirSubtareas, conPrioridad = incluirPrioridad, conDetalle = incluirDetalle) => {
     const texto = generarTextoEstatus(tareas, {
       marcas: marcasSeleccionadas,
       estados: estadosSeleccionados,
@@ -78,14 +77,12 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
       subclientes: subclientesFiltro,
       incluirSubtareas: conSubtareas,
       incluirPrioridad: conPrioridad,
-      incluirAcciones: conAcciones,
       incluirDetalle: conDetalle
     });
 
     setOrganizarPor(modoOrganizar);
     setIncluirSubtareas(Boolean(conSubtareas));
     setIncluirPrioridad(Boolean(conPrioridad));
-    setIncluirAcciones(Boolean(conAcciones));
     setIncluirDetalle(Boolean(conDetalle));
     setTextoGenerado(texto || "No hay tareas que coincidan con los filtros seleccionados.");
     setVista("resultado");
@@ -149,7 +146,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
     <ModalPortal>
       <div className="fixed inset-0 bg-black/10 backdrop-blur-sm z-[250] flex items-center justify-center p-4 overflow-y-auto">
         <div className="bg-white rounded-lg border border-zinc-200 shadow-lg w-full max-w-lg animate-zoom-in my-auto max-h-[90vh] flex flex-col">
-          <div className="flex items-center justify-between border-b px-5 py-3 border-zinc-200 shrink-0">
+          <div className="flex items-center justify-between border-b px-6 py-4 border-zinc-200 shrink-0">
             <span className="text-xs font-bold uppercase text-zinc-500 tracking-wider">
               {vista === "formulario" ? "Generador de estatus" : "Estatus generado"}
             </span>
@@ -163,10 +160,10 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
           </div>
 
           {vista === "formulario" ? (
-            <form onSubmit={handleGenerar} className="flex flex-col gap-4 p-5 overflow-y-auto">
+            <form onSubmit={handleGenerar} className="flex flex-col gap-6 p-6 overflow-y-auto">
               <div>
-                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-2">Marcas</label>
-                <div className="flex flex-wrap gap-2">
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-3">Marcas</label>
+                <div className="flex flex-wrap gap-2.5">
                   {marcasDisponibles.map(m => {
                     const seleccionada = marcasSeleccionadas.some(ms => marcasCoinciden(ms, m));
                     const estilo = getMarcaStyle(m);
@@ -175,7 +172,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                         key={m}
                         type="button"
                         onClick={() => toggleMarca(m)}
-                        className={`text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                        className={`text-[12px] font-semibold px-4 py-2 rounded-lg border transition-all ${
                           seleccionada
                             ? `${estilo.surface} ring-2 ring-offset-1 ring-zinc-300`
                             : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
@@ -189,8 +186,8 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-2">Estados a incluir</label>
-                <div className={`flex flex-wrap gap-2 ${organizarPor === "espera-comentarios" ? "opacity-50 pointer-events-none" : ""}`}>
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-3">Estados a incluir</label>
+                <div className={`flex flex-wrap gap-2.5 ${organizarPor === "espera-comentarios" ? "opacity-50 pointer-events-none" : ""}`}>
                   {obtenerEstadosGeneradorEstatus().map(estado => {
                     const seleccionado = organizarPor === "espera-comentarios"
                       ? cleanEstado(estado) === "seguimiento"
@@ -201,7 +198,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                         key={estado}
                         type="button"
                         onClick={() => toggleEstado(estado)}
-                        className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                        className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-4 py-2 rounded-lg border transition-all ${
                           seleccionado
                             ? `${config?.bg || "bg-zinc-50"} ring-2 ring-offset-1 ring-zinc-300`
                             : "bg-white text-zinc-400 border-zinc-200 hover:border-zinc-300"
@@ -214,14 +211,14 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                   })}
                 </div>
                 {organizarPor === "espera-comentarios" && (
-                  <p className="mt-2 text-[10px] text-zinc-400">
+                  <p className="mt-3 text-[10px] text-zinc-400 leading-relaxed">
                     Este modo usa solo tareas en <span className="font-semibold">Seguimiento</span> (espera al cliente).
                   </p>
                 )}
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-2">
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-3">
                   Personas <span className="font-normal normal-case">(opcional)</span>
                 </label>
                 <SelectorPersonasChips
@@ -238,7 +235,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                   <button
                     type="button"
                     onClick={() => setSubclientesDesplegados((v) => !v)}
-                    className="w-full flex items-center justify-between gap-3 px-3 py-2.5 bg-zinc-50 hover:bg-zinc-100 transition-colors text-left"
+                    className="w-full flex items-center justify-between gap-3 px-4 py-3 bg-zinc-50 hover:bg-zinc-100 transition-colors text-left"
                     aria-expanded={subclientesDesplegados}
                   >
                     <span className="flex items-center gap-2 min-w-0">
@@ -246,7 +243,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                         className={`fa-solid ${subclientesDesplegados ? "fa-chevron-down" : "fa-chevron-right"} text-[9px] text-zinc-400 shrink-0`}
                         aria-hidden="true"
                       />
-                      <span className="text-[10px] font-bold text-zinc-400 uppercase">
+                      <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide">
                         Subclientes{" "}
                         <span className="font-normal normal-case text-zinc-500">(opcional)</span>
                       </span>
@@ -259,8 +256,8 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                   </button>
 
                   {subclientesDesplegados && (
-                    <div className="px-3 py-2.5 border-t border-zinc-200 max-h-36 overflow-y-auto">
-                      <div className="flex flex-wrap gap-2">
+                    <div className="px-4 py-3 border-t border-zinc-200 max-h-36 overflow-y-auto">
+                      <div className="flex flex-wrap gap-2.5">
                         {subclientesDisponibles.map((nombre) => {
                           const seleccionado = subclientesFiltro.some((s) => subclientesCoinciden(s, nombre));
                           return (
@@ -268,7 +265,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                               key={nombre}
                               type="button"
                               onClick={() => toggleSubcliente(nombre)}
-                              className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                              className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-4 py-2 rounded-lg border transition-all ${
                                 seleccionado
                                   ? "bg-zinc-100 text-zinc-800 ring-2 ring-offset-1 ring-zinc-300 border-zinc-300"
                                   : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
@@ -286,8 +283,8 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
               )}
 
               <div>
-                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-2">Organizar estatus</label>
-                <div className="flex flex-wrap gap-2">
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-3">Organizar estatus</label>
+                <div className="flex flex-wrap gap-2.5">
                   {(typeof ORGANIZAR_ESTATUS_OPCIONES !== "undefined" ? ORGANIZAR_ESTATUS_OPCIONES : [
                     { id: "persona", label: "Por personas" },
                     { id: "marca", label: "Por marca" },
@@ -298,7 +295,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                       key={opcion.id}
                       type="button"
                       onClick={() => setOrganizarPor(opcion.id)}
-                      className={`text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                      className={`text-[12px] font-semibold px-4 py-2 rounded-lg border transition-all ${
                         organizarPor === opcion.id
                           ? "bg-zinc-900 text-white border-zinc-900"
                           : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
@@ -311,14 +308,14 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-2">Opciones</label>
-                <div className="flex flex-wrap gap-2">
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-3">Opciones</label>
+                <div className="flex flex-wrap gap-2.5">
                   {organizarPor !== "espera-comentarios" && (
                     <>
                       <button
                         type="button"
                         onClick={() => setIncluirSubtareas((v) => !v)}
-                        className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                        className={`inline-flex items-center gap-2 text-[12px] font-semibold px-4 py-2 rounded-lg border transition-all ${
                           incluirSubtareas
                             ? "bg-zinc-900 text-white border-zinc-900"
                             : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
@@ -331,7 +328,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                       <button
                         type="button"
                         onClick={() => setIncluirPrioridad((v) => !v)}
-                        className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                        className={`inline-flex items-center gap-2 text-[12px] font-semibold px-4 py-2 rounded-lg border transition-all ${
                           incluirPrioridad
                             ? "bg-zinc-900 text-white border-zinc-900"
                             : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
@@ -341,26 +338,13 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                         <i className={`fa-solid ${incluirPrioridad ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
                         Agregar prioridad
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setIncluirAcciones((v) => !v)}
-                        className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
-                          incluirAcciones
-                            ? "bg-zinc-900 text-white border-zinc-900"
-                            : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
-                        }`}
-                        aria-pressed={incluirAcciones}
-                      >
-                        <i className={`fa-solid ${incluirAcciones ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
-                        Mostrar acciones
-                      </button>
                     </>
                   )}
                   {organizarPor === "espera-comentarios" && (
                     <button
                       type="button"
                       onClick={() => setIncluirDetalle((v) => !v)}
-                      className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                      className={`inline-flex items-center gap-2 text-[12px] font-semibold px-4 py-2 rounded-lg border transition-all ${
                         incluirDetalle
                           ? "bg-zinc-900 text-white border-zinc-900"
                           : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
@@ -372,16 +356,16 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                     </button>
                   )}
                 </div>
-                <p className="mt-1.5 text-[10px] text-zinc-400">
+                <p className="mt-3 text-[10px] text-zinc-400 leading-relaxed">
                   {organizarPor === "espera-comentarios" 
                     ? "El detalle muestra los entregables específicos con sus links y estados."
                     : "Prioridad marca con ⚠️ las tareas altas. Por defecto no se incluyen subtareas ni prioridad."}
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Filtro de fecha</label>
+                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-2">Filtro de fecha</label>
                   <select
                     value={filtroTiempo}
                     onChange={(e) => setFiltroTiempo(e.target.value)}
@@ -393,7 +377,7 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-1">Ordenar por</label>
+                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-2">Ordenar por</label>
                   <select
                     value={ordenarPor}
                     onChange={(e) => setOrdenarPor(e.target.value)}
@@ -406,33 +390,33 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
               </div>
 
               {marcasSeleccionadas.length > 0 && (
-                <p className="text-[11px] text-zinc-400">
+                <p className="text-[11px] text-zinc-500 bg-zinc-50 px-3 py-2 rounded-lg border border-zinc-100">
                   {tareasPreview} tarea{tareasPreview !== 1 ? "s" : ""} coinciden con los filtros
                 </p>
               )}
 
-              <div className="flex gap-2 justify-end pt-2 border-t border-zinc-100">
+              <div className="flex gap-3 justify-end pt-3 border-t border-zinc-100">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="px-3 py-2 text-xs text-zinc-500 hover:text-zinc-800"
+                  className="px-4 py-2.5 text-xs font-semibold text-zinc-500 hover:text-zinc-800 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={marcasSeleccionadas.length === 0 || (organizarPor !== "espera-comentarios" && estadosSeleccionados.length === 0)}
-                  className="px-4 py-2 bg-[#37352F] text-white text-xs font-semibold rounded-lg hover:bg-[#2c2a26] disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="px-5 py-2.5 bg-[#37352F] text-white text-xs font-semibold rounded-lg hover:bg-[#2c2a26] disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                 >
                   Generar estatus
                 </button>
               </div>
             </form>
           ) : (
-            <div className="flex flex-col gap-4 p-5 overflow-y-auto">
+            <div className="flex flex-col gap-6 p-6 overflow-y-auto">
               <div>
-                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-2">Organizar estatus</label>
-                <div className="flex flex-wrap gap-2">
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-3">Organizar estatus</label>
+                <div className="flex flex-wrap gap-2.5">
                   {(typeof ORGANIZAR_ESTATUS_OPCIONES !== "undefined" ? ORGANIZAR_ESTATUS_OPCIONES : [
                     { id: "persona", label: "Por personas" },
                     { id: "marca", label: "Por marca" },
@@ -442,8 +426,8 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                     <button
                       key={opcion.id}
                       type="button"
-                      onClick={() => generarConOpciones(opcion.id, incluirSubtareas, incluirPrioridad, incluirAcciones, incluirDetalle)}
-                      className={`text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                      onClick={() => generarConOpciones(opcion.id, incluirSubtareas, incluirPrioridad, incluirDetalle)}
+                      className={`text-[12px] font-semibold px-4 py-2 rounded-lg border transition-all ${
                         organizarPor === opcion.id
                           ? "bg-zinc-900 text-white border-zinc-900"
                           : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
@@ -455,14 +439,14 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                 </div>
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-zinc-400 uppercase mb-2">Opciones</label>
-                <div className="flex flex-wrap gap-2">
+                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wide mb-3">Opciones</label>
+                <div className="flex flex-wrap gap-2.5">
                   {organizarPor !== "espera-comentarios" && (
                     <>
                       <button
                         type="button"
-                        onClick={() => generarConOpciones(organizarPor, !incluirSubtareas, incluirPrioridad, incluirAcciones, incluirDetalle)}
-                        className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                        onClick={() => generarConOpciones(organizarPor, !incluirSubtareas, incluirPrioridad, incluirDetalle)}
+                        className={`inline-flex items-center gap-2 text-[12px] font-semibold px-4 py-2 rounded-lg border transition-all ${
                           incluirSubtareas
                             ? "bg-zinc-900 text-white border-zinc-900"
                             : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
@@ -474,8 +458,8 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                       </button>
                       <button
                         type="button"
-                        onClick={() => generarConOpciones(organizarPor, incluirSubtareas, !incluirPrioridad, incluirAcciones, incluirDetalle)}
-                        className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                        onClick={() => generarConOpciones(organizarPor, incluirSubtareas, !incluirPrioridad, incluirDetalle)}
+                        className={`inline-flex items-center gap-2 text-[12px] font-semibold px-4 py-2 rounded-lg border transition-all ${
                           incluirPrioridad
                             ? "bg-zinc-900 text-white border-zinc-900"
                             : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
@@ -485,26 +469,13 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                         <i className={`fa-solid ${incluirPrioridad ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
                         Agregar prioridad
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => generarConOpciones(organizarPor, incluirSubtareas, incluirPrioridad, !incluirAcciones, incluirDetalle)}
-                        className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
-                          incluirAcciones
-                            ? "bg-zinc-900 text-white border-zinc-900"
-                            : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
-                        }`}
-                        aria-pressed={incluirAcciones}
-                      >
-                        <i className={`fa-solid ${incluirAcciones ? "fa-square-check" : "fa-square"} text-[11px]`} aria-hidden="true" />
-                        Mostrar acciones
-                      </button>
                     </>
                   )}
                   {organizarPor === "espera-comentarios" && (
                     <button
                       type="button"
-                      onClick={() => generarConOpciones(organizarPor, incluirSubtareas, incluirPrioridad, incluirAcciones, !incluirDetalle)}
-                      className={`inline-flex items-center gap-2 text-[12px] font-semibold px-3 py-1.5 rounded-lg border transition-all ${
+                      onClick={() => generarConOpciones(organizarPor, incluirSubtareas, incluirPrioridad, !incluirDetalle)}
+                      className={`inline-flex items-center gap-2 text-[12px] font-semibold px-4 py-2 rounded-lg border transition-all ${
                         incluirDetalle
                           ? "bg-zinc-900 text-white border-zinc-900"
                           : "bg-white text-zinc-500 border-zinc-200 hover:border-zinc-300"
@@ -517,29 +488,29 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                   )}
                 </div>
               </div>
-              <pre className="text-[12px] text-[#37352F] leading-relaxed whitespace-pre-wrap font-mono bg-zinc-50 border border-zinc-200 rounded-lg p-4 max-h-[50vh] overflow-y-auto">
+              <pre className="text-[12px] text-[#37352F] leading-relaxed whitespace-pre-wrap font-mono bg-zinc-50 border border-zinc-200 rounded-lg p-5 max-h-[50vh] overflow-y-auto">
                 {textoGenerado}
               </pre>
 
-              <div className="flex gap-2 justify-end pt-2 border-t border-zinc-100">
+              <div className="flex gap-3 justify-end pt-3 border-t border-zinc-100">
                 <button
                   type="button"
                   onClick={() => setVista("formulario")}
-                  className="px-3 py-2 text-xs font-semibold text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50"
+                  className="px-4 py-2.5 text-xs font-semibold text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 transition-colors"
                 >
                   Editar
                 </button>
                 <button
                   type="button"
                   onClick={handleCopiar}
-                  className="px-3 py-2 text-xs font-semibold text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50"
+                  className="px-4 py-2.5 text-xs font-semibold text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 transition-colors"
                 >
                   {copiado ? "¡Copiado!" : "Copiar"}
                 </button>
                 <button
                   type="button"
                   onClick={handleCompartir}
-                  className="px-4 py-2 bg-[#37352F] text-white text-xs font-semibold rounded-lg hover:bg-[#2c2a26] inline-flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-[#37352F] text-white text-xs font-semibold rounded-lg hover:bg-[#2c2a26] inline-flex items-center gap-1.5 transition-all"
                 >
                   <i className="fa-solid fa-share-nodes" aria-hidden="true" />
                   {compartido ? "¡Listo!" : "Compartir"}

@@ -95,7 +95,7 @@ function filaSupabaseDesdeTarea(tarea, usuario) {
     || parsed.pendienteCor
     || (typeof tareaPendienteSubirCor === "function" && tareaPendienteSubirCor(t))
   );
-  const link = String(t.link || parsed.link || "").trim();
+  const link = String(parsed.link || t.link || "").trim();
   const detalles = typeof serializeDetalles === "function"
     ? serializeDetalles(parsed.notas, parsed.subtareas || [], parsed.historial || [], link, subcliente, {
       flujo,

@@ -134,6 +134,7 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
   const [subtareas, setSubtareas] = useState(() => Array.isArray(detallesIniciales.subtareas) ? detallesIniciales.subtareas : []);
   const [link, setLink] = useState(detallesIniciales.link || "");
   const [editandoLink, setEditandoLink] = useState(false);
+  const [linkError, setLinkError] = useState("");
   const linkInputRef = useRef(null);
   const [subcliente, setSubcliente] = useState(() => {
     try {
@@ -325,6 +326,16 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
 
   const handleLinkChange = (val) => {
     setLink(val);
+    
+    if (typeof validarLinkCor === "function") {
+      const validacion = validarLinkCor(val);
+      if (!validacion.valido) {
+        setLinkError(validacion.error);
+      } else {
+        setLinkError("");
+      }
+    }
+    
     setRawDetalles(serializarConMeta(notes, subtareas, parsed.historial, val, subcliente, medidas));
   };
 
@@ -848,52 +859,57 @@ function ModalEdicionTarea({ tarea: tareaProp, onClose, onSave, onDelete, listaP
               labelTitle={linkNormalizado || link ? "Copiar enlace" : "Sin enlace"}
               onLabelClick={handleCopiarLinkPropiedad}
             >
-              <div className="flex items-center gap-2 min-w-0">
-                {linkNormalizado && !editandoLink ? (
-                  <a
-                    href={linkNormalizado}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="task-link-open-btn"
-                    title="Abrir enlace"
-                  >
-                    <span className="task-link-open-btn__text">{link}</span>
-                    <i className="fa-solid fa-arrow-up-right-from-square task-link-open-btn__icon" aria-hidden="true" />
-                  </a>
-                ) : metadatosSoloLectura ? (
-                  <span className={`${readOnlyClass} truncate`}>{link || "—"}</span>
-                ) : (
-                  <input
-                    ref={linkInputRef}
-                    type="url"
-                    value={link}
-                    onChange={(e) => handleLinkChange(e.target.value)}
-                    onBlur={() => setEditandoLink(false)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        setEditandoLink(false);
-                      }
-                      if (e.key === "Escape") {
-                        e.preventDefault();
-                        setEditandoLink(false);
-                      }
-                    }}
-                    placeholder="https://..."
-                    className={inputPropTextClass}
-                  />
+              <div className="flex flex-col gap-1 min-w-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  {linkNormalizado && !editandoLink ? (
+                    <a
+                      href={linkNormalizado}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="task-link-open-btn"
+                      title="Abrir enlace"
+                    >
+                      <span className="task-link-open-btn__text">{link}</span>
+                      <i className="fa-solid fa-arrow-up-right-from-square task-link-open-btn__icon" aria-hidden="true" />
+                    </a>
+                  ) : metadatosSoloLectura ? (
+                    <span className={`${readOnlyClass} truncate`}>{link || "—"}</span>
+                  ) : (
+                    <input
+                      ref={linkInputRef}
+                      type="url"
+                      value={link}
+                      onChange={(e) => handleLinkChange(e.target.value)}
+                      onBlur={() => setEditandoLink(false)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          setEditandoLink(false);
+                        }
+                        if (e.key === "Escape") {
+                          e.preventDefault();
+                          setEditandoLink(false);
+                        }
+                      }}
+                      placeholder="https://..."
+                      className={inputPropTextClass}
+                    />
+                  )}
+                  {!metadatosSoloLectura && linkNormalizado && !editandoLink ? (
+                    <button
+                      type="button"
+                      className="task-link-edit-btn"
+                      title="Editar enlace"
+                      aria-label="Editar enlace"
+                      onClick={() => setEditandoLink(true)}
+                    >
+                      <i className="fa-solid fa-pen" aria-hidden="true" />
+                    </button>
+                  ) : null}
+                </div>
+                {linkError && (
+                  <p className="text-[11px] text-red-600 font-medium">{linkError}</p>
                 )}
-                {!metadatosSoloLectura && linkNormalizado && !editandoLink ? (
-                  <button
-                    type="button"
-                    className="task-link-edit-btn"
-                    title="Editar enlace"
-                    aria-label="Editar enlace"
-                    onClick={() => setEditandoLink(true)}
-                  >
-                    <i className="fa-solid fa-pen" aria-hidden="true" />
-                  </button>
-                ) : null}
               </div>
             </PropertyRow>
 

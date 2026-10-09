@@ -381,14 +381,57 @@ function obtenerSubclienteDesdeDetalles(tarea) {
 function normalizarUrlEnlace(val) {
   let s = String(val || "").trim();
   if (!s) return "";
+  
+  s = s.replace(/^https:\/\/Hola%20/i, "https://robin-agency.cor.works/tasks/");
+  s = s.replace(/^https:\/\/[^/]*%20[^/]*/, "https://robin-agency.cor.works/tasks/");
+  
+  const corMatch = s.match(/robin-agency\.cor\.works\/tasks\/(\d+)/i);
+  if (corMatch) {
+    return `https://robin-agency.cor.works/tasks/${corMatch[1]}`;
+  }
+  
   if (!/^https?:\/\//i.test(s)) s = `https://${s}`;
   try {
     const u = new URL(s);
     if (u.protocol !== "http:" && u.protocol !== "https:") return "";
+    
+    if (u.hostname.includes("robin-agency.cor.works") || u.hostname.includes("cor.works")) {
+      const taskMatch = u.pathname.match(/\/tasks\/(\d+)/);
+      if (taskMatch) {
+        return `https://robin-agency.cor.works/tasks/${taskMatch[1]}`;
+      }
+    }
+    
     return u.href;
   } catch {
     return "";
   }
+}
+
+function validarLinkCor(val) {
+  const s = String(val || "").trim();
+  if (!s) return { valido: true, error: "" };
+  
+  if (s.length > 500) {
+    return { 
+      valido: false, 
+      error: "El link es demasiado largo. Debe ser una URL de COR: https://robin-agency.cor.works/tasks/[NUMERO]" 
+    };
+  }
+  
+  if (s.includes("%20") && !s.match(/robin-agency\.cor\.works\/tasks\/\d+/)) {
+    return { 
+      valido: false, 
+      error: "Link inválido. Parece que se copió texto en lugar de un link. Use el formato: https://robin-agency.cor.works/tasks/[NUMERO]" 
+    };
+  }
+  
+  const norm = normalizarUrlEnlace(s);
+  if (!norm) {
+    return { valido: false, error: "Link inválido. Debe ser una URL válida." };
+  }
+  
+  return { valido: true, error: "" };
 }
 
 function escaparHtmlTexto(text) {

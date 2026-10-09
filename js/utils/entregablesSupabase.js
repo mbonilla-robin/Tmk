@@ -87,8 +87,10 @@ function filaSupabaseDesdeTarea(tarea, usuario) {
   const subcliente = (typeof obtenerSubclienteTarea === "function" ? obtenerSubclienteTarea(t) : "") || parsed.subcliente || "";
   const flujo = String(t.flujo || parsed.flujo || "").trim();
   const importKey = (typeof obtenerImportKeyTarea === "function" ? obtenerImportKeyTarea(t) : "") || parsed.importKey || "";
-  const envioTipo = String(t.envioTipo || parsed.envioTipo || "").trim();
-  const pendienteCor = Boolean(
+  const estadoNorm = String(t.estado || "").trim().toLowerCase();
+  const esEnRevision = estadoNorm === "en revision" || estadoNorm === "en revisión";
+  const envioTipo = esEnRevision ? "" : String(t.envioTipo || parsed.envioTipo || "").trim();
+  const pendienteCor = esEnRevision ? false : Boolean(
     t.pendienteCor
     || parsed.pendienteCor
     || (typeof tareaPendienteSubirCor === "function" && tareaPendienteSubirCor(t))

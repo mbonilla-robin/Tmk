@@ -1,6 +1,6 @@
 // Salas de reunión (Google Calendar vía Apps Script: google-apps-script/SalasCalendario.gs)
 // Mientras SALAS_API_URL esté vacío, la página usa datos de ejemplo.
-const SALAS_API_URL = "";
+const SALAS_API_URL = "https://script.google.com/macros/s/AKfycbxf9lDh_rcbX_ylTME546IltiQ7krN-54zm7PxqTID8t6Wz19ZPFQrzWJvI0_EInA3u/exec";
 const SALAS_API_SECRET = "5f551b1389facc9e70c08b79f99c9738";
 
 // Caracas no usa horario de verano: offset fijo UTC-4.

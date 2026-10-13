@@ -223,6 +223,9 @@ async function salasFetchDisponibilidad(diaStr) {
     redirect: "follow",
     cache: "no-store"
   });
+  if (res.status === 401 || res.status === 403) {
+    throw new Error("Google bloqueó el acceso (403). El despliegue de Apps Script debe tener «Quién tiene acceso: Cualquiera».");
+  }
   if (!res.ok) throw new Error(`El servidor respondió ${res.status}`);
 
   let data;

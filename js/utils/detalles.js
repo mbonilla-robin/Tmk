@@ -189,7 +189,8 @@ function parseDetalles(detallesRaw) {
   const sinImport = extraerMarcadorImportKey(sinFlujo.resto);
   const sinEnvio = extraerMarcadorEnvioTipo(sinImport.resto);
   const sinPendiente = extraerMarcadorPendienteCor(sinEnvio.resto);
-  const { medidas, resto } = extraerMarcadorMedidas(sinPendiente.resto);
+  const { medidas, resto: restoConMarcasVacias } = extraerMarcadorMedidas(sinPendiente.resto);
+  const resto = restoConMarcasVacias.replace(/[ \t]*<!--\s*robin-[a-z-]+:\s*-->[ \t]*/gi, "");
   const pendienteCor = sinPendiente.pendienteCor;
   const subcliente = sinSub.subcliente;
   const flujo = sinFlujo.flujo;

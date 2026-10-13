@@ -367,78 +367,6 @@ function unirNotasChatSinEtiqueta(notasBase, hiloComentarios) {
   return [base, hilo].filter(Boolean).join("\n\n");
 }
 
-/**
- * Migra notas en formato de lista numerada al formato de chat con timestamps.
- * Formato esperado: "1. @usuario: mensaje" o "• @usuario: mensaje"
- */
-function migrarNotasListaNumeradaAChat(textoNotas, fechaBase) {
-  const texto = String(textoNotas || "").trim();
-  if (!texto) return texto;
-  
-  // Detectar si el texto tiene formato de lista numerada o bullets
-  const tieneListaNumerada = /^\s*\d+\.\s*@\w+\s*:/m.test(texto);
-  const tieneListaBullets = /^\s*[•\-\*]\s*@\w+\s*:/m.test(texto);
-  
-  if (!tieneListaNumerada && !tieneListaBullets) return texto;
-  
-  // Ya tiene timestamps, no migrar
-  if (COMENTARIO_STAMP_RE.test(texto)) return texto;
-  
-  // Separar por líneas y agrupar entradas
-  const lineas = texto.split('\n');
-  const entradas = [];
-  let entradaActual = null;
-  
-  lineas.forEach((linea) => {
-    const lineaTrim = linea.trim();
-    if (!lineaTrim) {
-      // Línea vacía: agregar a la entrada actual si existe
-      if (entradaActual) entradaActual.lineas.push('');
-      return;
-    }
-    
-    // Detectar inicio de nueva entrada (número o bullet seguido de @usuario:)
-    const matchNum = lineaTrim.match(/^(\d+)\.\s*(@\w+)\s*:\s*(.*)$/);
-    const matchBullet = lineaTrim.match(/^[•\-\*]\s*(@\w+)\s*:\s*(.*)$/);
-    const match = matchNum || matchBullet;
-    
-    if (match) {
-      // Guardar entrada anterior si existe
-      if (entradaActual) entradas.push(entradaActual);
-      
-      // Iniciar nueva entrada
-      const numero = matchNum ? parseInt(matchNum[1], 10) : entradas.length + 1;
-      const usuario = match[2];
-      const contenido = match[3];
-      
-      entradaActual = {
-        numero,
-        usuario,
-        lineas: contenido ? [contenido] : []
-      };
-    } else if (entradaActual) {
-      // Continuar la entrada actual (texto multi-línea)
-      entradaActual.lineas.push(linea);
-    }
-  });
-  
-  // Agregar última entrada
-  if (entradaActual) entradas.push(entradaActual);
-  
-  if (!entradas.length) return texto;
-  
-  // Generar timestamps espaciados (un minuto entre cada entrada)
-  const base = fechaBase instanceof Date ? fechaBase : new Date();
-  const resultado = entradas.map((entrada, idx) => {
-    const fecha = new Date(base.getTime() - (entradas.length - 1 - idx) * 60000);
-    const stamp = stampComentarioEstatusAhora(fecha);
-    const textoEntrada = entrada.lineas.join('\n').trim();
-    return `[${stamp}] ${entrada.usuario}: ${textoEntrada}`;
-  });
-  
-  return resultado.join('\n\n');
-}
-
 function parseEntradasComentarioEstatus(comentarioRaw) {
   const texto = quitarEtiquetaComentarioNotas(textoPlanoAjusteCor(comentarioRaw));
   if (!texto) return [];
@@ -546,19 +474,9 @@ function obtenerEntradasNotasChat(notasRaw) {
   } else {
     fuente = partes.notas;
   }
-  
-  // Migrar notas en formato de lista numerada al formato de chat
-  const fuenteMigrada = migrarNotasListaNumeradaAChat(fuente);
-  
-  // Si hubo migración, retornar también las notas migradas completas para que puedan guardarse
-  const huboCambios = fuenteMigrada !== fuente;
-  
   return {
     contexto,
-    entradas: parseEntradasComentarioEstatus(fuenteMigrada),
-    notasMigradas: huboCambios ? (partes.comentario ? 
-      (contexto ? `${contexto}\n\nComentario: ${fuenteMigrada}` : `Comentario: ${fuenteMigrada}`) 
-      : fuenteMigrada) : null
+    entradas: parseEntradasComentarioEstatus(fuente)
   };
 }
 

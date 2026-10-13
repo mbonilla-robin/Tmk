@@ -59,7 +59,7 @@ function NotasChatPanel({
   const composeRef = useRef(null);
   const editRef = useRef(null);
 
-  const { contexto, entradas, notasMigradas } = useMemo(() => {
+  const { contexto, entradas } = useMemo(() => {
     if (typeof obtenerEntradasNotasChat === "function") {
       return obtenerEntradasNotasChat(notes);
     }
@@ -67,34 +67,12 @@ function NotasChatPanel({
       const partes = notasYComentarioEstatus(notes);
       return {
         contexto: partes.comentario ? String(partes.notas || "").trim() : "",
-        entradas: parseEntradasComentarioEstatus(partes.comentario || partes.notas || ""),
-        notasMigradas: null
+        entradas: parseEntradasComentarioEstatus(partes.comentario || partes.notas || "")
       };
     }
     const texto = String(notes || "").trim();
-    return { contexto: "", entradas: texto ? [{ stamp: "", author: "", texto }] : [], notasMigradas: null };
+    return { contexto: "", entradas: texto ? [{ stamp: "", author: "", texto }] : [] };
   }, [notes]);
-  
-  // Efecto para guardar automáticamente las notas migradas
-  useEffect(() => {
-    if (!notasMigradas || soloLectura || guardando || typeof onCommit !== "function") return;
-    
-    // Guardar automáticamente sin mostrar UI
-    const guardarMigracion = async () => {
-      try {
-        await Promise.resolve(onCommit({
-          modo: "migrar-auto",
-          texto: notasMigradas,
-          pendienteCor: false
-        }));
-        console.log("✅ Notas migradas automáticamente al nuevo formato");
-      } catch (error) {
-        console.error("Error al migrar notas automáticamente:", error);
-      }
-    };
-    
-    guardarMigracion();
-  }, [notasMigradas, soloLectura, guardando, onCommit]);
 
   useEffect(() => {
     if (!pendienteConfirm) return undefined;
@@ -189,7 +167,7 @@ function NotasChatPanel({
       handleGuardarEdicion();
     }
   };
-  
+
   return (
     <div className="notas-chat">
       {contexto ? (

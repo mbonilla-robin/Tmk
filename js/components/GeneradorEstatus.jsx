@@ -533,5 +533,3 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
     </ModalPortal>
   );
 }
-
-export default GeneradorEstatus;

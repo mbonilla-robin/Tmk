@@ -11948,62 +11948,85 @@
 
     .robin-comment-avatar {
       flex-shrink: 0;
-      width: 1.5rem;
-      height: 1.5rem;
+      width: 2rem;
+      height: 2rem;
       border-radius: 999px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      font-size: 9px;
+      font-size: 10px;
       font-weight: 700;
       color: #52525b;
       letter-spacing: -0.02em;
       user-select: none;
+      margin-top: 0.25rem;
     }
 
     .robin-comment__content {
       flex: 1;
       min-width: 0;
+      background: #e4e4e7;
+      border-radius: 1rem;
+      padding: 0.75rem 1rem;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+    
+    .robin-comment:last-child .robin-comment__content {
+      background: #10b981;
     }
 
     .robin-comment__meta {
       display: flex;
       align-items: baseline;
       flex-wrap: wrap;
-      gap: 0.35rem;
-      margin-bottom: 0.15rem;
+      gap: 0.4rem;
+      margin-bottom: 0.4rem;
       line-height: 1.3;
     }
 
     .robin-comment__author {
-      font-size: 12px;
-      font-weight: 600;
-      color: #37352f;
+      font-size: 13px;
+      font-weight: 700;
+      color: #18181b;
     }
 
     .robin-comment__time {
       font-size: 11px;
-      color: #a1a1aa;
+      color: #71717a;
+    }
+    
+    .robin-comment:last-child .robin-comment__author,
+    .robin-comment:last-child .robin-comment__time {
+      color: #fff;
     }
 
     .robin-comment__body {
-      font-size: 12px;
-      line-height: 1.55;
-      color: #52525b;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #27272a;
       white-space: pre-wrap;
       word-break: break-word;
+    }
+    
+    .robin-comment:last-child .robin-comment__body {
+      color: #fff;
     }
 
     .robin-mention {
       color: #2563eb;
       font-weight: 500;
     }
+    
+    .robin-comment:last-child .robin-mention {
+      color: #93c5fd;
+      font-weight: 600;
+    }
 
     .robin-comment__reply-btn {
       margin-left: auto;
       font-size: 11px;
-      font-weight: 400;
-      color: #a1a1aa;
+      font-weight: 500;
+      color: #71717a;
       background: none;
       border: none;
       padding: 0;
@@ -12011,8 +12034,16 @@
     }
 
     .robin-comment__reply-btn:hover {
-      color: #52525b;
+      color: #27272a;
       text-decoration: underline;
+    }
+    
+    .robin-comment:last-child .robin-comment__reply-btn {
+      color: rgba(255, 255, 255, 0.85);
+    }
+    
+    .robin-comment:last-child .robin-comment__reply-btn:hover {
+      color: #fff;
     }
 
     .robin-comment-reply-banner {
@@ -12101,8 +12132,8 @@
     .robin-comment__delete-btn {
       margin-left: auto;
       font-size: 11px;
-      font-weight: 400;
-      color: #a1a1aa;
+      font-weight: 500;
+      color: #71717a;
       background: none;
       border: none;
       padding: 0;
@@ -12117,6 +12148,14 @@
     .robin-comment__delete-btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
+    }
+    
+    .robin-comment:last-child .robin-comment__delete-btn {
+      color: rgba(255, 255, 255, 0.85);
+    }
+    
+    .robin-comment:last-child .robin-comment__delete-btn:hover:not(:disabled) {
+      color: #fca5a5;
     }
 
     .robin-comment-compose__actions {
@@ -12420,14 +12459,32 @@
       color: #a1a1aa;
     }
 
+    [data-theme="midnight"] .robin-comment__content {
+      background: #3f3f46;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+    
+    [data-theme="midnight"] .robin-comment:last-child .robin-comment__content {
+      background: #059669;
+    }
+
     [data-theme="midnight"] .robin-comment__author,
     [data-theme="midnight"] .robin-notif-item__title {
       color: #f4f4f5;
     }
+    
+    [data-theme="midnight"] .robin-comment:last-child .robin-comment__author,
+    [data-theme="midnight"] .robin-comment:last-child .robin-comment__time {
+      color: #fff;
+    }
 
     [data-theme="midnight"] .robin-comment__body,
     [data-theme="midnight"] .robin-notif-item__detail {
-      color: #a1a1aa;
+      color: #e4e4e7;
+    }
+    
+    [data-theme="midnight"] .robin-comment:last-child .robin-comment__body {
+      color: #fff;
     }
 
     [data-theme="midnight"] .robin-comment-input {

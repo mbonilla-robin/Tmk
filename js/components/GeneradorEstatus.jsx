@@ -394,7 +394,6 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
               </div>
 
               </div>
-              </div>
 
               {marcasSeleccionadas.length > 0 && (
                 <p className="text-xs text-zinc-500 px-3 py-2 bg-zinc-50 border border-zinc-100 rounded col-span-2">

@@ -1,7 +1,7 @@
 const SALAS_MIN_DIA = 24 * 60;
 
-function salasApiConfigurada() {
-  return Boolean(typeof SALAS_API_URL !== "undefined" && String(SALAS_API_URL).trim());
+function salasUsaDemo() {
+  return typeof SALAS_FUENTE !== "undefined" && SALAS_FUENTE === "demo";
 }
 
 function salasPad2(n) {
@@ -207,35 +207,32 @@ function salasDatosDemo(diaStr) {
 }
 
 async function salasFetchDisponibilidad(diaStr) {
-  if (!salasApiConfigurada()) {
+  if (salasUsaDemo()) {
     return { demo: true, generado: new Date().toISOString(), salas: salasDatosDemo(diaStr) };
   }
+  if (typeof entregablesSupabaseListos !== "function" || !entregablesSupabaseListos()) {
+    throw new Error("Supabase no está configurado.");
+  }
 
-  const params = new URLSearchParams({
-    token: typeof SALAS_API_SECRET !== "undefined" ? SALAS_API_SECRET : "",
-    desde: diaStr,
-    hasta: diaStr
-  });
-  const separador = SALAS_API_URL.indexOf("?") >= 0 ? "&" : "?";
-  const res = await fetch(`${SALAS_API_URL}${separador}${params.toString()}`, {
-    method: "GET",
-    mode: "cors",
-    redirect: "follow",
-    cache: "no-store"
-  });
-  if (res.status === 401 || res.status === 403) {
-    throw new Error("Google bloqueó el acceso (403). El despliegue de Apps Script debe tener «Quién tiene acceso: Cualquiera».");
-  }
-  if (!res.ok) throw new Error(`El servidor respondió ${res.status}`);
+  const url = `${getEntregablesSupabaseUrl()}/rest/v1/robin_salas?select=sala_id,nombre,eventos,error,actualizado&order=nombre.asc`;
+  const res = await fetch(url, { method: "GET", headers: getEntregablesSupabaseHeaders(), cache: "no-store" });
 
-  let data;
-  try {
-    data = await res.json();
-  } catch (e) {
-    throw new Error("Respuesta inválida. Revisa que el despliegue de Apps Script permita acceso a «Cualquiera».");
+  if (res.status === 404) {
+    throw new Error("Falta crear la tabla robin_salas en Supabase (supabase/migrations/20260901120000_robin_salas.sql).");
   }
-  if (!data || data.success === false) {
-    throw new Error((data && data.error) || "No se pudo leer el calendario");
-  }
-  return { demo: false, generado: data.generado || new Date().toISOString(), salas: data.salas || [] };
+  if (!res.ok) throw new Error(`Supabase respondió ${res.status}`);
+
+  const filas = await res.json();
+  const salas = (Array.isArray(filas) ? filas : []).map((f) => ({
+    id: f.sala_id,
+    nombre: f.nombre,
+    error: f.error || "",
+    eventos: Array.isArray(f.eventos) ? f.eventos : []
+  }));
+  const ultima = (Array.isArray(filas) ? filas : [])
+    .map((f) => new Date(f.actualizado).getTime())
+    .filter((t) => !isNaN(t))
+    .reduce((max, t) => Math.max(max, t), 0);
+
+  return { demo: false, generado: ultima ? new Date(ultima).toISOString() : null, salas };
 }

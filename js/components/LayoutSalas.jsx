@@ -313,17 +313,24 @@ function LayoutSalas() {
   };
 
   const generado = datos && datos.generado ? new Date(datos.generado) : null;
+  const sincronizacionAtrasada = Boolean(
+    datos && !datos.demo && generado && !isNaN(generado.getTime()) &&
+    Date.now() - generado.getTime() > SALAS_SYNC_ATRASADA_MIN * 60000
+  );
 
   return (
     <div className="flex flex-col gap-5 pb-10">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="robin-desktop-only">
           <h2 className="text-lg font-bold text-[#37352F] tracking-tight">Salas de reunión</h2>
-          <p className="text-xs text-zinc-500 mt-0.5">Disponibilidad en tiempo real desde Google Calendar.</p>
+          <p className="text-xs text-zinc-500 mt-0.5">Disponibilidad desde Google Calendar, actualizada cada 5 minutos.</p>
         </div>
         <div className="flex items-center gap-2">
           {datos && datos.demo && (
             <PildoraEstadoSala tono="alerta" icono="fa-flask">Datos de ejemplo</PildoraEstadoSala>
+          )}
+          {sincronizacionAtrasada && (
+            <PildoraEstadoSala tono="alerta" icono="fa-triangle-exclamation">Sincronización atrasada</PildoraEstadoSala>
           )}
           {generado && !isNaN(generado.getTime()) && (
             <span className="hidden sm:inline text-[11px] text-zinc-400">
@@ -477,6 +484,12 @@ function LayoutSalas() {
             <TarjetaSala key={r.id} sala={r.sala} diaStr={diaStr} ahoraMin={ahoraMin} filtro={filtro} />
           ))}
         </div>
+      )}
+
+      {!cargando && !error && datos && salas.length === 0 && (
+        <p className="text-sm text-zinc-500 text-center py-8">
+          Aún no hay salas sincronizadas. Ejecuta la función <strong>instalar</strong> en el Apps Script de salas.
+        </p>
       )}
 
       {!cargando && !error && salas.length > 0 && visibles.length === 0 && (

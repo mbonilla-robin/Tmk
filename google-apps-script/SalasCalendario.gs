@@ -1,21 +1,14 @@
 // =============================================================================
 // ROBIN — Disponibilidad de salas de reunión (Google Calendar)
 // =============================================================================
-// Proyecto de Apps Script INDEPENDIENTE (script.google.com → Nuevo proyecto).
+// Despliegue: Implementar → Nueva implementación → Aplicación web
+//   Ejecutar como: Yo   |   Quién tiene acceso: Cualquiera
 // Debe desplegarse con una cuenta @robin-agency.com que pueda VER las salas.
-//
-// Despliegue:
-//   1. Pega este archivo en el proyecto.
-//   2. Configuración del proyecto → Propiedades del script → agrega
-//        ROBIN_SALAS_SECRET = (una clave larga, la misma que irá en js/config/salas.js)
-//   3. Implementar → Nueva implementación → Aplicación web
-//        Ejecutar como: Yo
-//        Quién tiene acceso: Cualquiera   (la seguridad la da el secreto)
-//   4. Acepta los permisos de Calendar y copia la URL /exec en js/config/salas.js
-//
-// Para agregar salas, añade una entrada en SALAS_CALENDARIO (id = ID del calendario
-// del recurso, el valor de `src` en el link de embed, ya decodificado).
+// Para agregar salas, añade una entrada en SALAS_CALENDARIO (id = valor de `src`
+// del link de embed, ya decodificado).
 // =============================================================================
+
+var SALAS_SECRETO = "5f551b1389facc9e70c08b79f99c9738";
 
 var SALAS_CALENDARIO = [
   {
@@ -94,11 +87,7 @@ function salasEventosDeSala_(sala, inicio, fin) {
 function doGet(e) {
   try {
     var params = (e && e.parameter) || {};
-    var secretoEsperado = PropertiesService.getScriptProperties().getProperty("ROBIN_SALAS_SECRET");
-    if (!secretoEsperado) {
-      return salasError_("Falta la propiedad ROBIN_SALAS_SECRET en el script.", "NOT_CONFIGURED");
-    }
-    if (String(params.token || "") !== secretoEsperado) {
+    if (String(params.token || "") !== SALAS_SECRETO) {
       return salasError_("No autorizado", "UNAUTHORIZED");
     }
 

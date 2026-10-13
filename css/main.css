@@ -11602,28 +11602,29 @@
     }
 
     .notas-chat__bubble {
-      padding: 0.65rem 0.75rem;
-      background: #f4f4f5;
-      border-radius: 0.75rem 0.75rem 0.75rem 0.25rem;
+      padding: 0.85rem 1rem;
+      background: #e4e4e7;
+      border-radius: 1rem;
       max-width: 100%;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     }
 
     .notas-chat__bubble.is-last {
-      background: #ecfdf5;
+      background: #10b981;
     }
 
     .notas-chat__meta {
       display: flex;
-      align-items: center;
-      gap: 0.4rem;
-      margin-bottom: 0.3rem;
+      align-items: baseline;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
       min-width: 0;
     }
 
     .notas-chat__author {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 700;
-      color: #3f3f46;
+      color: #18181b;
       min-width: 0;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -11631,10 +11632,15 @@
     }
 
     .notas-chat__time {
-      font-size: 10px;
-      color: #a1a1aa;
+      font-size: 11px;
+      color: #71717a;
       white-space: nowrap;
       flex-shrink: 0;
+    }
+    
+    .notas-chat__bubble.is-last .notas-chat__author,
+    .notas-chat__bubble.is-last .notas-chat__time {
+      color: #fff;
     }
 
     .notas-chat__edit-btn {
@@ -11657,6 +11663,15 @@
       background: rgba(24, 24, 27, 0.06);
       color: #27272a;
     }
+    
+    .notas-chat__bubble.is-last .notas-chat__edit-btn {
+      color: rgba(255, 255, 255, 0.85);
+    }
+    
+    .notas-chat__bubble.is-last .notas-chat__edit-btn:hover:not(:disabled) {
+      background: rgba(255, 255, 255, 0.15);
+      color: #fff;
+    }
 
     .notas-chat__edit-btn:disabled {
       opacity: 0.45;
@@ -11666,10 +11681,14 @@
     .notas-chat__body {
       margin: 0;
       font-size: 13px;
-      line-height: 1.45;
-      color: #3f3f46;
+      line-height: 1.5;
+      color: #27272a;
       white-space: pre-wrap;
       overflow-wrap: anywhere;
+    }
+    
+    .notas-chat__bubble.is-last .notas-chat__body {
+      color: #fff;
     }
 
     .notas-chat__edit {
@@ -11870,16 +11889,26 @@
     }
 
     [data-theme="midnight"] .notas-chat__bubble {
-      background: #27272a;
+      background: #3f3f46;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
     }
 
     [data-theme="midnight"] .notas-chat__bubble.is-last {
-      background: #064e3b;
+      background: #059669;
     }
 
-    [data-theme="midnight"] .notas-chat__author,
-    [data-theme="midnight"] .notas-chat__body {
+    [data-theme="midnight"] .notas-chat__author {
       color: #f4f4f5;
+    }
+    
+    [data-theme="midnight"] .notas-chat__body {
+      color: #e4e4e7;
+    }
+    
+    [data-theme="midnight"] .notas-chat__bubble.is-last .notas-chat__author,
+    [data-theme="midnight"] .notas-chat__bubble.is-last .notas-chat__time,
+    [data-theme="midnight"] .notas-chat__bubble.is-last .notas-chat__body {
+      color: #fff;
     }
 
     [data-theme="midnight"] .notas-chat__textarea {

@@ -137,14 +137,6 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
     );
   }, [subclientesDisponibles]);
 
-  useEffect(() => {
-    if (subclientesDisponibles.length > 0) {
-      setSubclientesDesplegados(true);
-    } else {
-      setSubclientesDesplegados(false);
-    }
-  }, [subclientesDisponibles.length]);
-
   return (
     <ModalPortal>
       <div className="fixed inset-0 bg-black/5 backdrop-blur-[2px] z-[250] flex items-center justify-center p-4 overflow-y-auto">
@@ -262,10 +254,43 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                     </span>
                   </button>
 
-                  {subclientesDesplegados && (
-                    <div className="px-3 py-2 border-t border-zinc-200">
-                      <div className="flex flex-wrap gap-1.5">
-                        {subclientesDisponibles.map((nombre) => {
+                  <div className="px-3 py-2 border-t border-zinc-200">
+                    <div className="flex flex-wrap gap-1.5">
+                      {!subclientesDesplegados ? (
+                        <>
+                          {/* Mostrar solo el primero cuando está colapsado */}
+                          {(() => {
+                            const primero = subclientesDisponibles[0];
+                            const seleccionado = subclientesFiltro.some((s) => subclientesCoinciden(s, primero));
+                            return (
+                              <button
+                                key={primero}
+                                type="button"
+                                onClick={() => toggleSubcliente(primero)}
+                                className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded border transition-colors ${
+                                  seleccionado
+                                    ? "bg-zinc-900 text-white border-zinc-900"
+                                    : "bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300"
+                                }`}
+                              >
+                                <i className="fa-solid fa-store text-[10px]" />
+                                {primero}
+                              </button>
+                            );
+                          })()}
+                          {subclientesDisponibles.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setSubclientesDesplegados(true)}
+                              className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded border border-zinc-300 bg-white text-zinc-500 hover:bg-zinc-50 transition-colors"
+                            >
+                              +{subclientesDisponibles.length - 1} más
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        /* Mostrar todos cuando está expandido */
+                        subclientesDisponibles.map((nombre) => {
                           const seleccionado = subclientesFiltro.some((s) => subclientesCoinciden(s, nombre));
                           return (
                             <button
@@ -282,10 +307,10 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
                               {nombre}
                             </button>
                           );
-                        })}
-                      </div>
+                        })
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               )}
 

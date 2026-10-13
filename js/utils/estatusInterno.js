@@ -379,13 +379,17 @@ function parseEntradasComentarioEstatus(comentarioRaw) {
   }
   const entradas = [];
   const pushEntrada = (stamp, body, at) => {
-    const partes = separarAutorDeTextoComentario(body);
-    if (!partes.texto) return;
-    entradas.push({
-      stamp: stamp || "",
-      author: partes.author || "",
-      texto: partes.texto,
-      at: at || 0
+    // Varias personas pegadas en un mismo bloque ("@a: ...\n@b: ...") son mensajes distintos
+    // que comparten la fecha real en que se guardaron.
+    dividirCuerpoPorAutorComentario(body).forEach((trozo) => {
+      const partes = separarAutorDeTextoComentario(trozo);
+      if (!partes.texto) return;
+      entradas.push({
+        stamp: stamp || "",
+        author: partes.author || "",
+        texto: partes.texto,
+        at: at || 0
+      });
     });
   };
   if (!matches.length) {
@@ -393,17 +397,37 @@ function parseEntradasComentarioEstatus(comentarioRaw) {
     return entradas;
   }
 
-  const pre = texto.slice(0, matches[0].index).trim();
+  const antesDelPrimerStamp = texto.slice(0, matches[0].index);
+  const pre = antesDelPrimerStamp.trim();
+  // Texto en líneas propias antes de la primera fecha es nota vieja sin fecha: no se le
+  // inventa la fecha del primer comentario. Solo un prefijo pegado al stamp
+  // ("En diseño[27/08/2026 15:02] …") se queda con esa burbuja.
+  const preEsNotaAparte = Boolean(pre) && /\n\s*$/.test(antesDelPrimerStamp);
+  if (preEsNotaAparte) pushEntrada("", pre, 0);
   matches.forEach((match, i) => {
     const end = i + 1 < matches.length ? matches[i + 1].index : texto.length;
     let body = texto.slice(match.bodyStart, end).trim();
-    // Prefijo corto antes del primer stamp (ej. "En diseño") va con esa burbuja, no solo.
-    if (i === 0 && pre) {
+    if (i === 0 && pre && !preEsNotaAparte) {
       body = body ? `${pre}\n${body}` : pre;
     }
     pushEntrada(match.stamp, body, tiempoDesdeStampComentarioEstatus(match.stamp));
   });
   return entradas;
+}
+
+function dividirCuerpoPorAutorComentario(body) {
+  const lineas = String(body || "").split("\n");
+  const trozos = [];
+  let actual = [];
+  lineas.forEach((linea, idx) => {
+    if (idx > 0 && actual.length && COMENTARIO_AUTOR_RE.test(linea.trim())) {
+      trozos.push(actual.join("\n"));
+      actual = [];
+    }
+    actual.push(linea);
+  });
+  if (actual.length) trozos.push(actual.join("\n"));
+  return trozos;
 }
 
 function serializarEntradasComentarioEstatus(entradas) {

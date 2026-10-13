@@ -3938,6 +3938,21 @@ function App() {
 
             {!isConfigOnlyAdmin && (
             <div className="robin-sidebar__section">
+              <span className="robin-sidebar__section-title">Oficina</span>
+              <button
+                type="button"
+                onClick={() => navegarA("salas")}
+                className={`robin-sidebar__link ${paginaActiva === "salas" ? "is-active" : ""}`}
+                data-induccion="nav-salas"
+              >
+                <i className="fa-solid fa-door-open robin-sidebar__link-icon"></i>
+                <span className="robin-sidebar__link-label">Salas de reunión</span>
+              </button>
+            </div>
+            )}
+
+            {!isConfigOnlyAdmin && (
+            <div className="robin-sidebar__section">
               <button
                 type="button"
                 onClick={() => navegarA("tmknews")}
@@ -4481,6 +4496,15 @@ function App() {
             />
           )}
 
+          {!isConfigOnlyAdmin && paginaActiva === "salas" && (
+            <>
+              {typeof MobileSubpageBar === "function" && (
+                <MobileSubpageBar title="Salas de reunión" onBack={() => navegarA("home")} backLabel="Home" />
+              )}
+              <LayoutSalas />
+            </>
+          )}
+
           {!isConfigOnlyAdmin && !isDesigner && paginaActiva === "informes" && (
             <LayoutGeneradorInformes
               tareas={tareas}
@@ -4574,6 +4598,7 @@ function App() {
         onAtajoFiltro={aplicarAtajoFiltro}
         onAbrirEstatusGeneral={abrirEstatusMobile}
         onAbrirEquipos={isDesigner ? undefined : () => navegarA("equipos")}
+        onAbrirSalas={() => navegarA("salas")}
         onAbrirEstatus={isDesigner ? undefined : () => setShowGeneradorEstatus(true)}
         onAbrirInformes={isDesigner ? undefined : () => navegarA("informes")}
         onCrearRapido={isDesigner ? undefined : () => setFormularioRapidoVisible(true)}

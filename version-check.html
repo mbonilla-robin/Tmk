@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Verificación de Versión</title>
+</head>
+<body>
+  <h1>Verificación de Caché</h1>
+  <div id="info"></div>
+  <script>
+    fetch('/js/components/GeneradorEstatus.jsx?v=152&_=' + Date.now())
+      .then(r => r.text())
+      .then(text => {
+        const hasExport = text.includes('export default');
+        const lastLines = text.split('\n').slice(-10).join('\n');
+        document.getElementById('info').innerHTML = `
+          <h2>Estado del archivo GeneradorEstatus.jsx</h2>
+          <p><strong>¿Tiene 'export default'?</strong> ${hasExport ? '❌ SÍ (MALO)' : '✅ NO (BUENO)'}</p>
+          <h3>Últimas líneas:</h3>
+          <pre style="background: #f0f0f0; padding: 10px;">${lastLines}</pre>
+          <h3>Timestamp:</h3>
+          <p>${new Date().toISOString()}</p>
+        `;
+      });
+  </script>
+</body>
+</html>

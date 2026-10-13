@@ -548,11 +548,17 @@ function obtenerEntradasNotasChat(notasRaw) {
   }
   
   // Migrar notas en formato de lista numerada al formato de chat
-  fuente = migrarNotasListaNumeradaAChat(fuente);
+  const fuenteMigrada = migrarNotasListaNumeradaAChat(fuente);
+  
+  // Si hubo migración, retornar también las notas migradas completas para que puedan guardarse
+  const huboCambios = fuenteMigrada !== fuente;
   
   return {
     contexto,
-    entradas: parseEntradasComentarioEstatus(fuente)
+    entradas: parseEntradasComentarioEstatus(fuenteMigrada),
+    notasMigradas: huboCambios ? (partes.comentario ? 
+      (contexto ? `${contexto}\n\nComentario: ${fuenteMigrada}` : `Comentario: ${fuenteMigrada}`) 
+      : fuenteMigrada) : null
   };
 }
 

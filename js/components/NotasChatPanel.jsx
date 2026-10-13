@@ -56,11 +56,10 @@ function NotasChatPanel({
   const [editDraft, setEditDraft] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [pendienteConfirm, setPendienteConfirm] = useState(null);
-  const [migrandoNotas, setMigrandoNotas] = useState(false);
   const composeRef = useRef(null);
   const editRef = useRef(null);
 
-  const { contexto, entradas } = useMemo(() => {
+  const { contexto, entradas, notasMigradas } = useMemo(() => {
     if (typeof obtenerEntradasNotasChat === "function") {
       return obtenerEntradasNotasChat(notes);
     }
@@ -68,27 +67,34 @@ function NotasChatPanel({
       const partes = notasYComentarioEstatus(notes);
       return {
         contexto: partes.comentario ? String(partes.notas || "").trim() : "",
-        entradas: parseEntradasComentarioEstatus(partes.comentario || partes.notas || "")
+        entradas: parseEntradasComentarioEstatus(partes.comentario || partes.notas || ""),
+        notasMigradas: null
       };
     }
     const texto = String(notes || "").trim();
-    return { contexto: "", entradas: texto ? [{ stamp: "", author: "", texto }] : [] };
+    return { contexto: "", entradas: texto ? [{ stamp: "", author: "", texto }] : [], notasMigradas: null };
   }, [notes]);
   
-  // Detectar si las notas necesitan migración
-  const necesitaMigracion = useMemo(() => {
-    const texto = String(notes || "").trim();
-    if (!texto) return false;
+  // Efecto para guardar automáticamente las notas migradas
+  useEffect(() => {
+    if (!notasMigradas || soloLectura || guardando || typeof onCommit !== "function") return;
     
-    // Tiene formato de lista numerada o bullets con @usuario
-    const tieneListaNumerada = /^\s*\d+\.\s*@\w+\s*:/m.test(texto);
-    const tieneListaBullets = /^\s*[•\-\*]\s*@\w+\s*:/m.test(texto);
+    // Guardar automáticamente sin mostrar UI
+    const guardarMigracion = async () => {
+      try {
+        await Promise.resolve(onCommit({
+          modo: "migrar-auto",
+          texto: notasMigradas,
+          pendienteCor: false
+        }));
+        console.log("✅ Notas migradas automáticamente al nuevo formato");
+      } catch (error) {
+        console.error("Error al migrar notas automáticamente:", error);
+      }
+    };
     
-    // Ya tiene timestamps
-    const tieneTimestamps = /\[\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\s+\d{1,2}:\d{2}\]/.test(texto);
-    
-    return (tieneListaNumerada || tieneListaBullets) && !tieneTimestamps;
-  }, [notes]);
+    guardarMigracion();
+  }, [notasMigradas, soloLectura, guardando, onCommit]);
 
   useEffect(() => {
     if (!pendienteConfirm) return undefined;
@@ -184,60 +190,8 @@ function NotasChatPanel({
     }
   };
   
-  const handleMigrarNotas = async () => {
-    if (typeof migrarNotasDeTexto !== "function" || guardando || soloLectura) return;
-    
-    setMigrandoNotas(true);
-    try {
-      const notasMigradas = await migrarNotasDeTexto(notes, new Date());
-      
-      if (notasMigradas && notasMigradas !== notes && typeof onCommit === "function") {
-        // Guardar las notas migradas directamente (sin pasar por el diálogo de COR)
-        await Promise.resolve(onCommit({
-          modo: "migrar",
-          texto: notasMigradas,
-          pendienteCor: false
-        }));
-      }
-    } catch (error) {
-      console.error("Error migrando notas:", error);
-    } finally {
-      setMigrandoNotas(false);
-    }
-  };
-  
   return (
     <div className="notas-chat">
-      {necesitaMigracion && !soloLectura ? (
-        <div className="notas-chat__banner-migracion">
-          <div className="notas-chat__banner-contenido">
-            <i className="fa-solid fa-info-circle notas-chat__banner-icono" aria-hidden="true" />
-            <div className="notas-chat__banner-texto">
-              <strong>Notas en formato antiguo</strong>
-              <p>Estas notas están en formato de lista. Migra al nuevo formato de chat con burbujas.</p>
-            </div>
-          </div>
-          <button
-            type="button"
-            className="notas-chat__btn-migrar"
-            onClick={handleMigrarNotas}
-            disabled={migrandoNotas || guardando || disabled}
-          >
-            {migrandoNotas ? (
-              <>
-                <i className="fa-solid fa-spinner fa-spin" aria-hidden="true" />
-                {" Migrando..."}
-              </>
-            ) : (
-              <>
-                <i className="fa-solid fa-magic" aria-hidden="true" />
-                {" Migrar notas"}
-              </>
-            )}
-          </button>
-        </div>
-      ) : null}
-      
       {contexto ? (
         <div className="notas-chat__contexto">
           <span className="notas-chat__contexto-label">Contexto</span>

@@ -331,7 +331,6 @@ async function upsertRemoteUserSettings(username, prefs) {
 
     if (!res.ok) {
       const detallePatch = await res.text();
-      console.warn("ROBIN Supabase: no se pudo guardar preferencias", res.status, detallePost || detallePatch);
       return { ok: false, status: res.status, detail: detallePatch || detallePost };
     }
 
@@ -350,7 +349,6 @@ async function upsertRemoteUserSettings(username, prefs) {
 
     return { ok: true };
   } catch (e) {
-    console.warn("ROBIN Supabase: error guardando preferencias", e);
     return { ok: false, detail: String(e?.message || e) };
   }
 }

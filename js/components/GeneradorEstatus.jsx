@@ -532,3 +532,5 @@ function GeneradorEstatus({ tareas, marcasDisponibles, listaPersonas, registrarN
     </ModalPortal>
   );
 }
+
+window.GeneradorEstatus = GeneradorEstatus;

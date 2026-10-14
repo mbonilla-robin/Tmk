@@ -2629,7 +2629,7 @@ function App() {
           parsedEdit.notas || parsedEdit.notes,
           parsedEdit.subtareas || [],
           historial,
-          parsedEdit.link || original.link,
+          parsedEdit.link !== undefined ? parsedEdit.link : original.link,
           parsedEdit.subcliente || original.subcliente,
           parsedEdit.flujo
         );
@@ -2693,7 +2693,7 @@ function App() {
         parsedEdit.notas || parsedEdit.notes,
         parsedEdit.subtareas || [],
         historial,
-        parsedEdit.link || original.link,
+        parsedEdit.link !== undefined ? parsedEdit.link : original.link,
         parsedEdit.subcliente || editedTask.subcliente || original.subcliente,
         parsedEdit.flujo
       );

@@ -1194,12 +1194,10 @@ function tiempoEnvioClienteEstatus(tarea) {
       cambioEstado = Math.max(cambioEstado, tiempoLineaHistorialConHoraEstatus(txt));
     }
   });
-  if (envio) return envio;
+  if (envio || cambioEstado) return Math.max(envio, cambioEstado);
 
   const ultima = obtenerUltimaEntradaComentarioEstatus(tarea);
   if (ultima?.at) return ultima.at;
-
-  if (cambioEstado) return cambioEstado;
 
   if (typeof obtenerTiempoFecha === "function") {
     const t = obtenerTiempoFecha(tarea.deadline || tarea.fechaInicio || "");

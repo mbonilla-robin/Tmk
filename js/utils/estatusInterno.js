@@ -1163,6 +1163,48 @@ function pesoEtapaEstatus(etapa, tarea) {
   return 0;
 }
 
+function tiempoLineaHistorialConHoraEstatus(line) {
+  const m = String(line || "").match(/\[(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\s+(\d{1,2}):(\d{2})\]/);
+  if (!m) return 0;
+  let anio = m[3] != null ? Number(m[3]) : new Date().getFullYear();
+  if (anio < 100) anio += 2000;
+  const mes = Number(m[2]) - 1;
+  const dia = Number(m[1]);
+  const hora = Number(m[4]);
+  const min = Number(m[5]);
+  let t = new Date(anio, mes, dia, hora, min).getTime();
+  // Sin año explícito: una fecha futura corresponde al año anterior.
+  if (m[3] == null && t > Date.now() + 86400000) t = new Date(anio - 1, mes, dia, hora, min).getTime();
+  return Number.isFinite(t) ? t : 0;
+}
+
+/** Momento en que la tarea pasó a espera del cliente (más reciente = mayor valor). */
+function tiempoEnvioClienteEstatus(tarea) {
+  if (!tarea) return 0;
+  const parsed = typeof parseDetalles === "function"
+    ? parseDetalles(tarea.detalles || "")
+    : { historial: [] };
+  let mejor = 0;
+  (parsed.historial || []).forEach((l) => {
+    const txt = String(l);
+    const esEnvio = /Envi[óo]\s+propuesta/i.test(txt)
+      || /Estado cambiado a "(Seguimiento|Espera de comentarios)"/i.test(txt);
+    if (!esEnvio) return;
+    const t = tiempoLineaHistorialConHoraEstatus(txt);
+    if (t > mejor) mejor = t;
+  });
+  if (mejor) return mejor;
+
+  const ultima = obtenerUltimaEntradaComentarioEstatus(tarea);
+  if (ultima?.at) return ultima.at;
+
+  if (typeof obtenerTiempoFecha === "function") {
+    const t = obtenerTiempoFecha(tarea.deadline || tarea.fechaInicio || "");
+    if (t !== Infinity && Number.isFinite(t)) return t;
+  }
+  return 0;
+}
+
 function listasOperativasEstatus(tareas, filas) {
   const filasRef = filasEstatusReferencia(filas);
   const porEnviar = [];
@@ -1223,9 +1265,15 @@ function listasOperativasEstatus(tareas, filas) {
     else pushUnico(faltaHacer, vistosFalta, item);
   });
   const byName = (a, b) => String(a.cadena).localeCompare(String(b.cadena), "es");
+  const porEnvioReciente = (a, b) => {
+    const tb = tiempoEnvioClienteEstatus(b.tarea);
+    const ta = tiempoEnvioClienteEstatus(a.tarea);
+    if (ta !== tb) return tb - ta;
+    return byName(a, b);
+  };
   return {
     porEnviar: porEnviar.sort(byName),
-    esperaCliente: esperaCliente.sort(byName),
+    esperaCliente: esperaCliente.sort(porEnvioReciente),
     faltaHacer: faltaHacer.sort(byName)
   };
 }

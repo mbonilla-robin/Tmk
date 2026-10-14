@@ -1710,9 +1710,6 @@ function LayoutEstatusGeneral({
               const comentarioHistorial = typeof textoHistorialComentarioEstatus === "function"
                 ? textoHistorialComentarioEstatus(comentarioSinMedidas)
                 : comentarioSinMedidas;
-              const ultimaEntrada = typeof obtenerUltimaEntradaComentarioEstatus === "function"
-                ? obtenerUltimaEntradaComentarioEstatus(comentarioSinMedidas)
-                : null;
               const medidasItem = typeof parseDetalles === "function"
                 ? (parseDetalles(item.tarea?.detalles || "").medidas || null)
                 : null;
@@ -1747,9 +1744,6 @@ function LayoutEstatusGeneral({
                         <span className="estatus-espera-coment-text">
                           {comentarioVista || medidasTxt || "—"}
                         </span>
-                        {ultimaEntrada?.stamp ? (
-                          <em className="estatus-espera-coment-stamp">{ultimaEntrada.stamp}</em>
-                        ) : null}
                       </span>
                     </span>
                     {puedeEditar && onGuardarComentario ? (

@@ -1,4 +1,4 @@
-const CACHE_NAME = "robin-pwa-v107";
+const CACHE_NAME = "robin-pwa-v108";
 
 const STATIC_ASSETS = [
   "./manifest.webmanifest",

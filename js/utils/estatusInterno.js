@@ -1184,19 +1184,22 @@ function tiempoEnvioClienteEstatus(tarea) {
   const parsed = typeof parseDetalles === "function"
     ? parseDetalles(tarea.detalles || "")
     : { historial: [] };
-  let mejor = 0;
+  let envio = 0;
+  let cambioEstado = 0;
   (parsed.historial || []).forEach((l) => {
     const txt = String(l);
-    const esEnvio = /Envi[óo]\s+propuesta/i.test(txt)
-      || /Estado cambiado a "(Seguimiento|Espera de comentarios)"/i.test(txt);
-    if (!esEnvio) return;
-    const t = tiempoLineaHistorialConHoraEstatus(txt);
-    if (t > mejor) mejor = t;
+    if (/Envi[óo]\s+propuesta/i.test(txt)) {
+      envio = Math.max(envio, tiempoLineaHistorialConHoraEstatus(txt));
+    } else if (/Estado cambiado a "(Seguimiento|Espera de comentarios)"/i.test(txt)) {
+      cambioEstado = Math.max(cambioEstado, tiempoLineaHistorialConHoraEstatus(txt));
+    }
   });
-  if (mejor) return mejor;
+  if (envio) return envio;
 
   const ultima = obtenerUltimaEntradaComentarioEstatus(tarea);
   if (ultima?.at) return ultima.at;
+
+  if (cambioEstado) return cambioEstado;
 
   if (typeof obtenerTiempoFecha === "function") {
     const t = obtenerTiempoFecha(tarea.deadline || tarea.fechaInicio || "");
